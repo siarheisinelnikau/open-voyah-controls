@@ -1,0 +1,31 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'org.openvoyah.controls'
+    compileSdk 35
+    useLibrary 'android.test.runner'
+    useLibrary 'android.test.base'
+    defaultConfig {
+        applicationId 'org.openvoyah.controls'
+        minSdk 28
+        targetSdk 35
+        versionCode 6
+        versionName '0.5.0'
+        testInstrumentationRunner 'android.test.InstrumentationTestRunner'
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    buildTypes { release { minifyEnabled false } }
+    lint { abortOnError true }
+}
+dependencies {
+    implementation project(':core')
+    implementation 'com.alphacephei:vosk-android:0.3.75@aar'
+    implementation 'net.java.dev.jna:jna:5.18.1@aar'
+}
+
+tasks.register('compileFridaHook', Exec) {
+    workingDir rootProject.projectDir
+    commandLine(System.getProperty('os.name').toLowerCase().contains('windows') ? 'npm.cmd' : 'npm', 'run', 'build:hook')
+    inputs.files(rootProject.fileTree('hooks'), rootProject.file('package-lock.json'))
+    outputs.files('src/main/assets/hooks/launcher-buttons.bundle.js', 'src/main/assets/hooks/localization.bundle.js')
+}
+tasks.named('preBuild').configure { dependsOn 'compileFridaHook' }

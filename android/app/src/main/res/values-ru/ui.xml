@@ -1,0 +1,222 @@
+<resources>
+    <string name="ui_0" formatted="false">"Не удалось открыть «"</string>
+    <string name="ui_1" formatted="false">"». Проверьте, что приложение установлено и доступно."</string>
+    <string name="ui_2" formatted="false">"Устройство "</string>
+    <string name="ui_3" formatted="false">"Навигация · центральный экран"</string>
+    <string name="ui_4" formatted="false">"Музыка · центральный экран"</string>
+    <string name="ui_5" formatted="false">"Кнопка 1 · пассажир"</string>
+    <string name="ui_6" formatted="false">"Кнопка 2 · пассажир"</string>
+    <string name="ui_7" formatted="false">"Кнопка 3 · пассажир"</string>
+    <string name="ui_8" formatted="false">"Кнопка 4 · пассажир"</string>
+    <string name="ui_9" formatted="false">"Кнопка 5 · пассажир"</string>
+    <string name="ui_10" formatted="false">"Настройки панели ожидают применения: "</string>
+    <string name="ui_11" formatted="false">"Настройки сохранены в приложении, но не применены к панели: "</string>
+    <string name="ui_12" formatted="false">"Подключено"</string>
+    <string name="ui_13" formatted="false">"Ожидание повторного подключения: "</string>
+    <string name="ui_14" formatted="false">"Подключено автоматически"</string>
+    <string name="ui_15" formatted="false">"Автоподключение будет повторено: "</string>
+    <string name="ui_16" formatted="false">"Требуется наш frida-inject 17.18.0, найден: "</string>
+    <string name="ui_18" formatted="false">"Подключение ещё не настроено"</string>
+    <string name="ui_19" formatted="false">"Сначала подключите Frida в настройках"</string>
+    <string name="ui_20" formatted="false">"Некорректный ответ голосового канала"</string>
+    <string name="ui_21" formatted="false">"Отключение не подтверждено. Повтор остановки запланирован: "</string>
+    <string name="ui_22" formatted="false">"Отключено; автоподключение отменено"</string>
+    <string name="ui_23" formatted="false">"Локальный shell не имеет root. Требуется подготовленная прошивка с Telnet на 127.0.0.1:23."</string>
+    <string name="ui_24" formatted="false">"Операция отменена"</string>
+    <string name="ui_25" formatted="false">"Нет завершённого ответа локального shell"</string>
+    <string name="ui_26" formatted="false">"Проверьте назначенное приложение"</string>
+    <string name="ui_27" formatted="false">"Приложение открыто"</string>
+    <string name="ui_28" formatted="false">"Настройки открыты"</string>
+    <string name="ui_29" formatted="false">"Помощник открыт"</string>
+    <string name="ui_30" formatted="false">"Включите службу кнопок. Прошивка должна поддерживать разделение экрана"</string>
+    <string name="ui_31" formatted="false">"Системе передана команда разделения экрана"</string>
+    <string name="ui_32" formatted="false">"Выберите приложение для этой команды в списке: музыка, навигация, радио и камера используют ваши назначения."</string>
+    <string name="ui_33" formatted="false">"Твои кнопки. Твои приложения."</string>
+    <string name="ui_34" formatted="false">"Голосовые команды"</string>
+    <string name="ui_35" formatted="false">"Экспортировать настройки"</string>
+    <string name="ui_36" formatted="false">"Сбросить настройки"</string>
+    <string name="ui_37" formatted="false">"Дополнительно: аппаратные кнопки"</string>
+    <string name="ui_38" formatted="false">"Служба подключена"</string>
+    <string name="ui_39" formatted="false">"Включи службу кнопок"</string>
+    <string name="ui_40" formatted="false">"Назначенные кнопки запускают выбранные действия."</string>
+    <string name="ui_41" formatted="false">"Открой специальные возможности и включи Open Voyah Controls."</string>
+    <string name="ui_42" formatted="false">"Специальные возможности"</string>
+    <string name="ui_43" formatted="false">"Перехват аппаратных кнопок"</string>
+    <string name="ui_44" formatted="false">"Назначения"</string>
+    <string name="ui_45" formatted="false">"Добавь первую кнопку"</string>
+    <string name="ui_46" formatted="false">"Определи код нажатием или введи его вручную. Затем выбери действие для короткого и длинного нажатия."</string>
+    <string name="ui_47" formatted="false">" · выключено"</string>
+    <string name="ui_48" formatted="false">"все устройства"</string>
+    <string name="ui_49" formatted="false">"выбранное устройство"</string>
+    <string name="ui_50" formatted="false">"Нажатие: "</string>
+    <string name="ui_51" formatted="false">"\nУдержание: "</string>
+    <string name="ui_52" formatted="false">"Изменить"</string>
+    <string name="ui_53" formatted="false">"＋ Определить кнопку нажатием"</string>
+    <string name="ui_54" formatted="false">"Добавить по коду"</string>
+    <string name="ui_55" formatted="false">"Настройки нажатий"</string>
+    <string name="ui_56" formatted="false">"Длинное нажатие: "</string>
+    <string name="ui_57" formatted="false">" мс\nЗащита от дребезга: "</string>
+    <string name="ui_58" formatted="false">" мс"</string>
+    <string name="ui_59" formatted="false">"Изменить интервалы"</string>
+    <string name="ui_60" formatted="false">"Импортировать настройки"</string>
+    <string name="ui_61" formatted="false">"Системные настройки"</string>
+    <string name="ui_62" formatted="false">"Сбросить назначения"</string>
+    <string name="ui_63" formatted="false">"Подключение к автомобилю"</string>
+    <string name="ui_64" formatted="false">"Панель подключается через Frida к штатному Qinggan launcher. Дополнительный режим аппаратных кнопок использует события Android. Совместимость зависит от прошивки."</string>
+    <string name="ui_65" formatted="false">"Голос распознаётся локально. Микрофон работает только на экране голосовых команд после нажатия «Говорить»."</string>
+    <string name="ui_66" formatted="false">"не назначено"</string>
+    <string name="ui_67" formatted="false">"Кнопки штатной панели · Frida"</string>
+    <string name="ui_68" formatted="false">"Выбери приложения для навигации, музыки и пассажирских кнопок. Короткое нажатие — выбранное действие, длинное — штатное. Можно выбрать и настройки Controls."</string>
+    <string name="ui_69" formatted="false">"Назначения панели включены"</string>
+    <string name="ui_70" formatted="false">"Настройки сохранены. Для передачи в панель сначала нажмите «Подключить Frida»."</string>
+    <string name="ui_71" formatted="false">"Штатное действие"</string>
+    <string name="ui_72" formatted="false">"Назначение сохранено. Чтобы применить его к панели, подключите Frida."</string>
+    <string name="ui_73" formatted="false">"Подключить Frida"</string>
+    <string name="ui_74" formatted="false">"Автоподключение включено. Состояние отдельных функций:\n"</string>
+    <string name="ui_75" formatted="false">"Проверить состояние Frida"</string>
+    <string name="ui_76" formatted="false">"Отключить Frida"</string>
+    <string name="ui_77" formatted="false">"Наш Frida-хук остановлен. Панель работает штатно."</string>
+    <string name="ui_78" formatted="false">"Нужны подготовленный root shell и frida-inject. Подключение использует только локальный адрес автомобиля. После первого подключения хук запускается автоматически при загрузке системы. Окно настроек открывать не нужно."</string>
+    <string name="ui_79" formatted="false">"Подключение к панели"</string>
+    <string name="ui_80" formatted="false">"Выполняю команду…"</string>
+    <string name="ui_81" formatted="false">"Состояние панели"</string>
+    <string name="ui_82" formatted="false">"Подключение не выполнено"</string>
+    <string name="ui_83" formatted="false">"Понятно"</string>
+    <string name="ui_84" formatted="false">"Не удалось выполнить действие"</string>
+    <string name="ui_85" formatted="false">"Этот экран недоступен на устройстве."</string>
+    <string name="ui_86" formatted="false">"Сначала включите службу в специальных возможностях."</string>
+    <string name="ui_87" formatted="false">"Нажми и отпусти кнопку"</string>
+    <string name="ui_88" formatted="false">"Ожидание 30 секунд. Это нажатие используется только для определения кнопки. Home и питание сохраняют штатное действие."</string>
+    <string name="ui_89" formatted="false">"Отмена"</string>
+    <string name="ui_90" formatted="false">"Android не передал нажатие. Возможно, кнопка обрабатывается внутри штатной панели."</string>
+    <string name="ui_91" formatted="false">"Android keyCode, например 85"</string>
+    <string name="ui_92" formatted="false">"Код кнопки"</string>
+    <string name="ui_93" formatted="false">"Продолжить"</string>
+    <string name="ui_94" formatted="false">"Укажите допустимый код; Home и питание зарезервированы"</string>
+    <string name="ui_95" formatted="false">"Название кнопки"</string>
+    <string name="ui_96" formatted="false">"Код "</string>
+    <string name="ui_97" formatted="false">"Удержание: "</string>
+    <string name="ui_98" formatted="false">"Этот код на всех устройствах"</string>
+    <string name="ui_99" formatted="false">"Назначение активно"</string>
+    <string name="ui_100" formatted="false">"При назначении кнопка целиком перехватывается. Если короткое действие не задано, короткое нажатие ничего не делает."</string>
+    <string name="ui_101" formatted="false">"Проверить короткое действие"</string>
+    <string name="ui_102" formatted="false">"Новое назначение"</string>
+    <string name="ui_103" formatted="false">"Настройка кнопки"</string>
+    <string name="ui_104" formatted="false">"Сохранить"</string>
+    <string name="ui_105" formatted="false">"Удалить"</string>
+    <string name="ui_106" formatted="false">"Название: от 1 до 120 символов"</string>
+    <string name="ui_107" formatted="false">"Для этой кнопки уже есть назначение"</string>
+    <string name="ui_108" formatted="false">"Действие"</string>
+    <string name="ui_109" formatted="false">"Не назначено"</string>
+    <string name="ui_110" formatted="false">"Запустить приложение"</string>
+    <string name="ui_111" formatted="false">"Настройки кнопок"</string>
+    <string name="ui_112" formatted="false">"Не найдены приложения с доступным экраном запуска."</string>
+    <string name="ui_113" formatted="false">"Поиск приложения"</string>
+    <string name="ui_114" formatted="false">"Приложение"</string>
+    <string name="ui_115" formatted="false">"Удержание: 250–2000 мс"</string>
+    <string name="ui_116" formatted="false">"Дребезг: 0–500 мс"</string>
+    <string name="ui_117" formatted="false">"Интервалы, мс"</string>
+    <string name="ui_118" formatted="false">"Удержание: 250–2000; дребезг: 0–500 мс"</string>
+    <string name="ui_119" formatted="false">"Сбросить назначения?"</string>
+    <string name="ui_120" formatted="false">"Все назначения и интервалы будут удалены. Можно предварительно экспортировать настройки."</string>
+    <string name="ui_121" formatted="false">"Сбросить"</string>
+    <string name="ui_122" formatted="false">"На устройстве нет файлового менеджера для выбора документа."</string>
+    <string name="ui_123" formatted="false">"Файл недоступен"</string>
+    <string name="ui_124" formatted="false">"Настройки экспортированы"</string>
+    <string name="ui_125" formatted="false">"Максимум 1 МБ"</string>
+    <string name="ui_126" formatted="false">"Заменить настройки?"</string>
+    <string name="ui_127" formatted="false">"В файле назначений: "</string>
+    <string name="ui_128" formatted="false">". Текущие настройки будут заменены."</string>
+    <string name="ui_129" formatted="false">"Импортировать"</string>
+    <string name="ui_130" formatted="false">"Ошибка файла: "</string>
+    <string name="ui_131" formatted="false">"Активный плеер не поддерживает дизлайки"</string>
+    <string name="ui_132" formatted="false">"Активный плеер не поддерживает такую оценку"</string>
+    <string name="ui_133" formatted="false">"Оценка передана плееру"</string>
+    <string name="ui_134" formatted="false">"Разрешите доступ к медиасессиям в настройках голоса"</string>
+    <string name="ui_135" formatted="false">"Нет активной медиасессии"</string>
+    <string name="ui_136" formatted="false">"Команда передана медиаплееру"</string>
+    <string name="ui_137" formatted="false">"Громкость изменена"</string>
+    <string name="ui_138" formatted="false">"Разрешите доступ к микрофону в настройках приложения"</string>
+    <string name="ui_139" formatted="false">"Подготовка локальной модели…"</string>
+    <string name="ui_140" formatted="false">"Микрофон не поддерживает PCM 16 кГц"</string>
+    <string name="ui_141" formatted="false">"Микрофон недоступен или занят"</string>
+    <string name="ui_142" formatted="false">"Не удалось начать запись"</string>
+    <string name="ui_143" formatted="false">"Говорите команду. «Отмена» — остановить."</string>
+    <string name="ui_144" formatted="false">"Ошибка микрофона: "</string>
+    <string name="ui_145" formatted="false">"Речь не услышана. Проверьте микрофон и повторите."</string>
+    <string name="ui_146" formatted="false">"Голос временно недоступен: "</string>
+    <string name="ui_147" formatted="false">". Можно повторить или ввести команду текстом."</string>
+    <string name="ui_148" formatted="false">"Отменено"</string>
+    <string name="ui_149" formatted="false">"Модель не включена в APK. Запустите tools/prepare_voice_model.py перед сборкой"</string>
+    <string name="ui_150" formatted="false">"Нет места для модели"</string>
+    <string name="ui_151" formatted="false">"Не удалось прочитать настройки. Экспортируйте их перед сбросом."</string>
+    <string name="ui_152" formatted="false">"Не удалось сохранить настройки"</string>
+    <string name="ui_153" formatted="false">"Неверный формат настроек"</string>
+    <string name="ui_154" formatted="false">"Файл слишком большой"</string>
+    <string name="ui_155" formatted="false">"Неподдерживаемая версия настроек"</string>
+    <string name="ui_156" formatted="false">"Неизвестная кнопка панели"</string>
+    <string name="ui_157" formatted="false">"Неверные интервалы нажатия"</string>
+    <string name="ui_158" formatted="false">"Максимум 128 назначений"</string>
+    <string name="ui_159" formatted="false">"Home и питание не переназначаются"</string>
+    <string name="ui_160" formatted="false">"Некорректное имя кнопки или устройства"</string>
+    <string name="ui_161" formatted="false">"Эта кнопка уже назначена для выбранного устройства"</string>
+    <string name="ui_162" formatted="false">"Слишком длинное описание действия"</string>
+    <string name="ui_163" formatted="false">"Некорректный компонент приложения"</string>
+    <string name="ui_164" formatted="false">"Не удалось прочитать словарь: "</string>
+    <string name="ui_165" formatted="false">"Восстановить предыдущие настройки"</string>
+    <string name="ui_166" formatted="false">"Открыть главные настройки"</string>
+    <string name="ui_167" formatted="false">"Голосовое управление"</string>
+    <string name="ui_168" formatted="false">"Распознавание на устройстве · "</string>
+    <string name="ui_169" formatted="false">" команд"</string>
+    <string name="ui_170" formatted="false">"Нажмите «Говорить» или введите команду"</string>
+    <string name="ui_171" formatted="false">"Состояние команды"</string>
+    <string name="ui_172" formatted="false">"Закрыть"</string>
+    <string name="ui_173" formatted="false">"Говорить"</string>
+    <string name="ui_174" formatted="false">"Например: подогрев водителя уровень два"</string>
+    <string name="ui_175" formatted="false">"Выполнить текстовую команду"</string>
+    <string name="ui_176" formatted="false">"Автомобиль: "</string>
+    <string name="ui_177" formatted="false">"Настройки голоса и восстановление"</string>
+    <string name="ui_178" formatted="false">"Настройки голоса"</string>
+    <string name="ui_179" formatted="false">"Восстановить модель из APK"</string>
+    <string name="ui_180" formatted="false">"Доступ к медиасессиям (оценки музыки)"</string>
+    <string name="ui_181" formatted="false">"Добавить голосовой контакт"</string>
+    <string name="ui_182" formatted="false">"Экспорт настроек голоса"</string>
+    <string name="ui_183" formatted="false">"Импорт настроек голоса"</string>
+    <string name="ui_184" formatted="false">"Модель будет восстановлена при следующем нажатии «Говорить»"</string>
+    <string name="ui_185" formatted="false">"Поиск команды или фразы"</string>
+    <string name="ui_186" formatted="false">"  · приложение"</string>
+    <string name="ui_187" formatted="false">"Выполнить"</string>
+    <string name="ui_188" formatted="false">"Приложение…"</string>
+    <string name="ui_189" formatted="false">"Модель автомобиля"</string>
+    <string name="ui_190" formatted="false">"Контакт набирается приложением телефона"</string>
+    <string name="ui_191" formatted="false">"Штатный обработчик команды"</string>
+    <string name="ui_192" formatted="false">"Приложение для «"</string>
+    <string name="ui_193" formatted="false">"Голосовое имя, например мама"</string>
+    <string name="ui_194" formatted="false">"Номер телефона"</string>
+    <string name="ui_195" formatted="false">"Голосовой контакт"</string>
+    <string name="ui_196" formatted="false">"Настройки голоса экспортированы"</string>
+    <string name="ui_197" formatted="false">"Не удалось обработать файл: "</string>
+    <string name="ui_198" formatted="false">"Микрофон не разрешён. Доступен текстовый ввод."</string>
+    <string name="ui_199" formatted="false">"Предыдущая команда ещё выполняется"</string>
+    <string name="ui_200" formatted="false">"Открыть набор"</string>
+    <string name="ui_201" formatted="false">"Номер открыт в приложении телефона"</string>
+    <string name="ui_202" formatted="false">"Приложение телефона недоступно: "</string>
+    <string name="ui_203" formatted="false">"Передать команду автомобилю? Выполняйте проверку на стоянке. При ошибке команда не повторяется автоматически."</string>
+    <string name="ui_204" formatted="false">"Не хватает доступа. Для оценок плеера откройте «Доступ к медиасессиям» в настройках голоса."</string>
+    <string name="ui_205" formatted="false">"Команда не выполнена: "</string>
+    <string name="ui_206" formatted="false">"Команда не выполнена или ответ потерян: "</string>
+    <string name="ui_207" formatted="false">". Проверьте состояние; автоматического повтора нет."</string>
+    <string name="ui_210" formatted="false">"Неверная запись контакта. Восстановите настройки голоса"</string>
+    <string name="ui_211" formatted="false">"Введите имя и номер: от 3 до 15 цифр, можно с +"</string>
+    <string name="ui_212" formatted="false">"Такое голосовое имя уже есть"</string>
+    <string name="ui_213" formatted="false">"Неподдерживаемый формат настроек голоса"</string>
+    <string name="ui_214" formatted="false">"Значение слишком длинное"</string>
+    <string name="ui_215" formatted="false">"Неизвестный профиль"</string>
+    <string name="ui_216" formatted="false">"Неверное назначение приложения"</string>
+    <string name="ui_217" formatted="false">"Неверный или повторяющийся контакт"</string>
+    <string name="ui_218" formatted="false">"Неизвестный параметр голоса"</string>
+    <string name="ui_219" formatted="false">"Не удалось сохранить настройки голоса"</string>
+    <string name="ui_220" formatted="false">"Резервной копии пока нет"</string>
+    <string name="ui_221" formatted="false">"Free · дорестайлинг"</string>
+    <string name="ui_222" formatted="false">"Free · рестайлинг"</string>
+</resources>

@@ -1,0 +1,15 @@
+{
+  "name": "open-voyah-controls-agent",
+  "version": "0.4.0",
+  "private": true,
+  "scripts": {
+    "build:hook": "frida-compile hooks/entry.js -o app/src/main/assets/hooks/launcher-buttons.bundle.js -S -c && frida-compile hooks/localization-entry.js -o app/src/main/assets/hooks/localization.bundle.js -S -c",
+    "test": "node --test tests/*.test.cjs"
+  },
+  "dependencies": {
+    "frida-java-bridge": "7.0.13"
+  },
+  "devDependencies": {
+    "frida-compile": "19.0.5"
+  }
+}

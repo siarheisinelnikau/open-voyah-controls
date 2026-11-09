@@ -1,0 +1,8 @@
+{
+  "version": "17.18.0",
+  "url": "https://github.com/frida/frida/releases/download/17.18.0/frida-inject-17.18.0-android-arm64.xz",
+  "archive_sha256": "a72de74276d914f6769b8b85f8dd287cbafa4527c42ae1c8dd87b0d23d261391",
+  "file": "open-voyah-controls-frida-17.18.0",
+  "binary_sha256": "d8ce6fe18db97594d1c7a43be4f8fb405fc76f6a01470df34504bca6461328d0",
+  "size": 58604792
+}

@@ -1,0 +1,222 @@
+<resources>
+    <string name="ui_0" formatted="false">"Could not open “"</string>
+    <string name="ui_1" formatted="false">"”. Check that the app is installed and available."</string>
+    <string name="ui_2" formatted="false">"Device "</string>
+    <string name="ui_3" formatted="false">"Navigation · center display"</string>
+    <string name="ui_4" formatted="false">"Music · center display"</string>
+    <string name="ui_5" formatted="false">"Button 1 · passenger"</string>
+    <string name="ui_6" formatted="false">"Button 2 · passenger"</string>
+    <string name="ui_7" formatted="false">"Button 3 · passenger"</string>
+    <string name="ui_8" formatted="false">"Button 4 · passenger"</string>
+    <string name="ui_9" formatted="false">"Button 5 · passenger"</string>
+    <string name="ui_10" formatted="false">"Panel settings are waiting to apply: "</string>
+    <string name="ui_11" formatted="false">"Saved locally but not applied to the panel: "</string>
+    <string name="ui_12" formatted="false">"Connected"</string>
+    <string name="ui_13" formatted="false">"Waiting to reconnect: "</string>
+    <string name="ui_14" formatted="false">"Connected automatically"</string>
+    <string name="ui_15" formatted="false">"Automatic connection will retry: "</string>
+    <string name="ui_16" formatted="false">"Our frida-inject 17.18.0 is required; found: "</string>
+    <string name="ui_18" formatted="false">"Connection is not configured yet"</string>
+    <string name="ui_19" formatted="false">"Connect Frida in settings first"</string>
+    <string name="ui_20" formatted="false">"Invalid voice channel response"</string>
+    <string name="ui_21" formatted="false">"Stop was not confirmed. A retry is scheduled: "</string>
+    <string name="ui_22" formatted="false">"Disconnected; automatic connection cancelled"</string>
+    <string name="ui_23" formatted="false">"The local shell is not root. A prepared firmware with Telnet at 127.0.0.1:23 is required."</string>
+    <string name="ui_24" formatted="false">"Operation cancelled"</string>
+    <string name="ui_25" formatted="false">"No complete response from the local shell"</string>
+    <string name="ui_26" formatted="false">"Check the assigned app"</string>
+    <string name="ui_27" formatted="false">"App opened"</string>
+    <string name="ui_28" formatted="false">"Settings opened"</string>
+    <string name="ui_29" formatted="false">"Assistant opened"</string>
+    <string name="ui_30" formatted="false">"Enable the button service. The firmware must support split screen"</string>
+    <string name="ui_31" formatted="false">"Split screen requested"</string>
+    <string name="ui_32" formatted="false">"Assign an app for this command: music, navigation, radio and camera use your assignments."</string>
+    <string name="ui_33" formatted="false">"Your buttons. Your apps."</string>
+    <string name="ui_34" formatted="false">"Voice commands"</string>
+    <string name="ui_35" formatted="false">"Export settings"</string>
+    <string name="ui_36" formatted="false">"Reset settings"</string>
+    <string name="ui_37" formatted="false">"Optional: hardware buttons"</string>
+    <string name="ui_38" formatted="false">"Service connected"</string>
+    <string name="ui_39" formatted="false">"Enable the button service"</string>
+    <string name="ui_40" formatted="false">"Assigned buttons launch your chosen actions."</string>
+    <string name="ui_41" formatted="false">"Open Accessibility and enable Open Voyah Controls."</string>
+    <string name="ui_42" formatted="false">"Accessibility"</string>
+    <string name="ui_43" formatted="false">"Capture hardware buttons"</string>
+    <string name="ui_44" formatted="false">"Assignments"</string>
+    <string name="ui_45" formatted="false">"Add your first button"</string>
+    <string name="ui_46" formatted="false">"Detect the code by pressing a button or enter it manually. Choose short and long press actions."</string>
+    <string name="ui_47" formatted="false">" · disabled"</string>
+    <string name="ui_48" formatted="false">"all devices"</string>
+    <string name="ui_49" formatted="false">"selected device"</string>
+    <string name="ui_50" formatted="false">"Press: "</string>
+    <string name="ui_51" formatted="false">"\nHold: "</string>
+    <string name="ui_52" formatted="false">"Edit"</string>
+    <string name="ui_53" formatted="false">"＋ Detect a button press"</string>
+    <string name="ui_54" formatted="false">"Add by code"</string>
+    <string name="ui_55" formatted="false">"Press settings"</string>
+    <string name="ui_56" formatted="false">"Long press: "</string>
+    <string name="ui_57" formatted="false">" ms\nDebounce: "</string>
+    <string name="ui_58" formatted="false">" ms"</string>
+    <string name="ui_59" formatted="false">"Change intervals"</string>
+    <string name="ui_60" formatted="false">"Import settings"</string>
+    <string name="ui_61" formatted="false">"System settings"</string>
+    <string name="ui_62" formatted="false">"Reset assignments"</string>
+    <string name="ui_63" formatted="false">"Vehicle connection"</string>
+    <string name="ui_64" formatted="false">"Frida connects to the OEM Qinggan launcher. Optional hardware buttons use Android events. Compatibility depends on firmware."</string>
+    <string name="ui_65" formatted="false">"Voice recognition is local. The microphone runs only on the voice screen after you press Speak."</string>
+    <string name="ui_66" formatted="false">"unassigned"</string>
+    <string name="ui_67" formatted="false">"OEM panel buttons · Frida"</string>
+    <string name="ui_68" formatted="false">"Assign navigation, music and passenger buttons. Tap opens your action; hold invokes the OEM action. You can also assign Controls settings."</string>
+    <string name="ui_69" formatted="false">"Panel assignments enabled"</string>
+    <string name="ui_70" formatted="false">"Settings saved. Press Connect Frida to apply them to the panel."</string>
+    <string name="ui_71" formatted="false">"OEM action"</string>
+    <string name="ui_72" formatted="false">"Assignment saved. Connect Frida to apply it to the panel."</string>
+    <string name="ui_73" formatted="false">"Connect Frida"</string>
+    <string name="ui_74" formatted="false">"Automatic connection enabled. Feature status:\n"</string>
+    <string name="ui_75" formatted="false">"Check Frida status"</string>
+    <string name="ui_76" formatted="false">"Disconnect Frida"</string>
+    <string name="ui_77" formatted="false">"Our Frida hook has stopped. The panel uses OEM behavior."</string>
+    <string name="ui_78" formatted="false">"Requires an existing root shell and frida-inject. Connects only to the local vehicle address. After the first connection, the hook starts at boot without opening settings."</string>
+    <string name="ui_79" formatted="false">"Panel connection"</string>
+    <string name="ui_80" formatted="false">"Running command…"</string>
+    <string name="ui_81" formatted="false">"Panel status"</string>
+    <string name="ui_82" formatted="false">"Connection failed"</string>
+    <string name="ui_83" formatted="false">"OK"</string>
+    <string name="ui_84" formatted="false">"Action failed"</string>
+    <string name="ui_85" formatted="false">"This screen is unavailable on this device."</string>
+    <string name="ui_86" formatted="false">"Enable the service in Accessibility first."</string>
+    <string name="ui_87" formatted="false">"Press and release a button"</string>
+    <string name="ui_88" formatted="false">"Waiting for 30 seconds. This press only detects the button. Home and Power keep their OEM actions."</string>
+    <string name="ui_89" formatted="false">"Cancel"</string>
+    <string name="ui_90" formatted="false">"Android did not deliver the press. The button may be handled inside the OEM panel."</string>
+    <string name="ui_91" formatted="false">"Android keyCode, for example 85"</string>
+    <string name="ui_92" formatted="false">"Button code"</string>
+    <string name="ui_93" formatted="false">"Continue"</string>
+    <string name="ui_94" formatted="false">"Enter a valid code; Home and Power are reserved"</string>
+    <string name="ui_95" formatted="false">"Button name"</string>
+    <string name="ui_96" formatted="false">"Code "</string>
+    <string name="ui_97" formatted="false">"Hold: "</string>
+    <string name="ui_98" formatted="false">"This code on all devices"</string>
+    <string name="ui_99" formatted="false">"Assignment enabled"</string>
+    <string name="ui_100" formatted="false">"The entire button is captured. If no short action is assigned, a short press does nothing."</string>
+    <string name="ui_101" formatted="false">"Test short press"</string>
+    <string name="ui_102" formatted="false">"New assignment"</string>
+    <string name="ui_103" formatted="false">"Button settings"</string>
+    <string name="ui_104" formatted="false">"Save"</string>
+    <string name="ui_105" formatted="false">"Delete"</string>
+    <string name="ui_106" formatted="false">"Name: 1 to 120 characters"</string>
+    <string name="ui_107" formatted="false">"This button already has an assignment"</string>
+    <string name="ui_108" formatted="false">"Action"</string>
+    <string name="ui_109" formatted="false">"Unassigned"</string>
+    <string name="ui_110" formatted="false">"Launch app"</string>
+    <string name="ui_111" formatted="false">"Button settings"</string>
+    <string name="ui_112" formatted="false">"No apps with an accessible launch activity were found."</string>
+    <string name="ui_113" formatted="false">"Search apps"</string>
+    <string name="ui_114" formatted="false">"App"</string>
+    <string name="ui_115" formatted="false">"Hold: 250–2000 ms"</string>
+    <string name="ui_116" formatted="false">"Debounce: 0–500 ms"</string>
+    <string name="ui_117" formatted="false">"Intervals, ms"</string>
+    <string name="ui_118" formatted="false">"Hold: 250–2000; debounce: 0–500 ms"</string>
+    <string name="ui_119" formatted="false">"Reset assignments?"</string>
+    <string name="ui_120" formatted="false">"All assignments and intervals will be removed. You can export settings first."</string>
+    <string name="ui_121" formatted="false">"Reset"</string>
+    <string name="ui_122" formatted="false">"No document picker is installed on this device."</string>
+    <string name="ui_123" formatted="false">"File unavailable"</string>
+    <string name="ui_124" formatted="false">"Settings exported"</string>
+    <string name="ui_125" formatted="false">"Maximum 1 MB"</string>
+    <string name="ui_126" formatted="false">"Replace settings?"</string>
+    <string name="ui_127" formatted="false">"Assignments in file: "</string>
+    <string name="ui_128" formatted="false">". Current settings will be replaced."</string>
+    <string name="ui_129" formatted="false">"Import"</string>
+    <string name="ui_130" formatted="false">"File error: "</string>
+    <string name="ui_131" formatted="false">"The active player does not support dislikes"</string>
+    <string name="ui_132" formatted="false">"The active player does not support this rating"</string>
+    <string name="ui_133" formatted="false">"Rating sent to player"</string>
+    <string name="ui_134" formatted="false">"Allow media session access in voice settings"</string>
+    <string name="ui_135" formatted="false">"No active media session"</string>
+    <string name="ui_136" formatted="false">"Command sent to media player"</string>
+    <string name="ui_137" formatted="false">"Volume changed"</string>
+    <string name="ui_138" formatted="false">"Allow microphone access in app settings"</string>
+    <string name="ui_139" formatted="false">"Preparing the local model…"</string>
+    <string name="ui_140" formatted="false">"The microphone does not support 16 kHz PCM"</string>
+    <string name="ui_141" formatted="false">"Microphone unavailable or busy"</string>
+    <string name="ui_142" formatted="false">"Could not start recording"</string>
+    <string name="ui_143" formatted="false">"Speak a command. Say cancel to stop."</string>
+    <string name="ui_144" formatted="false">"Microphone error: "</string>
+    <string name="ui_145" formatted="false">"No speech heard. Check the microphone and try again."</string>
+    <string name="ui_146" formatted="false">"Voice temporarily unavailable: "</string>
+    <string name="ui_147" formatted="false">". Try again or type a command."</string>
+    <string name="ui_148" formatted="false">"Cancelled"</string>
+    <string name="ui_149" formatted="false">"The selected model is missing from this APK"</string>
+    <string name="ui_150" formatted="false">"Not enough space for the model"</string>
+    <string name="ui_151" formatted="false">"Could not read settings. Export them before resetting."</string>
+    <string name="ui_152" formatted="false">"Could not save settings"</string>
+    <string name="ui_153" formatted="false">"Invalid settings format"</string>
+    <string name="ui_154" formatted="false">"File too large"</string>
+    <string name="ui_155" formatted="false">"Unsupported settings version"</string>
+    <string name="ui_156" formatted="false">"Unknown panel button"</string>
+    <string name="ui_157" formatted="false">"Invalid press intervals"</string>
+    <string name="ui_158" formatted="false">"Maximum 128 assignments"</string>
+    <string name="ui_159" formatted="false">"Home and Power cannot be reassigned"</string>
+    <string name="ui_160" formatted="false">"Invalid button or device name"</string>
+    <string name="ui_161" formatted="false">"This button is already assigned for the selected device"</string>
+    <string name="ui_162" formatted="false">"Action description is too long"</string>
+    <string name="ui_163" formatted="false">"Invalid app component"</string>
+    <string name="ui_164" formatted="false">"Could not read vocabulary: "</string>
+    <string name="ui_165" formatted="false">"Restore previous settings"</string>
+    <string name="ui_166" formatted="false">"Open main settings"</string>
+    <string name="ui_167" formatted="false">"Voice control"</string>
+    <string name="ui_168" formatted="false">"On-device recognition · "</string>
+    <string name="ui_169" formatted="false">" commands"</string>
+    <string name="ui_170" formatted="false">"Press Speak or type a command"</string>
+    <string name="ui_171" formatted="false">"Command status"</string>
+    <string name="ui_172" formatted="false">"Close"</string>
+    <string name="ui_173" formatted="false">"Speak"</string>
+    <string name="ui_174" formatted="false">"Example: driver seat heating level two"</string>
+    <string name="ui_175" formatted="false">"Run text command"</string>
+    <string name="ui_176" formatted="false">"Vehicle: "</string>
+    <string name="ui_177" formatted="false">"Voice settings and recovery"</string>
+    <string name="ui_178" formatted="false">"Voice settings"</string>
+    <string name="ui_179" formatted="false">"Restore model from APK"</string>
+    <string name="ui_180" formatted="false">"Media session access (music ratings)"</string>
+    <string name="ui_181" formatted="false">"Add voice contact"</string>
+    <string name="ui_182" formatted="false">"Export voice settings"</string>
+    <string name="ui_183" formatted="false">"Import voice settings"</string>
+    <string name="ui_184" formatted="false">"The model will be restored the next time you press Speak"</string>
+    <string name="ui_185" formatted="false">"Search commands or phrases"</string>
+    <string name="ui_186" formatted="false">"  · app"</string>
+    <string name="ui_187" formatted="false">"Run"</string>
+    <string name="ui_188" formatted="false">"App…"</string>
+    <string name="ui_189" formatted="false">"Vehicle model"</string>
+    <string name="ui_190" formatted="false">"The contact opens in the phone app"</string>
+    <string name="ui_191" formatted="false">"Built-in command handler"</string>
+    <string name="ui_192" formatted="false">"App for “"</string>
+    <string name="ui_193" formatted="false">"Voice name, for example mom"</string>
+    <string name="ui_194" formatted="false">"Phone number"</string>
+    <string name="ui_195" formatted="false">"Voice contact"</string>
+    <string name="ui_196" formatted="false">"Voice settings exported"</string>
+    <string name="ui_197" formatted="false">"Could not process file: "</string>
+    <string name="ui_198" formatted="false">"Microphone permission denied. Text input is available."</string>
+    <string name="ui_199" formatted="false">"The previous command is still running"</string>
+    <string name="ui_200" formatted="false">"Open dialer"</string>
+    <string name="ui_201" formatted="false">"Number opened in phone app"</string>
+    <string name="ui_202" formatted="false">"Phone app unavailable: "</string>
+    <string name="ui_203" formatted="false">"Send the command to the vehicle? Test while parked. Failed commands are not retried automatically."</string>
+    <string name="ui_204" formatted="false">"Access is missing. For player ratings, enable media session access in voice settings."</string>
+    <string name="ui_205" formatted="false">"Command failed: "</string>
+    <string name="ui_206" formatted="false">"Command failed or response lost: "</string>
+    <string name="ui_207" formatted="false">". Check the state; no automatic retry."</string>
+    <string name="ui_210" formatted="false">"Invalid contact entry. Restore voice settings"</string>
+    <string name="ui_211" formatted="false">"Enter a name and a number: 3 to 15 digits, optional +"</string>
+    <string name="ui_212" formatted="false">"This voice name already exists"</string>
+    <string name="ui_213" formatted="false">"Unsupported voice settings format"</string>
+    <string name="ui_214" formatted="false">"Value too long"</string>
+    <string name="ui_215" formatted="false">"Unknown profile"</string>
+    <string name="ui_216" formatted="false">"Invalid app assignment"</string>
+    <string name="ui_217" formatted="false">"Invalid or duplicate contact"</string>
+    <string name="ui_218" formatted="false">"Unknown voice setting"</string>
+    <string name="ui_219" formatted="false">"Could not save voice settings"</string>
+    <string name="ui_220" formatted="false">"No backup is available yet"</string>
+    <string name="ui_221" formatted="false">"Free · pre-facelift"</string>
+    <string name="ui_222" formatted="false">"Free · facelift"</string>
+</resources>

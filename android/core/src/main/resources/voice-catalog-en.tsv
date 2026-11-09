@@ -1,0 +1,130 @@
+# English voice commands; see docs/VOICE.md
+Assistant	Basic	open assistant
+Camera	Basic	camera
+Music	Basic	music
+Navigator	Basic	navigator|navi
+Radio	Basic	radio
+DecreaseTemperature	Basic	hot
+FastDecreaseTemperature	Basic	very hot|so hot
+FastIncreaseTemperature	Basic	very cold|so cold
+FlowBody	Basic	airflow body
+FlowBodyLegs	Basic	airflow body and feet
+FlowLegs	Basic	airflow feet
+FlowWindow	Basic	airflow windshield
+FlowWindowLegs	Basic	airflow windshield and feet
+IncreaseTemperature	Basic	cold
+OpenElectricityPort	Basic	charging|open charging|open charging door|charging door
+OpenFuelPort	Basic	gas tank|fuel door|open fuel door|open gas tank
+CarWashMode	Basic	wash mode|wash
+PowerHold	Basic	powerhold
+WiperMaintain	Basic	wipers
+GetFromMemoryCellOne	Basic	driver number one|driver one
+GetFromMemoryCellThree	Basic	driver number three|driver three
+GetFromMemoryCellTwo	Basic	driver number two|driver two
+SmokeCommand	Basic	let's have a smoke|open the window a little|open window a little|open window little
+VentilationCommand	Basic	ventilation|fresh air|air out|stuffy
+DisableDriverCondition	DriverSeat	seat ventilation off
+EnableConditionDriverLevelDefault	DriverSeat	seat ventilation enable|driver seat ventilation enable
+EnableConditionDriverLevelOne	DriverSeat	seat ventilation level one|seat ventilation one|driver seat ventilation level one
+EnableConditionDriverLevelTree	DriverSeat	seat ventilation level three|seat ventilation three|driver seat ventilation level three
+EnableConditionDriverLevelTwo	DriverSeat	seat ventilation level two|seat ventilation two|driver seat ventilation level two
+DisableDriverHeat	DriverSeat	seat heating off
+EnableHeatDriverLevelDefault	DriverSeat	seat heating enable|driver seat heating enable
+EnableHeatDriverLevelOne	DriverSeat	seat heating level one|seat heating one|driver seat heating level one
+EnableHeatDriverLevelTree	DriverSeat	seat heating level three|driver seat heating level three|seat heating three
+EnableHeatDriverLevelTwo	DriverSeat	seat heating level two|driver seat heating level two|seat heating two
+DisableDriverMassage	DriverSeat	massage off
+EnableMassageDriverLevelDefault	DriverSeat	massage enable
+EnableMassageDriverLevelOne	DriverSeat	massage level one|massage one
+EnableMassageDriverLevelTree	DriverSeat	massage level three|massage three
+EnableMassageDriverLevelTwo	DriverSeat	massage level two|massage two
+AdaptiveLightOff	Light	adaptive light off
+AdaptiveLightOn	Light	adaptive light enable
+AutoMode	Light	low beam auto
+LampOff	Light	low beam off
+LowBeam	Light	low beam enable
+PositionLamp	Light	side lights
+RearFog	Light	fog lights
+BackLightModeNight	Light	backlight night
+BackLightModeDay	Light	backlight day
+BackLightModeAuto	Light	backlight auto
+ComfortMode	Mode	comfort mode|comfort
+EcoMode	Mode	eco mode|eco
+IndividualMode	Mode	individual mode|individual|custom|custom mode
+OffroadMode	Mode	outing mode|outing
+SnowMode	Mode	snow mode|snow
+SportMode	Mode	sport mode|sport
+ElectroMode	Mode	electric mode|electric
+FuelMode	Mode	fuel mode|fuel
+HybridMode	Mode	hybrid mode
+IntellectMode	Mode	smart mode|smart
+SaveMode	Mode	save mode|save
+SaveModeWithSOC	Mode	save twenty five|save thirty|save thirty five|save forty|save forty five|save fifty|save fifty five|save sixty|save sixty five|save seventy|save seventy five|save eighty
+Split	Other	Split|two windows
+DisableWheelHeat	Other	wheel heat off
+EnableWheelHeat	Other	wheel heat
+Magic	Other	magic
+RebootTbox	Other	reboot modem
+DriverA	Other	driver a
+DriverB	Other	driver b
+DriverC	Other	driver c
+Like	Other	like song
+RemoveLike	Other	remove like
+DisLike	Other	dislike song
+Sentry	Other	sentry|guard|sentry mode
+ControlsSettings	Other	controls settings|settings
+DisablePassengerCondition	PassengerSeat	passenger seat ventilation off
+EnableConditionPassengerLevelDefault	PassengerSeat	passenger seat ventilation enable
+EnableConditionPassengerLevelOne	PassengerSeat	passenger seat ventilation level one|passenger seat ventilation one
+EnableConditionPassengerLevelTree	PassengerSeat	passenger seat ventilation level three|passenger seat ventilation three
+EnableConditionPassengerLevelTwo	PassengerSeat	passenger seat ventilation level two|passenger seat ventilation two
+DisablePassengerHeat	PassengerSeat	passenger seat heating off
+EnableHeatPassengerLevelDefault	PassengerSeat	passenger seat heating enable
+EnableHeatPassengerLevelOne	PassengerSeat	passenger seat heating level one|passenger seat heating one
+EnableHeatPassengerLevelTree	PassengerSeat	passenger seat heating level three|passenger seat heating three
+EnableHeatPassengerLevelTwo	PassengerSeat	passenger seat heating level two|passenger seat heating two
+DisablePassengerMassage	PassengerSeat	passenger massage off
+EnableMassagePassengerLevelDefault	PassengerSeat	passenger massage enable
+EnableMassagePassengerLevelOne	PassengerSeat	passenger massage level one|passenger massage one
+EnableMassagePassengerLevelTree	PassengerSeat	passenger massage level three|passenger massage three
+EnableMassagePassengerLevelTwo	PassengerSeat	passenger massage level two|passenger massage two
+DisableRearLeftHeat	RearSeat	rear left seat heating off
+EnableHeatRearLeftLevelDefault	RearSeat	rear left seat heating|rear left seat heating enable
+EnableHeatRearLeftLevelOne	RearSeat	rear left seat heating level one|rear left seat heating one
+EnableHeatRearLeftLevelTwo	RearSeat	rear left seat heating level two|rear left seat heating two
+EnableHeatRearLeftLevelTree	RearSeat	rear left seat heating level three|rear left seat heating three
+DisableRearRightHeat	RearSeat	rear right seat heating off
+EnableHeatRearRightLevelDefault	RearSeat	rear right seat heating|rear right seat heating enable
+EnableHeatRearRightLevelOne	RearSeat	rear right seat heating level one|rear right seat heating one
+EnableHeatRearRightLevelTwo	RearSeat	rear right seat heating level two|rear right seat heating two
+EnableHeatRearRightLevelTree	RearSeat	rear right seat heating level three|rear right seat heating three
+DisableAllHeating	RearSeat	turn off all heating|stop all heating|disable all heating
+EnableAllHeating	RearSeat	all heating|enable all heating|turn on all heating
+EnableMinRecuperation	Recuperation	recuperation minimum|recuperation one|recuperation level one|weak recuperation
+EnableStandardRecuperation	Recuperation	recuperation medium|recuperation standard|recuperation two|recuperation level two|medium recuperation
+EnableMaxRecuperation	Recuperation	recuperation maximum|recuperation three|recuperation level three|strong recuperation|maximum recuperation
+CloseSunroof	Window	close the sunroof|close sunroof
+OpenSunroof	Window	open the sunroof|open sunroof
+OpenSunroofWithPercent	Window	open sunroof ten|open sunroof ten percent|open sunroof twenty|open sunroof twenty percent|open sunroof thirty|open sunroof thirty percent|open sunroof forty|open sunroof forty percent|open sunroof fifty|open sunroof fifty percent|open sunroof sixty|open sunroof sixty percent|open sunroof seventy|open sunroof seventy percent|open sunroof eighty|open sunroof eighty percent|open sunroof ninety|open sunroof ninety percent|open sunroof hundred|open sunroof hundred percent|open the sunroof ten|open the sunroof ten percent|open the sunroof twenty|open the sunroof twenty percent|open the sunroof thirty|open the sunroof thirty percent|open the sunroof forty|open the sunroof forty percent|open the sunroof fifty|open the sunroof fifty percent|open the sunroof sixty|open the sunroof sixty percent|open the sunroof seventy|open the sunroof seventy percent|open the sunroof eighty|open the sunroof eighty percent|open the sunroof ninety|open the sunroof ninety percent|open the sunroof hundred|open the sunroof hundred percent|sunroof ten|sunroof ten percent|sunroof twenty|sunroof twenty percent|sunroof thirty|sunroof thirty percent|sunroof forty|sunroof forty percent|sunroof fifty|sunroof fifty percent|sunroof sixty|sunroof sixty percent|sunroof seventy|sunroof seventy percent|sunroof eighty|sunroof eighty percent|sunroof ninety|sunroof ninety percent|sunroof hundred|sunroof hundred percent
+OpenSunroofVentilation	Window	sunroof ventilation
+CloseSunshade	Window	close the sunshade|close sunshade
+OpenSunshade	Window	open the sunshade|open sunshade
+OpenSunshadeWithPercent	Window	open sunshade ten|open sunshade ten percent|open sunshade twenty|open sunshade twenty percent|open sunshade thirty|open sunshade thirty percent|open sunshade forty|open sunshade forty percent|open sunshade fifty|open sunshade fifty percent|open sunshade sixty|open sunshade sixty percent|open sunshade seventy|open sunshade seventy percent|open sunshade eighty|open sunshade eighty percent|open sunshade ninety|open sunshade ninety percent|open sunshade hundred|open sunshade hundred percent|open the sunshade ten|open the sunshade ten percent|open the sunshade twenty|open the sunshade twenty percent|open the sunshade thirty|open the sunshade thirty percent|open the sunshade forty|open the sunshade forty percent|open the sunshade fifty|open the sunshade fifty percent|open the sunshade sixty|open the sunshade sixty percent|open the sunshade seventy|open the sunshade seventy percent|open the sunshade eighty|open the sunshade eighty percent|open the sunshade ninety|open the sunshade ninety percent|open the sunshade hundred|open the sunshade hundred percent|sunshade ten|sunshade ten percent|sunshade twenty|sunshade twenty percent|sunshade thirty|sunshade thirty percent|sunshade forty|sunshade forty percent|sunshade fifty|sunshade fifty percent|sunshade sixty|sunshade sixty percent|sunshade seventy|sunshade seventy percent|sunshade eighty|sunshade eighty percent|sunshade ninety|sunshade ninety percent|sunshade hundred|sunshade hundred percent
+CloseTrunkCommand	Window	close the trunk|close trunk
+OpenTrunkCommand	Window	open the trunk|open trunk
+DisableTrunkCommand	Window	block the trunk|block trunk
+EnableTrunkCommand	Window	unlock the trunk|unlock trunk
+CloseAllWindowCommand	Window	close all windows
+CloseDriverWindowCommand	Window	close the window|close window
+ClosePassengerWindowCommand	Window	close the passenger window|close passenger window
+OpenAllWindowCommand	Window	open all windows
+OpenDriverWindowCommand	Window	open the window|open window
+OpenPassengerWindowCommand	Window	open the passenger window|open passenger window
+MediaPlay	Media	play music
+MediaPause	Media	pause music
+MediaNext	Media	next track
+MediaPrevious	Media	previous track
+VolumeUp	Media	volume up
+VolumeDown	Media	volume down
+VolumeMute	Media	mute
+SystemSettings	Media	system settings
