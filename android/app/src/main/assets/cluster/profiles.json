@@ -1,0 +1,78 @@
+[
+  {
+    "firmware": "H97CSA8155-DAILY-20260104134234-USR",
+    "language": "ru",
+    "files": [
+      {
+        "name": "gauge",
+        "target": "/usr/bin/gauge",
+        "source": "model1.bin",
+        "size": 9113560,
+        "sha256": "187b7c75cf20c1742dcc994a57aae74848d04e99e9a7f39ab07f86edd4a5572c",
+        "crc": 2154150040
+      },
+      {
+        "name": "light",
+        "target": "/usr/bin/light",
+        "source": "model2.bin",
+        "size": 6075672,
+        "sha256": "1ad4903a4bc39ab8367610bc9806a097f8feb42838b07a2cee5ed1ee8c67a648",
+        "crc": 16873845
+      },
+      {
+        "name": "point",
+        "target": "/usr/bin/point",
+        "source": "model3.bin",
+        "size": 6296720,
+        "sha256": "b6873ed66ba429dbdc3400502b5c3ab1f0914e1bdf8c03039c46bdfbf961d1fe",
+        "crc": 900255837
+      },
+      {
+        "name": "point_normal.kzb",
+        "target": "/usr/share/theme/0/point_normal.kzb",
+        "source": "model4.bin",
+        "size": 6328117,
+        "sha256": "0b4c2cb76a134c276f8cfe9e0b1282555a8b82159d850a289e1274b0e5fec5df",
+        "crc": 2557627919
+      }
+    ]
+  },
+  {
+    "firmware": "H97CSA8155-DAILY-20260530180446-USR",
+    "language": "ru",
+    "files": [
+      {
+        "name": "gauge",
+        "target": "/usr/bin/gauge",
+        "source": "model5.bin",
+        "size": 9113728,
+        "sha256": "31890f450fdc7125bf92c6c1018c5b7019993dc81b2f5869ff587d16479d5526",
+        "crc": 3754182463
+      },
+      {
+        "name": "light",
+        "target": "/usr/bin/light",
+        "source": "model6.bin",
+        "size": 6075728,
+        "sha256": "ded90ced99fe8bc4229bc8f1841b8526ec741a34ef45e02ea00cc973aa2706f5",
+        "crc": 2213392899
+      },
+      {
+        "name": "point",
+        "target": "/usr/bin/point",
+        "source": "model7.bin",
+        "size": 6296776,
+        "sha256": "8222320755246abda68de7e8b6fe49b42856e1e6ed55a443e159f841faf208a9",
+        "crc": 1689544459
+      },
+      {
+        "name": "point_normal.kzb",
+        "target": "/usr/share/theme/0/point_normal.kzb",
+        "source": "model4.bin",
+        "size": 6328117,
+        "sha256": "0b4c2cb76a134c276f8cfe9e0b1282555a8b82159d850a289e1274b0e5fec5df",
+        "crc": 2557627919
+      }
+    ]
+  }
+]

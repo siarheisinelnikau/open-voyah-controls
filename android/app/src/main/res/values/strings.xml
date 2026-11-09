@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Open Voyah Controls</string>
+    <string name="service_description">Reassigns selected hardware buttons and launches assigned apps. Does not read screen content. You can disable the service at any time.</string>
+</resources>

@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Open Voyah Controls</string>
+    <string name="service_description">Переназначает выбранные аппаратные кнопки и запускает назначенные приложения. Содержимое экрана не читается. Службу можно отключить в любой момент.</string>
+</resources>

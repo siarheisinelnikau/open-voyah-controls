@@ -1,0 +1,22 @@
+<resources>
+    <string name="voice_language">Recognition language</string>
+    <string name="firmware_settings">Firmware and OEM profiles</string>
+    <string name="firmware_info">Android text translation below: launcher, settings, vehicle and Bluetooth phone. A basic dictionary is included; import a full dictionary if available. These Frida settings do not replace firmware files. Instrument cluster installation is on the separate screen above.</string>
+    <string name="translation_on">Translation enabled</string>
+    <string name="translation_off">Translation disabled</string>
+    <string name="translate_ru">Russian translation · basic dictionary</string>
+    <string name="translate_en">English translation · basic dictionary</string>
+    <string name="translation_disable">Disable translation</string>
+    <string name="translation_import">Import JSON dictionary</string>
+    <string name="translation_export">Export JSON dictionary</string>
+    <string name="translation_restore">Restore previous dictionary</string>
+    <string name="profile_restore">Restore original OEM account</string>
+    <string name="profile_restore_info">Restores the account saved before the first A/B/C switch. The OEM system may apply saved seat and mirror positions.</string>
+    <string name="translation_saved">Saved. Connect Frida on the main screen.</string>
+    <string name="translation_applied">Settings sent. Reopen OEM screens. Hook status is available in Frida diagnostics.</string>
+    <string name="unknown_command">Command not recognized. Try again or choose it from the list.</string>
+    <string name="default_levels">Default command levels</string>
+    <string name="window_options">Window ventilation settings</string>
+    <string name="double_smoke">Double smoke pulse</string>
+    <string name="double_ventilation">Double ventilation pulse</string>
+</resources>
