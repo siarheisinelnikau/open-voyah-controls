@@ -1,0 +1,18 @@
+<resources>
+    <string name="cluster_title">Instrument cluster · Russian localization</string>
+    <string name="cluster_info">Installs the cluster translation from a local ZIP. Check that the package matches the exact firmware version before backing up and installing.</string>
+    <string name="cluster_initial">Start with inspection. No vehicle write has been requested.</string>
+    <string name="cluster_inspect">1. Inspect firmware and recovery status</string>
+    <string name="cluster_import">2. Import verified cluster ZIP</string>
+    <string name="cluster_prepare">3. Back up current cluster files</string>
+    <string name="cluster_export">4. Export backup ZIP</string>
+    <string name="cluster_apply">5. Install Russian cluster files</string>
+    <string name="cluster_restore">Restore the saved cluster files</string>
+    <string name="cluster_confirm">Park the vehicle and keep its power on throughout the operation. Four cluster files will be replaced after integrity and backup checks. The backup captures the state before our installation, which may already be modified. No process restart or reboot is performed. After a lost connection, inspect status before choosing recovery.</string>
+    <string name="cluster_working">Operation in progress. If this remains after restarting the app, inspect the cluster state. Do not repeat installation blindly.</string>
+    <string name="cluster_error">Operation did not complete normally. Inspect cluster status; use restore if required.</string>
+    <string name="cluster_backup_saved">Backup verified on the cluster and copied to this app. Export a copy before installation.</string>
+    <string name="cluster_exported">Backup exported. Keep it outside the vehicle.</string>
+    <string name="cluster_imported">Package verified and imported:</string>
+    <string name="cluster_done">Files installed and verified. The running cluster has not been restarted. Hardware behavior has not yet been validated by this project.</string>
+</resources>

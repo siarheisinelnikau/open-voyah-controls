@@ -1,0 +1,790 @@
+{
+  "DecreaseTemperature": [
+    {
+      "bus": "climate",
+      "phase": "main",
+      "value": -20,
+      "property": "AC_LEFT_TEMP",
+      "relative": true
+    }
+  ],
+  "FastDecreaseTemperature": [
+    {
+      "bus": "climate",
+      "phase": "main",
+      "value": -50,
+      "property": "AC_LEFT_TEMP",
+      "relative": true
+    }
+  ],
+  "FastIncreaseTemperature": [
+    {
+      "bus": "climate",
+      "phase": "main",
+      "value": 50,
+      "property": "AC_LEFT_TEMP",
+      "relative": true
+    }
+  ],
+  "FlowBody": [
+    {
+      "bus": "climate",
+      "phase": "main",
+      "value": 0,
+      "property": "AC_FLOW_MODE"
+    }
+  ],
+  "FlowBodyLegs": [
+    {
+      "bus": "climate",
+      "phase": "main",
+      "value": 1,
+      "property": "AC_FLOW_MODE"
+    }
+  ],
+  "FlowLegs": [
+    {
+      "bus": "climate",
+      "phase": "main",
+      "value": 2,
+      "property": "AC_FLOW_MODE"
+    }
+  ],
+  "FlowWindow": [
+    {
+      "bus": "climate",
+      "phase": "main",
+      "value": 4,
+      "property": "AC_FLOW_MODE"
+    }
+  ],
+  "FlowWindowLegs": [
+    {
+      "bus": "climate",
+      "phase": "main",
+      "value": 3,
+      "property": "AC_FLOW_MODE"
+    }
+  ],
+  "IncreaseTemperature": [
+    {
+      "bus": "climate",
+      "phase": "main",
+      "value": 20,
+      "property": "AC_LEFT_TEMP",
+      "relative": true
+    }
+  ],
+  "OpenElectricityPort": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "IVI_CHRG_PORT_CAP"
+    }
+  ],
+  "OpenFuelPort": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "IVI_FUEL_PORT_CAP"
+    }
+  ],
+  "GetFromMemoryCellOne": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "DMS_GET_MEMORY_REQ"
+    }
+  ],
+  "GetFromMemoryCellThree": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 3,
+      "property": "DMS_GET_MEMORY_REQ"
+    }
+  ],
+  "GetFromMemoryCellTwo": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "DMS_GET_MEMORY_REQ"
+    }
+  ],
+  "DisableDriverCondition": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_VENTILATION_SWITCH_LEFT"
+    }
+  ],
+  "EnableConditionDriverLevelOne": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_VENTILATION_COMMAND_LEFT"
+    }
+  ],
+  "EnableConditionDriverLevelTree": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 3,
+      "property": "FRONT_SEAT_VENTILATION_COMMAND_LEFT"
+    }
+  ],
+  "EnableConditionDriverLevelTwo": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_VENTILATION_COMMAND_LEFT"
+    }
+  ],
+  "DisableDriverHeat": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_HEATING_SWITCH_LEFT"
+    }
+  ],
+  "EnableHeatDriverLevelOne": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_HEATING_COMMAND_LEFT"
+    }
+  ],
+  "EnableHeatDriverLevelTree": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 3,
+      "property": "FRONT_SEAT_HEATING_COMMAND_LEFT"
+    }
+  ],
+  "EnableHeatDriverLevelTwo": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_HEATING_COMMAND_LEFT"
+    }
+  ],
+  "DisableDriverMassage": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_MASS_SWITCH_LEFT"
+    }
+  ],
+  "EnableMassageDriverLevelOne": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_MASS_INTEN_LEFT"
+    }
+  ],
+  "EnableMassageDriverLevelTree": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 3,
+      "property": "FRONT_SEAT_MASS_INTEN_LEFT"
+    }
+  ],
+  "EnableMassageDriverLevelTwo": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_MASS_INTEN_LEFT"
+    }
+  ],
+  "AutoMode": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "AUTO_LAMP_SWITCH"
+    }
+  ],
+  "LampOff": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "OUT_LAMP_OFF"
+    }
+  ],
+  "LowBeam": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "LOW_BEAM"
+    }
+  ],
+  "PositionLamp": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "POSITION_LAMP_SWITCH"
+    }
+  ],
+  "RearFog": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "REAR_FOG_LIGHT"
+    }
+  ],
+  "DisableWheelHeat": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "STEER_WHEEL_HEAT_SWITCH"
+    }
+  ],
+  "EnableWheelHeat": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "STEER_WHEEL_HEAT_SWITCH"
+    }
+  ],
+  "Magic": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "HUM_LANGUAGE_SET"
+    }
+  ],
+  "DisablePassengerCondition": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_VENTILATION_SWITCH_RIGHT"
+    }
+  ],
+  "EnableConditionPassengerLevelOne": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_VENTILATION_COMMAND_RIGHT"
+    }
+  ],
+  "EnableConditionPassengerLevelTree": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 3,
+      "property": "FRONT_SEAT_VENTILATION_COMMAND_RIGHT"
+    }
+  ],
+  "EnableConditionPassengerLevelTwo": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_VENTILATION_COMMAND_RIGHT"
+    }
+  ],
+  "DisablePassengerHeat": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_HEATING_SWITCH_RIGHT"
+    }
+  ],
+  "EnableHeatPassengerLevelOne": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_HEATING_COMMAND_RIGHT"
+    }
+  ],
+  "EnableHeatPassengerLevelTree": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 3,
+      "property": "FRONT_SEAT_HEATING_COMMAND_RIGHT"
+    }
+  ],
+  "EnableHeatPassengerLevelTwo": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_HEATING_COMMAND_RIGHT"
+    }
+  ],
+  "DisablePassengerMassage": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_MASS_SWITCH_RIGHT"
+    }
+  ],
+  "EnableMassagePassengerLevelOne": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_MASS_INTEN_RIGHT"
+    }
+  ],
+  "EnableMassagePassengerLevelTree": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 3,
+      "property": "FRONT_SEAT_MASS_INTEN_RIGHT"
+    }
+  ],
+  "EnableMassagePassengerLevelTwo": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_MASS_INTEN_RIGHT"
+    }
+  ],
+  "DisableRearLeftHeat": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "REAR_SEAT_HEATING_SWITCH_LEFT"
+    }
+  ],
+  "EnableHeatRearLeftLevelOne": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_SWITCH_LEFT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "post",
+      "value": 1,
+      "property": "REAR_SEAT_HEATING_COMMAND_LEFT"
+    }
+  ],
+  "EnableHeatRearLeftLevelTwo": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_SWITCH_LEFT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "post",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_COMMAND_LEFT"
+    }
+  ],
+  "EnableHeatRearLeftLevelTree": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_SWITCH_LEFT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "post",
+      "value": 3,
+      "property": "REAR_SEAT_HEATING_COMMAND_LEFT"
+    }
+  ],
+  "DisableRearRightHeat": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "REAR_SEAT_HEATING_SWITCH_RIGHT"
+    }
+  ],
+  "EnableHeatRearRightLevelOne": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_SWITCH_RIGHT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "post",
+      "value": 1,
+      "property": "REAR_SEAT_HEATING_COMMAND_RIGHT"
+    }
+  ],
+  "EnableHeatRearRightLevelTwo": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_SWITCH_RIGHT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "post",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_COMMAND_RIGHT"
+    }
+  ],
+  "EnableHeatRearRightLevelTree": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_SWITCH_RIGHT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "post",
+      "value": 3,
+      "property": "REAR_SEAT_HEATING_COMMAND_RIGHT"
+    }
+  ],
+  "DisableAllHeating": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_HEATING_SWITCH_LEFT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "FRONT_SEAT_HEATING_SWITCH_RIGHT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "REAR_SEAT_HEATING_SWITCH_LEFT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "REAR_SEAT_HEATING_SWITCH_RIGHT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "STEER_WHEEL_HEAT_SWITCH"
+    }
+  ],
+  "EnableMinRecuperation": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "HUM_ENERGY_PTREGEN_LEVL"
+    }
+  ],
+  "EnableStandardRecuperation": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 3,
+      "property": "HUM_ENERGY_PTREGEN_LEVL"
+    }
+  ],
+  "EnableMaxRecuperation": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 4,
+      "property": "HUM_ENERGY_PTREGEN_LEVL"
+    }
+  ],
+  "CloseSunroof": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "SunroofControl"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "DG_SW"
+    }
+  ],
+  "OpenSunroof": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "SunroofControl"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "DG_SW"
+    }
+  ],
+  "OpenSunroofVentilation": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 4,
+      "property": "SunroofControl"
+    }
+  ],
+  "CloseSunshade": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 6,
+      "property": "SunroofControl"
+    }
+  ],
+  "OpenSunshade": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 5,
+      "property": "SunroofControl"
+    }
+  ],
+  "CloseTrunkCommand": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "VEHICLE_TUNK_CONTROL"
+    }
+  ],
+  "OpenTrunkCommand": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "VEHICLE_TUNK_CONTROL"
+    }
+  ],
+  "DisableTrunkCommand": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "UNABLE_TAIL_DOOR"
+    }
+  ],
+  "EnableTrunkCommand": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "UNABLE_TAIL_DOOR"
+    }
+  ],
+  "CloseAllWindowCommand": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "ALL_WINDOW_CONTROL"
+    }
+  ],
+  "CloseDriverWindowCommand": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "DRIVER_WINDOW_CONTROL"
+    }
+  ],
+  "ClosePassengerWindowCommand": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 1,
+      "property": "PAS_WIDOW_CONTROL"
+    }
+  ],
+  "OpenAllWindowCommand": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 3,
+      "property": "ALL_WINDOW_CONTROL"
+    }
+  ],
+  "OpenDriverWindowCommand": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 3,
+      "property": "DRIVER_WINDOW_CONTROL"
+    }
+  ],
+  "OpenPassengerWindowCommand": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 3,
+      "property": "PAS_WIDOW_CONTROL"
+    }
+  ],
+  "EnableConditionDriverLevelDefault": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_VENTILATION_COMMAND_LEFT"
+    }
+  ],
+  "EnableHeatDriverLevelDefault": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_HEATING_COMMAND_LEFT"
+    }
+  ],
+  "EnableMassageDriverLevelDefault": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_MASS_INTEN_LEFT"
+    }
+  ],
+  "EnableConditionPassengerLevelDefault": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_VENTILATION_COMMAND_RIGHT"
+    }
+  ],
+  "EnableHeatPassengerLevelDefault": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_HEATING_COMMAND_RIGHT"
+    }
+  ],
+  "EnableMassagePassengerLevelDefault": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_MASS_INTEN_RIGHT"
+    }
+  ],
+  "EnableHeatRearLeftLevelDefault": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_SWITCH_LEFT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "post",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_COMMAND_LEFT"
+    }
+  ],
+  "EnableHeatRearRightLevelDefault": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_SWITCH_RIGHT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "post",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_COMMAND_RIGHT"
+    }
+  ],
+  "EnableAllHeating": [
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_HEATING_COMMAND_LEFT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "FRONT_SEAT_HEATING_COMMAND_RIGHT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_SWITCH_LEFT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "post",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_COMMAND_LEFT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_SWITCH_RIGHT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "post",
+      "value": 2,
+      "property": "REAR_SEAT_HEATING_COMMAND_RIGHT"
+    },
+    {
+      "bus": "vehicle",
+      "phase": "main",
+      "value": 2,
+      "property": "STEER_WHEEL_HEAT_SWITCH"
+    }
+  ],
+  "VentilationCommand": [
+    {
+      "property": "ALL_WINDOW_CONTROL",
+      "value": 4,
+      "phase": "main",
+      "bus": "vehicle"
+    }
+  ]
+}
