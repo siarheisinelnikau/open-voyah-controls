@@ -9,7 +9,9 @@ The app recognizes 138 command IDs in English and Russian. The recognition langu
 
 Android asks for microphone permission on the first request. Once the microphone starts, Vosk listens for up to four seconds. Offline actions need a final catalog match that passes the decoder confidence check. Silence and unfinished phrases end the capture. The app keeps the last model warm for 90 seconds between requests.
 
-On supported firmware, say “driver one” or “low beam off” in Park. Say “turn on massage” for the driver seat at the saved level. When upgrading from a version older than 0.8.0, choose **Connect Frida** to refresh the voice agent before sending vehicle commands.
+Voice settings shows whether physical vehicle commands have been reviewed for the current build. The shipped approval catalog starts empty. App, media, and dialer commands are available independently. Each physical command requires approval for the exact build, a fresh Park and standstill check, and the current request protocol at both ends.
+
+The result distinguishes a vehicle service acknowledgment from a change confirmed by fresh telemetry. If feedback is partial or the outcome is unknown, the app ends the request and shows that result. Vehicle qualification also checks who can submit requests on the reviewed firmware and what happens when feedback or power is lost during motion.
 
 ![Voice button popup over Android Settings on the Android 9 emulator](screenshots/quick-voice-0.9.0-en.png)
 
@@ -35,7 +37,7 @@ In **Voice audio**, you can lower media while the microphone is listening. Andro
 
 On the inspected H97 branch with front climate on, use **driver temperature**, **passenger temperature**, or **fan speed** with a value. Temperature accepts 16–30 °C, and the fan accepts 1–8. The popup shows the recognized phrase and the result. Other branches need separate verification.
 
-![Compose voice settings and command catalog on an Android 9 emulator](screenshots/cockpit-voice-0.9.0-en.png)
+![Voice settings and vehicle review status on Android 11](screenshots/voice-review-0.12.0-en.png)
 
 ![Voice audio settings on an Android 9 emulator](screenshots/cockpit-voice-audio-0.9.0-en.png)
 

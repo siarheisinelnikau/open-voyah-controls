@@ -2,13 +2,13 @@
 
 Open Voyah Controls is an offline-first utility for Voyah head units. Use an assigned **Voice assistant** button for a single voice request, **Installed apps** to open an app or install an APK from a file, and **Virtual display** to view media and navigation. The app also supports button assignments, guest profiles on supported firmware, and instrument cluster backup and recovery.
 
-The APK requires Android 9 (API 28) or newer. The firmware adapters target compatible Voyah head units running Android 9 or 11.
+The APK requires Android 9 (API 28) or newer. The firmware adapters require a reviewed head unit build running Android 9 or 11. See [Head unit qualification and recovery](docs/PRODUCTION.md) for release signing, firmware evidence, and PC rollback.
 
 ## Screenshots
 
 ![Quick access on an Android 9 emulator](docs/screenshots/cockpit-0.9.0-en.png)
 
-![Settings on an Android 9 emulator](docs/screenshots/cockpit-settings-0.9.0-en.png)
+![Settings opened directly by its shortcut on Android 11](docs/screenshots/cockpit-settings-0.12.0-en.png)
 
 ![Firmware and OEM settings on an Android 9 emulator](docs/screenshots/cockpit-firmware-0.9.0-en.png)
 
@@ -29,9 +29,9 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. On Linux or m
 ## Button assignments
 
 - For Android hardware keys, enable the accessibility service and capture the desired key. Short and long presses can have separate assignments.
-- For the OEM launcher, use a prepared Android head unit with an existing root shell on `127.0.0.1:23`. Run `python tools/prepare_runtime.py` to fetch and verify the pinned ARM64 injector. Run `./tools/install-runtime.ps1 -Serial <ADB-serial>` to copy it to an explicitly selected device.
+- For the OEM launcher, use a reviewed head unit with an existing owner-authorized local privilege broker. Run `python tools/prepare_runtime.py` to fetch and verify the pinned ARM64 injector, then stage it through the Windows installer.
 - In the app, choose an app for a panel button and select **Connect Frida**. On the supported panel, the selected app supplies the icon and opens on a tap. On launchers with the foreground callback, the assigned icon highlights when its activity is active on that display. Hold the button to open its original action. Clear an assignment to restore the factory icon and tap action. The radio button is passenger position 4 on the inspected layout.
-- **OEM steering wheel buttons** is available on Android 11. Where the head unit delivers the supported Qinggan events, assign separate press and hold actions to the voice, custom, and surround-camera keys. **Restore factory buttons** clears the overrides. Android hardware key bindings remain available through Accessibility.
+- **OEM steering wheel buttons** is available on a reviewed Android 11 launcher with compatible Qinggan events. Assign separate press and hold actions to the voice and custom keys. Surround view uses the factory action. **Restore factory buttons** clears the overrides. Android hardware key bindings remain available through Accessibility.
 
 The worker waits for Android and a stable system process before attaching. It reattaches when the target changes and can be stopped from the app. Connection status shows panel, voice, and optional hook readiness separately. The [boot and firmware guide](docs/FIRMWARE.md) covers the optional init entry and rollback.
 
@@ -40,15 +40,17 @@ The worker waits for Android and a stable system process before attaching. It re
 ## Apps and displays
 
 - Tap a tile in **Installed apps** to open it. Use the settings icon or touch and hold to open **App settings**, which contains width, DPI, permissions, and display selection. On supported Android 9 and 11 firmware, the window service leaves room for the navigation panel on central display launches, including apps without saved settings. The [firmware guide](docs/FIRMWARE.md#steering-and-display-adapters) describes the launch and display scope.
-- **Install local APK** opens Android's local file picker. Android controls the permission to request installations and confirms the selected package.
-- The **Permissions** section shows the supported runtime permissions requested by apps marked **Installed here**. The local root connection can apply and verify an individual grant or revocation. Android stores the effective permissions for the current user and keeps them across normal reboots. **Android app info** opens system-managed settings. Older installations may need to be installed from the app again for Android to record the source.
+- **Install local APK** opens Android's local file picker. Android confirms the selected package and records the result of the app's install session.
+- The **Permissions** section shows supported runtime permissions for installations verified by Controls. The authorized broker can apply and verify an individual grant or revocation. Android stores effective permissions across normal reboots. Installations from Windows or another app use **Android app info**. Supported special accesses open their Android settings screens.
 - **Virtual display** creates a private display with its own DPI. Grant media access to show the current track. Instrument cluster media sharing and the navigation feed are separate opt-in features. The firmware needs the matching OEM cluster service.
 
 ![Installed apps with per-app settings shortcuts on Android 11](docs/screenshots/apps-grid-0.11.0-en.png)
 
-![Window width, DPI, and permissions for an app on Android 11](docs/screenshots/app-settings-0.11.0-en.png)
+![Window width, DPI, and a system-recorded microphone grant for a verified app on Android 9](docs/screenshots/app-settings-0.12.0-en.png)
 
-The app has been tested on an Android emulator. Real head unit compatibility is tracked separately.
+![App DPI defaults with the central screen setting saved on Android 11](docs/screenshots/display-defaults-0.12.0-en.png)
+
+The [0.12.0 validation record](dist/VALIDATION_0.12.0.json) covers Android 9 and 11 emulators. Real head unit compatibility is tracked separately.
 
 ## Settings backup
 
@@ -62,5 +64,6 @@ The existing Gradle modules contain logical layers. `core` owns portable command
 
 - [Voice commands and settings](docs/VOICE.md)
 - [Firmware, profiles, and text localization](docs/FIRMWARE.md)
+- [Head unit qualification and recovery](docs/PRODUCTION.md)
 - [Instrument cluster packages, backup, and recovery](docs/CLUSTER.md)
 - [Third-party dependencies and licenses](THIRD_PARTY.md)
