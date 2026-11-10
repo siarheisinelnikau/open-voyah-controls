@@ -12,6 +12,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import org.openvoyah.controls.core.Firmware
 import org.openvoyah.controls.data.frida.FridaBridge
+import org.openvoyah.controls.data.frida.FridaWindowControls
 import org.openvoyah.controls.data.settings.FirmwareMaintenance
 import org.openvoyah.controls.presentation.maintenance.FirmwareAction
 import org.openvoyah.controls.presentation.maintenance.FirmwareScreen
@@ -22,6 +23,7 @@ import org.openvoyah.controls.presentation.theme.ControlsTheme
 
 class FirmwareActivity : ComponentActivity() {
     private val firmware by lazy { FirmwareMaintenance(applicationContext) }
+    private val windows by lazy { FridaWindowControls(applicationContext) }
     private val dialogs = CockpitDialogs(this)
     private val model: MaintenanceViewModel by viewModels { viewModelFactory { initializer { MaintenanceViewModel(work) } } }
     private val importFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -38,11 +40,10 @@ class FirmwareActivity : ComponentActivity() {
         setContent {
             ControlsTheme {
                 val state = model.state.collectAsStateWithLifecycle().value
-                val windowStatus = when {
-                    !windowSupported -> null
-                    !FridaBridge.wasConfigured(this) -> R.string.cockpit_setup_required
-                    firmware.windowEnabled() -> R.string.cockpit_enabled
-                    else -> R.string.cockpit_disabled
+                val windowStatus = if (!windowSupported) null else when (windows.connection()) {
+                    FridaWindowControls.Connection.DISCONNECTED -> R.string.cockpit_setup_required
+                    FridaWindowControls.Connection.DISABLED -> R.string.cockpit_disabled
+                    FridaWindowControls.Connection.ENABLED -> R.string.cockpit_enabled
                 }
                 FirmwareScreen(product, firmware.translationEnabled(), windowStatus,
                     state, ::finish, ::select)

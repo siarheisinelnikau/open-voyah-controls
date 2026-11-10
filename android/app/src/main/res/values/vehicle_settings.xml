@@ -1,5 +1,6 @@
 <resources>
     <string name="vehicle_settings_title">Vehicle settings</string>
+    <string name="vehicle_settings_tile_summary">Driving, cabin and infotainment</string>
     <string name="vehicle_settings_description">Original settings for driving, comfort and infotainment.</string>
     <string name="vehicle_assistance_title">Driving assistance</string>
     <string name="vehicle_assistance_description">Look for Driving assistance, Intelligent driving or Apollo in the original vehicle menu. Available features depend on the model and firmware. Enable them from the original controls.</string>
