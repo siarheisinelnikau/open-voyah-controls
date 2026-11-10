@@ -42,7 +42,7 @@ final class LaunchVoiceActions {
             return UiText.get(R.string.ui_27);
         }
         switch(id) {
-            case "ControlsSettings":activity.startActivity(new Intent(activity,MainActivity.class));return UiText.get(R.string.ui_28);
+            case "ControlsSettings":activity.startActivity(MainActivity.settingsIntent(activity));return UiText.get(R.string.ui_28);
             case "SystemSettings":activity.startActivity(new Intent(Settings.ACTION_SETTINGS));return UiText.get(R.string.ui_28);
             case "Assistant":activity.startActivity(new Intent(Intent.ACTION_ASSIST));return UiText.get(R.string.ui_29);
             case "Split":

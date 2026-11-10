@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const source = ['panel-icons.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+const source = ['panel-icons.js', 'panel-state.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import .*;$/gm, '').replaceAll('export function', 'function')).join('\n') + '\ninstall(Java);';
 
 function harness(config, options = {}) {
@@ -22,7 +22,13 @@ function harness(config, options = {}) {
     }
     let originalHolds = 0;
     const holds = [0,1].map(() => ({call() { originalHolds++; return false; }}));
-    const init = { call() {} };
+    const init = { call(nav) {
+        if (nav.replacement) {
+            const [field, resource] = nav.replacement;
+            nav.views[resource] = nav[field].value = makeView(nav, resource);
+            nav.replacement = null;
+        }
+    } };
     const theme = { call(nav) {
         if (!inTheme) return dispatchTheme(nav);
         for (const view of Object.values(nav.views ?? {})) view.background = view.stock;
@@ -56,6 +62,27 @@ function harness(config, options = {}) {
             launched.push({ intent, display: extras.display });
         } }; } }
     };
+    const object = value => Object.assign(value, { equals(other) { return other === this; }, $dispose() {} });
+    function makeView(nav, resource) {
+        const view = object({
+            stock: object({resource}), draws: 0, holdEnabled: options.stockHolds?.includes(resource) ?? false,
+            getId: () => 10 + Object.keys(nav.views).indexOf(resource),
+            getResources: () => ({getResourceEntryName: () => resource}),
+            getLayoutParams: () => ({width: {value:116}, height: {value:90}}), getWidth: () => 0, getHeight: () => 0,
+            getPaddingLeft: () => 4, getPaddingTop: () => 5, getPaddingRight: () => 6, getPaddingBottom: () => 7,
+            setPadding(...insets) { this.insets = insets; },
+            setBackground(background) { this.background = background; this.draws++; },
+            getBackground() { return this.background; },
+            setLongClickable(value) {
+                if (!value && options.failRestore) return;
+                this.holdEnabled = value;
+            },
+            isLongClickable() { return this.holdEnabled; },
+            mListenerInfo: {value: {mOnClickListener: {value: nav}}}
+        });
+        view.background = view.stock;
+        return view;
+    }
     function makeBar(screen) {
         const nav = {isNav:true, mScreenId:{value:screen}, mContext:{value:context}, views:{}, equals(other) { return other === this; }};
         nav.stockUpdates = 0;
@@ -70,18 +97,7 @@ function harness(config, options = {}) {
             ['mScreenUpItemView3', 'screen_up_icon_3'],
             ['mScreenUpItemView4', 'screen_up_icon_4']
         ]) {
-            const view = {
-                stock: {resource}, draws:0, holdEnabled:false,
-                equals(other) { return other === this; },
-                getId:() => 10 + Object.keys(nav.views).indexOf(resource), getResources:() => ({getResourceEntryName:() => resource}),
-                getLayoutParams:() => ({width:{value:116},height:{value:90}}), getWidth:() => 0, getHeight:() => 0,
-                getPaddingLeft:() => 4, getPaddingTop:() => 5, getPaddingRight:() => 6, getPaddingBottom:() => 7,
-                setPadding(...insets) { this.insets = insets; },
-                setBackground(background) { this.background = background; this.draws++; },
-                setLongClickable(value) { this.holdEnabled = value; },
-                mListenerInfo: {value:{mOnClickListener:{value:nav}}}
-            };
-            view.background = view.stock;
+            const view = makeView(nav, resource);
             nav[field] = {value:view};
             nav.views[resource] = view;
         }
@@ -96,9 +112,10 @@ function harness(config, options = {}) {
             updateSelectedApp: options.noSelection ? undefined : {overload:() => selection}
         },
         'android.view.View': { performLongClick: { overload(...coordinates) { return holds[coordinates.length ? 1 : 0]; } } },
+        'android.widget.RadioGroup': {},
         'android.provider.Settings$Global': { getString(resolver, key) { assert.equal(key, 'org.openvoyah.controls.panel'); return typeof config === 'string' ? config : JSON.stringify(config); } },
         'android.content.Intent': { $new(action) { return {
-            action, addCategory(c) { this.category = c; }, setComponent(c) { this.component = c; }, addFlags(f) { this.flags = f; },
+            action, addCategory(c) { this.category = c; }, setComponent(c) { this.component = c; }, addFlags(f) { this.flags = (this.flags ?? 0) | f; },
             putExtra: { overload() { return { call(intent, key, value) { intent.extras = {[key]:value}; } }; } }
         }; } },
         'android.content.ComponentName': { unflattenFromString(s) { return s; }, $new(pkg, cls) { return pkg + '/' + cls; } },
@@ -112,13 +129,10 @@ function harness(config, options = {}) {
         'android.graphics.drawable.GradientDrawable': {$new() { return {setColor(color) { this.color = color; }, setCornerRadius(radius) { this.radius = radius; }}; }},
         'android.graphics.drawable.ColorDrawable': {$new(color) { return {color}; }},
         'android.R$attr': {state_checked: {value: 16842912}},
-        'android.graphics.drawable.RippleDrawable': {$new(color, layer) { return {color, layer}; }},
+        'android.graphics.drawable.RippleDrawable': {$new(color, layer) { return object({color, layer}); }},
         'android.content.res.ColorStateList': {valueOf:color => color},
         'android.view.Gravity': {CENTER:{value:17}},
-        'java.util.WeakHashMap': {$new() {
-            const map = new Map();
-            return {put:(k,v) => map.set(k,v), remove:k => map.delete(k), keySet:() => ({toArray:() => [...map.keys()]})};
-        }},
+        'java.lang.ref.WeakReference': {$new(referent) { return {get: () => referent, $dispose() {}}; }},
         'android.util.Log': { i(tag, line) { logs.push(line); }, w(tag, line) { logs.push(line); } }
     };
     vm.runInNewContext(source, {
@@ -132,30 +146,38 @@ function harness(config, options = {}) {
         setTimeout(fn,ms) { retries.push({fn,ms}); }, setInterval(fn) { timers.push(fn); return fn; },
         clearInterval(fn) { timers.splice(timers.indexOf(fn),1); }
     });
+    function bar(screen) {
+        const nav = makeBar(screen);
+        init.implementation.call(nav);
+        return nav;
+    }
+    function performHold(view, coordinates) {
+        return holds[coordinates.length ? 1 : 0].implementation.call(view, ...coordinates);
+    }
     return {
         retries, logs, existing,
-        bar(screen) { const nav = makeBar(screen); init.implementation.call(nav); return nav; },
+        bar,
         setConfig(value) { config = value; },
         tick() { timers.forEach(fn => fn()); },
         theme(nav) { dispatchTheme(nav); },
         select(nav, pkg, activity) { selection.implementation.call(nav, pkg, activity); },
         release(nav) { release.implementation.call(nav); },
+        replace(nav, field, resource) {
+            nav.replacement = [field, resource];
+            init.implementation.call(nav);
+        },
         tap(nav, name) { return dispatchClick(nav, nav.views[name]); },
+        holdAndRelease(nav, name, ...coordinates) {
+            const view = nav.views[name];
+            if (!view.isLongClickable() || !performHold(view, coordinates)) dispatchClick(nav, view);
+        },
         hold(screen, resource, isNav = true, ...coordinates) {
-            const owner = { isNav, mScreenId: { value: screen }, mContext: { value: context } };
-            return holds[coordinates.length ? 1 : 0].implementation.call({
-                mListenerInfo: {value:{mOnClickListener:{value:owner}}}, getId:() => 10,
-                equals(other) { return other === this; },
-                getResources:() => ({getResourceEntryName:() => resource})
-            }, ...coordinates);
+            const nav = bar(screen);
+            const view = nav.views[resource] ?? makeView(nav, resource);
+            if (!isNav) view.mListenerInfo.value.mOnClickListener.value = {isNav: false};
+            return performHold(view, coordinates);
         },
-        init(screen) {
-            const enabled = [];
-            const nav = { mScreenId: { value: screen } };
-            for (const name of ['mScreenUpHomeView', 'mScreenUpItemView1', 'mScreenUpItemView2', 'mScreenUpItemView3', 'mScreenUpItemView4']) nav[name] = { value: { setLongClickable(value) { if (value) enabled.push(name); } } };
-            init.implementation.call(nav); return enabled;
-        },
-        click(screen, resource) { const nav = makeBar(screen); return dispatchClick(nav, nav.views[resource] ?? { getId:() => 10, getResources:() => ({getResourceEntryName:() => resource}) }); },
+        click(screen, resource) { const nav = bar(screen); return dispatchClick(nav, nav.views[resource] ?? makeView(nav, resource)); },
         launched, logs, get originalCalls() { return originalCalls; }, get originalHolds() { return originalHolds; }
     };
 }
@@ -220,6 +242,11 @@ test('settings actions run on the requested display', () => {
     for (const kind of ['SYSTEM_SETTINGS', 'CONTROLS_SETTINGS']) {
         const h = harness(config({ navbar11: { kind } })); h.click(1, 'screen_up_home_icon'); assert.equal(h.originalCalls, 0); assert.equal(h.launched[0].display, 1);
     }
+    const h = harness(config({navbar01: {kind: 'CONTROLS_SETTINGS'}}));
+    h.click(0, 'screen_up_icon_1');
+    assert.equal(h.launched[0].intent.action, 'org.openvoyah.controls.action.OPEN_SETTINGS');
+    assert.equal(h.launched[0].intent.component, 'org.openvoyah.controls/org.openvoyah.controls.MainActivity');
+    assert.equal(h.launched[0].intent.flags & (0x04000000 | 0x20000000), 0x04000000 | 0x20000000);
 });
 
 test('long press runs OEM click once, consumes release, and never launches replacement', () => {
@@ -227,6 +254,8 @@ test('long press runs OEM click once, consumes release, and never launches repla
         const h = harness(config({navbar01: action}));
         assert.equal(h.hold(0, 'screen_up_icon_1', true, ...coordinates), true);
         assert.equal(h.originalCalls, 1); assert.equal(h.originalHolds, 0); assert.equal(h.launched.length, 0);
+        h.holdAndRelease(h.bar(0), 'screen_up_icon_1', ...coordinates);
+        assert.equal(h.originalCalls, 2); assert.equal(h.launched.length, 0);
     }
 });
 test('long press preserves OEM long handler for disabled, invalid and unmapped buttons', () => {
@@ -240,10 +269,15 @@ test('long press does not capture other listeners or climate and home', () => {
     h.hold(0, 'screen_up_icon_1', false); h.hold(0, 'screen_up_home_icon'); h.hold(0, 'screen_up_temperature_content');
     assert.equal(h.originalHolds, 3); assert.equal(h.originalCalls, 0);
 });
-test('new launcher bars enable holds only on supported display positions', () => {
-    const h = harness(config({}));
-    assert.deepEqual(h.init(0), ['mScreenUpItemView1', 'mScreenUpItemView2']);
-    assert.equal(h.init(1).length, 5); assert.equal(h.init(2).length, 0);
+test('new launcher bars enable holds only on assigned supported display positions', () => {
+    const h = harness(config({navbar01: action, navbar15: action}));
+    const enabled = screen => {
+        const {views} = h.bar(screen);
+        return Object.keys(views).filter(name => views[name].isLongClickable());
+    };
+    assert.deepEqual(enabled(0), ['screen_up_icon_1']);
+    assert.deepEqual(enabled(1), ['screen_up_icon_4']);
+    assert.deepEqual(enabled(2), []);
 });
 
 test('existing navigation, music and passenger radio buttons use the same component for their icon and tap', () => {
@@ -285,6 +319,7 @@ test('assignment changes and OEM theme reload refresh icons and disabling restor
     h.setConfig({schema:2,enabled:true,actions:{navbar01:alternative}});
     h.tick();
     assert.equal(view.background, view.stock);
+    assert.equal(view.isLongClickable(), false);
     h.setConfig(config({navbar01:alternative}));
     h.tick();
     assert.equal(view.background.layer.icon.component, alternative.component);
@@ -292,6 +327,7 @@ test('assignment changes and OEM theme reload refresh icons and disabling restor
     h.setConfig({schema:1,enabled:false,restoreIcons:token});
     h.tick();
     assert.equal(view.background, view.stock);
+    assert.equal(view.isLongClickable(), false);
     assert.ok(h.logs.includes('OVC_PANEL_ICONS_RESTORED ' + token));
     assert.equal(h.tap(bar, 'screen_up_icon_1'), 'oem');
     h.release(bar);
@@ -300,10 +336,54 @@ test('assignment changes and OEM theme reload refresh icons and disabling restor
     assert.equal(view.background, view.stock);
 });
 
+test('reassigning and rebuilding the bar restore the exact previous hold flags and backgrounds', () => {
+    const h = harness(config({navbar01:action}), {stockHolds:['screen_up_icon_2']});
+    const bar = h.bar(0), navigation = bar.views.screen_up_icon_1, music = bar.views.screen_up_icon_2;
+    assert.equal(navigation.isLongClickable(), true);
+    h.setConfig(config({navbar02:action}));
+    h.tick();
+    assert.equal(navigation.isLongClickable(), false);
+    assert.equal(navigation.background, navigation.stock);
+    assert.equal(music.isLongClickable(), true);
+    assert.equal(music.background.layer.icon.component, action.component);
+    h.replace(bar, 'mScreenUpItemView2', 'screen_up_icon_2');
+    assert.equal(music.isLongClickable(), true);
+    assert.equal(music.background, music.stock);
+    const replacement = bar.views.screen_up_icon_2;
+    assert.equal(replacement.background.layer.icon.component, action.component);
+    h.release(bar);
+    assert.equal(replacement.isLongClickable(), true);
+    assert.equal(replacement.background, replacement.stock);
+});
+
+test('a release token waits for native hold restoration and retries a failed restore', () => {
+    const options = {};
+    const h = harness(config({navbar01:action}), options);
+    const bar = h.bar(0), view = bar.views.screen_up_icon_1;
+    h.select(bar, 'com.example.player', '.Main');
+    assert.equal(bar.checked, view.getId());
+    const token = 'b'.repeat(32);
+    const ack = 'OVC_PANEL_ICONS_RESTORED ' + token;
+    options.failRestore = true;
+    h.setConfig({schema:1, enabled:false, restoreIcons:token});
+    h.tick();
+    assert.equal(h.logs.includes(ack), false);
+    assert.equal(view.isLongClickable(), true);
+    assert.equal(bar.checked, -1);
+    assert.equal(h.tap(bar, 'screen_up_icon_1'), 'oem');
+    options.failRestore = false;
+    h.tick();
+    h.tick();
+    assert.equal(h.logs.filter(log => log === ack).length, 1);
+    assert.equal(view.isLongClickable(), false);
+    assert.equal(view.background, view.stock);
+});
+
 test('unavailable or failed launches keep or restore the stock icon and action', () => {
     const missing = harness(config({navbar01:action}), {missing:action.component, failLaunch:true});
     const initial = missing.bar(0), first = initial.views.screen_up_icon_1;
     assert.equal(first.background, first.stock);
+    assert.equal(first.isLongClickable(), false);
     assert.equal(missing.tap(initial, 'screen_up_icon_1'), 'oem');
 
     const failing = harness(config({navbar01:action, navbar02:action}), {failLaunch:true});
@@ -311,6 +391,7 @@ test('unavailable or failed launches keep or restore the stock icon and action',
     assert.notEqual(navigation.background, navigation.stock);
     assert.equal(failing.tap(bar, 'screen_up_icon_1'), 'oem');
     assert.equal(navigation.background, navigation.stock);
+    assert.equal(navigation.isLongClickable(), false);
     assert.equal(bar.views.screen_up_icon_2.background.layer.icon.component, action.component);
     assert.equal(failing.originalCalls, 1);
 });
@@ -321,6 +402,12 @@ test('a launcher without the confirmed theme method still handles clicks', () =>
     assert.equal(bar.views.screen_up_icon_1.background, bar.views.screen_up_icon_1.stock);
     h.tap(bar, 'screen_up_icon_1');
     assert.equal(h.launched[0].intent.component, action.component);
+    assert.equal(bar.views.screen_up_icon_1.isLongClickable(), true);
+    const token = 'c'.repeat(32);
+    h.setConfig({schema:1, enabled:false, restoreIcons:token});
+    h.tick();
+    assert.ok(h.logs.includes('OVC_PANEL_ICONS_RESTORED ' + token));
+    assert.equal(bar.views.screen_up_icon_1.isLongClickable(), false);
 });
 
 test('selection follows the exact foreground component on its own display', () => {

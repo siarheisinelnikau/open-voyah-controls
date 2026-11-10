@@ -36,7 +36,6 @@
     <string name="oem_steering">Штатные кнопки руля</string>
     <string name="oem_voice">Голос</string>
     <string name="oem_custom">Настраиваемая</string>
-    <string name="oem_camera">Круговой обзор</string>
     <string name="oem_short">Нажатие</string>
     <string name="oem_hold">Удержание</string>
     <string name="oem_restore_keys">Вернуть штатные действия</string>
