@@ -1,16 +1,28 @@
 import {planFor, executePlan} from './voice-engine.js';
+import {QingganBus} from './qinggan-bus.js';
 
 export function installVoice(Java) {
     Java.perform(() => {
         try {
             const Global = Java.use('android.provider.Settings$Global');
             const ActivityThread = Java.use('android.app.ActivityThread');
-            const resolver = ActivityThread.currentApplication().getContentResolver();
+            const application = ActivityThread.currentApplication();
+            const resolver = application.getContentResolver();
+            const bus = new QingganBus(Java, application);
             const KEY = 'org.openvoyah.controls.voice';
             // Ignore requests left over from a prior injector lifetime.
             let last = String(Global.getString(resolver, KEY) || '');
             let busy = false;
             const report = (id, status, message) => console.log('OVC_VOICE_RESULT ' + JSON.stringify({id,status,message}));
+            function canManager() {
+                const Wrapper = Java.use('com.qinggan.launcher.base.manager.CanBusManagerWrapper');
+                const manager = Wrapper.getCanBusManager();
+                if (manager === null) throw Error('CAN service is not connected yet. Try later');
+                return manager;
+            }
+            function requireParking(manager) {
+                if (String(manager.getGearStatus().name()) !== 'Parking') throw Error('This command requires Parking gear');
+            }
             setInterval(() => Java.perform(() => {
                 const raw = String(Global.getString(resolver, KEY) || '');
                 if (!raw || raw === last || busy) return;
@@ -18,28 +30,22 @@ export function installVoice(Java) {
                 let request;
                 try {
                     request = JSON.parse(raw);
-                    if (request.schema !== 1 || !/^[a-f0-9]{32}$/.test(request.id) ||
+                    if (![1, 2].includes(request.schema) || !/^[a-f0-9]{32}$/.test(request.id) ||
                         !Number.isFinite(request.expires) || request.expires < Date.now() || request.expires > Date.now()+15000) return;
                     if (request.confirmed !== true) throw Error('Vehicle command was not confirmed');
+                    if (request.command==='ParkingPreflight') {
+                        requireParking(canManager());
+                        report(request.id, 'sent', 'OVC_PARKING_READY');
+                        return;
+                    }
                     if (request.command==='ProfileSync' || request.command==='ProfileSyncPreflight') {
-                        const Bus=Java.use('com.qinggan.bus.QGBus');
-                        const Event=Java.use('com.qinggan.bus.QGBusEvent');
-                        const Bundle=Java.use('android.os.Bundle');
-                        const event=Event.$new(); event.setSticky(true);
-                        event.setEventType('com.qinggan.update.vehicle_data');
-                        const data=Bundle.$new(); data.putBoolean('update_vehicle_data',true);
-                        data.putLong('update_vehicle_time',Java.use('android.os.SystemClock').uptimeMillis());
-                        event.setData(data);
-                        const bus=Bus.$new(ActivityThread.currentApplication());
-                        if(request.command==='ProfileSync') bus.publish(event);
+                        if (request.schema === 2 && request.command === 'ProfileSyncPreflight') requireParking(canManager());
+                        bus.refreshVehicleData(request.command === 'ProfileSyncPreflight');
                         report(request.id,'sent',request.command==='ProfileSync'?'OEM vehicle data refresh requested':'OVC_PROFILE_SYNC_READY');
                         return;
                     }
                     if (request.command==='PowerHold') {
-                        const Bus = Java.use('com.qinggan.bus.QGBus');
-                        const Event = Java.use('com.qinggan.bus.QGBusEvent');
-                        const event = Event.$new(); event.setEventType('qg_action_start_power_hold_mode');
-                        Bus.$new(ActivityThread.currentApplication()).publish(event);
+                        bus.openPowerHold();
                         report(request.id,'sent','OEM Power Hold confirmation opened'); return;
                     }
                     if(request.command.startsWith('BackLightMode')) {
@@ -51,6 +57,7 @@ export function installVoice(Java) {
                         report(request.id,'sent','Brightness mode requested'); return;
                     }
                     if(request.command==='Sentry') {
+                        if (request.schema === 2) requireParking(canManager());
                         const Intent=Java.use('android.content.Intent');
                         const intent=Intent.$new('com.arcsoft.sentryserviceimpl.SentryService');
                         intent.setClassName('com.arcsoft.sentryService','com.arcsoft.sentryserviceimpl.SentryService');
@@ -70,18 +77,21 @@ export function installVoice(Java) {
                         return;
                     }
                     const operations = planFor(request.command, request.options);
-                    const Wrapper = Java.use('com.qinggan.launcher.base.manager.CanBusManagerWrapper');
-                    const found = Wrapper.getCanBusManager();
-                    if (found === null) throw Error('CAN service is not connected yet. Try later');
-                    const manager = Java.retain(found);
+                    const manager = Java.retain(canManager());
                     const retained = [manager];
                     const methods = {};
                     function method(bus) {
                         if (methods[bus]) return methods[bus];
-                        const name = bus === 'climate' ? 'setAirConditionState' : 'setVehicleState';
-                        const overloads = manager[name].overloads.filter(m => m.argumentTypes.length === 2 && m.argumentTypes[1].className === 'int');
+                        const name = bus === 'temperature' ? 'setAirConditionStateEx'
+                            : bus === 'climate' ? 'setAirConditionState' : 'setVehicleState';
+                        const valueType = bus === 'temperature' ? 'float' : 'int';
+                        const overloads = manager[name].overloads.filter(m => m.argumentTypes.length === 2 && m.argumentTypes[1].className === valueType);
                         if (overloads.length !== 1) throw Error('Incompatible API: ' + name);
                         return methods[bus] = overloads[0];
+                    }
+                    function isH97() {
+                        try { return Java.use('com.qinggan.launcher.base.config.AppConfig').isH97(); }
+                        catch (error) { return false; }
                     }
                     const adapter = {
                         prepare(op) {
@@ -113,9 +123,15 @@ export function installVoice(Java) {
                                 if(!manager.setVehicleAndAirConditionBundleState) throw Error('CAN bundle API unavailable');
                                 return {individual:true,bundle,second:op.profile==='DREAMER'?null:second};
                             }
+                            if (op.h97Climate && !isH97())
+                                throw Error('This climate command requires the H97 adapter');
                             const target = method(op.bus==='roof'?'vehicle':op.bus);
                             const Type = Java.use(target.argumentTypes[0].className);
                             const property = Java.retain(Type.valueOf(op.property)); retained.push(property);
+                            if (op.h97Climate) {
+                                const power = Java.retain(Type.valueOf('AC_POWER_SWITCH')); retained.push(power);
+                                if (manager.getAirConditionState(power) !== 1) throw Error('Turn on the front climate system first');
+                            }
                             if (op.bus==='roof') {
                                 const control=Java.retain(Type.valueOf('SunroofControl')); retained.push(control);
                                 const current=Number(manager.getVehicleState(property));
@@ -123,17 +139,21 @@ export function installVoice(Java) {
                                 return {roof:true,target,property,control,op,current};
                             }
                             let value = op.value;
-                            if(op.parked && String(manager.getGearStatus().name())!=='Parking') throw Error('This command requires Parking gear');
+                            if (op.parked) requireParking(manager);
                             if(op.toggle) value=manager.getVehicleState(property)===1?0:1;
                             if (op.relative) {
                                 const current = Number(manager.getAirCondition().getAirLeftTemperature());
-                                if (!Number.isFinite(current) || current < 16 || current > 32) throw Error('No valid current temperature');
-                                value = Math.max(160,Math.min(320,Math.round(current*10)+value));
+                                const [minimum, maximum] = isH97() ? [155, 305] : [160, 320];
+                                const tenths = Math.round(current * 10);
+                                if (!Number.isFinite(current) || tenths < minimum || tenths > maximum)
+                                    throw Error('No valid current temperature');
+                                value = Math.max(minimum, Math.min(maximum, tenths + value));
                             }
-                            return {target,property,value};
+                            return {target, property, value, parked: op.parked};
                         },
                         write(p) {
                             if (Date.now() > request.expires) throw Error('Command expired');
+                            if (p.parked) requireParking(manager);
                             if(p.individual) {
                                 if(manager.setVehicleAndAirConditionBundleState(null,p.bundle)!==0) throw Error('CAN rejected individual mode');
                                 if(p.second && manager.setVehicleAndAirConditionBundleState(null,p.second)!==0) throw Error('Drive mode changed but EPS/PROP were rejected');
@@ -176,7 +196,7 @@ export function installVoice(Java) {
                         .finally(() => { for(const object of retained) object.$dispose(); busy = false; });
                 } catch (error) { if (request && request.id) report(request.id,'error',String(error)); }
             }),250);
-            console.log('OVC_VOICE_READY');
+            console.log('OVC_VOICE_READY protocol=2');
         } catch (error) { console.log('OVC_VOICE_ERROR ' + error + '; retry in 30s');setTimeout(()=>installVoice(Java),30000); }
     });
 }

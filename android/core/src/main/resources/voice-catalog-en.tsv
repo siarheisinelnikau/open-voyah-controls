@@ -4,6 +4,8 @@ Camera	Basic	camera
 Music	Basic	music
 Navigator	Basic	navigator|navi
 Radio	Basic	radio
+RestartMusic	Basic	restart music
+RestartNavigator	Basic	restart navigation|restart the navigator
 DecreaseTemperature	Basic	hot
 FastDecreaseTemperature	Basic	very hot|so hot
 FastIncreaseTemperature	Basic	very cold|so cold
@@ -18,9 +20,9 @@ OpenFuelPort	Basic	gas tank|fuel door|open fuel door|open gas tank
 CarWashMode	Basic	wash mode|wash
 PowerHold	Basic	powerhold
 WiperMaintain	Basic	wipers
-GetFromMemoryCellOne	Basic	driver number one|driver one
-GetFromMemoryCellThree	Basic	driver number three|driver three
-GetFromMemoryCellTwo	Basic	driver number two|driver two
+GetFromMemoryCellOne	Basic	driver number one|driver one|driver seat position one|driver seat memory one
+GetFromMemoryCellThree	Basic	driver number three|driver three|driver seat position three|driver seat memory three
+GetFromMemoryCellTwo	Basic	driver number two|driver two|driver seat position two|driver seat memory two
 SmokeCommand	Basic	let's have a smoke|open the window a little|open window a little|open window little
 VentilationCommand	Basic	ventilation|fresh air|air out|stuffy
 DisableDriverCondition	DriverSeat	seat ventilation off
@@ -34,7 +36,7 @@ EnableHeatDriverLevelOne	DriverSeat	seat heating level one|seat heating one|driv
 EnableHeatDriverLevelTree	DriverSeat	seat heating level three|driver seat heating level three|seat heating three
 EnableHeatDriverLevelTwo	DriverSeat	seat heating level two|driver seat heating level two|seat heating two
 DisableDriverMassage	DriverSeat	massage off
-EnableMassageDriverLevelDefault	DriverSeat	massage enable
+EnableMassageDriverLevelDefault	DriverSeat	massage enable|turn on massage
 EnableMassageDriverLevelOne	DriverSeat	massage level one|massage one
 EnableMassageDriverLevelTree	DriverSeat	massage level three|massage three
 EnableMassageDriverLevelTwo	DriverSeat	massage level two|massage two
@@ -55,6 +57,7 @@ OffroadMode	Mode	outing mode|outing
 SnowMode	Mode	snow mode|snow
 SportMode	Mode	sport mode|sport
 ElectroMode	Mode	electric mode|electric
+ForcedElectroMode	Mode	forced electric mode|force electric
 FuelMode	Mode	fuel mode|fuel
 HybridMode	Mode	hybrid mode
 IntellectMode	Mode	smart mode|smart
@@ -68,6 +71,8 @@ RebootTbox	Other	reboot modem
 DriverA	Other	driver a
 DriverB	Other	driver b
 DriverC	Other	driver c
+Weather	Other	weather|weather today|current weather
+WeatherTomorrow	Other	weather tomorrow|tomorrow forecast
 Like	Other	like song
 RemoveLike	Other	remove like
 DisLike	Other	dislike song
@@ -84,7 +89,7 @@ EnableHeatPassengerLevelOne	PassengerSeat	passenger seat heating level one|passe
 EnableHeatPassengerLevelTree	PassengerSeat	passenger seat heating level three|passenger seat heating three
 EnableHeatPassengerLevelTwo	PassengerSeat	passenger seat heating level two|passenger seat heating two
 DisablePassengerMassage	PassengerSeat	passenger massage off
-EnableMassagePassengerLevelDefault	PassengerSeat	passenger massage enable
+EnableMassagePassengerLevelDefault	PassengerSeat	passenger massage enable|turn on passenger massage
 EnableMassagePassengerLevelOne	PassengerSeat	passenger massage level one|passenger massage one
 EnableMassagePassengerLevelTree	PassengerSeat	passenger massage level three|passenger massage three
 EnableMassagePassengerLevelTwo	PassengerSeat	passenger massage level two|passenger massage two
@@ -124,7 +129,7 @@ MediaPlay	Media	play music
 MediaPause	Media	pause music
 MediaNext	Media	next track
 MediaPrevious	Media	previous track
-VolumeUp	Media	volume up
-VolumeDown	Media	volume down
+VolumeUp	Media	volume up|turn it up|make it louder
+VolumeDown	Media	volume down|turn it down|make it quieter
 VolumeMute	Media	mute
 SystemSettings	Media	system settings

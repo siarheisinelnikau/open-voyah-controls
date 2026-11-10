@@ -26,6 +26,13 @@ test('Dreamer powertrain mapping differs from Free',()=>{
     assert.equal(env.planFor('HybridMode',{profile:'FREE'})[0].value,3);
     const dream=env.planFor('HybridMode',{profile:'DREAMER'});assert.equal(dream[0].property,'FORCE_EV_MODE_SET');assert.equal(dream[1].value,1);
 });
+test('forced electric mode uses the actual powertrain family and rejects unknown models', () => {
+    const free = env.planFor('ForcedElectroMode', { profile: 'FREE_REST_BY' });
+    assert.deepEqual(Array.from(free, op => [op.property, op.value]), [['IVI_SOC_MODESET', 5]]);
+    const dreamer = env.planFor('ForcedElectroMode', { profile: 'DREAMER_REST' });
+    assert.deepEqual(Array.from(dreamer, op => [op.property, op.value]), [['FORCE_EV_MODE_SET', 1], ['IVI_SOC_MODESET', 2]]);
+    assert.throws(() => env.planFor('ForcedElectroMode', { profile: 'UNKNOWN' }));
+});
 test('SOC grammar cannot invent an unbounded target',()=>{
     const p=env.planFor('SaveModeWithSOC',{profile:'FREE',phrase:'сохранение восемьдесят'});
     assert.equal(p.at(-1).value,11);assert.equal(p.at(-1).phase,'post');

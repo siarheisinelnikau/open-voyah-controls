@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_window_title">Width and DPI</string>
+    <string name="app_window_width">Window width</string>
+    <string name="app_window_dpi">App scale (DPI)</string>
+    <string name="app_window_default_dpi">System</string>
+    <string name="app_window_panel_width">Minimum left inset</string>
+    <string name="app_window_panel_auto">From launcher</string>
+    <string name="app_window_pixels">%1$d px</string>
+    <string name="app_window_restore">Restore defaults</string>
+    <string name="app_window_enable">Enable window service</string>
+    <string name="app_window_enabled">Window service is enabled. Wait a moment after activation.</string>
+    <string name="app_window_apply">Apply</string>
+    <string name="app_window_saved">Saved on this head unit. The profile takes effect when window service is available.</string>
+    <string name="app_window_saved_next">Profile saved. It will apply the next time the app opens on the central display.</string>
+    <string name="app_window_applied">Applied · %1$d px wide · %2$d DPI · %3$d px from left</string>
+    <string name="app_window_density_only">Applied %1$d DPI. Android kept the current window size.</string>
+    <string name="app_window_unsupported">This firmware or app cannot open in a freeform window.</string>
+    <string name="app_window_task_unsupported">This task cannot be changed in its current mode.</string>
+    <string name="app_window_no_space">The requested window is too small for this app on the available screen.</string>
+    <string name="app_window_failed">Android could not verify the requested window configuration.</string>
+    <string name="window_service_unavailable">The window service has not responded. Check the Frida connection.</string>
+    <string name="window_restore_unconfirmed">Window service stopped. Some active windows may still need to be reset.</string>
+    <string name="app_window_explainer">Apps on the central display open to the right of the navigation panel. Width is measured from that edge.</string>
+</resources>

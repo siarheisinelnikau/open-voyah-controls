@@ -1,0 +1,26 @@
+{
+  "version": "0.8.0",
+  "date": "2026-11-10",
+  "apk": "OpenVoyahControls-0.8.0-debug.apk",
+  "size": 157366889,
+  "sha256": "a5f4d4755ba27669a1b1fdff9ffe7adacb1963324c716652e17cbc4415814d23",
+  "min_sdk": 28,
+  "signing": "debug",
+  "tests": {
+    "jvm": 21,
+    "node": 55,
+    "android_api_28": 47
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 26
+  },
+  "emulator_checks": [
+    "Upgrade from 0.7.0",
+    "Voice settings and audio settings use Compose",
+    "Voice opens above another app without Accessibility",
+    "Silence and a second trigger close the popup",
+    "Verified Park gates using firmware fixtures"
+  ],
+  "vehicle_tested": false
+}

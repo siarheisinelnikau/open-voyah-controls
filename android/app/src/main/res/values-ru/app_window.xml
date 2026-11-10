@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_window_title">Ширина и DPI</string>
+    <string name="app_window_width">Ширина окна</string>
+    <string name="app_window_dpi">Масштаб (DPI)</string>
+    <string name="app_window_default_dpi">Системная</string>
+    <string name="app_window_panel_width">Минимальный отступ слева</string>
+    <string name="app_window_panel_auto">По панели</string>
+    <string name="app_window_pixels">%1$d пикс.</string>
+    <string name="app_window_restore">Сбросить</string>
+    <string name="app_window_enable">Включить управление окнами</string>
+    <string name="app_window_enabled">Управление окнами включено. Подождите немного после запуска.</string>
+    <string name="app_window_apply">Применить</string>
+    <string name="app_window_saved">Профиль сохранён. Он вступит в силу после подключения обработчика окон.</string>
+    <string name="app_window_saved_next">Профиль сохранён. Он применится при следующем запуске на центральном экране.</string>
+    <string name="app_window_applied">Применено · ширина %1$d пикс. · %2$d DPI · слева %3$d пикс.</string>
+    <string name="app_window_density_only">Применено %1$d DPI. Android сохранил текущий размер окна.</string>
+    <string name="app_window_unsupported">Приложение или прошивка не поддерживает плавающее окно.</string>
+    <string name="app_window_task_unsupported">Текущее состояние задачи не позволяет изменить окно.</string>
+    <string name="app_window_no_space">Приложению не хватает места при заданной ширине и отступе.</string>
+    <string name="app_window_failed">Не удалось подтвердить изменение конфигурации окна.</string>
+    <string name="window_service_unavailable">Обработчик окон не ответил. Проверьте подключение Frida.</string>
+    <string name="window_restore_unconfirmed">Обработчик остановлен. Некоторые открытые окна могут требовать сброса.</string>
+    <string name="app_window_explainer">На центральном экране приложения открываются справа от панели навигации. Ширина считается от её края.</string>
+</resources>

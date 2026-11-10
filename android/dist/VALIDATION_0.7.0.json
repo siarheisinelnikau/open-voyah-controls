@@ -1,0 +1,27 @@
+{
+  "version": "0.7.0",
+  "date": "2026-11-10",
+  "apk": "OpenVoyahControls-0.7.0-debug.apk",
+  "size": 132385088,
+  "sha256": "f3c561177f322766b7620b977b98409e8197d3cb27f8b2ce02e70697c1230301",
+  "min_sdk": 28,
+  "signing": "debug",
+  "tests": {
+    "jvm": 21,
+    "node": 52,
+    "android_api_28": 43,
+    "cluster_transactions": 8
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 10
+  },
+  "emulator_checks": [
+    "Upgrade from 0.6.1",
+    "Constrained English and Russian Vosk model startup",
+    "Stale voice confirmation does not dispatch",
+    "Full settings archive round trip and interrupted restore rollback",
+    "Launcher fixture checks exact foreground selection, stock hold, tap and icon restoration"
+  ],
+  "vehicle_tested": false
+}

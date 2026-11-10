@@ -1,0 +1,26 @@
+{
+  "version": "0.6.1",
+  "date": "2026-11-09",
+  "apk": "OpenVoyahControls-0.6.1-debug.apk",
+  "size": 132259712,
+  "sha256": "b76e9dc06d1b32513dff094ca76b77f00f2bfb1238d2f2c085794cb4fc02a291",
+  "min_sdk": 28,
+  "signing": "debug",
+  "tests": {
+    "jvm": 19,
+    "node": 48,
+    "android_api_28": 39
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 10
+  },
+  "emulator_checks": [
+    "APK upgrade from 0.6.0",
+    "Passenger radio assignment and reset in Controls",
+    "Native icon drawing on an isolated launcher fixture",
+    "Assigned tap and original hold on an isolated launcher fixture",
+    "Theme refresh, failed-launch fallback, and stock icon restoration on an isolated launcher fixture"
+  ],
+  "vehicle_tested": false
+}

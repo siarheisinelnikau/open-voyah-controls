@@ -1,0 +1,30 @@
+{
+  "version": "0.11.0",
+  "date": "2026-11-10",
+  "apk": "OpenVoyahControls-0.11.0-debug.apk",
+  "size": 158040514,
+  "sha256": "b61241d96eff5b40712c3087091f2628cfd4194be9d35070cad4ff4bb9759836",
+  "min_sdk": 28,
+  "signing": "debug",
+  "tests": {
+    "jvm": 21,
+    "node": 60,
+    "android_api_28": 54,
+    "android_api_30_focused": 7
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 33
+  },
+  "emulator_checks": [
+    "Connected Frida with no saved window profiles on Android 9 and 11",
+    "Opened a new app and brought a second running app to the front with a 145 px left strip on both emulators",
+    "Applied 1420 px width and 190 DPI from App settings and verified the running app on both emulators",
+    "Verified the microphone grant, long-press settings entry, default reset and task restoration on Android 11",
+    "Applied density separately when Android kept the size of a non-resizable task on Android 11",
+    "Captured both updated screens from the signed Android 11 debug build",
+    "Matched the four APK agent bundles against the current build",
+    "Repeated permission, reset and task restoration checks on Android 9"
+  ],
+  "vehicle_tested": false
+}

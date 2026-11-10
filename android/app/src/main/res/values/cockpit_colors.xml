@@ -1,0 +1,10 @@
+<resources>
+    <color name="cockpit_background">#0C1118</color>
+    <color name="cockpit_surface">#171E28</color>
+    <color name="cockpit_surface_raised">#202B39</color>
+    <color name="cockpit_stroke">#303E4E</color>
+    <color name="cockpit_text">#ECF0F5</color>
+    <color name="cockpit_muted">#ABB9CA</color>
+    <color name="cockpit_accent">#A8C7E5</color>
+    <color name="cockpit_on_accent">#152538</color>
+</resources>
