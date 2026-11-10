@@ -1,7 +1,7 @@
 <resources>
     <string name="voice_language">Recognition language</string>
     <string name="firmware_settings">Firmware and OEM profiles</string>
-    <string name="firmware_info">Android text translation below: launcher, settings, vehicle and Bluetooth phone. A basic dictionary is included; import a full dictionary if available. These Frida settings do not replace firmware files. Instrument cluster installation is on the separate screen above.</string>
+    <string name="firmware_info">Translate the launcher, vehicle settings and Bluetooth phone. Use a built-in dictionary or import your own.</string>
     <string name="translation_on">Translation enabled</string>
     <string name="translation_off">Translation disabled</string>
     <string name="translate_ru">Russian translation · basic dictionary</string>

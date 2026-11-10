@@ -1,0 +1,14 @@
+<resources>
+    <string name="vehicle_settings_title">Vehicle settings</string>
+    <string name="vehicle_settings_description">Original settings for driving, comfort and infotainment.</string>
+    <string name="vehicle_assistance_title">Driving assistance</string>
+    <string name="vehicle_assistance_description">Look for Driving assistance, Intelligent driving or Apollo in the original vehicle menu. Available features depend on the model and firmware. Enable them from the original controls.</string>
+    <string name="vehicle_settings_open">Open original vehicle settings</string>
+    <string name="vehicle_settings_unavailable">Open the vehicle menu from the factory panel. This head unit has no public shortcut available to Controls.</string>
+    <string name="vehicle_manual">VOYAH owner manuals</string>
+    <string name="vehicle_cabin_title">Cabin and infotainment</string>
+    <string name="vehicle_cabin_description">Use the original controls for climate, seats, mirrors and lighting. Sound and display options are in the infotainment settings.</string>
+    <string name="vehicle_infotainment_open">Open original infotainment settings</string>
+    <string name="vehicle_energy_title">Driving and energy</string>
+    <string name="vehicle_energy_description">Drive modes, regenerative braking and charging are available in the original vehicle menu when supported.</string>
+</resources>
