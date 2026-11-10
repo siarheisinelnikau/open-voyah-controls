@@ -1,6 +1,8 @@
 use crate::{
     adb::{self, Adb, Device, Result},
     device::{self, OemAction, message},
+    production::{self, Identity, ReleaseApk},
+    recovery,
     releases::{self, Catalog},
 };
 use std::{
@@ -97,6 +99,7 @@ const REMOVE: u16 = 34;
 const BATCH: u16 = 35;
 const RUNTIME: u16 = 36;
 const INFO: u16 = 37;
+const RECOVERY_PAGE: u16 = 38;
 const FINGERPRINT: u16 = 40;
 const READ_FINGERPRINT: u16 = 41;
 const OEM: u16 = 42;
@@ -134,29 +137,61 @@ const PAGE_HINTS: [&str; 4] = [
     "Find verified packages and collect diagnostics locally.",
 ];
 
-const OEM_LABELS: [&str; 7] = [
-    "Reset vehicle settings with backup",
-    "Restore vehicle settings backup",
-    "Disable dm-verity",
-    "Enable dm-verity",
-    "Install signed OEM keyboard update",
-    "Restore stock OEM keyboard",
-    "Restart head unit",
-];
-const OEM_ACTIONS: [OemAction; 7] = [
-    OemAction::ResetSettings,
-    OemAction::RestoreSettings,
-    OemAction::DisableVerity,
-    OemAction::EnableVerity,
-    OemAction::InstallKeyboard,
-    OemAction::RestoreKeyboard,
-    OemAction::Reboot,
+#[derive(Clone, Copy)]
+enum ServiceAction {
+    Verify,
+    BackupBoot,
+    InstallBoot,
+    Rollback,
+    RestoreExported,
+    Rearm,
+    Migrate,
+    Oem(OemAction),
+}
+
+const SERVICE_ACTIONS: [(&str, ServiceAction); 12] = [
+    ("Verify production firmware", ServiceAction::Verify),
+    ("Back up boot script to PC", ServiceAction::BackupBoot),
+    ("Install optional boot entry", ServiceAction::InstallBoot),
+    ("Roll back Controls", ServiceAction::Rollback),
+    (
+        "Restore Controls from PC backup",
+        ServiceAction::RestoreExported,
+    ),
+    ("Allow fresh Controls setup", ServiceAction::Rearm),
+    (
+        "Remove old app for signer migration",
+        ServiceAction::Migrate,
+    ),
+    (
+        "Reset vehicle settings with backup",
+        ServiceAction::Oem(OemAction::ResetSettings),
+    ),
+    (
+        "Restore vehicle settings backup",
+        ServiceAction::Oem(OemAction::RestoreSettings),
+    ),
+    (
+        "Install signed OEM keyboard update",
+        ServiceAction::Oem(OemAction::InstallKeyboard),
+    ),
+    (
+        "Restore stock OEM keyboard",
+        ServiceAction::Oem(OemAction::RestoreKeyboard),
+    ),
+    ("Restart head unit", ServiceAction::Oem(OemAction::Reboot)),
 ];
 
 enum Job {
     Refresh,
-    Connection { connect: bool, address: String },
-    Install { paths: Vec<PathBuf>, main_app: bool },
+    Connection {
+        connect: bool,
+        address: String,
+    },
+    Install {
+        path: PathBuf,
+        expected: Option<ReleaseApk>,
+    },
     Batch(PathBuf),
     Launch,
     Remove,
@@ -164,7 +199,12 @@ enum Job {
     Info,
     Fingerprint,
     Logs,
-    Oem(OemAction, String, String),
+    Service {
+        action: ServiceAction,
+        fingerprint: String,
+        input: String,
+        backup: Option<PathBuf>,
+    },
     Download(releases::Asset, bool),
 }
 
@@ -172,7 +212,7 @@ enum Output {
     Status(String),
     Devices(Vec<Device>, String),
     Fingerprint(String),
-    Apk(PathBuf),
+    Apk(PathBuf, ReleaseApk),
     Update(PathBuf, String),
 }
 
@@ -210,6 +250,7 @@ struct State {
     adb: Option<Adb>,
     storage: PathBuf,
     catalog: Catalog,
+    apk_release: Option<(PathBuf, ReleaseApk)>,
     events: Events,
     rx: Receiver<Event>,
     cancel: Option<Arc<AtomicBool>>,
@@ -259,7 +300,16 @@ fn run_job(
                     .into(),
             )
         } else {
-            Output::Apk(path)
+            Output::Apk(
+                path,
+                ReleaseApk {
+                    version: releases::apk_version(&asset)
+                        .ok_or("The release has an invalid APK version.")?,
+                    sha256: releases::checksum(&asset)
+                        .ok_or("Missing release digest.")?
+                        .into(),
+                },
+            )
         });
     }
     let adb = adb
@@ -286,33 +336,73 @@ fn run_job(
     }
     let selected = device.ok_or("Select a connected head unit first.")?;
     let target = adb.target(&selected, stop)?;
+    let verification = store.join("verification");
     let result = match job {
-        Job::Install { paths, main_app } => {
-            device::install_apks(&target, &paths, main_app, progress)
+        Job::Install { path, expected } => {
+            production::install_controls(&target, &path, expected.as_ref(), &verification, progress)
         }
-        Job::Batch(folder) => {
-            device::install_apks(&target, &device::apk_files(&folder)?, false, progress)
-        }
+        Job::Batch(folder) => device::install_apks(
+            &target,
+            &device::apk_files(&folder)?,
+            &verification,
+            progress,
+        ),
         Job::Launch => device::launch(&target),
-        Job::Remove => device::uninstall(&target),
-        Job::Runtime(path) => device::install_runtime(&target, &path),
-        Job::Info => device::info(&target),
+        Job::Remove => recovery::uninstall(&target),
+        Job::Runtime(path) => recovery::install_runtime(&target, &path, &verification, progress),
+        Job::Info => recovery::device_status(&target),
         Job::Fingerprint => {
             return target
                 .property("ro.build.fingerprint")
                 .map(Output::Fingerprint);
         }
         Job::Logs => device::collect_logs(&target, &store.join("logs"), progress),
-        Job::Oem(action, fingerprint, input) => device::maintenance(
-            &adb,
-            &selected,
-            stop,
+        Job::Service {
             action,
-            &fingerprint,
-            &input,
-            &store.join("backups"),
-            progress,
-        ),
+            fingerprint,
+            input,
+            backup,
+        } => match action {
+            ServiceAction::Verify => {
+                let identity = Identity::confirmed(&target, &fingerprint)?;
+                production::check_reviewed(&target, &identity, &verification)?;
+                Ok("The exact build and reviewed OEM packages matched. APK, injector, and boot setup are separate steps.".into())
+            }
+            ServiceAction::BackupBoot => {
+                recovery::export_boot_backup(&target, &fingerprint, &store.join("backups"))
+            }
+            ServiceAction::InstallBoot => recovery::install_boot(
+                &target,
+                &fingerprint,
+                backup
+                    .as_deref()
+                    .ok_or("Choose a verified PC boot backup.")?,
+                &verification,
+            ),
+            ServiceAction::Rollback => recovery::rollback(&target, &fingerprint),
+            ServiceAction::RestoreExported => recovery::restore_exported(
+                &target,
+                &fingerprint,
+                backup
+                    .as_deref()
+                    .ok_or("Choose a verified PC boot backup.")?,
+            ),
+            ServiceAction::Rearm => recovery::rearm(&target, &fingerprint, &verification),
+            ServiceAction::Migrate => recovery::remove_for_migration(
+                &target,
+                &fingerprint,
+                backup.as_deref().ok_or("Choose the app settings export.")?,
+                &store.join("backups"),
+            ),
+            ServiceAction::Oem(action) => device::maintenance(
+                &target,
+                action,
+                &fingerprint,
+                &input,
+                &store.join("backups"),
+                progress,
+            ),
+        },
         _ => unreachable!(),
     };
     result.map(Output::Status)
@@ -494,7 +584,7 @@ impl State {
         self.styled_label(
             tab,
             PANEL_MUTED,
-            "Select an APK to install or update the app. Updates retain existing app data.",
+            "Select a signed Controls release. Verified updates retain existing app data.",
             [253, 324, 700, 24],
             0,
         );
@@ -511,7 +601,8 @@ impl State {
         self.styled_label(tab, WORKSPACE_TEXT, "Other tools", [236, 473, 700, 23], 1);
         self.button(tab, BATCH, "Install APK folder…", [236, 502, 183, 36]);
         self.button(tab, RUNTIME, "Install Frida injector…", [431, 502, 198, 36]);
-        self.button(tab, INFO, "Device details", [641, 502, 143, 36]);
+        self.button(tab, INFO, "Device status", [641, 502, 143, 36]);
+        self.button(tab, RECOVERY_PAGE, "Boot and recovery", [795, 502, 163, 36]);
 
         let tab = Some(1);
         self.styled_label(
@@ -580,14 +671,14 @@ impl State {
         self.styled_label(
             tab,
             PANEL_TEXT,
-            "Service operations",
+            "Boot, recovery and service",
             [252, 291, 668, 27],
             1,
         );
         self.styled_label(
             tab,
             PANEL_MUTED,
-            "Verify the firmware fingerprint before changing settings or boot verification.",
+            "Confirm the exact build. Boot and recovery require authorized ADB root.",
             [252, 323, 705, 24],
             0,
         );
@@ -599,7 +690,11 @@ impl State {
         );
         self.button(tab, READ_FINGERPRINT, "Read build", [816, 353, 141, 35]);
         self.combo(tab, OEM, [252, 402, 485, 246]);
-        self.set_items(OEM, OEM_LABELS, Some(0));
+        self.set_items(
+            OEM,
+            SERVICE_ACTIONS.iter().map(|(label, _)| *label),
+            Some(0),
+        );
         self.button(tab, RUN_OEM, "Run operation…", [750, 399, 207, 36]);
         self.edit(
             tab,
@@ -611,7 +706,7 @@ impl State {
         self.styled_label(
             tab,
             PANEL_MUTED,
-            "Maintenance is available on supported Free and Dreamer products.",
+            "Keep the boot backup on this PC. Roll back Controls before removing the app.",
             [252, 500, 704, 23],
             0,
         );
@@ -737,9 +832,9 @@ impl State {
     fn set_beijing_date(&mut self) {
         let date = if self.demo {
             Date {
-                year: 2026,
-                month: 11,
-                day: 10,
+                year: 2025,
+                month: 1,
+                day: 15,
             }
         } else {
             Date::beijing()
@@ -811,6 +906,7 @@ impl State {
             ADB_PATH,
             BROWSE_APK,
             BROWSE_KEYBOARD,
+            RECOVERY_PAGE,
         ] {
             self.enable(id, free);
         }
@@ -821,7 +917,7 @@ impl State {
         self.set(
             DEVICE_BADGE,
             if self.selected().is_some_and(Device::ready) {
-                "READY TO INSTALL"
+                "ADB CONNECTED"
             } else {
                 "NO UNIT SELECTED"
             },
@@ -890,10 +986,11 @@ impl State {
                             self.set(FINGERPRINT, &s);
                             self.status("Verify the displayed build before running maintenance.");
                         }
-                        Ok(Output::Apk(path)) => {
+                        Ok(Output::Apk(path, release)) => {
                             self.set(APK, &path.to_string_lossy());
+                            self.apk_release = Some((path, release));
                             self.switch(0);
-                            self.status("Verified APK downloaded and selected. Choose a device and select Install or update.");
+                            self.status("Release download matched its SHA-256. Select Install or update to check its APK signer and the selected device.");
                         }
                         Ok(Output::Update(path, digest)) => {
                             match stage_update(&path, &digest, &self.storage) {
@@ -1002,6 +1099,14 @@ impl State {
             }
             BROWSE_APK | BROWSE_KEYBOARD => {
                 if let Some(path) = choose_file(self.hwnd, "Android packages\0*.apk\0\0") {
+                    if id == BROWSE_APK
+                        && self
+                            .apk_release
+                            .as_ref()
+                            .is_some_and(|(downloaded, _)| downloaded != &path)
+                    {
+                        self.apk_release = None;
+                    }
                     self.set(
                         if id == BROWSE_APK { APK } else { KEYBOARD },
                         &path.to_string_lossy(),
@@ -1013,16 +1118,18 @@ impl State {
                 if !path.is_file() {
                     return Err("Choose an APK file first.".into());
                 }
-                self.start(Job::Install {
-                    paths: vec![path],
-                    main_app: true,
-                });
+                let expected = self
+                    .apk_release
+                    .as_ref()
+                    .filter(|(downloaded, _)| downloaded == &path)
+                    .map(|(_, release)| release.clone());
+                self.start(Job::Install { path, expected });
             }
             LAUNCH => self.start(Job::Launch),
             REMOVE => {
                 if confirm(
                     self.hwnd,
-                    "Remove Open Voyah Controls from the selected device? Android will keep the app data.",
+                    "Remove Open Voyah Controls after checking boot and Frida state? Android will keep the app data.",
                 ) {
                     self.start(Job::Remove);
                 }
@@ -1032,7 +1139,7 @@ impl State {
                     if confirm(
                         self.hwnd,
                         &format!(
-                            "Install all standalone APKs in {} on the selected device? Existing app data is retained for updates.",
+                            "Install all standalone APKs in {} through ADB? Manage their permissions in Android app settings. Existing data is retained for updates.",
                             folder.display()
                         ),
                     ) {
@@ -1046,43 +1153,87 @@ impl State {
                 }
             }
             INFO => self.start(Job::Info),
+            RECOVERY_PAGE => self.switch(2),
             READ_FINGERPRINT => self.start(Job::Fingerprint),
             RUN_OEM => {
                 let index = self.index(OEM).ok_or("Select a maintenance operation.")?;
                 let device = self.selected().ok_or("Select a head unit.")?;
-                let note = match OEM_ACTIONS[index] {
-                    OemAction::ResetSettings => {
+                let (label, action) = *SERVICE_ACTIONS
+                    .get(index)
+                    .ok_or("Select a service operation.")?;
+                let fingerprint = self.text(FINGERPRINT).trim().to_owned();
+                if fingerprint.is_empty() {
+                    return Err(
+                        "Select Read build and confirm the head unit's fingerprint first.".into(),
+                    );
+                }
+                let note = match action {
+                    ServiceAction::Verify => "",
+                    ServiceAction::BackupBoot => {
+                        "Save and verify a copy of the original boot script on this PC."
+                    }
+                    ServiceAction::InstallBoot => {
+                        "Select the verified backup folder for this unit. This changes its boot entry. A restart is separate."
+                    }
+                    ServiceAction::Rollback => {
+                        "Stop Controls hooks and restore the original optional boot entry. The APK and its settings stay on the device."
+                    }
+                    ServiceAction::RestoreExported => {
+                        "Use the verified backup from this exact unit if the device copy is unavailable. A restart may be required."
+                    }
+                    ServiceAction::Rearm => {
+                        "Allow Controls to perform a fresh verified setup. Connect Frida from the app afterward."
+                    }
+                    ServiceAction::Migrate => {
+                        "This removes the old Controls app and its data. Select a complete settings export from this unit. Continue only after a verified rollback."
+                    }
+                    ServiceAction::Oem(OemAction::ResetSettings) => {
                         "A complete backup is required before the settings database is moved aside."
                     }
-                    OemAction::RestoreSettings => {
+                    ServiceAction::Oem(OemAction::RestoreSettings) => {
                         "The current settings will be kept in the device backup directory."
                     }
-                    OemAction::DisableVerity => {
-                        "This changes verified boot on the head unit. Restart is a separate action."
-                    }
-                    OemAction::EnableVerity => {
-                        "Re-enabling verification on a modified system may prevent Android from booting. Confirm the stock system has been restored first."
-                    }
-                    OemAction::InstallKeyboard => {
+                    ServiceAction::Oem(OemAction::InstallKeyboard) => {
                         "Android will check the OEM signature before installing the update."
                     }
-                    OemAction::RestoreKeyboard => {
+                    ServiceAction::Oem(OemAction::RestoreKeyboard) => {
                         "Enter com.qinggan.app.qgime or com.qinggan.app.qgime.second in the keyboard field."
                     }
-                    OemAction::Reboot => {
+                    ServiceAction::Oem(OemAction::Reboot) => {
                         "Park the vehicle and keep power stable before restarting the head unit."
                     }
                 };
-                if confirm(
-                    self.hwnd,
-                    &format!("{} on {}?\n\n{note}", OEM_LABELS[index], device.serial),
-                ) {
-                    self.start(Job::Oem(
-                        OEM_ACTIONS[index],
-                        self.text(FINGERPRINT).trim().into(),
-                        self.text(KEYBOARD).trim().into(),
-                    ));
+                if !note.is_empty()
+                    && !confirm(
+                        self.hwnd,
+                        &format!("{label} on {}?\n\n{note}", device.serial),
+                    )
+                {
+                    return Ok(());
                 }
+                let backup = if matches!(
+                    action,
+                    ServiceAction::InstallBoot | ServiceAction::RestoreExported
+                ) {
+                    let Some(folder) = choose_folder(self.hwnd) else {
+                        return Ok(());
+                    };
+                    Some(folder)
+                } else if matches!(action, ServiceAction::Migrate) {
+                    let Some(file) = choose_file(self.hwnd, "Controls settings export\0*.json\0\0")
+                    else {
+                        return Ok(());
+                    };
+                    Some(file)
+                } else {
+                    None
+                };
+                self.start(Job::Service {
+                    action,
+                    fingerprint,
+                    input: self.text(KEYBOARD).trim().into(),
+                    backup,
+                });
             }
             CODE => {
                 let parts = self
@@ -1598,7 +1749,7 @@ impl State {
         probe.phase += 1;
         unsafe {
             match probe.phase {
-                3 => self.switch(1),
+                3 => self.switch(2),
                 6 => {
                     ShowWindow(self.hwnd, SW_HIDE);
                 }
@@ -1753,6 +1904,7 @@ pub fn run() {
             adb,
             storage: store,
             catalog: Catalog::default(),
+            apk_release: None,
             events: Events {
                 hwnd: hwnd as usize,
                 tx,
@@ -1773,7 +1925,7 @@ pub fn run() {
                 .unwrap_or(0)
                 .min(3);
             state.switch(tab);
-            if tab == 0 {
+            if matches!(tab, 0 | 2) {
                 let sample = Device {
                     serial: "DEMO-USB".into(),
                     model: "Sample head unit".into(),
@@ -1782,11 +1934,27 @@ pub fn run() {
                 };
                 state.set_items(DEVICE, [sample.label().as_str()], Some(0));
                 state.devices.push(sample);
-                state.set(APK, "OpenVoyahControls-v0.5.0.apk");
-                state.status("Preview device and APK selected.");
+                if tab == 0 {
+                    state.set(APK, "OpenVoyahControls-v0.12.0.apk");
+                    state.status("Preview device and signed release selected.");
+                } else {
+                    state.set(
+                        FINGERPRINT,
+                        "sample/device/demo:11/preview/1:user/release-keys",
+                    );
+                    state.set_items(
+                        OEM,
+                        SERVICE_ACTIONS.iter().map(|(label, _)| *label),
+                        Some(3),
+                    );
+                    state.status("Preview recovery on a sample head unit.");
+                }
                 state.enable_controls();
             } else if tab == 1 {
-                state.status("Select a code to copy it. This tool works offline.");
+                for id in DAILY_COPY {
+                    state.set(id, "•••••");
+                }
+                state.status("Sample date. Access codes are masked in this preview.");
             }
             SetWindowPos(
                 hwnd,
@@ -2107,6 +2275,19 @@ mod tests {
                 .success()
         );
         fs::copy(&executable, build.join("aapt2.exe")).unwrap();
+        fs::create_dir_all(build.join("lib")).unwrap();
+        fs::write(build.join("lib/apksigner.jar"), b"offline signer fixture").unwrap();
+        let java = root.join("jre/bin/java.exe");
+        fs::create_dir_all(java.parent().unwrap()).unwrap();
+        fs::copy(&executable, java).unwrap();
+        for (file, data) in [
+            ("valid.apk", "valid"),
+            ("update.apk", "update"),
+            ("wrong.apk", "wrong"),
+            ("bad-signer.apk", "wrong-signer"),
+        ] {
+            fs::write(root.join(file), data).unwrap();
+        }
         let stop = AtomicBool::new(false);
         assert!(
             matches!(Adb::from_path(executable.clone()), Err(e) if e.contains("AdbWinApi.dll"))
@@ -2129,22 +2310,92 @@ mod tests {
             )
         };
         let install = |name: &str| Job::Install {
-            paths: vec![root.join(name)],
-            main_app: true,
+            path: root.join(name),
+            expected: None,
         };
+        let service = |action, fingerprint: &str, backup| Job::Service {
+            action,
+            fingerprint: fingerprint.into(),
+            input: String::new(),
+            backup,
+        };
+        let status = |job| matches!(perform(job, 0), Ok(Output::Status(_)));
         assert!(matches!(
             perform(install("valid.apk"), 0),
             Ok(Output::Status(_))
         ));
         assert!(matches!(perform(Job::Launch, 0), Ok(Output::Status(_))));
-        assert!(matches!(perform(Job::Remove, 0), Ok(Output::Status(_))));
+        assert!(matches!(
+            perform(Job::Info, 0),
+            Ok(Output::Status(text)) if text.contains("Installed") && text.contains("None reported")
+        ));
         assert!(
             matches!(perform(install("wrong.apk"), 0), Err(e) if e.contains("com.example.wrong"))
         );
+        assert!(matches!(perform(install("bad-signer.apk"), 0), Err(e) if e.contains("signer")));
+        fs::write(platform.join("installed-apk"), "newer").unwrap();
+        assert!(
+            matches!(perform(install("valid.apk"), 0), Err(e) if e.contains("newer Controls release"))
+        );
+        fs::write(platform.join("installed-apk"), "valid").unwrap();
+        fs::write(platform.join("legacy-files"), "prior staged worker").unwrap();
+        assert!(
+            matches!(perform(install("update.apk"), 0), Err(e) if e.contains("Roll back Controls"))
+        );
+        fs::write(platform.join("active-hooks"), "running").unwrap();
+        assert!(matches!(perform(Job::Remove, 0), Err(e) if e.contains("Roll back Controls")));
+        assert!(platform.join("installed-apk").is_file());
+        assert!(status(service(
+            ServiceAction::BackupBoot,
+            "example/demo/build",
+            None
+        )));
+        let export = fs::read_dir(root.join("backups"))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        assert_eq!(
+            fs::read(export.join("original")).unwrap(),
+            b"#!/system/bin/sh\necho stock\n"
+        );
+        assert!(status(service(
+            ServiceAction::Rollback,
+            "example/demo/build",
+            None
+        )));
+        assert!(status(Job::Remove));
+        fs::write(platform.join("active-hooks"), "orphaned without APK").unwrap();
+        assert!(status(service(
+            ServiceAction::RestoreExported,
+            "example/demo/build",
+            Some(export.clone())
+        )));
+        fs::write(export.join("original"), "changed").unwrap();
+        assert!(matches!(
+            perform(service(ServiceAction::RestoreExported, "example/demo/build", Some(export)), 0),
+            Err(e) if e.contains("PC boot backup")
+        ));
         assert!(matches!(perform(install("valid.apk"), 1), Err(e) if e.contains("authorized")));
         assert!(matches!(
-            perform(Job::Oem(OemAction::DisableVerity, "other-build".into(), String::new()), 0),
+            perform(service(ServiceAction::Oem(OemAction::ResetSettings), "other-build", None), 0),
             Err(e) if e.contains("fingerprint")
         ));
+        assert!(status(install("valid.apk")));
+        let archive = root.join("settings-export.json");
+        fs::write(&archive, r#"{"format":"org.openvoyah.controls.settings","schema":1,"buttons":{"schema":1,"bindings":[]},"voice":{},"localization":{},"language":"en","display":{"density":240,"clusterMedia":false}}"#).unwrap();
+        assert!(status(service(
+            ServiceAction::Migrate,
+            "example/demo/build",
+            Some(archive)
+        )));
+        assert!(platform.join("full-remove").is_file());
+        fs::write(
+            platform.join("foreign-transport"),
+            "changed after selection",
+        )
+        .unwrap();
+        assert!(matches!(perform(Job::Launch, 0), Err(e) if e.contains("transport changed")));
     }
 }

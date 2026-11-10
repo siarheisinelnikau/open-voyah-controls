@@ -66,6 +66,10 @@ pub fn checksum(asset: &Asset) -> Option<&str> {
     (value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit())).then_some(value)
 }
 
+pub fn apk_version(asset: &Asset) -> Option<Version> {
+    stable_asset(&asset.name, "OpenVoyahControls-v", ".apk")
+}
+
 pub fn check() -> Result<Catalog> {
     let mut response = agent(15)
         .get(API)
@@ -87,7 +91,7 @@ pub fn check() -> Result<Catalog> {
             .into_iter()
             .filter(|a| valid_asset(a, &release.tag_name))
         {
-            if let Some(version) = stable_asset(&asset.name, "OpenVoyahControls-v", ".apk") {
+            if let Some(version) = apk_version(&asset) {
                 catalog.apk.push((version, asset));
             } else if let Some(version) =
                 stable_asset(&asset.name, "OpenVoyahControlsInstaller-v", ".exe")
