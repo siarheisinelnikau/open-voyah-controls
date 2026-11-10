@@ -23,6 +23,8 @@ The tool writes the packages and their checksums to `dist/`.
 
 Open **Firmware and OEM profiles → Instrument cluster localization**.
 
+![Inspection, backup, installation and recovery on an Android 11 emulator](screenshots/cockpit-cluster-0.13.0-en.png)
+
 1. Check the exact firmware and recovery status.
 2. Import the ZIP for that firmware.
 3. Save a backup. The app retains one copy on the cluster and another in Android storage.
@@ -31,7 +33,7 @@ Open **Firmware and OEM profiles → Instrument cluster localization**.
 
 The installer verifies both backups before writing, stages all four files before the first replacement, and records progress in a recovery journal. If the operation is interrupted, check the status and use **Restore saved cluster files**. Recovery preserves the saved copy. An exported backup ZIP is intended for manual recovery if the cluster copy is lost.
 
-The app connects to the local root shell on `127.0.0.1:23` and the cluster at `172.16.104.41:8000`. A failed or interrupted connection requires checking the journal before taking another action. The app does not automatically reboot the cluster. Compatibility on a vehicle remains unverified.
+The Android side requires a reviewed head unit and the existing owner-authorized local privilege broker. The cluster connection and each write require separate qualification for that firmware. Check the journal after a failed or interrupted connection. Reboot is a separate operator decision. See [Head unit qualification and recovery](PRODUCTION.md).
 
 ## Local checks
 

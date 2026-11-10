@@ -1,0 +1,35 @@
+{
+  "version": "0.13.0",
+  "date": "2026-11-10",
+  "apk": "OpenVoyahControls-0.13.0-debug.apk",
+  "size": 158658547,
+  "sha256": "7795270cf78f427b018a4c07ce742d9b837eee3fbb7205e4031caa48a833238d",
+  "min_sdk": 28,
+  "signing": "debug",
+  "emulator_fixture_transport": false,
+  "tests": {
+    "jvm": 21,
+    "node": 78,
+    "android_api_28": 67,
+    "android_api_30_selected": 66
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 45
+  },
+  "emulator_checks": [
+    "Opened vehicle settings, firmware, and cluster screens through their normal entry points at 1920 x 720",
+    "Opened and cancelled window and cluster confirmations on both versions of Android",
+    "Recorded six intermediate frames in the dialog opening transition on Android 11",
+    "Changed the virtual preview to 200 DPI, released it on exit, and confirmed its saved setting on return on both versions of Android",
+    "Selected an app and saved a button assignment on both versions of Android. Search results remained visible with the keyboard open on Android 11.",
+    "Opened and cancelled the voice language picker on both versions of Android",
+    "Verified the setup-required window status after an upgrade with existing settings and rendered the vehicle settings in Russian",
+    "Rejected a user-installed fixture using the OEM vehicle package name and a public launcher entry"
+  ],
+  "limits": [
+    "Android 11 omitted the cluster ZIP round-trip test because the test process could not read the local OEM fixtures in that emulator. Android 9 ran the test successfully.",
+    "Opening the original settings on a supported head unit remains to be checked on the vehicle. Driving assistance is controlled from the original interface."
+  ],
+  "vehicle_tested": false
+}
