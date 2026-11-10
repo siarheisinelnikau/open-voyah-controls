@@ -8,9 +8,7 @@ The APK requires Android 9 (API 28) or newer. The firmware adapters require a re
 
 ![Quick access on an Android 9 emulator](docs/screenshots/cockpit-0.9.0-en.png)
 
-![Settings opened directly by its shortcut on Android 11](docs/screenshots/cockpit-settings-0.12.0-en.png)
-
-![Firmware and OEM settings on an Android 9 emulator](docs/screenshots/cockpit-firmware-0.9.0-en.png)
+![Settings with the vehicle section on Android 11](docs/screenshots/cockpit-settings-0.13.0-en.png)
 
 ## Build
 
@@ -35,7 +33,7 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. On Linux or m
 
 The worker waits for Android and a stable system process before attaching. It reattaches when the target changes and can be stopped from the app. Connection status shows panel, voice, and optional hook readiness separately. The [boot and firmware guide](docs/FIRMWARE.md) covers the optional init entry and rollback.
 
-![Launcher button settings on an Android 9 emulator](docs/screenshots/cockpit-buttons-0.9.0-en.png)
+![Editing a button with a short-press app assignment](docs/screenshots/cockpit-binding-0.13.0-en.png)
 
 ## Apps and displays
 
@@ -50,7 +48,19 @@ The worker waits for Android and a stable system process before attaching. It re
 
 ![App DPI defaults with the central screen setting saved on Android 11](docs/screenshots/display-defaults-0.12.0-en.png)
 
-The [0.12.0 validation record](dist/VALIDATION_0.12.0.json) covers Android 9 and 11 emulators. Real head unit compatibility is tracked separately.
+![Display scaling, media settings and the private preview on Android 11](docs/screenshots/cockpit-display-0.13.0-en.png)
+
+## Vehicle settings and maintenance
+
+Open **Settings → Vehicle settings** for the original driving, cabin and infotainment menus. A shortcut appears when Android offers a public launcher entry from the matching built-in app. Use the factory panel when a shortcut is unavailable. The driver uses the original controls to enable and use driving assistance, including Apollo on applicable models. The page also links to the [VOYAH owner manuals](https://www.voyah-global.com/service).
+
+**Firmware and OEM profiles** groups compatibility, translation and recovery. The cluster screen separates package inspection, backup, and confirmed installation or restoration. See [Instrument cluster localization](docs/CLUSTER.md).
+
+![Vehicle settings with the factory-panel fallback on an Android 11 emulator](docs/screenshots/cockpit-vehicle-0.13.0-en.png)
+
+![Firmware and OEM settings grouped by task on an Android 11 emulator](docs/screenshots/cockpit-firmware-0.13.0-en.png)
+
+The [0.13.0 validation record](dist/VALIDATION_0.13.0.json) covers Android 9 and 11 emulators. Head unit checks are tracked separately.
 
 ## Settings backup
 
@@ -58,7 +68,7 @@ Use **Export app settings** to save button assignments, voice options and contac
 
 ## Code layout
 
-The existing Gradle modules contain logical layers. `core` owns portable command rules, button timing, typed display events, and integration ports. The cockpit, app grid, and voice screens use Kotlin and Jetpack Compose with lifecycle-aware StateFlow where the screen has asynchronous state. Android-owned dialogs and display surfaces use native views with the same palette. Within `app`, `presentation` holds screen models, `data` holds preferences and Frida gateways, and `platform` adapts Android media, input, audio, and job events. Android entry points retain their component names across updates. The injected Qinggan bus adapter lives under `hooks`.
+The existing Gradle modules contain logical layers. `core` owns portable command rules, button timing, typed display events, and integration ports. The cockpit screens and app-owned dialogs use Kotlin and Jetpack Compose with lifecycle-aware StateFlow for asynchronous state. Android provides its file pickers, system settings, permission dialogs, and the native virtual-display surface. Within `app`, `presentation` holds screen models, `data` holds preferences and Frida gateways, and `platform` adapts Android media, input, audio, and job events. Android entry points retain their component names across updates. The injected Qinggan bus adapter lives under `hooks`.
 
 ## Documentation
 
