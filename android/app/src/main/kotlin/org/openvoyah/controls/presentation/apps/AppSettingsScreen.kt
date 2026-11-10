@@ -43,7 +43,9 @@ import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.frida.FridaWindowControls.Connection
+import org.openvoyah.controls.platform.apps.AndroidAppAccess
 import org.openvoyah.controls.platform.apps.AppsPlatform
+import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 
@@ -54,7 +56,9 @@ internal fun AppSettingsScreen(
     displays: () -> List<AppsPlatform.DisplayChoice>,
     windowsSupported: () -> Boolean,
     open: (Int?, Boolean) -> Unit,
+    openAdjacent: (Int) -> Unit,
     appInfo: () -> Unit,
+    specialAccess: (AndroidAppAccess) -> Unit,
 ) {
     val app = state.app
     val colors = MaterialTheme.colorScheme
@@ -108,7 +112,7 @@ internal fun AppSettingsScreen(
                         }
                         SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK,
                             Modifier.weight(1f).fillMaxHeight(), scroll = true) {
-                            PermissionSettings(state, model::permission, appInfo)
+                            PermissionSettings(state, model::permission, model::refreshPermissions, appInfo, specialAccess)
                         }
                     }
                 } else {
@@ -120,7 +124,7 @@ internal fun AppSettingsScreen(
                             }
                         }
                         SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK, Modifier.fillMaxWidth()) {
-                            PermissionSettings(state, model::permission, appInfo)
+                            PermissionSettings(state, model::permission, model::refreshPermissions, appInfo, specialAccess)
                         }
                     }
                 }
@@ -128,10 +132,17 @@ internal fun AppSettingsScreen(
         }
     }
     choices?.let {
-        DisplayPicker(it, windowsSupported(), state.window?.connection == Connection.ENABLED, { choices = null }) { id, window ->
-            choices = null
-            open(id, window)
-        }
+        DisplayPicker(it, windowsSupported(), state.window?.connection == Connection.ENABLED,
+            close = { choices = null },
+            open = { id, window ->
+                choices = null
+                open(id, window)
+            },
+            openAdjacent = { id ->
+                choices = null
+                openAdjacent(id)
+            },
+        )
     }
 }
 
@@ -161,37 +172,79 @@ private fun SettingsPane(
 private fun PermissionSettings(
     state: AppSettingsViewModel.State,
     set: (String, Boolean) -> Unit,
+    refresh: () -> Unit,
     appInfo: () -> Unit,
+    specialAccess: (AndroidAppAccess) -> Unit,
 ) {
     val panel = state.permissions
     val details = panel.details
     val colors = MaterialTheme.colorScheme
     val description = when {
-        details == null && panel.busy -> R.string.ui_80
-        details == null -> R.string.apps_permission_stock
-        details.permissions.isEmpty() -> R.string.apps_permission_empty
-        else -> R.string.apps_permission_persisted
-    }
-    Text(text(description), color = colors.onSurfaceVariant)
-    details?.permissions?.forEach { item ->
-        HorizontalDivider(color = colors.outlineVariant)
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 52.dp).toggleable(
-                value = item.granted, enabled = !panel.busy, role = Role.Switch,
-                onValueChange = { set(item.name, it) },
-            ),
-            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(item.label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            Switch(item.granted, onCheckedChange = null, enabled = !panel.busy)
+        details == null && panel.busy -> R.string.apps_permission_checking
+        else -> when (details?.origin ?: state.app.origin) {
+            InstallOrigin.CONTROLS -> R.string.apps_permission_persisted
+            InstallOrigin.ADB -> R.string.apps_source_adb
+            InstallOrigin.OTHER -> R.string.apps_source_other
+            InstallOrigin.UNKNOWN -> R.string.apps_source_unknown
+            InstallOrigin.UNVERIFIED -> R.string.apps_source_unverified
+            InstallOrigin.SYSTEM -> R.string.apps_permission_stock
         }
     }
-    panel.message?.let {
-        Text(text(it), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = colors.error)
-    }
+    Text(text(description), color = colors.onSurfaceVariant)
     OutlinedButton(appInfo, Modifier.heightIn(min = 48.dp), enabled = !state.busy) {
         Text(text(R.string.apps_app_info))
     }
+    panel.message?.let {
+        Text(text(it), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = colors.error)
+        TextButton(refresh, Modifier.heightIn(min = 48.dp), enabled = !panel.busy) {
+            Text(text(R.string.apps_permission_recheck))
+        }
+    }
+    if (details == null) return
+    if (details.permissions.isEmpty()) {
+        Text(text(R.string.apps_permission_empty), color = colors.onSurfaceVariant)
+    } else if (details.origin == InstallOrigin.CONTROLS && details.permissions.any { !it.changeable }) {
+        Text(text(R.string.apps_permission_android_only), color = colors.onSurfaceVariant)
+    }
+    if (details.hasUnavailableDeclarations) {
+        Text(text(R.string.apps_permission_not_on_android), color = colors.onSurfaceVariant)
+    }
+    details.permissions.forEach { item ->
+        HorizontalDivider(color = colors.outlineVariant)
+        val toggle = if (item.changeable) {
+            Modifier.toggleable(value = item.granted, enabled = !panel.busy, role = Role.Switch,
+                onValueChange = { set(item.name, it) })
+        } else Modifier
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 52.dp).then(toggle),
+            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(item.label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            if (item.changeable) Switch(item.granted, onCheckedChange = null, enabled = !panel.busy)
+            else Text(text(if (item.granted) R.string.apps_permission_granted else R.string.apps_permission_not_granted),
+                style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+        }
+    }
+    if (details.specialAccess.isNotEmpty()) {
+        HorizontalDivider(color = colors.outlineVariant)
+        Text(text(R.string.apps_special_access), style = MaterialTheme.typography.titleMedium)
+        Text(text(R.string.apps_special_handoff), color = colors.onSurfaceVariant)
+        details.specialAccess.forEach { access ->
+            OutlinedButton({ specialAccess(access) }, Modifier.heightIn(min = 48.dp), enabled = !state.busy) {
+                Text(text(access.label()))
+            }
+        }
+    }
+}
+
+private fun AndroidAppAccess.label(): Int = when (this) {
+    AndroidAppAccess.OVERLAY -> R.string.apps_special_overlay
+    AndroidAppAccess.WRITE_SETTINGS -> R.string.apps_special_write_settings
+    AndroidAppAccess.UNKNOWN_APPS -> R.string.apps_special_unknown_apps
+    AndroidAppAccess.ALL_FILES -> R.string.apps_special_all_files
+    AndroidAppAccess.USAGE -> R.string.apps_special_usage
+    AndroidAppAccess.NOTIFICATION_LISTENER -> R.string.apps_special_notifications
+    AndroidAppAccess.ACCESSIBILITY -> R.string.apps_special_accessibility
 }
 
 @Composable
@@ -201,23 +254,34 @@ private fun DisplayPicker(
     centralPolicy: Boolean,
     close: () -> Unit,
     open: (Int, Boolean) -> Unit,
+    openAdjacent: (Int) -> Unit,
 ) {
     var selected by remember { mutableStateOf<AppsPlatform.DisplayChoice?>(null) }
     val display = selected
+    fun allowsWindow(choice: AppsPlatform.DisplayChoice) =
+        windowsSupported && (!centralPolicy || choice.id != Display.DEFAULT_DISPLAY)
     AlertDialog(
         onDismissRequest = close,
         title = { Text(display?.label ?: text(R.string.choose_display)) },
         text = {
-            if (display == null) {
+            if (choices.isEmpty()) Text(text(R.string.app_display_no_choices))
+            else if (display == null) {
                 Column(Modifier.heightIn(max = 225.dp).verticalScroll(rememberScrollState())) {
                     choices.forEach { choice ->
                         TextButton(
                             onClick = {
-                                if (windowsSupported && (!centralPolicy || choice.id != Display.DEFAULT_DISPLAY)) selected = choice
+                                if (allowsWindow(choice) || choice.canOpenAlongside) selected = choice
                                 else open(choice.id, false)
                             },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
                         ) { Text(choice.label) }
+                    }
+                }
+            } else if (display.canOpenAlongside) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(text(R.string.app_display_alongside_hint))
+                    OutlinedButton({ openAdjacent(display.id) }, Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
+                        Text(text(R.string.app_display_alongside))
                     }
                 }
             } else Text(text(R.string.app_window_options))
@@ -226,7 +290,7 @@ private fun DisplayPicker(
             if (display != null) Button({ open(display.id, false) }) { Text(text(R.string.open_app)) }
         },
         dismissButton = {
-            if (display != null) TextButton({ open(display.id, true) }) { Text(text(R.string.open_window)) }
+            if (display != null && allowsWindow(display)) TextButton({ open(display.id, true) }) { Text(text(R.string.open_window)) }
             else TextButton(close) { Text(text(R.string.ui_89)) }
         },
     )

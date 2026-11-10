@@ -1,0 +1,11 @@
+<resources>
+    <string name="production_unreviewed_firmware">This head unit firmware has no reviewed production profile.</string>
+    <string name="production_release_required">Privileged access requires the signed release in the owner Android user.</string>
+    <string name="production_evidence_changed">The head unit, installed software, or protected runtime did not pass verification. Check the desktop preflight.</string>
+    <string name="production_broker_unavailable">An authorized local root manager is unavailable.</string>
+    <string name="production_connect_required">Connect explicitly after the desktop preflight. Use desktop recovery for an earlier installation.</string>
+    <string name="production_broker_timeout">The local root request timed out.</string>
+    <string name="production_recovery_blocked">Recovery is blocking activation. Check the desktop recovery status.</string>
+    <string name="production_operation_unreviewed">This operation has no reviewed production approval for the installed firmware.</string>
+    <string name="production_voice_outcome_unknown">No valid acknowledgment was received. Check the vehicle state before repeating the command.</string>
+</resources>

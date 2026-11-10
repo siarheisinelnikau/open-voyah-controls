@@ -7,6 +7,7 @@ import org.openvoyah.controls.core.voice.VoiceCommandUseCase
 import org.openvoyah.controls.core.voice.VoiceCommandUseCase.Destination
 import org.openvoyah.controls.data.frida.FridaBridge
 import org.openvoyah.controls.data.frida.FridaVoiceDispatcher
+import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
 import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.data.voice.CloudVoiceSettings
 import org.openvoyah.controls.data.voice.Interpretation
@@ -27,7 +28,7 @@ internal object VoiceScreenFactory {
                 ?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN) == true
         }, events = UiText.displayEvents(activity))
         val commands = VoiceCommandUseCase(android::supports, settings::phone)
-        val vehicle = FridaVoiceDispatcher(FridaBridge(application), settings)
+        val vehicle = FridaVoiceDispatcher(FridaBridge(application), settings, ReviewedVoiceCommands(application))
         val labels = VoiceViewModel.Labels(
             UiText.get(R.string.ui_139), UiText.get(R.string.voice_executing), UiText.get(R.string.unknown_command),
             UiText.get(R.string.ui_205), UiText.get(R.string.weather_offline), UiText.get(R.string.voice_online_checking),

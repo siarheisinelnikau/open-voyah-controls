@@ -6,11 +6,13 @@ import android.util.AtomicFile;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import org.json.JSONObject;
+import org.openvoyah.controls.data.display.AppWindowPreferences;
 import org.openvoyah.controls.data.display.DisplayPreferences;
 import org.openvoyah.controls.data.settings.LocalSettingsArchive;
 import org.openvoyah.controls.data.settings.LocalizationSettings;
 import org.openvoyah.controls.data.settings.SettingsStore;
 import org.openvoyah.controls.data.settings.VoiceSettings;
+import org.openvoyah.controls.domain.display.AppDisplayDefaults;
 
 public final class LocalSettingsArchiveTest extends AndroidTestCase {
     public void testCombinedBackupAndLegacyButtonImport() throws Exception {
@@ -20,6 +22,7 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
         var buttons = new SettingsStore(context);
         var voice = new VoiceSettings(context);
         var display = new DisplayPreferences(context);
+        var appWindows = new AppWindowPreferences(context);
         var locale = new LocalizationSettings(context);
         try {
             var state = buttons.load();
@@ -28,6 +31,7 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
             voice.language("en");
             voice.audio(true, true);
             display.restore(240, true);
+            appWindows.saveDefaults(new AppDisplayDefaults(200, 220));
             UiText.language("ru");
             locale.preset("en");
             var combined = archive.prepare(archive.exportJson());
@@ -35,6 +39,7 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
             voice.language("ru");
             voice.audio(false, false);
             display.restore(0, false);
+            appWindows.saveDefaults(new AppDisplayDefaults(0, null));
             UiText.language("en");
             locale.disable();
             archive.apply(combined);
@@ -46,6 +51,7 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
             assertEquals("ru", UiText.language());
             assertEquals(240, display.density());
             assertTrue(display.clusterMedia());
+            assertEquals(new AppDisplayDefaults(200, 220), appWindows.loadDefaults());
             assertTrue(locale.enabled());
 
             var oldFile = archive.prepare(SettingsStore.encode(new SettingsStore.State()));
@@ -54,6 +60,7 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
             assertEquals(650, buttons.load().holdMs);
             assertEquals("en", voice.language());
             assertEquals(240, display.density());
+            assertEquals(new AppDisplayDefaults(200, 220), appWindows.loadDefaults());
         } finally { archive.apply(before); }
     }
 

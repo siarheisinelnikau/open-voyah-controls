@@ -81,12 +81,18 @@ private fun WindowDimensions(profile: AppWindowProfile, editable: Boolean, chang
             change { it.copy(widthPercent = 50 + step * 5) }
         }
     }
-    val densities = AppWindowProfile.densities
+    val densities = listOf(null) + AppWindowProfile.densities
     val density: @Composable (Modifier) -> Unit = { modifier ->
-        StepSlider(label(R.string.app_window_dpi),
-            if (profile.densityDpi == 0) label(R.string.app_window_default_dpi) else "${profile.densityDpi} DPI",
-            densities.indexOf(profile.densityDpi), densities.lastIndex, editable, modifier) { step ->
-            change { it.copy(densityDpi = densities[step]) }
+        val dpi = profile.densityDpi.takeUnless { profile.inheritDensity }
+        val text = when (dpi) {
+            null -> label(R.string.app_window_inherit_dpi)
+            0 -> label(R.string.app_window_default_dpi)
+            else -> "$dpi DPI"
+        }
+        StepSlider(label(R.string.app_window_dpi), text,
+            densities.indexOf(dpi), densities.lastIndex, editable, modifier) { step ->
+            val selected = densities[step]
+            change { it.copy(densityDpi = selected ?: 0, inheritDensity = selected == null) }
         }
     }
     BoxWithConstraints {

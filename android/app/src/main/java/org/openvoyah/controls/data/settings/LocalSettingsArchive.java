@@ -15,6 +15,7 @@ import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
 import org.openvoyah.controls.data.display.AppWindowPreferences;
 import org.openvoyah.controls.data.display.DisplayPreferences;
+import org.openvoyah.controls.domain.display.AppDisplayDefaults;
 
 /** File format and recoverable restore for the independent local settings stores. */
 public final class LocalSettingsArchive {
@@ -47,6 +48,7 @@ public final class LocalSettingsArchive {
             .put("language", UiText.language())
             .put("display", new JSONObject().put("density", display.density()).put("clusterMedia", display.clusterMedia()))
             .put("appWindows", windows.exportProfiles())
+            .put("appDisplayDpi", windows.exportDefaults())
             .toString(2);
     }
 
@@ -57,9 +59,11 @@ public final class LocalSettingsArchive {
         private final int density;
         private final boolean clusterMedia;
         private final JSONArray windowProfiles;
+        private final AppDisplayDefaults appDisplayDefaults;
 
         private Restore(String buttons, String voice, String localization, String language,
-                int density, boolean clusterMedia, JSONArray windowProfiles, int bindingCount, boolean complete) {
+                int density, boolean clusterMedia, JSONArray windowProfiles, AppDisplayDefaults appDisplayDefaults,
+                int bindingCount, boolean complete) {
             this.buttons = buttons;
             this.voice = voice;
             this.localization = localization;
@@ -67,6 +71,7 @@ public final class LocalSettingsArchive {
             this.density = density;
             this.clusterMedia = clusterMedia;
             this.windowProfiles = windowProfiles;
+            this.appDisplayDefaults = appDisplayDefaults;
             this.bindingCount = bindingCount;
             this.complete = complete;
         }
@@ -77,7 +82,8 @@ public final class LocalSettingsArchive {
         JSONObject root = new JSONObject(raw);
         if (!root.has("format")) {
             SettingsStore.State state = SettingsStore.decode(raw);
-            return new Restore(SettingsStore.encode(state), null, null, null, 0, false, null, state.bindings.size(), false);
+            return new Restore(SettingsStore.encode(state), null, null, null, 0, false, null, null,
+                state.bindings.size(), false);
         }
         if (!FORMAT.equals(root.getString("format")) || root.getInt("schema") != 1)
             throw new IOException(UiText.get(R.string.settings_archive_invalid));
@@ -94,8 +100,10 @@ public final class LocalSettingsArchive {
             throw new IOException(UiText.get(R.string.settings_archive_invalid));
         JSONArray windowProfiles = root.has("appWindows")
             ? AppWindowPreferences.validateProfiles(root.getJSONArray("appWindows")) : null;
+        AppDisplayDefaults appDisplayDefaults = root.has("appDisplayDpi")
+            ? AppWindowPreferences.validateDefaults(root.getJSONObject("appDisplayDpi")) : null;
         return new Restore(SettingsStore.encode(state), voiceJson, localizationJson, language,
-            (int) density, (boolean) clusterMedia, windowProfiles, state.bindings.size(), true);
+            (int) density, (boolean) clusterMedia, windowProfiles, appDisplayDefaults, state.bindings.size(), true);
     }
 
     public void apply(Restore restore) throws Exception {
@@ -114,6 +122,7 @@ public final class LocalSettingsArchive {
             UiText.language(restore.language);
             display.restore(restore.density, restore.clusterMedia);
             if (restore.windowProfiles != null) windows.restoreProfiles(restore.windowProfiles);
+            if (restore.appDisplayDefaults != null) windows.saveDefaults(restore.appDisplayDefaults);
             rollback.delete();
         } catch (Exception ex) {
             try { recoverInterruptedRestore(); }

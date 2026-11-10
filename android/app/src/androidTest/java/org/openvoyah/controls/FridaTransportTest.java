@@ -42,7 +42,8 @@ public class FridaTransportTest extends AndroidTestCase {
                 } catch (Throwable ex) { failure.set(ex); }
             });
             peer.start();
-            FridaTransport transport = new FridaTransport(server.getLocalPort(), () -> "Interrupted", () -> "Missing response");
+            FridaTransport transport = FridaTransport.emulatorFixture(getContext(), server.getLocalPort(),
+                () -> "Interrupted", () -> "Missing response");
             assertEquals("uploaded", transport.execute(script));
             peer.join(3000); assertFalse(peer.isAlive());
             if (failure.get() != null) throw new AssertionError(failure.get());

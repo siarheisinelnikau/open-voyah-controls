@@ -2,7 +2,7 @@ export function android9Tasks(Java, framework) {
     const am = Java.cast(Java.use('android.app.ActivityManager').getService(),
         Java.use('com.android.server.am.ActivityManagerService'));
     const supervisor = am.mStackSupervisor.value;
-    const display = () => supervisor.getActivityDisplay(0);
+    const display = (id = 0) => supervisor.getActivityDisplay(id);
     const lookup = supervisor.anyTaskForIdLocked.overload('int', 'int');
     const attached = Java.use('com.android.server.am.ActivityStackSupervisor').MATCH_TASK_IN_STACKS_ONLY.value;
     const activity = Java.use('com.android.server.am.ActivityRecord');
@@ -23,6 +23,7 @@ export function android9Tasks(Java, framework) {
         windowManager: am.mWindowManager.value,
         activity,
         display,
+        androidDisplay: id => display(id)?.mDisplay.value ?? null,
         user: () => am.getCurrentUser().id.value,
         userOf: record => record.userId.value,
         find: id => lookup.call(supervisor, id, attached),

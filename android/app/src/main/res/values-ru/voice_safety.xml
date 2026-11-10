@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_vehicle_approval_required">Для управления автомобилем нужно подтвердить совместимость магнитолы и команды.</string>
+    <string name="voice_vehicle_reviewed">Подтверждённые команды доступны на стоящем автомобиле в режиме P.</string>
+    <string name="voice_vehicle_accepted">Автомобиль принял запрос. Фактическое состояние не подтверждено.</string>
+    <string name="voice_vehicle_verified">Автомобиль подтвердил запрошенное состояние.</string>
+    <string name="voice_vehicle_partial">Запрос мог выполниться частично. Проверьте состояние автомобиля.</string>
+    <string name="voice_vehicle_unknown">Результат неизвестен. Проверьте состояние автомобиля перед повтором.</string>
+    <string name="voice_vehicle_blocked">Запрос к автомобилю заблокирован.</string>
+    <string name="voice_requires_stationary">Для этой команды автомобиль должен стоять.</string>
+    <string name="voice_vehicle_state_unavailable">Состояние автомобиля недоступно. Команда заблокирована.</string>
+</resources>

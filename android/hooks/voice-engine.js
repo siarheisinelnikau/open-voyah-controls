@@ -1,4 +1,5 @@
 import plans from './voice-plans.json';
+import {VoiceCommandFailure} from './voice-safety.js';
 
 // Protocol names, not enum ordinals: the installed SDK supplies its own ABI.
 export function planFor(id, options = {}) {
@@ -98,13 +99,26 @@ export function percentFrom(phrase) {
 
 /** Preflight the entire plan before any writes. Never replay after partial failure. */
 export async function executePlan(adapter, operations, delay) {
-    const prepared = operations.map(op => adapter.prepare(op));
+    let prepared;
+    try {
+        prepared = operations.map(op => adapter.prepare(op));
+    } catch (error) {
+        throw new VoiceCommandFailure('blocked', error.message);
+    }
     let completed = 0;
+    let verified = 0;
     try {
         for (let i=0;i<prepared.length;i++) {
             if (i) await delay(operations[i].phase === 'post' ? 1000 : 150);
-            await adapter.write(prepared[i]); completed++;
+            if (await adapter.write(prepared[i]) === true) verified++;
+            completed++;
         }
-        return completed;
-    } catch (error) { throw Error('Completed ' + completed + '/' + prepared.length + '. ' + error + '. Automatic retry disabled'); }
+        return {completed, verified: completed > 0 && completed === verified};
+    } catch (error) {
+        const status = completed > 0 || error.status === 'partial' ? 'partial'
+            : error.status === 'blocked' ? 'blocked' : 'unknown';
+        if (status === 'blocked') throw error;
+        throw new VoiceCommandFailure(status, 'Completed ' + completed + '/' + prepared.length + '. ' +
+            error.message + '. Automatic retry disabled');
+    }
 }

@@ -63,7 +63,6 @@ import org.openvoyah.controls.presentation.theme.CockpitIcon
 
 internal enum class VoiceOption(val label: Int) {
     LANGUAGE(R.string.voice_language),
-    PROFILE(R.string.ui_189),
     LEVELS(R.string.default_levels),
     WINDOWS(R.string.window_options),
     AUDIO(R.string.voice_audio_settings),
@@ -75,7 +74,7 @@ internal enum class VoiceOption(val label: Int) {
 internal fun VoiceSettingsScreen(
     catalog: VoiceCatalog,
     language: String,
-    profile: String,
+    vehicleCommandsReviewed: Boolean,
     assignments: Set<String>,
     message: String?,
     openCommand: (VoiceCatalog.Command) -> Unit,
@@ -98,7 +97,7 @@ internal fun VoiceSettingsScreen(
             if (maxWidth >= 760.dp) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                     Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                        SettingsOptions(language, profile, message, openOption, back)
+                        SettingsOptions(language, vehicleCommandsReviewed, message, openOption, back)
                     }
                     Surface(
                         Modifier.weight(1f).fillMaxSize(),
@@ -119,7 +118,7 @@ internal fun VoiceSettingsScreen(
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
-                    item { SettingsOptions(language, profile, message, openOption, back) }
+                    item { SettingsOptions(language, vehicleCommandsReviewed, message, openOption, back) }
                     item { SearchField(search, { search = it }) }
                     if (visible.isEmpty()) item { EmptyResults() }
                     items(visible, key = { it.id() }) {
@@ -178,7 +177,7 @@ internal fun QuickVoicePopup(state: VoiceViewModel.State) {
 }
 
 @Composable
-private fun SettingsOptions(language: String, profile: String, message: String?, select: (VoiceOption) -> Unit, back: () -> Unit) {
+private fun SettingsOptions(language: String, vehicleCommandsReviewed: Boolean, message: String?, select: (VoiceOption) -> Unit, back: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         CockpitHeading(label(R.string.voice_options_title), back = back)
         Surface(
@@ -192,8 +191,13 @@ private fun SettingsOptions(language: String, profile: String, message: String?,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 CockpitGlyph(CockpitIcon.VOICE)
-                Text(label(R.string.voice_button_hint), style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(label(R.string.voice_button_hint), style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(label(if (vehicleCommandsReviewed) R.string.voice_vehicle_reviewed
+                        else R.string.voice_vehicle_approval_required), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         message?.let {
@@ -207,7 +211,6 @@ private fun SettingsOptions(language: String, profile: String, message: String?,
                         for (option in row) {
                             val name = when (option) {
                                 VoiceOption.LANGUAGE -> label(option.label) + " · " + if (language == "ru") "Русский" else "English"
-                                VoiceOption.PROFILE -> label(R.string.ui_176) + profile
                                 else -> label(option.label)
                             }
                             OutlinedButton({ select(option) }, Modifier.weight(1f).heightIn(min = 54.dp),
