@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_display_settings_title">Displays</string>
+    <string name="app_display_preview_density_value">Virtual preview · %1$s</string>
+    <string name="app_display_defaults_title">App DPI defaults</string>
+    <string name="app_display_defaults_description">Default DPI takes effect when an app opens. An app can use its own DPI. The passenger screen requires firmware review.</string>
+    <string name="app_display_defaults_central">Central screen apps</string>
+    <string name="app_display_defaults_central_screen">Central display</string>
+    <string name="app_display_defaults_secondary">Built-in secondary screen apps</string>
+    <string name="app_display_defaults_off">Off</string>
+    <string name="app_display_defaults_close">Close</string>
+    <string name="app_display_defaults_unreadable">Could not load the saved display settings.</string>
+    <string name="app_display_defaults_failed">Could not save the display settings.</string>
+    <string name="app_display_defaults_pending">Saved on this head unit. Connect the window service to use these defaults.</string>
+    <string name="app_display_defaults_central_only">Central default ready for the next launch. Passenger default saved pending firmware review.</string>
+    <string name="app_display_defaults_synced">Saved. Defaults apply at the next app launch.</string>
+    <string name="app_window_inherit_dpi">From display</string>
+    <string name="app_display_no_choices">Android reports no available display for this app.</string>
+    <string name="app_display_alongside">Open alongside</string>
+    <string name="app_display_alongside_hint">In the current multi-window layout, Android decides where the app can open.</string>
+</resources>

@@ -10,11 +10,15 @@ import org.openvoyah.controls.core.Firmware;
 /** OEM guest account protocol with a durable first-use backup and explicit recovery. */
 public final class OemProfiles {
     private static final String ACCOUNT = "/private/configs/token/accountInfo";
-    private static final String BACKUP = "/data/local/tmp/open-voyah-controls/profile-backup";
+    private static final String FIXTURE_BASE = "/data/local/tmp/open-voyah-controls";
     private static final String URI = "content://com.qinggan.usersettingtracking.datacenterprovider/tb_state";
     public interface Shell { String run(String command) throws IOException; }
     public static String switchDriver(Shell shell, String driver) throws Exception {
+        return switchDriver(shell, driver, FIXTURE_BASE);
+    }
+    static String switchDriver(Shell shell, String driver, String base) throws Exception {
         if (!driver.matches("[ABC]")) throw new IllegalArgumentException("Invalid driver");
+        String backup = backupPath(base);
         String product = shell.run("getprop ro.product.name").trim();
         if (!Firmware.guestAccounts(product)) {
             if (Firmware.identify(product).equals("FREE_REST_OVERSEA"))
@@ -22,10 +26,10 @@ public final class OemProfiles {
             throw new IOException("No verified guest account protocol for product " + product);
         }
         // Snapshot before any mutation. A completed snapshot is never overwritten.
-        shell.run("set -e; mkdir -p " + BACKUP + "; chmod 700 " + BACKUP + "; "
-            + "if [ ! -f " + BACKUP + "/ready ]; then test -f " + ACCOUNT + "; cp -p " + ACCOUNT + " " + BACKUP + "/accountInfo; "
-            + "for p in qinggan.account.aid qinggan.account.uid qinggan.account.phone com.qinggan.user_started; do getprop \"$p\" > " + BACKUP + "/\"$p\"; done; "
-            + "ls -Zd " + ACCOUNT + " | awk '{print $1}' > " + BACKUP + "/context; test -s " + BACKUP + "/context; sync; touch " + BACKUP + "/ready; sync; fi");
+        shell.run("set -e; test ! -L " + backup + "; mkdir -p " + backup + "; chmod 700 " + backup + "; "
+            + "if [ ! -f " + backup + "/ready ]; then test -f " + ACCOUNT + "; cp -p " + ACCOUNT + " " + backup + "/accountInfo; "
+            + "for p in qinggan.account.aid qinggan.account.uid qinggan.account.phone com.qinggan.user_started; do getprop \"$p\" > " + backup + "/\"$p\"; done; "
+            + "ls -Zd " + ACCOUNT + " | awk '{print $1}' > " + backup + "/context; test -s " + backup + "/context; sync; touch " + backup + "/ready; sync; fi");
         captureSeats(shell);
         int slot = driver.charAt(0) - 'A' + 1;
         String uid = "1000000" + slot, aid = "613f734f8fb7462ebd1db95d" + uid;
@@ -33,7 +37,7 @@ public final class OemProfiles {
         try {
             shell.run("set -e; printf '%s' " + quote(account) + " > " + ACCOUNT + ".ovc-new; "
                 + "chown system:system " + ACCOUNT + ".ovc-new; chmod 0444 " + ACCOUNT + ".ovc-new; "
-                + preserveContext() + "mv " + ACCOUNT + ".ovc-new " + ACCOUNT + "; "
+                + preserveContext(backup) + "mv " + ACCOUNT + ".ovc-new " + ACCOUNT + "; "
                 + "setprop qinggan.account.aid " + aid + "; setprop qinggan.account.uid " + uid + "; "
                 + "setprop qinggan.account.phone 0; setprop com.qinggan.user_started closeLoginView; " + broadcasts()
                 + "; test \"$(getprop qinggan.account.uid)\" = " + uid + "; sync");
@@ -44,14 +48,24 @@ public final class OemProfiles {
         return "OEM driver " + driver + " selected; the OEM service applies its saved settings";
     }
     public static String restore(Shell shell) throws IOException {
-        shell.run("set -e; test -f " + BACKUP + "/ready; cp -p " + BACKUP + "/accountInfo " + ACCOUNT + ".ovc-new; "
-            + preserveContext() + "mv " + ACCOUNT + ".ovc-new " + ACCOUNT + "; "
+        return restore(shell, FIXTURE_BASE);
+    }
+    static String restore(Shell shell, String base) throws IOException {
+        String backup = backupPath(base);
+        shell.run("set -e; test ! -L " + backup + "; test -f " + backup + "/ready; cp -p " + backup + "/accountInfo " + ACCOUNT + ".ovc-new; "
+            + preserveContext(backup) + "mv " + ACCOUNT + ".ovc-new " + ACCOUNT + "; "
             + "for p in qinggan.account.aid qinggan.account.uid qinggan.account.phone com.qinggan.user_started; do "
-            + "setprop \"$p\" \"$(cat " + BACKUP + "/\"$p\")\"; done; " + broadcasts() + "; sync");
+            + "setprop \"$p\" \"$(cat " + backup + "/\"$p\")\"; done; " + broadcasts() + "; sync");
         return "Original OEM account restored";
     }
-    private static String preserveContext() {
-        return "label=$(cat " + BACKUP + "/context); case \"$label\" in u:object_r:*) chcon \"$label\" " + ACCOUNT + ".ovc-new ;; \"?\") [ \"$(getenforce)\" = Disabled ] ;; *) exit 1 ;; esac; ";
+    private static String backupPath(String base) {
+        if (!base.equals(FIXTURE_BASE) && !base.equals(ProductionRootAccess.BASE)) {
+            throw new IllegalArgumentException("Unknown protected profile backup directory");
+        }
+        return base + "/profile-backup";
+    }
+    private static String preserveContext(String backup) {
+        return "label=$(cat " + backup + "/context); case \"$label\" in u:object_r:*) chcon \"$label\" " + ACCOUNT + ".ovc-new ;; \"?\") [ \"$(getenforce)\" = Disabled ] ;; *) exit 1 ;; esac; ";
     }
     private static String broadcasts() {
         return "am broadcast -f 16777216 -a com.qinggan.account.userinfo.changed >/dev/null && "

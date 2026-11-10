@@ -1,6 +1,5 @@
 package org.openvoyah.controls;
 
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Presentation;
 import android.content.Intent;
@@ -10,20 +9,23 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
 import java.util.Locale;
+import androidx.activity.ComponentActivity;
 import org.openvoyah.controls.core.display.DisplayEventBus;
 import org.openvoyah.controls.data.display.DisplayPreferences;
 import org.openvoyah.controls.data.frida.FridaNavigationFeed;
 import org.openvoyah.controls.presentation.display.DisplayViewModel;
+import org.openvoyah.controls.presentation.display.AppDisplayDefaultsView;
 
 import org.openvoyah.controls.presentation.theme.CockpitViews;
 
 /** A private Android display whose density does not affect either physical screen. */
-public final class DisplayActivity extends Activity implements SurfaceHolder.Callback {
+public final class DisplayActivity extends ComponentActivity implements SurfaceHolder.Callback {
     private static final int[] DENSITIES = {0, 160, 200, 240, 320};
     private VirtualDisplay display;
     private Presentation presentation;
@@ -37,7 +39,7 @@ public final class DisplayActivity extends Activity implements SurfaceHolder.Cal
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         model = new DisplayViewModel(UiText.displayEvents(this), new DisplayPreferences(this), new FridaNavigationFeed(this));
-        LinearLayout root = CockpitViews.page(this, R.string.virtual_display);
+        LinearLayout root = CockpitViews.page(this, R.string.app_display_settings_title);
         LinearLayout actions = new LinearLayout(this);
         density = new Button(this);
         density.setAllCaps(false);
@@ -62,6 +64,8 @@ public final class DisplayActivity extends Activity implements SurfaceHolder.Cal
             LinearLayout.LayoutParams size = (LinearLayout.LayoutParams) actions.getChildAt(index).getLayoutParams();
             size.setMarginStart(gap);
         }
+        View defaults = AppDisplayDefaultsView.create(this);
+        if (defaults != null) root.addView(defaults, new LinearLayout.LayoutParams(-1, -2));
         Switch share = new Switch(this);
         share.setText(UiText.get(R.string.cluster_media_share));
         share.setMinHeight(Math.round(48 * getResources().getDisplayMetrics().density));
@@ -81,8 +85,8 @@ public final class DisplayActivity extends Activity implements SurfaceHolder.Cal
 
     private void updateDensityLabel() {
         int value = chosenDensity();
-        density.setText(value == 0 ? UiText.get(R.string.display_auto_density)
-            : String.format(Locale.ROOT, "%d DPI", value));
+        String dpi = value == 0 ? UiText.get(R.string.display_auto_density) : String.format(Locale.ROOT, "%d DPI", value);
+        density.setText(String.format(Locale.ROOT, UiText.get(R.string.app_display_preview_density_value), dpi));
     }
 
     private void chooseDensity() {

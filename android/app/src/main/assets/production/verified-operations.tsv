@@ -1,0 +1,2 @@
+# List additional operations only after review on the exact firmware.
+# fingerprint<TAB>sdk<TAB>abi<TAB>product<TAB>operation

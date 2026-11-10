@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitHeading
@@ -67,6 +68,8 @@ internal fun AppsScreen(
     install: () -> Unit,
     canInstall: () -> Boolean,
     allowInstalls: () -> Unit,
+    installEnabled: Boolean,
+    discardInstall: (() -> Unit)?,
     showSettings: (LocalApp) -> Unit,
     open: (LocalApp) -> Unit,
 ) {
@@ -98,6 +101,7 @@ internal fun AppsScreen(
                 Button(
                     onClick = { if (canInstall()) install() else allow = true },
                     modifier = Modifier.heightIn(min = 52.dp), shape = MaterialTheme.shapes.medium,
+                    enabled = installEnabled,
                 ) {
                     Text(text(R.string.install_local_apk), style = MaterialTheme.typography.labelLarge)
                 }
@@ -108,7 +112,14 @@ internal fun AppsScreen(
                         shape = MaterialTheme.shapes.medium, color = colors.surfaceVariant,
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     ) {
-                        Text(text(message), Modifier.padding(horizontal = 13.dp, vertical = 8.dp))
+                        Column(Modifier.padding(horizontal = 13.dp, vertical = 8.dp)) {
+                            Text(text(message))
+                            discardInstall?.let { discard ->
+                                TextButton(discard, Modifier.heightIn(min = 48.dp)) {
+                                    Text(text(R.string.apps_install_discard))
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -178,9 +189,15 @@ private fun AppTile(app: LocalApp, open: () -> Unit, settings: () -> Unit, modif
                 AppIcon(app, Modifier.size(42.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(app.label, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(if (app.managed) text(R.string.apps_managed) else app.packageName,
+                    val source = when (app.origin) {
+                        InstallOrigin.CONTROLS -> text(R.string.apps_managed)
+                        InstallOrigin.ADB -> text(R.string.apps_source_adb_short)
+                        InstallOrigin.UNVERIFIED -> text(R.string.apps_source_unverified_short)
+                        else -> app.packageName
+                    }
+                    Text(source,
                         style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        color = if (app.managed) colors.primary else colors.onSurfaceVariant)
+                        color = if (app.origin == InstallOrigin.CONTROLS) colors.primary else colors.onSurfaceVariant)
                 }
             }
             val name = text(R.string.app_settings_for).format(app.label)

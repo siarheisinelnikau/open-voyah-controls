@@ -1,0 +1,2 @@
+# A production review must provide measured firmware and OEM package evidence.
+# fingerprint<TAB>sdk<TAB>abi<TAB>product<TAB>package<TAB>signing_cert_sha256<TAB>base_apk_sha256

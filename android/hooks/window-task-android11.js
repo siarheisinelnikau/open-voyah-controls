@@ -2,7 +2,7 @@ export function android11Tasks(Java, framework) {
     const am = Java.cast(Java.use('android.app.ActivityTaskManager').getService(),
         Java.use('com.android.server.wm.ActivityTaskManagerService'));
     const root = am.mRootWindowContainer.value;
-    const display = () => root.getDisplayContent(0);
+    const display = (id = 0) => root.getDisplayContent(id);
     const lookup = root.anyTaskForId.overload('int', 'int');
     const attached = Java.use('com.android.server.wm.RootWindowContainer').MATCH_TASK_IN_STACKS_ONLY.value;
     const Task = Java.use('com.android.server.wm.Task');
@@ -22,6 +22,7 @@ export function android11Tasks(Java, framework) {
         windowManager: am.mWindowManager.value,
         activity,
         display,
+        androidDisplay: id => display(id)?.getDisplay() ?? null,
         user: () => am.getCurrentUserId(),
         userOf: record => record.mUserId.value,
         find: id => lookup.call(root, id, attached),

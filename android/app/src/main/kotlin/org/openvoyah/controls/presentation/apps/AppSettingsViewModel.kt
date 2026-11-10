@@ -16,6 +16,7 @@ import org.openvoyah.controls.domain.display.AppWindowProfile
 import org.openvoyah.controls.platform.apps.AppPermissions
 import org.openvoyah.controls.platform.apps.InstalledAppPermissions
 import org.openvoyah.controls.platform.apps.LocalApp
+import org.openvoyah.controls.platform.apps.PermissionChange
 
 internal class AppSettingsViewModel(
     private val windows: FridaWindowControls,
@@ -95,7 +96,9 @@ internal class AppSettingsViewModel(
     fun refreshPermissions() = updatePermissions()
 
     fun permission(name: String, granted: Boolean) {
-        val identity = mutable.value?.permissions?.details?.identity ?: return
+        val details = mutable.value?.permissions?.details ?: return
+        val identity = details.identity ?: return
+        if (details.permissions.none { it.name == name && it.changeable }) return
         updatePermissions { permissions.set(identity, name, granted) }
     }
 
@@ -115,26 +118,32 @@ internal class AppSettingsViewModel(
         }
     }
 
-    private fun updatePermissions(operation: (() -> Boolean)? = null) {
+    private fun updatePermissions(operation: (() -> PermissionChange)? = null) {
         val current = mutable.value ?: return
-        if (current.permissions.busy || !current.app.managed) return
+        if (current.permissions.busy) return
         val working = current.permissions.copy(busy = true, message = null)
         mutable.update { it?.copy(permissions = working) }
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
-                val changed = try {
-                    operation?.invoke() ?: true
+                val outcome = try {
+                    operation?.invoke()
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
-                    false
+                    PermissionChange.UNCONFIRMED
                 }
                 val details = try {
                     permissions.read(current.app.packageName)
                 } catch (_: RuntimeException) {
                     null
                 }
-                Permissions(details = details, message = if (!changed || details == null) R.string.apps_permission_unavailable else null)
+                val message = when (outcome) {
+                    PermissionChange.PACKAGE_CHANGED -> R.string.apps_permission_package_changed
+                    PermissionChange.ANDROID_ONLY -> R.string.apps_permission_android_only
+                    PermissionChange.UNCONFIRMED -> R.string.apps_permission_unavailable
+                    else -> if (details == null) R.string.apps_permission_read_failed else null
+                }
+                Permissions(details = details, message = message)
             }
             mutable.update { state -> if (state != null && state.permissions === working) state.copy(permissions = result) else state }
         }

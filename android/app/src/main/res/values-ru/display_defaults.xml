@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_display_settings_title">Экраны</string>
+    <string name="app_display_preview_density_value">Виртуальный экран · %1$s</string>
+    <string name="app_display_defaults_title">Масштаб приложений по экранам</string>
+    <string name="app_display_defaults_description">Масштаб экрана применяется при открытии приложения, если для него не задан свой DPI. Для пассажирского экрана нужна проверка прошивки.</string>
+    <string name="app_display_defaults_central">Приложения центрального экрана</string>
+    <string name="app_display_defaults_central_screen">Центральный экран</string>
+    <string name="app_display_defaults_secondary">Приложения второго встроенного экрана</string>
+    <string name="app_display_defaults_off">Выключено</string>
+    <string name="app_display_defaults_close">Закрыть</string>
+    <string name="app_display_defaults_unreadable">Не удалось загрузить настройки экранов.</string>
+    <string name="app_display_defaults_failed">Не удалось сохранить настройки экранов.</string>
+    <string name="app_display_defaults_pending">Настройки сохранены. Подключите обработчик окон, чтобы их применить.</string>
+    <string name="app_display_defaults_central_only">Масштаб центра готов к следующему запуску. Для пассажирского экрана настройка сохранена до проверки прошивки.</string>
+    <string name="app_display_defaults_synced">Настройки сохранены. Масштаб применится при следующем запуске приложения.</string>
+    <string name="app_window_inherit_dpi">По экрану</string>
+    <string name="app_display_no_choices">Android не нашёл доступных экранов для этого приложения.</string>
+    <string name="app_display_alongside">Открыть рядом</string>
+    <string name="app_display_alongside_hint">В текущем многооконном режиме Android сам выбирает доступное место для приложения.</string>
+</resources>

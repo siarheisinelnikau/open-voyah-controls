@@ -11,7 +11,7 @@
     <string name="app_window_enabled">Window service is enabled. Wait a moment after activation.</string>
     <string name="app_window_apply">Apply</string>
     <string name="app_window_saved">Saved on this head unit. The profile takes effect when window service is available.</string>
-    <string name="app_window_saved_next">Profile saved. It will apply the next time the app opens on the central display.</string>
+    <string name="app_window_saved_next">Profile saved for the next app launch.</string>
     <string name="app_window_applied">Applied · %1$d px wide · %2$d DPI · %3$d px from left</string>
     <string name="app_window_density_only">Applied %1$d DPI. Android kept the current window size.</string>
     <string name="app_window_unsupported">This firmware or app cannot open in a freeform window.</string>
@@ -20,5 +20,5 @@
     <string name="app_window_failed">Android could not verify the requested window configuration.</string>
     <string name="window_service_unavailable">The window service has not responded. Check the Frida connection.</string>
     <string name="window_restore_unconfirmed">Window service stopped. Some active windows may still need to be reset.</string>
-    <string name="app_window_explainer">Apps on the central display open to the right of the navigation panel. Width is measured from that edge.</string>
+    <string name="app_window_explainer">On the central display, width starts at the navigation panel edge. DPI can follow the display default.</string>
 </resources>

@@ -63,3 +63,43 @@ test('the window protocol validates profiles and bounds request lifetime', () =>
     assert.equal(policy.readWindowConfig(config([{...profile,dpi:1800}])),null);
     assert.equal(policy.readWindowConfig(config([{...profile,width:'80'}])),null);
 });
+
+test('display defaults respect explicit app density, legacy system density and user scope', () => {
+    const displayDpi = {central:190, secondary:230};
+    const inherited = {...profile,dpi:0,inheritDpi:true};
+    const state = policy.readWindowConfig(config([inherited], {displayDpi}));
+    const launch = {key:target,user:0,caller:'org.openvoyah.controls'};
+    assert.equal(policy.launchProfile(state, null, launch).dpi, 190);
+    assert.equal(policy.launchProfile(state, null, launch, 'secondary').dpi, 230);
+    assert.equal(policy.launchProfile(state, null, {...launch,key:external}, 'secondary').dpi, 230);
+    assert.equal(policy.launchProfile(state, null, {...launch,user:10}, 'secondary'), null);
+    assert.equal(policy.launchProfile(state, null, launch, 'virtual'), null);
+    assert.deepEqual(Array.from(policy.windowBounds(frame, policy.launchProfile(state, null, launch), 145)),
+        [490,24,1872,720]);
+
+    const legacy = policy.readWindowConfig(config([{...profile,dpi:0}], {displayDpi}));
+    assert.equal(policy.profileFor(legacy,target,0).dpi, 0);
+    assert.equal(policy.profileFor(legacy,target,0,true,'central',true).dpi, 190);
+    const fixed = policy.readWindowConfig(config([profile], {displayDpi}));
+    assert.equal(policy.profileFor(fixed,target,0,true,'secondary').dpi, 180);
+});
+
+test('secondary defaults are opt-in and the profile protocol validates them independently', () => {
+    assert.equal(policy.profileFor(policy.readWindowConfig(config()),target,0,true,'secondary'), null);
+    const displayDpi = {central:0,secondary:0};
+    const secondary = policy.readWindowConfig(config([profile],{displayDpi}));
+    assert.equal(policy.profileFor(secondary,target,0,true,'secondary').dpi, 180);
+    assert.equal(policy.readWindowConfig(config([profile],{displayDpi:{central:181,secondary:null}})), null);
+    assert.equal(policy.readWindowConfig(config([profile],{displayDpi:{central:0,secondary:'180'}})), null);
+    assert.equal(policy.readWindowConfig(config([{...profile,inheritDpi:true}])), null);
+});
+
+test('reviewed passenger scaling follows only the approved display ID', () => {
+    const displayDpi = {central:190,secondary:220};
+    const state = policy.readWindowConfig(config([], {displayDpi, passengerDisplayId:1}));
+    const launch = {key:external,user:0,caller:'org.openvoyah.controls',display:0};
+    assert.equal(policy.launchProfile(state, null, launch, 'secondary', 1).dpi, 220);
+    assert.equal(policy.launchProfile(state, null, launch, 'secondary', 2), null);
+    assert.equal(policy.launchProfile(state, null, launch, 'central', 0).dpi, 190);
+    assert.equal(policy.readWindowConfig(config([], {displayDpi, passengerDisplayId:2})), null);
+});

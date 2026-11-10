@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_vehicle_approval_required">Vehicle control requires verification of this head unit and command.</string>
+    <string name="voice_vehicle_reviewed">Reviewed vehicle commands require Park and zero speed.</string>
+    <string name="voice_vehicle_accepted">The vehicle accepted the request. Its state is unverified.</string>
+    <string name="voice_vehicle_verified">The vehicle reported the requested state.</string>
+    <string name="voice_vehicle_partial">Part of the request may have been applied. Check the vehicle state.</string>
+    <string name="voice_vehicle_unknown">The result is unknown. Check the vehicle state before trying again.</string>
+    <string name="voice_vehicle_blocked">The vehicle request was blocked.</string>
+    <string name="voice_requires_stationary">The vehicle must be stationary for this command.</string>
+    <string name="voice_vehicle_state_unavailable">Vehicle state unavailable. The command was blocked.</string>
+</resources>

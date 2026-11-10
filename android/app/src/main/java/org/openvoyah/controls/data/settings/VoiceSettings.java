@@ -118,7 +118,6 @@ public final class VoiceSettings {
     public String app(String command) { return prefs.getString("app."+command, ""); }
     public void app(String command, String component) { update("app."+command,component); }
     public String profile() { return prefs.getString("profile", org.openvoyah.controls.core.Firmware.identify(android.os.Build.PRODUCT)); }
-    public String profileLabel() { return switch(profile()) { case "FREE"->UiText.get(R.string.ui_221);case "FREE_REST"->UiText.get(R.string.ui_222);case "DREAMER"->"Dreamer";default->profile(); }; }
     public void profile(String value) { update("profile",value); }
     private void update(String key,String value) {
         try { JSONObject root=new JSONObject(exportJson());root.getJSONObject("values").put(key,value);importJson(root.toString()); }

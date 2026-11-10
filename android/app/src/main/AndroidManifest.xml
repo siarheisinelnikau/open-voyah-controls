@@ -6,6 +6,12 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <queries>
+        <package android:name="com.qinggan.app.launcher" />
+        <package android:name="com.qinggan.app.setting" />
+        <package android:name="com.qinggan.app.vehicle" />
+        <package android:name="com.qinggan.bluetoothphone" />
+        <package android:name="com.qinggan.cluster" />
+        <package android:name="android" />
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
@@ -33,6 +39,7 @@
             android:exported="true" android:permission="android.permission.WRITE_SECURE_SETTINGS" />
         <activity android:name=".FirmwareActivity" android:exported="false" android:label="@string/firmware_settings" />
         <activity android:name=".AppsActivity" android:exported="false" android:label="@string/installed_apps" />
+        <receiver android:name=".platform.apps.ApkInstallResultReceiver" android:exported="false" />
         <activity android:name=".DisplayActivity" android:exported="false" android:label="@string/virtual_display" />
         <activity android:name=".ClusterActivity" android:exported="false" android:label="@string/cluster_title" />
         <receiver android:name=".BootReceiver" android:exported="false">

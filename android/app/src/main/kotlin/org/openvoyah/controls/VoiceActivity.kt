@@ -39,6 +39,7 @@ import kotlinx.coroutines.withContext
 import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.core.voice.VoiceCommandUseCase
 import org.openvoyah.controls.core.voice.VolumePhrases
+import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
 import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.data.settings.VoiceSettingsDocuments
 import org.openvoyah.controls.data.voice.CloudVoiceSettings
@@ -87,7 +88,7 @@ class VoiceActivity : ComponentActivity() {
             val config = withContext(Dispatchers.IO) {
                 val catalog = settings.withContacts()
                 val mappings = catalog.all().mapNotNull { command -> command.id().takeIf { settings.app(it).isNotEmpty() } }.toSet()
-                Configuration(catalog, settings.language(), settings.profileLabel(),
+                Configuration(catalog, settings.language(), ReviewedVoiceCommands(applicationContext).hasApprovedCommands(),
                     settings.option("duckMedia"), settings.option("spokenFeedback"), mappings)
             }
             onlineConfigured = withContext(Dispatchers.IO) { onlineSettings.configured() }
@@ -118,7 +119,8 @@ class VoiceActivity : ComponentActivity() {
             return
         }
 
-        VoiceSettingsScreen(config.catalog, config.language, config.profile, assigned, status, ::showCommand, ::showOption, ::finish)
+        VoiceSettingsScreen(config.catalog, config.language, config.vehicleCommandsReviewed, assigned, status,
+            ::showCommand, ::showOption, ::finish)
         if (onlineDialog) {
             OnlineVoiceDialog(onlineConfigured, onlineSaving, onlineFailed, { onlineDialog = false }, ::saveOnline)
         }
@@ -135,9 +137,6 @@ class VoiceActivity : ComponentActivity() {
         when (option) {
             VoiceOption.LANGUAGE -> choose(R.string.voice_language, arrayOf("Русский", "English")) {
                 changeSettings { settings.language(if (it == 0) "ru" else "en") }
-            }
-            VoiceOption.PROFILE -> choose(R.string.ui_189, PROFILES) {
-                changeSettings { settings.profile(PROFILES[it]) }
             }
             VoiceOption.LEVELS -> showDefaultLevels()
             VoiceOption.WINDOWS -> showWindowOptions()
@@ -327,14 +326,9 @@ class VoiceActivity : ComponentActivity() {
     private data class Configuration(
         val catalog: VoiceCatalog,
         val language: String,
-        val profile: String,
+        val vehicleCommandsReviewed: Boolean,
         val duckMedia: Boolean,
         val spokenFeedback: Boolean,
         val assigned: Set<String>,
     )
-
-    private companion object {
-        val PROFILES = arrayOf("UNKNOWN", "FREE", "FREE_REST", "FREE_REST_BY", "FREE_REST_OVERSEA", "NXP",
-            "FREE_NORWAY", "DREAMER", "DREAMER_REST", "DREAMER_REST_MI", "DREAMER_REST_MI_V2")
-    }
 }
