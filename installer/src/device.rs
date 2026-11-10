@@ -1,4 +1,7 @@
-use crate::adb::{Adb, Device, Result, Target, require_success};
+use crate::{
+    adb::{Result, Target},
+    production::{self, Identity, ScratchFile},
+};
 use sha2::{Digest, Sha256};
 use std::{
     ffi::OsStr,
@@ -6,8 +9,7 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
     sync::atomic::{AtomicBool, Ordering},
-    thread,
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 pub const PACKAGE: &str = "org.openvoyah.controls";
@@ -17,7 +19,6 @@ const DB: &str = "/data/data/com.qinggan.providers.settings/databases/qinggan_se
 const BACKUP: &str =
     "/data/data/com.qinggan.providers.settings/databases/.open-voyah-controls-backup";
 const KEYBOARDS: &[&str] = &["com.qinggan.app.qgime", "com.qinggan.app.qgime.second"];
-const RUNTIME: &str = include_str!("../../android/dist/FRIDA_RUNTIME.json");
 
 pub fn apk_files(folder: &Path) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
@@ -42,9 +43,16 @@ pub fn apk_files(folder: &Path) -> Result<Vec<PathBuf>> {
 pub fn install_apks(
     target: &Target<'_>,
     files: &[PathBuf],
-    main_app: bool,
+    storage: &Path,
     progress: impl Fn(String),
 ) -> Result<String> {
+    let identity = Identity::read(target)?;
+    for path in files {
+        let info = target.adb.apk_info(path, target.stop)?;
+        if info.package == PACKAGE || info.split {
+            return Err("The folder contains Controls or a split APK. Install Controls with its separate verified action and choose standalone APKs for batch installation.".into());
+        }
+    }
     for (index, path) in files.iter().enumerate() {
         progress(format!(
             "Installing {} of {} • {}",
@@ -52,10 +60,17 @@ pub fn install_apks(
             files.len(),
             filename(path)
         ));
-        if main_app {
-            target.adb.verify_apk(path, PACKAGE, target.stop)?;
-        }
-        target.install(path).map_err(|e| {
+        let result = (|| {
+            let copy = ScratchFile::copy_from(storage, path, target)?;
+            let _locked = copy.lock()?;
+            let info = target.adb.apk_info(&copy.path, target.stop)?;
+            if info.package == PACKAGE || info.split {
+                return Err("An input changed after the folder check.".into());
+            }
+            identity.recheck(target)?;
+            target.install(&copy.path)
+        })();
+        result.map_err(|e: String| {
             format!(
                 "Installed {index} of {}. {} failed. {e}",
                 files.len(),
@@ -64,7 +79,7 @@ pub fn install_apks(
         })?;
     }
     Ok(format!(
-        "Installed {} APK(s). Existing app data was retained.",
+        "Installed {} APK(s) through ADB. Use Android app settings for their permissions. Existing app data was retained for updates.",
         files.len()
     ))
 }
@@ -76,65 +91,7 @@ pub fn launch(target: &Target<'_>) -> Result<String> {
             "Android could not open Open Voyah Controls. {output}"
         ));
     }
-    Ok("Open Voyah Controls opened on the selected device.".into())
-}
-
-pub fn uninstall(target: &Target<'_>) -> Result<String> {
-    require_success(&target.text(["uninstall", "-k", PACKAGE], 30)?)?;
-    Ok("Open Voyah Controls removed. App data was kept.".into())
-}
-
-pub fn info(target: &Target<'_>) -> Result<String> {
-    let product = target.property("ro.product.name")?;
-    let fingerprint = target.property("ro.build.fingerprint")?;
-    let android = target.property("ro.build.version.release")?;
-    let packages = target.text(["shell", "pm", "list", "packages", PACKAGE], 15)?;
-    let installed = packages
-        .lines()
-        .any(|line| line == "package:org.openvoyah.controls");
-    Ok(format!(
-        "Product: {product}\r\nAndroid: {android}\r\nBuild: {fingerprint}\r\nControls installed: {}",
-        if installed { "Yes" } else { "No" }
-    ))
-}
-
-pub fn install_runtime(target: &Target<'_>, path: &Path) -> Result<String> {
-    #[derive(serde::Deserialize)]
-    struct Runtime {
-        version: String,
-        file: String,
-        binary_sha256: String,
-    }
-    let runtime: Runtime = serde_json::from_str(RUNTIME).map_err(message)?;
-    if digest(path, target.stop)? != runtime.binary_sha256 {
-        return Err("The injector does not match the Android project's pinned SHA-256.".into());
-    }
-    let abi = target.property("ro.product.cpu.abi")?;
-    if abi != "arm64-v8a" {
-        return Err(format!(
-            "The injector needs Android ARM64. Device ABI is {abi}."
-        ));
-    }
-    let remote = format!("/data/local/tmp/{}", runtime.file);
-    let incoming = format!("{remote}.incoming");
-    target.text(
-        [OsStr::new("push"), path.as_os_str(), OsStr::new(&incoming)],
-        120,
-    )?;
-    let script = format!(
-        "set -e; test \"$(sha256sum '{incoming}' | cut -d ' ' -f 1)\" = '{}' && chmod 755 '{incoming}' && '{incoming}' --version && mv -f '{incoming}' '{remote}'",
-        runtime.binary_sha256,
-    );
-    let reported = target.text(["shell", &script], 30)?;
-    if !reported.lines().any(|line| line.trim() == runtime.version) {
-        return Err(format!(
-            "The device reported an unexpected injector version. {reported}"
-        ));
-    }
-    Ok(format!(
-        "Frida injector {} installed. The app requires a prepared local root transport.",
-        runtime.version
-    ))
+    Ok("Android accepted the Controls launch. Use Device status to check Frida and boot readiness.".into())
 }
 
 pub fn collect_logs(target: &Target<'_>, root: &Path, progress: impl Fn(String)) -> Result<String> {
@@ -240,110 +197,49 @@ fn archive_logs(folder: &Path) -> Result<PathBuf> {
 pub enum OemAction {
     ResetSettings,
     RestoreSettings,
-    DisableVerity,
-    EnableVerity,
     InstallKeyboard,
     RestoreKeyboard,
     Reboot,
 }
 
-fn verify_firmware(target: &Target<'_>, fingerprint: &str) -> Result<()> {
-    let product = target.property("ro.product.name")?;
-    if !matches!(product.as_str(), "f0506h" | "f0505h") {
-        return Err(format!(
-            "This maintenance workflow is limited to the observed Free and Dreamer products. Detected {product}."
-        ));
-    }
-    if fingerprint.is_empty() || target.property("ro.build.fingerprint")? != fingerprint {
-        return Err("Enter the exact build fingerprint shown in Device details and verify that it is the expected firmware.".into());
-    }
-    Ok(())
-}
-
-fn root_device(adb: &Adb, device: &Device, stop: &AtomicBool, fingerprint: &str) -> Result<Device> {
-    let target = adb.target(device, stop)?;
-    if target.text(["shell", "id", "-u"], 10)? == "0" {
-        return Ok(device.clone());
-    }
-    let identity = target.property("ro.serialno")?;
-    let output = target.text(["root"], 15)?;
-    if output.contains("cannot run as root") || output.contains("not allowed") {
-        return Err("This firmware does not allow ADB root.".into());
-    }
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while Instant::now() < deadline && !stop.load(Ordering::Relaxed) {
-        thread::sleep(Duration::from_millis(750));
-        if device.serial.contains(':') {
-            let _ = adb.text(["connect", &device.serial], 3, stop);
-        }
-        let candidate = adb
-            .devices(stop)?
-            .into_iter()
-            .find(|d| d.serial == device.serial && d.ready());
-        if let Some(candidate) = candidate {
-            let target = adb.target(&candidate, stop)?;
-            if target.text(["shell", "id", "-u"], 4).as_deref() == Ok("0") {
-                verify_firmware(&target, fingerprint)?;
-                if !identity.is_empty() && target.property("ro.serialno")? != identity {
-                    return Err("A different head unit answered after reconnecting.".into());
-                }
-                return Ok(candidate);
-            }
-        }
-    }
-    Err("The selected unit did not reconnect with ADB root. Refresh before retrying.".into())
-}
-
 pub fn maintenance(
-    adb: &Adb,
-    device: &Device,
-    stop: &AtomicBool,
+    target: &Target<'_>,
     action: OemAction,
     fingerprint: &str,
     input: &str,
     storage: &Path,
     progress: impl Fn(String),
 ) -> Result<String> {
-    let target = adb.target(device, stop)?;
-    verify_firmware(&target, fingerprint)?;
-    match action {
-        OemAction::InstallKeyboard => return install_keyboard(&target, Path::new(input)),
-        OemAction::RestoreKeyboard => return restore_keyboard(&target, input),
-        OemAction::Reboot => {
-            target.text(["reboot"], 20)?;
-            return Ok("Head unit restart requested. Refresh after Android has booted.".into());
+    let identity = Identity::confirmed(target, fingerprint)?;
+    if matches!(action, OemAction::Reboot) {
+        if !matches!(identity.sdk, 28 | 30) || identity.abi != "arm64-v8a" {
+            return Err("Head-unit restart is limited to Android 9 and 11 ARM64 units.".into());
         }
-        _ => {}
+        identity.recheck(target)?;
+        target.text(["reboot"], 20)?;
+        return Ok("Head unit restart requested. Refresh after Android has booted.".into());
     }
-    progress("Checking ADB root and reconnecting to the same head unit…".into());
-    let rooted = root_device(adb, device, stop, fingerprint)?;
-    let target = adb.target(&rooted, stop)?;
+    if !matches!(identity.product.as_str(), "f0506h" | "f0505h") {
+        return Err(format!(
+            "OEM maintenance is limited to reviewed Free and Dreamer products. Detected {}.",
+            identity.product
+        ));
+    }
+    progress("Checking the reviewed firmware on the selected unit…".into());
+    production::check_reviewed(target, &identity, &storage.join("verification"))?;
+    identity.recheck(target)?;
     match action {
-        OemAction::DisableVerity | OemAction::EnableVerity => {
-            let disable = matches!(action, OemAction::DisableVerity);
-            let command = if disable {
-                "disable-verity"
-            } else {
-                "enable-verity"
-            };
-            let output = target.text([command], 30)?;
-            let reported = output.to_ascii_lowercase();
-            let expected = if disable { "disabled" } else { "enabled" };
-            if !reported.contains(expected)
-                || reported.contains("failed")
-                || reported.contains("cannot")
-            {
-                return Err(format!(
-                    "Android did not confirm the verity change. {output}"
-                ));
-            }
-            Ok(format!(
-                "{output}\r\nRestart the head unit separately to apply the change."
-            ))
+        OemAction::InstallKeyboard => install_keyboard(target, Path::new(input)),
+        OemAction::RestoreKeyboard => restore_keyboard(target, input),
+        OemAction::Reboot => unreachable!(),
+        OemAction::ResetSettings => {
+            production::require_root(target)?;
+            reset_settings(target, storage, fingerprint, progress)
         }
-        OemAction::ResetSettings => reset_settings(&target, storage, fingerprint, progress),
-        OemAction::RestoreSettings => restore_settings(&target),
-        _ => unreachable!(),
+        OemAction::RestoreSettings => {
+            production::require_root(target)?;
+            restore_settings(target)
+        }
     }
 }
 
