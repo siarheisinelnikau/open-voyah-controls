@@ -29,7 +29,7 @@ public final class ActionExecutor {
                     intent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(component);
                     break;
                 case SYSTEM_SETTINGS: intent = new Intent(Settings.ACTION_SETTINGS); break;
-                case CONTROLS_SETTINGS: intent = new Intent(context, MainActivity.class); break;
+                case CONTROLS_SETTINGS: intent = MainActivity.settingsIntent(context); break;
                 default: return;
             }
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);

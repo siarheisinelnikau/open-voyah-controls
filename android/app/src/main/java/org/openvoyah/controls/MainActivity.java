@@ -1,6 +1,7 @@
 package org.openvoyah.controls;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -30,6 +31,7 @@ import org.openvoyah.controls.presentation.home.ControlsHome;
 import org.openvoyah.controls.presentation.settings.PanelViewModel;
 
 public final class MainActivity extends ComponentActivity {
+    private static final String OPEN_SETTINGS = "org.openvoyah.controls.action.OPEN_SETTINGS";
     private static final int[] PANEL_TITLES = {
         R.string.ui_3, R.string.ui_4, R.string.ui_5, R.string.ui_6, R.string.ui_7, R.string.ui_8, R.string.ui_9
     };
@@ -47,6 +49,12 @@ public final class MainActivity extends ComponentActivity {
     private LinearLayout content;
     private AlertDialog learning;
 
+    public static Intent settingsIntent(Context context) {
+        return new Intent(context, MainActivity.class).setAction(OPEN_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    }
+
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         store = new SettingsStore(this);
@@ -61,8 +69,14 @@ public final class MainActivity extends ComponentActivity {
         home = new ControlsHome(this, version, destination -> {
             openSection(destination);
             return kotlin.Unit.INSTANCE;
-        }, this::createButtonsPage, this::createSettingsPage);
+        }, this::createButtonsPage, this::createSettingsPage, OPEN_SETTINGS.equals(getIntent().getAction()));
 
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (OPEN_SETTINGS.equals(intent.getAction())) home.showSettings();
     }
 
     @Override public void onResume() {
@@ -151,6 +165,7 @@ public final class MainActivity extends ComponentActivity {
         content.addView(button(UiText.get(R.string.ui_54), this::manual));
         if (android.os.Build.VERSION.SDK_INT == 30) {
             content.addView(button(UiText.get(R.string.oem_steering), this::steering));
+            content.addView(text(UiText.get(R.string.oem_steering_scope), 14, MUTED));
         }
 
         return content;
@@ -189,8 +204,8 @@ public final class MainActivity extends ComponentActivity {
         return action.isAssigned() ? action.label : UiText.get(R.string.ui_66);
     }
     private void steering() {
-        int[] titles = {R.string.oem_voice, R.string.oem_custom, R.string.oem_camera};
-        String[] choices = new String[PanelSlots.STEERING.size()];
+        int[] titles = {R.string.oem_voice, R.string.oem_custom};
+        String[] choices = new String[titles.length * 2];
         for (int i = 0; i < choices.length; i++) {
             Action action = state.steeringActions.getOrDefault(PanelSlots.STEERING.get(i), Action.NONE);
             choices[i] = UiText.get(titles[i / 2]) + " · " + UiText.get(i % 2 == 0 ? R.string.oem_short : R.string.oem_hold) + "\n" + label(action);
