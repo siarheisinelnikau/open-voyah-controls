@@ -1,0 +1,52 @@
+{
+  "version": "0.12.0",
+  "date": "2026-11-10",
+  "apk": "OpenVoyahControls-0.12.0-debug.apk",
+  "size": 158274513,
+  "sha256": "3f74eb8603f4a71fef0db0e5f311b0b2b8fae03e2c48f53f1475f9961ddea099",
+  "min_sdk": 28,
+  "signing": "debug",
+  "emulator_fixture_transport": false,
+  "tests": {
+    "jvm": 21,
+    "node": 78,
+    "android_api_28": 67,
+    "android_api_30_focused": 21,
+    "boot_recovery": 9,
+    "boot_supervisor": 5,
+    "cluster_transaction": 8,
+    "windows_installer": 9
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 43
+  },
+  "emulator_checks": [
+    "Opened Settings directly with the app both stopped and running on Android 11",
+    "Applied 120 DPI and a 145 px left inset to new and reused central tasks on Android 11 and restored native bounds and density",
+    "Verified that the ordinary debug APK refuses privileged activation even with old saved connection state",
+    "Installed and updated a local APK through Android confirmation on Android 9 and verified the installed bytes",
+    "Reopened Installed apps after simulating process loss at the persisted install result and recreated the verified receipt",
+    "Read a microphone grant from Android after restarting the device and opened Android app info for an externally installed package"
+  ],
+  "offline_checks": [
+    "Verified the release signing gate with a disposable test key and rejected missing and mismatched signing configuration",
+    "Checked firmware evidence collection against local fixtures, including an unauthorized transport and changed package bytes",
+    "Restored the exact boot entry from a verified PC backup in an isolated fixture after removing its on-device copy",
+    "Matched the four agent bundles, boot scripts, approval catalogs, and runtime manifest in both Android APKs"
+  ],
+  "windows": {
+    "version": "0.2.0",
+    "artifact": "OpenVoyahControlsInstaller-v0.2.0-portable-development.zip",
+    "size": 8089878,
+    "sha256": "50c4d37cc0842650e6a0a8c3c86cbab38e9d6688f69203e22413f920f8025802",
+    "signing": "unsigned",
+    "adb_platform_tools": "35.0.2",
+    "android_build_tools": "35.0.0"
+  },
+  "vehicle_tested": false,
+  "production_signing_tested_with_release_keys": false,
+  "approved_firmware_builds": 0,
+  "approved_physical_voice_commands": 0,
+  "direct_privileged_permission_change_tested_on_device": false
+}

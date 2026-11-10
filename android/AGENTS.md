@@ -20,9 +20,14 @@
   final phrases with confidence checks. Offline actions use exact catalog matches. Apply the verified
   Park gate to seat memory recall and exterior light shutoff. Keep control of the popup on the button.
 - Firmware/account writes need a complete backup first. Keep restore available after failure.
-- Firmware endpoints are loopback Telnet and the fixed cluster QNX endpoint `172.16.104.41:8000`.
+- Require an existing owner-authorized local root broker, SELinux Enforcing, exact reviewed firmware
+  and OEM APK evidence, and a verified runtime for production. Keep the loopback transport available
+  only to explicit isolated emulator fixtures. Qualify the fixed cluster QNX endpoint independently.
   OpenRouter is an optional voice fallback. Send only the short recognized text and accept only
   the fixed media and assigned-app actions. Keep the API key outside settings archives.
+- Keep physical and other high-risk OEM actions closed until the exact firmware and individual
+  capability have device evidence. Distinguish a dispatch acknowledgment from verified telemetry.
+- Keep an off-device copy of the original boot script, and make rollback independent of the APK.
 - Cluster: exact firmware/hash catalog, complete durable backup before writes, no automatic replay/reboot.
 - Vendor cluster packs are local imports outside the MIT sources/APK. Never commit their binaries or credentials.
 - Prepare both models: `python tools/prepare_voice_model.py --language ru` and `--language en`.
