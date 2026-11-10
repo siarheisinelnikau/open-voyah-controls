@@ -36,7 +36,6 @@
     <string name="oem_steering">OEM steering wheel buttons</string>
     <string name="oem_voice">Voice</string>
     <string name="oem_custom">Custom</string>
-    <string name="oem_camera">Surround camera</string>
     <string name="oem_short">Press</string>
     <string name="oem_hold">Hold</string>
     <string name="oem_restore_keys">Restore factory buttons</string>

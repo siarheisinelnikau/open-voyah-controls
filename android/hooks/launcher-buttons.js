@@ -1,6 +1,6 @@
 'use strict';
 
-import { installPanelIcons } from './panel-icons.js';
+import { installPanelState } from './panel-state.js';
 
 const PREFIX = 'org.openvoyah.controls';
 const LEFT_PANEL = PREFIX + '.extra.LEFT_PANEL_PX';
@@ -40,8 +40,9 @@ function createActionIntent(Java) {
         } else if (action.kind === 'SYSTEM_SETTINGS') {
             intent = Intent.$new('android.settings.SETTINGS');
         } else if (action.kind === 'CONTROLS_SETTINGS') {
-            intent = Intent.$new();
+            intent = Intent.$new(PREFIX + '.action.OPEN_SETTINGS');
             intent.setComponent(Component.$new(PREFIX, PREFIX + '.MainActivity'));
+            intent.addFlags(0x04000000 | 0x20000000);
         } else {
             return null;
         }
@@ -67,7 +68,7 @@ export function install(Java, onNavigation = () => {}) {
 Java.perform(function () {
     let clickHook, initHook, selectionHook;
     const holdHooks = [];
-    let appearance;
+    let panelState;
     try {
     const Nav = Java.use('com.qinggan.mainlauncher.navigation.NavigationBar');
     const Global = Java.use('android.provider.Settings$Global');
@@ -100,18 +101,28 @@ Java.perform(function () {
         return null;
     }
     function slotFor(nav, view) {
+        if (view === null) return null;
         const slots = PANELS[nav.mScreenId.value];
         if (!slots) return null;
         const name = view.getResources().getResourceEntryName(view.getId()).toString();
-        return slots.find(([, resource]) => resource === name)?.[2] ?? null;
+        return slots.find(([field, resource]) => resource === name && view.equals(nav[field].value))?.[2] ?? null;
+    }
+    function clickOwner(view) {
+        const info = Java.cast(view, View).mListenerInfo.value;
+        const listener = info === null ? null : info.mOnClickListener.value;
+        return listener !== null && Nav.class.isInstance(listener) ? Java.cast(listener, Nav) : null;
+    }
+    function ownsView(nav, view, slot) {
+        return slotFor(nav, view) === slot && nav.equals(clickOwner(view));
     }
 
     onClick.implementation = function (view) {
-        if (stockClickView !== null && view.equals(stockClickView)) return onClick.call(this, view);
+        if (stockClickView !== null && view?.equals(stockClickView)) return onClick.call(this, view);
         let slot, action;
         try {
             slot = slotFor(this, view);
-            action = slot && actionFor(readConfig(this.mContext.value), slot);
+            const candidate = slot && actionFor(readConfig(this.mContext.value), slot);
+            if (candidate && panelState?.active(this, view, candidate)) action = candidate;
             if (action?.kind === 'LAUNCH_APP' && this.mScreenId.value === 0) {
                 // The OEM window uses the same width even while its left-edge animation is in progress.
                 try {
@@ -129,7 +140,10 @@ Java.perform(function () {
             const message = String(error);
             if (message !== lastConfigError) { Log.w('OpenVoyahControls', message); lastConfigError = message; }
         }
-        if (action) appearance?.failed(this, slot);
+        if (action) {
+            try { panelState.failed(this, slot); }
+            catch (error) { Log.w('OpenVoyahControls', 'Could not restore button after launch failure: ' + error); }
+        }
         // Call OEM code exactly once if unmapped, disabled, or the replacement failed.
         return onClick.call(this, view);
     };
@@ -139,8 +153,9 @@ Java.perform(function () {
         const selected = Nav.updateSelectedApp.overload('java.lang.String', 'java.lang.String');
         selectionHook = selected;
         selected.implementation = function (pkg, activity) {
+            const selectionRestored = panelState?.restoreSelection(this);
             const result = selected.call(this, pkg, activity);
-            if (pkg === null || activity === null || !String(pkg) || !String(activity)) return result;
+            if (!selectionRestored || pkg === null || activity === null || !String(pkg) || !String(activity)) return result;
             try {
                 const packageName = String(pkg);
                 const fullName = name => name.startsWith('.') ? packageName + name : name;
@@ -153,11 +168,11 @@ Java.perform(function () {
                     const [targetPackage, targetActivity] = action.component.split('/');
                     if (packageName !== targetPackage || active !== fullName(targetActivity)) continue;
                     const view = this[field].value;
-                    if (view !== null && view.getId() > 0) ids.push(view.getId());
+                    if (view !== null && panelState?.active(this, view, action) && view.getId() > 0) ids.push(view.getId());
                 }
                 if (ids.length) {
                     const group = this.mScreenUpRadioGroup.value;
-                    if (group !== null && !ids.includes(group.getCheckedRadioButtonId())) group.check(ids[0]);
+                    if (group !== null && !ids.includes(group.getCheckedRadioButtonId())) panelState.select(this, group, ids[0]);
                 }
             } catch (error) {
                 const message = 'Panel selection: ' + error;
@@ -174,62 +189,54 @@ Java.perform(function () {
 
     for (const hold of holdHooks) {
         hold.implementation = function (...coordinates) {
+            if (stockClickView !== null && this.equals(stockClickView)) return true;
             let owner = null;
             try {
-                const info = Java.cast(this, View).mListenerInfo.value;
-                const listener = info === null ? null : info.mOnClickListener.value;
-                if (listener !== null && Nav.class.isInstance(listener)) {
-                    const nav = Java.cast(listener, Nav);
-                    const slot = slotFor(nav, this);
-                    if (slot && actionFor(readConfig(nav.mContext.value), slot)) owner = nav;
-                }
+                const nav = clickOwner(this);
+                const slot = nav && slotFor(nav, this);
+                const action = slot && actionFor(readConfig(nav.mContext.value), slot);
+                if (action && panelState?.active(nav, this, action)) owner = nav;
             } catch (error) { Log.w('OpenVoyahControls', 'Long press: ' + error); }
             if (owner !== null) {
                 // A virtual call from a different hook can re-enter the click implementation.
                 const previous = stockClickView;
                 stockClickView = this;
                 try { onClick.call(owner, this); }
+                catch (error) { Log.w('OpenVoyahControls', 'Native long-press action failed: ' + error); }
                 finally { stockClickView = previous; }
+                // Android suppresses the release click after a handled long press.
                 return true;
             }
             return hold.call(this, ...coordinates);
         };
     }
-    function enableHolds(nav) {
-        for (const [name] of PANELS[nav.mScreenId.value] ?? []) {
-            try {
-                const view = nav[name].value;
-                if (view !== null) view.setLongClickable(true);
-            } catch (error) { Log.w('OpenVoyahControls', 'Hold unavailable: ' + name + ': ' + error); }
-        }
-    }
     initViews.implementation = function () {
+        panelState?.restore(this);
         const result = initViews.call(this);
-        enableHolds(this);
-        appearance?.track(this);
+        panelState?.track(this);
         return result;
     };
-    try { appearance = installPanelIcons(Java, Nav, PANELS, readConfig, actionFor, buildIntent); }
-    catch (error) { console.log('OVC_PANEL_ICONS_ERROR ' + error); }
+    panelState = installPanelState(Java, Nav, PANELS, readConfig, actionFor, buildIntent, ownsView);
     // Injection normally occurs after launcher has already constructed the bars.
     Java.choose('com.qinggan.mainlauncher.navigation.NavigationBar', {
         onMatch(nav) {
             const kept = Java.retain(nav);
             Java.scheduleOnMainThread(() => {
                 try {
-                    enableHolds(kept);
-                    appearance?.track(kept, true);
+                    panelState.track(kept);
                 } finally { kept.$dispose(); }
             });
         },
         onComplete() {
-            Java.scheduleOnMainThread(() => console.log('OVC_READY NavigationBar click+hold pid=' + Process.id));
+            Java.scheduleOnMainThread(() => {
+                if (panelState.finishScan()) console.log('OVC_READY NavigationBar click+hold pid=' + Process.id);
+            });
         }
     });
     Log.i('OpenVoyahControls', 'READY NavigationBar.onClick: ' + Process.id);
     } catch (error) {
         // Roll back a partially installed feature before the next attempt.
-        appearance?.dispose();
+        panelState?.dispose();
         for(const hook of [clickHook,initHook,selectionHook,...holdHooks]) if(hook) hook.implementation=null;
         console.log('OVC_PANEL_ERROR ' + error + '; retry in 30s');
         setTimeout(()=>install(Java, onNavigation),30000);

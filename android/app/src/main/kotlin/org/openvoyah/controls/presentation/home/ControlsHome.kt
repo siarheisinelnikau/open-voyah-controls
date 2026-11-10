@@ -37,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -68,19 +69,25 @@ class ControlsHome(
     open: (Destination) -> Unit,
     buttons: () -> View,
     settings: () -> View,
+    startInSettings: Boolean,
 ) {
     enum class Destination { APPS, VOICE, DISPLAY, FIRMWARE, LANGUAGE, SYSTEM }
 
     private var revision by mutableIntStateOf(0)
+    private var settingsRequests by mutableIntStateOf(0)
 
     init {
         activity.setContent {
-            ControlsTheme { HomeScreen(version, revision, open, buttons, settings) }
+            ControlsTheme { HomeScreen(version, revision, open, buttons, settings, startInSettings) }
         }
     }
 
     fun refresh() {
         revision += 1
+    }
+
+    fun showSettings() {
+        settingsRequests += 1
     }
 
     @Composable
@@ -90,8 +97,12 @@ class ControlsHome(
         open: (Destination) -> Unit,
         buttons: () -> View,
         settings: () -> View,
+        startInSettings: Boolean,
     ) {
-        var page by rememberSaveable { mutableStateOf(Page.OVERVIEW) }
+        var page by rememberSaveable { mutableStateOf(if (startInSettings) Page.SETTINGS else Page.OVERVIEW) }
+        LaunchedEffect(settingsRequests) {
+            if (settingsRequests > 0) page = Page.SETTINGS
+        }
         BackHandler(page != Page.OVERVIEW) { page = Page.OVERVIEW }
         Surface(color = MaterialTheme.colorScheme.background) {
             BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
