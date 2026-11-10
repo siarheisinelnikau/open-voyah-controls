@@ -55,6 +55,21 @@ fn main() {
   <application xmlns="urn:schemas-microsoft-com:asm.v3"><windowsSettings><dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true</dpiAware></windowsSettings></application>
 </assembly>"#).unwrap();
     let version = env!("CARGO_PKG_VERSION");
+    const RELEASE_CERT: &str = "OPEN_VOYAH_RELEASE_CERT_SHA256";
+    println!("cargo:rerun-if-env-changed={RELEASE_CERT}");
+    let release_pin = match env::var(RELEASE_CERT) {
+        Ok(pin) => {
+            assert!(
+                pin.len() == 64 && pin.bytes().all(|byte| byte.is_ascii_hexdigit()),
+                "{RELEASE_CERT} must be a SHA-256 certificate fingerprint without separators"
+            );
+            format!(
+                "Controls release certificate SHA-256 {}",
+                pin.to_ascii_lowercase()
+            )
+        }
+        Err(_) => "Development installer without a Controls release certificate".into(),
+    };
     winresource::WindowsResource::new()
         .set("ProductName", "Open Voyah Controls Installer")
         .set("FileDescription", "Open Voyah Controls Installer")
@@ -64,6 +79,7 @@ fn main() {
         )
         .set("ProductVersion", version)
         .set("FileVersion", version)
+        .set("Comments", &release_pin)
         .set_manifest_file(manifest_path.to_str().unwrap())
         .set_icon(icon_path.to_str().unwrap())
         .compile()

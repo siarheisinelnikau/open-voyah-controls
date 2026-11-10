@@ -1,6 +1,6 @@
 use std::{
     ffi::{OsStr, OsString},
-    io::{self, Read},
+    io::{self, Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
@@ -25,7 +25,7 @@ impl Device {
 
     pub fn label(&self) -> String {
         let state = match self.state.as_str() {
-            "device" if self.ready() => "Ready",
+            "device" if self.ready() => "ADB authorized",
             "device" => "Update Platform-Tools",
             "unauthorized" => "Authorize debugging on the device",
             "offline" => "Offline",
@@ -99,6 +99,15 @@ pub struct Adb {
     pub path: PathBuf,
 }
 
+pub struct ApkInfo {
+    pub package: String,
+    pub version_code: Option<u64>,
+    pub version_name: Option<String>,
+    pub min_sdk: Option<u32>,
+    pub debuggable: bool,
+    pub split: bool,
+}
+
 impl Adb {
     pub fn from_path(path: PathBuf) -> Result<Self> {
         if !path.is_absolute()
@@ -156,7 +165,7 @@ impl Adb {
         seconds: u64,
         stop: &AtomicBool,
     ) -> Result<String> {
-        let bytes = process(&self.path, args, seconds, stop, 1024 * 1024)?;
+        let bytes = process(&self.path, args, seconds, stop, 1024 * 1024, None)?;
         Ok(String::from_utf8_lossy(&bytes).trim().to_owned())
     }
 
@@ -169,51 +178,138 @@ impl Adb {
             adb: self,
             stop,
             transport,
+            serial: device.serial.clone(),
         })
     }
 
     pub fn verify_apk(&self, path: &Path, package: &str, stop: &AtomicBool) -> Result<()> {
-        let sdk = self
-            .path
+        let actual = self.apk_info(path, stop)?.package;
+        if actual == package {
+            Ok(())
+        } else {
+            Err(format!("Expected APK package {package}; found {actual}."))
+        }
+    }
+
+    fn sdk(&self) -> Result<&Path> {
+        self.path
             .parent()
             .and_then(Path::parent)
-            .ok_or("Select adb.exe from an Android SDK platform-tools directory.")?;
-        let aapt = std::fs::read_dir(sdk.join("build-tools"))
+            .ok_or_else(|| "Select adb.exe from an Android SDK platform-tools directory.".into())
+    }
+
+    fn build_tool(&self, relative: &str) -> Result<PathBuf> {
+        std::fs::read_dir(self.sdk()?.join("build-tools"))
             .ok()
             .into_iter()
             .flatten()
             .filter_map(std::result::Result::ok)
             .filter_map(|e| {
                 let version = semver::Version::parse(e.file_name().to_str()?).ok()?;
-                let exe = e.path().join("aapt2.exe");
-                exe.is_file().then_some((version, exe))
+                let file = e.path().join(relative);
+                file.is_file().then_some((version, file))
             })
             .max_by(|(a, _), (b, _)| a.cmp(b))
-            .map(|(_, exe)| exe)
-            .ok_or(
-                "Install Android SDK Build-Tools next to Platform-Tools to verify APK identity.",
-            )?;
+            .map(|(_, file)| file)
+            .ok_or_else(|| {
+                format!("Install Android SDK Build-Tools with {relative} next to Platform-Tools.")
+            })
+    }
+
+    pub fn apk_info(&self, path: &Path, stop: &AtomicBool) -> Result<ApkInfo> {
+        let aapt = self.build_tool("aapt2.exe")?;
         let output = process(
             &aapt,
             [OsStr::new("dump"), OsStr::new("badging"), path.as_os_str()],
             20,
             stop,
             256 * 1024,
+            None,
         )?;
-        let output = String::from_utf8_lossy(&output);
-        let actual = output.lines().find_map(|line| {
-            line.strip_prefix("package: name='")
-                .and_then(|s| s.split_once('\''))
-                .map(|(name, _)| name)
-        });
-        if actual == Some(package) {
-            Ok(())
-        } else {
-            Err(format!(
-                "Expected APK package {package}; found {}.",
-                actual.unwrap_or("no package name")
-            ))
+        apk_info(&String::from_utf8_lossy(&output))
+    }
+
+    pub fn apk_signer(&self, path: &Path, sdk: u32, stop: &AtomicBool) -> Result<String> {
+        let jar = self.build_tool("lib/apksigner.jar")?;
+        let java = [self.sdk()?.join("jre/bin/java.exe")]
+            .into_iter()
+            .chain(std::env::var_os("JAVA_HOME").map(|p| PathBuf::from(p).join("bin/java.exe")))
+            .chain(std::env::var_os("PATH").into_iter().flat_map(|p| {
+                std::env::split_paths(&p)
+                    .map(|dir| dir.join("java.exe"))
+                    .collect::<Vec<_>>()
+            }))
+            .find(|p| p.is_absolute() && p.is_file())
+            .ok_or("Install a JDK and set JAVA_HOME so the installer can verify APK signatures.")?;
+        let sdk = sdk.to_string();
+        let output = process(
+            &java,
+            [
+                OsStr::new("-jar"),
+                jar.as_os_str(),
+                OsStr::new("verify"),
+                OsStr::new("--min-sdk-version"),
+                OsStr::new(&sdk),
+                OsStr::new("--max-sdk-version"),
+                OsStr::new(&sdk),
+                OsStr::new("--print-certs"),
+                path.as_os_str(),
+            ],
+            90,
+            stop,
+            64 * 1024,
+            None,
+        )?;
+        single_signer(&String::from_utf8_lossy(&output))
+    }
+}
+
+fn apk_info(output: &str) -> Result<ApkInfo> {
+    let line = output
+        .lines()
+        .find_map(|line| line.strip_prefix("package: "))
+        .ok_or("APK package identity is missing.")?;
+    let field = |key: &str| {
+        let marker = format!("{key}='");
+        let value = line.strip_prefix(&marker).or_else(|| {
+            line.split_once(&format!(" {marker}"))
+                .map(|(_, value)| value)
+        })?;
+        value.split_once('\'').map(|(value, _)| value)
+    };
+    Ok(ApkInfo {
+        package: field("name")
+            .filter(|name| !name.is_empty())
+            .ok_or("APK package identity is empty.")?
+            .into(),
+        version_code: field("versionCode").and_then(|value| value.parse().ok()),
+        version_name: field("versionName").map(str::to_owned),
+        min_sdk: output.lines().find_map(|line| {
+            line.strip_prefix("sdkVersion:'")
+                .or_else(|| line.strip_prefix("minSdkVersion:'"))?
+                .strip_suffix('\'')?
+                .parse()
+                .ok()
+        }),
+        debuggable: output
+            .lines()
+            .any(|line| line.trim_start().starts_with("application-debuggable")),
+        split: field("split").is_some_and(|value| !value.is_empty()),
+    })
+}
+
+fn single_signer(output: &str) -> Result<String> {
+    let mut signers = output.lines().filter_map(|line| {
+        let (name, digest) = line.split_once(" certificate SHA-256 digest: ")?;
+        name.starts_with("Signer #").then_some((name, digest))
+    });
+    match (signers.next(), signers.next()) {
+        (Some(("Signer #1", digest)), None)
+            if digest.len() == 64 && digest.bytes().all(|c| c.is_ascii_hexdigit()) =>
+        {
+            Ok(digest.to_ascii_lowercase())
         }
+        _ => Err("APK verification must report one unambiguous signing certificate.".into()),
     }
 }
 
@@ -221,6 +317,7 @@ pub struct Target<'a> {
     pub adb: &'a Adb,
     pub stop: &'a AtomicBool,
     pub transport: u64,
+    serial: String,
 }
 
 impl Target<'_> {
@@ -239,16 +336,76 @@ impl Target<'_> {
         args: impl IntoIterator<Item = S>,
         seconds: u64,
     ) -> Result<String> {
+        self.check_transport()?;
         self.adb.text(self.args(args), seconds, self.stop)
     }
 
     pub fn capture(&self, args: &[&str], seconds: u64, limit: usize) -> Result<Vec<u8>> {
-        process(&self.adb.path, self.args(args), seconds, self.stop, limit)
+        self.check_transport()?;
+        process(
+            &self.adb.path,
+            self.args(args),
+            seconds,
+            self.stop,
+            limit,
+            None,
+        )
+    }
+
+    pub fn script(&self, script: &str, arguments: &[&str], seconds: u64) -> Result<String> {
+        if arguments.iter().any(|value| {
+            value.is_empty()
+                || !value
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || b"_./:+-,".contains(&c))
+        }) {
+            return Err("Unsafe argument for a head-unit operation.".into());
+        }
+        self.check_transport()?;
+        let args = self.args(
+            ["shell", "-T", "sh", "-s", "--"]
+                .into_iter()
+                .chain(arguments.iter().copied()),
+        );
+        let output = process(
+            &self.adb.path,
+            args,
+            seconds,
+            self.stop,
+            1024 * 1024,
+            Some(script.as_bytes()),
+        )?;
+        String::from_utf8(output)
+            .map(|value| value.trim().to_owned())
+            .map_err(|_| "Invalid UTF-8 in the head-unit response.".into())
+    }
+
+    fn check_transport(&self) -> Result<()> {
+        let actual = self.adb.text(self.args(["get-serialno"]), 6, self.stop)?;
+        if actual == self.serial {
+            Ok(())
+        } else {
+            Err("The selected ADB transport changed. Refresh and confirm the head unit before retrying.".into())
+        }
     }
 
     pub fn install(&self, apk: &Path) -> Result<()> {
         let result = self.text(
             [OsStr::new("install"), OsStr::new("-r"), apk.as_os_str()],
+            240,
+        )?;
+        require_success(&result)
+    }
+
+    pub fn install_owner(&self, apk: &Path) -> Result<()> {
+        let result = self.text(
+            [
+                OsStr::new("install"),
+                OsStr::new("-r"),
+                OsStr::new("--user"),
+                OsStr::new("0"),
+                apk.as_os_str(),
+            ],
             240,
         )?;
         require_success(&result)
@@ -289,14 +446,20 @@ fn process<S: AsRef<OsStr>>(
     seconds: u64,
     stop: &AtomicBool,
     limit: usize,
+    input: Option<&[u8]>,
 ) -> Result<Vec<u8>> {
     if stop.load(Ordering::Relaxed) {
         return Err("Canceled before the next command.".into());
     }
+    let scripted = input.is_some();
     let mut command = Command::new(executable);
     command
         .args(args)
-        .stdin(Stdio::null())
+        .stdin(if input.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     #[cfg(windows)]
@@ -310,6 +473,11 @@ fn process<S: AsRef<OsStr>>(
     let mut child = command
         .spawn()
         .map_err(|err| format!("Could not start {}. {err}", executable.display()))?;
+    let input = input.map(|bytes| {
+        let bytes = bytes.to_vec();
+        let mut pipe = child.stdin.take().expect("configured command input");
+        thread::spawn(move || pipe.write_all(&bytes))
+    });
     let stdout = child.stdout.take().unwrap();
     let stderr = child.stderr.take().unwrap();
     let output = thread::spawn(move || drain(stdout, limit));
@@ -337,7 +505,10 @@ fn process<S: AsRef<OsStr>>(
     // The ADB client can spawn a server. Avoid waiting on inherited pipe handles
     // after a timeout or an interrupted command.
     let status = status?;
-    while !output.is_finished() || !errors.is_finished() {
+    while !output.is_finished()
+        || !errors.is_finished()
+        || input.as_ref().is_some_and(|writer| !writer.is_finished())
+    {
         if Instant::now() >= deadline || stop.load(Ordering::Relaxed) {
             return Err("The command's output stream did not close. Check the device before retrying a write.".into());
         }
@@ -352,6 +523,13 @@ fn process<S: AsRef<OsStr>>(
         .map_err(|_| "Could not read command errors.")?
         .map_err(|e| e.to_string())?;
     if !status.success() {
+        if scripted && !stdout.is_empty() && !stderr.is_empty() {
+            return Err(format!(
+                "Command failed ({status}). {}\r\n{}",
+                String::from_utf8_lossy(&stdout).trim(),
+                String::from_utf8_lossy(&stderr).trim()
+            ));
+        }
         let detail = if stderr.is_empty() { &stdout } else { &stderr };
         return Err(format!(
             "Command failed ({status}). {}",
@@ -360,6 +538,12 @@ fn process<S: AsRef<OsStr>>(
     }
     if truncated {
         return Err("Command output exceeded the diagnostic limit.".into());
+    }
+    if let Some(writer) = input {
+        writer
+            .join()
+            .map_err(|_| "Could not send command input.")?
+            .map_err(|error| format!("Could not send command input. {error}"))?;
     }
     Ok(stdout)
 }
