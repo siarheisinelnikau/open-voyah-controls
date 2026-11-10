@@ -1,0 +1,11 @@
+<resources>
+    <string name="production_unreviewed_firmware">Для этой прошивки магнитолы пока нет проверенного профиля.</string>
+    <string name="production_release_required">Для привилегированного доступа нужен подписанный релиз в профиле владельца Android.</string>
+    <string name="production_evidence_changed">Проверка магнитолы, установленных приложений или защищённого обработчика не прошла. Проверьте состояние через установщик на ПК.</string>
+    <string name="production_broker_unavailable">Авторизованный локальный менеджер root недоступен.</string>
+    <string name="production_connect_required">Подключитесь вручную после проверки с ПК. Для прежней установки воспользуйтесь восстановлением с ПК.</string>
+    <string name="production_broker_timeout">Истекло время ожидания ответа локального менеджера root.</string>
+    <string name="production_recovery_blocked">Восстановление блокирует активацию. Проверьте состояние через установщик на ПК.</string>
+    <string name="production_operation_unreviewed">Для этой операции пока нет подтверждения на установленной прошивке.</string>
+    <string name="production_voice_outcome_unknown">Подтверждение не получено. Проверьте состояние машины перед повтором команды.</string>
+</resources>

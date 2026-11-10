@@ -11,7 +11,7 @@
     <string name="app_window_enabled">Управление окнами включено. Подождите немного после запуска.</string>
     <string name="app_window_apply">Применить</string>
     <string name="app_window_saved">Профиль сохранён. Он вступит в силу после подключения обработчика окон.</string>
-    <string name="app_window_saved_next">Профиль сохранён. Он применится при следующем запуске на центральном экране.</string>
+    <string name="app_window_saved_next">Профиль сохранён для следующего запуска приложения.</string>
     <string name="app_window_applied">Применено · ширина %1$d пикс. · %2$d DPI · слева %3$d пикс.</string>
     <string name="app_window_density_only">Применено %1$d DPI. Android сохранил текущий размер окна.</string>
     <string name="app_window_unsupported">Приложение или прошивка не поддерживает плавающее окно.</string>
@@ -20,5 +20,5 @@
     <string name="app_window_failed">Не удалось подтвердить изменение конфигурации окна.</string>
     <string name="window_service_unavailable">Обработчик окон не ответил. Проверьте подключение Frida.</string>
     <string name="window_restore_unconfirmed">Обработчик остановлен. Некоторые открытые окна могут требовать сброса.</string>
-    <string name="app_window_explainer">На центральном экране приложения открываются справа от панели навигации. Ширина считается от её края.</string>
+    <string name="app_window_explainer">На центральном экране ширина считается от края панели навигации. Масштаб можно брать из настроек экрана.</string>
 </resources>

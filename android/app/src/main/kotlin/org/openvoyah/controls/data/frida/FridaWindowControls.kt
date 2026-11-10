@@ -3,6 +3,7 @@ package org.openvoyah.controls.data.frida
 import android.content.Context
 import org.json.JSONObject
 import org.openvoyah.controls.data.display.AppWindowPreferences
+import org.openvoyah.controls.domain.display.AppDisplayDefaults
 import org.openvoyah.controls.domain.display.AppWindowProfile
 
 internal class FridaWindowControls(context: Context) {
@@ -13,20 +14,38 @@ internal class FridaWindowControls(context: Context) {
     }
 
     enum class Connection { DISCONNECTED, DISABLED, ENABLED }
+    enum class DefaultsDelivery { SAVED, CENTRAL_ONLY, NEXT_LAUNCH }
 
     private val context = context.applicationContext
     private val bridge = FridaBridge(this.context)
     private val profiles = AppWindowPreferences(this.context)
 
     fun supports(component: String): Boolean = FridaBridge.windowHookSupported() && AppWindowProfile.eligible(component)
+    fun supportsDisplayDefaults(): Boolean = FridaBridge.windowHookSupported()
 
     fun connection(): Connection = when {
-        !FridaBridge.wasConfigured(context) -> Connection.DISCONNECTED
+        !FridaBridge.wasConfigured(context) || !bridge.windowReviewed() -> Connection.DISCONNECTED
         !FridaBridge.windowHookEnabled(context) -> Connection.DISABLED
         else -> Connection.ENABLED
     }
 
     fun load(component: String): AppWindowProfile = profiles.load(component)
+    fun loadDisplayDefaults(): AppDisplayDefaults = profiles.loadDefaults()
+
+    /** A failed delivery still leaves the validated defaults saved for the next connection. */
+    fun saveDisplayDefaults(defaults: AppDisplayDefaults): DefaultsDelivery {
+        profiles.saveDefaults(defaults)
+        val synced = try {
+            bridge.syncWindowProfiles()
+        } catch (_: java.io.IOException) {
+            false
+        }
+        return when {
+            !synced -> DefaultsDelivery.SAVED
+            defaults.secondaryDpi != null && !bridge.passengerWindowReviewed() -> DefaultsDelivery.CENTRAL_ONLY
+            else -> DefaultsDelivery.NEXT_LAUNCH
+        }
+    }
 
     fun enable() = bridge.setWindowHook(true)
 

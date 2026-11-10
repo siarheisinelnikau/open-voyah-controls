@@ -2,8 +2,9 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const source=fs.readFileSync(require('node:path').join(__dirname,'../hooks/voice-engine.js'),'utf8')
-    .replace("import plans from './voice-plans.json';",'').replaceAll('export function','function').replace('export async function','async function');
+const source=['voice-safety.js','voice-engine.js'].map(name=>
+    fs.readFileSync(require('node:path').join(__dirname,'../hooks',name),'utf8')
+        .replace(/^import .*;$/gm,'').replace(/^export /gm,'')).join('\n');
 const env={plans:require('../hooks/voice-plans.json')};
 vm.createContext(env);vm.runInContext(source,env);
 test('all fixed plans contain named SDK properties and bounded values',()=>{

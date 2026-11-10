@@ -4,6 +4,8 @@ export const PANEL_CONFIG = 'org.openvoyah.controls.panel';
 export const PANEL_EDGE = 'org.openvoyah.controls.extra.LEFT_PANEL_PX';
 export const CONTROLS = 'org.openvoyah.controls';
 export const OEM_LAUNCHER = 'com.qinggan.app.launcher';
+export const CENTRAL_DISPLAY = 'central';
+export const SECONDARY_DISPLAY = 'secondary';
 
 const protectedPackages = new Set([
     CONTROLS, 'android', 'com.android.settings', 'com.android.systemui', OEM_LAUNCHER,
@@ -20,12 +22,16 @@ export function componentKey(value) {
 export function normalizeProfile(value) {
     if (!value || typeof value !== 'object') return null;
     const component = componentKey(value.component);
-    const {width, dpi, keepPanel, panelPx} = value;
+    const {width, dpi, keepPanel, panelPx, inheritDpi = false} = value;
     if (!component || !Number.isInteger(width) || width < 50 || width > 100 || width % 5 !== 0 ||
-        !(dpi === 0 || Number.isInteger(dpi) && dpi >= 100 && dpi <= 320 && dpi % 10 === 0) ||
+        !validDensity(dpi) || typeof inheritDpi !== 'boolean' || (inheritDpi && dpi !== 0) ||
         typeof keepPanel !== 'boolean' || !Number.isInteger(panelPx) || panelPx < 0 || panelPx > 600) return null;
     // Keep accepting the old field from saved profiles. The strip is now reserved for every managed launch.
-    return {component, width, dpi, panelPx};
+    return {component, width, dpi, panelPx, inheritDpi};
+}
+
+function validDensity(dpi) {
+    return dpi === 0 || Number.isInteger(dpi) && dpi >= 100 && dpi <= 320 && dpi % 10 === 0;
 }
 
 function json(raw) {
@@ -37,13 +43,18 @@ export function readWindowConfig(raw) {
     const config = json(raw);
     if (!config || config.schema !== 1 || typeof config.enabled !== 'boolean' || !Number.isInteger(config.user)
         || config.user < 0 || !Array.isArray(config.apps) || config.apps.length > 16) return null;
+    const displayDpi = config.displayDpi === undefined ? {central:0, secondary:null} : config.displayDpi;
+    if (!displayDpi || !validDensity(displayDpi.central) ||
+        !(displayDpi.secondary === null || validDensity(displayDpi.secondary))) return null;
+    const passengerDisplayId = config.passengerDisplayId ?? null;
+    if (passengerDisplayId !== null && passengerDisplayId !== 1) return null;
     const apps = new Map();
     for (const entry of config.apps) {
         const profile = normalizeProfile(entry);
         if (!profile || apps.has(profile.component.split('/')[0])) return null;
         apps.set(profile.component.split('/')[0], profile);
     }
-    return {enabled: config.enabled, user: config.user, apps};
+    return {enabled: config.enabled, user: config.user, apps, displayDpi, passengerDisplayId};
 }
 
 export function readNavigator(raw) {
@@ -53,19 +64,19 @@ export function readNavigator(raw) {
         ? componentKey(action.component) : null;
 }
 
-export function profileFor(config, component, user, withDefault = false) {
+export function profileFor(config, component, user, withDefault = false, screen = CENTRAL_DISPLAY, reset = false) {
     if (!config?.enabled || config.user !== user || !component) return null;
-    const profile = config.apps.get(component.split('/')[0]);
-    return profile ?? (withDefault ? defaultProfile(component) : null);
+    const dpi = config.displayDpi[screen];
+    if (!validDensity(dpi)) return null;
+    const profile = reset ? null : config.apps.get(component.split('/')[0]);
+    if (profile) return profile.inheritDpi ? {...profile, dpi} : profile;
+    return withDefault ? {component, width:100, dpi, panelPx:0} : null;
 }
 
-export function defaultProfile(component) {
-    return {component, width:100, dpi:0, panelPx:0};
-}
-
-export function launchProfile(config, navigator, launch) {
+export function launchProfile(config, navigator, launch, screen = CENTRAL_DISPLAY, displayId = launch.display) {
+    if (screen === SECONDARY_DISPLAY && config?.passengerDisplayId != null && displayId !== config.passengerDisplayId) return null;
     const fromLauncher = launch.caller === CONTROLS || launch.caller === OEM_LAUNCHER || launch.fromHome;
-    return profileFor(config, launch.key, launch.user, fromLauncher || navigator === launch.key);
+    return profileFor(config, launch.key, launch.user, fromLauncher || navigator === launch.key, screen);
 }
 
 export function readWindowRequest(raw, now) {

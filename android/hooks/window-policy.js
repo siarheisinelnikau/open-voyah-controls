@@ -2,8 +2,8 @@ import { android9WindowHook } from './window-android9.js';
 import { android11WindowHook } from './window-android11.js';
 import { systemTasks } from './window-tasks.js';
 import {
-    CONTROLS, OEM_LAUNCHER, PANEL_CONFIG, PANEL_EDGE, WINDOW_CONFIG, WINDOW_REQUEST,
-    componentKey, defaultProfile, launchProfile, profileFor, readNavigator, readWindowConfig, readWindowRequest, windowBounds
+    CENTRAL_DISPLAY, CONTROLS, OEM_LAUNCHER, PANEL_CONFIG, PANEL_EDGE, SECONDARY_DISPLAY, WINDOW_CONFIG, WINDOW_REQUEST,
+    componentKey, launchProfile, profileFor, readNavigator, readWindowConfig, readWindowRequest, windowBounds
 } from './window-profiles.js';
 
 const REQUEST = CONTROLS + '.extra.FLOATING_WINDOW';
@@ -27,7 +27,7 @@ function explicitLaunch(record, options, source, tasks) {
     const sourceDisplay = source?.getDisplayId() ?? -1;
     const display = requestedDisplay >= 0 ? requestedDisplay : sourceDisplay;
     const requestedMode = options?.getLaunchWindowingMode() ?? 0;
-    if (!intent || display > 0 || String(intent.getAction()) !== MAIN || !intent.hasCategory(LAUNCHER)
+    if (!intent || String(intent.getAction()) !== MAIN || !intent.hasCategory(LAUNCHER)
         || (requestedMode !== 0 && requestedMode !== tasks.framework.fullscreen && requestedMode !== tasks.framework.freeform)
         || !record.isActivityTypeStandardOrUndefined()) return null;
     const component = intent.getComponent();
@@ -35,9 +35,15 @@ function explicitLaunch(record, options, source, tasks) {
     const key = componentKey(String(component.flattenToString()));
     if (!key) return null;
     const caller = String(record.launchedFromPackage.value);
+    const sourceMode = source?.getWindowingMode();
+    const inNativeSplit = sourceMode != null &&
+        (sourceMode === tasks.framework.splitPrimary || sourceMode === tasks.framework.splitSecondary);
+    const nativeAdjacent = caller === CONTROLS && sourceMode != null && sourceMode !== tasks.framework.fullscreen &&
+        (intent.getFlags() & tasks.framework.launchAdjacent) !== 0;
+    if (inNativeSplit || nativeAdjacent) return null;
     const edge = intent.getIntExtra(PANEL_EDGE, 0);
     const trusted = caller === OEM_LAUNCHER && display === 0 && edge > 0 && edge <= 600;
-    return {key, display, caller, fromHome: source?.isActivityTypeHome() === true,
+    return {key, display, requestedDisplay, caller, fromHome: source?.isActivityTypeHome() === true,
         user: tasks.userOf(record), edge: trusted ? edge : 0};
 }
 
@@ -101,17 +107,25 @@ function installLiveWindowPolicy(Java, sdk, early) {
         const value = Global.getString(resolver, key);
         return value === null ? '' : String(value);
     };
-    const allowed = launch => !released && launch && launchProfile(config, navigator, launch);
+    const allowed = (launch, screen = CENTRAL_DISPLAY, displayId = launch?.display) =>
+        !released && launch && launchProfile(config, navigator, launch, screen, displayId);
     const panel = launch => Math.max(panelResource, measuredPanel, launch?.edge ?? 0);
 
     const canSetLaunchBounds = (launch, record) => launch.display === 0 && launch.user === tasks.currentUser()
         && tasks.freeformAvailable() && record.isResizeable();
 
-    function applyAfterLaunch(launch, taskId, originals) {
+    function applyAfterLaunch(launch, taskId, originals, displayId = 0) {
         Java.scheduleOnMainThread(() => {
             try {
-                const current = allowed(launch);
-                if (current) tasks.apply(current, launch.user, panel(launch), taskId, originals);
+                // Read a just-saved default outside ActivityStarter's lock before applying density.
+                refresh();
+                const screen = tasks.screenOf(displayId);
+                if (!screen) return;
+                const current = allowed(launch, screen, displayId);
+                if (current) tasks.apply(current, launch.user, panel(launch), taskId, originals, displayId);
+                else if (!released && config?.enabled && config.user === launch.user && screen === SECONDARY_DISPLAY) {
+                    tasks.releaseSecondary(launch.key, launch.user, taskId, displayId);
+                }
             } catch (error) {
                 if (error.code === 'no_task') return;
                 const message = String(error);
@@ -157,12 +171,12 @@ function installLiveWindowPolicy(Java, sdk, early) {
                 released = true;
                 result = tasks.release(command.user);
             } else {
-                const profile = profileFor(config, command.component, command.user, true);
+                const profile = profileFor(config, command.component, command.user, true, CENTRAL_DISPLAY,
+                    command.operation === 'reset');
                 if (!profile || released) {
                     throw Object.assign(Error('Inactive configuration'), {code:'no_profile'});
                 }
-                result = tasks.apply(command.operation === 'reset' ? defaultProfile(command.component) : profile,
-                    command.user, panel());
+                result = tasks.apply(profile, command.user, panel());
             }
             result.status ??= 'applied';
         } catch (error) {
@@ -209,14 +223,18 @@ function installLiveWindowPolicy(Java, sdk, early) {
             }
         } catch (_) { }
         const result = late.call(this, ...args);
-        if (profile && started.has(result)) {
+        if (launch && !released && started.has(result)) {
             try {
                 // Android reports the reused activity separately when a task is brought to the front.
                 const completed = sdk === 28 ? args[8]?.[0] : this.mLastStartActivityRecord.value;
                 const record = completed?.getTask() ? completed : args[0];
                 const task = record.getTask();
-                if (task && record.getDisplayId() === 0) {
-                    applyAfterLaunch(launch, tasks.id(task), originals);
+                const actualDisplay = record.getDisplayId();
+                if (task && (launch.requestedDisplay < 0 || launch.requestedDisplay === actualDisplay)) {
+                    const screen = tasks.screenOf(actualDisplay);
+                    if (screen && (allowed(launch, screen, actualDisplay) || screen === SECONDARY_DISPLAY)) {
+                        applyAfterLaunch(launch, tasks.id(task), actualDisplay === 0 ? originals : null, actualDisplay);
+                    }
                 }
             } catch (_) { }
         }
@@ -229,5 +247,5 @@ function installLiveWindowPolicy(Java, sdk, early) {
             if (message !== loggedError) { loggedError = message; console.log('OVC_WINDOW_ERROR ' + message); }
         }
     }), 400);
-    console.log('OVC_WINDOW_READY protocol=3 sdk=' + sdk);
+    console.log('OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1');
 }

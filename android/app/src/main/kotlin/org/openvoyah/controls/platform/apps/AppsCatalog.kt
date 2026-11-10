@@ -15,7 +15,7 @@ internal data class LocalApp(
     val label: String,
     val launchEntry: InstalledApps.Entry?,
     val icon: Bitmap?,
-    val managed: Boolean,
+    val origin: InstallOrigin,
 )
 
 internal class AppsCatalog(
@@ -27,19 +27,21 @@ internal class AppsCatalog(
         val packages = context.packageManager
         val launchable = InstalledApps.list(context)
         val launcherPackages = launchable.map { it.component().packageName }.toSet()
-        val managed = mutableMapOf<String, Boolean>()
+        val origins = mutableMapOf<String, InstallOrigin>()
         val rows = launchable.map { entry ->
             val id = entry.component().packageName
             LocalApp(entry.component().flattenToString(), id, entry.label(), entry,
                 try { icon(packages.getActivityIcon(entry.component())) } catch (_: PackageManager.NameNotFoundException) { null },
-                managed.getOrPut(id) { permissions.managed(id) })
+                origins.getOrPut(id) { permissions.origin(id) })
         }
         // Keep Android's package visibility filtering for apps with no launcher entry.
         @SuppressLint("QueryPermissionsNeeded")
         val withoutLauncher = packages.getInstalledApplications(0).mapNotNull { app ->
             val id = app.packageName
-            if (id in launcherPackages || !permissions.managed(id)) return@mapNotNull null
-            LocalApp(id, id, app.loadLabel(packages).toString(), null, icon(app.loadIcon(packages)), managed = true)
+            if (id in launcherPackages) return@mapNotNull null
+            val origin = permissions.origin(id)
+            if (origin != InstallOrigin.CONTROLS && origin != InstallOrigin.UNVERIFIED) return@mapNotNull null
+            LocalApp(id, id, app.loadLabel(packages).toString(), null, icon(app.loadIcon(packages)), origin)
         }
         return (rows + withoutLauncher).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
     }
