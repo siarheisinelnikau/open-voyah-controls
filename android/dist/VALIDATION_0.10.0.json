@@ -1,0 +1,29 @@
+{
+  "version": "0.10.0",
+  "date": "2026-11-10",
+  "apk": "OpenVoyahControls-0.10.0-debug.apk",
+  "size": 158005270,
+  "sha256": "691afc756f58cdab5de45f109a3d2038fb25c2cc06a7c8a3328429ead56abb2b",
+  "min_sdk": 28,
+  "signing": "debug",
+  "tests": {
+    "jvm": 21,
+    "node": 59,
+    "android_api_28": 53,
+    "android_api_30_window_preferences": 2
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 33
+  },
+  "emulator_checks": [
+    "Android 9 and 11 on a 1920x720 central display with AOSP freeform support enabled",
+    "Applied 1420 px width and 180 DPI to the running fixture in its original task and process",
+    "Changed density alone at full width and kept Android display density at 240 DPI",
+    "Restored full width and system density",
+    "Assigned an already running fixture to central navigation and verified its window started at x=145",
+    "Applied a saved profile from the Android 9 app screen and reopened the settings to verify the saved values",
+    "Verified all four packaged Frida bundles against the current build"
+  ],
+  "vehicle_tested": false
+}

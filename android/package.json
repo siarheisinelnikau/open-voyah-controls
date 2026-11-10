@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "private": true,
   "scripts": {
-    "build:hook": "frida-compile hooks/entry.js -o app/src/main/assets/hooks/launcher-buttons.bundle.js -S -c && frida-compile hooks/localization-entry.js -o app/src/main/assets/hooks/localization.bundle.js -S -c",
+    "build:hook": "frida-compile hooks/entry.js -o app/src/main/assets/hooks/launcher-buttons.bundle.js -S -c && frida-compile hooks/localization-entry.js -o app/src/main/assets/hooks/localization.bundle.js -S -c && frida-compile hooks/window-entry.js -o app/src/main/assets/hooks/window.bundle.js -S -c && frida-compile hooks/navigation-entry.js -o app/src/main/assets/hooks/navigation.bundle.js -S -c",
     "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {

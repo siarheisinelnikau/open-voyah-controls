@@ -1,5 +1,10 @@
 package org.openvoyah.controls;
+
 import android.test.AndroidTestCase;
+import org.openvoyah.controls.data.frida.FridaBridge;
+import org.openvoyah.controls.data.settings.SettingsStore;
+import org.openvoyah.controls.data.settings.VoiceSettings;
+import org.openvoyah.controls.platform.boot.RecoveryJobs;
 
 public final class VoiceSettingsTest extends AndroidTestCase {
     private String before;
@@ -7,7 +12,7 @@ public final class VoiceSettingsTest extends AndroidTestCase {
     @Override public void setUp() { store=new VoiceSettings(getContext());before=store.exportJson(); }
     @Override public void tearDown() throws Exception { store.importJson(before); }
     public void testCatalogIsPackagedAndAllPhrasesMatch() throws Exception {
-        var catalog=VoiceSettings.catalog();assertEquals(129,catalog.all().size());
+        var catalog=VoiceSettings.catalog();assertEquals(138,catalog.all().size());
         for(var command:catalog.all()) for(String phrase:command.phrases()) assertEquals(command,catalog.match(phrase));
     }
     public void testInvalidImportLeavesStateUnchanged() throws Exception {
@@ -40,8 +45,8 @@ public final class VoiceSettingsTest extends AndroidTestCase {
             prefs.edit().putBoolean("configured",false).commit();
             try { new FridaBridge(getContext(),1).connect(new SettingsStore.State());fail(); } catch(java.io.IOException expected) { }
             assertTrue(FridaBridge.wasConfigured(getContext()));
-            assertNotNull(getContext().getSystemService(android.app.job.JobScheduler.class).getPendingJob(BootHookService.JOB_ID));
-        } finally { BootHookService.cancel(getContext());prefs.edit().putBoolean("configured",old).commit(); }
+            assertNotNull(getContext().getSystemService(android.app.job.JobScheduler.class).getPendingJob(RecoveryJobs.ID));
+        } finally { RecoveryJobs.cancel(getContext());prefs.edit().putBoolean("configured",old).commit(); }
     }
     public void testFailedDisconnectSchedulesStopInsteadOfReconnect() throws Exception {
         var prefs=getContext().getSharedPreferences("bridge",0);
@@ -51,7 +56,7 @@ public final class VoiceSettingsTest extends AndroidTestCase {
             try { new FridaBridge(getContext(),1).disconnect();fail(); } catch(java.io.IOException expected) { }
             assertFalse(FridaBridge.wasConfigured(getContext()));assertTrue(FridaBridge.needsRecovery(getContext()));
             assertTrue(prefs.getBoolean("stopPending",false));
-            assertNotNull(getContext().getSystemService(android.app.job.JobScheduler.class).getPendingJob(BootHookService.JOB_ID));
-        } finally { BootHookService.cancel(getContext());prefs.edit().putBoolean("configured",configured).putBoolean("stopPending",pending).commit(); }
+            assertNotNull(getContext().getSystemService(android.app.job.JobScheduler.class).getPendingJob(RecoveryJobs.ID));
+        } finally { RecoveryJobs.cancel(getContext());prefs.edit().putBoolean("configured",configured).putBoolean("stopPending",pending).commit(); }
     }
 }

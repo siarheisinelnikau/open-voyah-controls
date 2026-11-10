@@ -1,0 +1,30 @@
+{
+  "version": "0.9.0",
+  "date": "2026-11-10",
+  "apk": "OpenVoyahControls-0.9.0-debug.apk",
+  "size": 157682274,
+  "sha256": "78d3bcf5f14ef880caeab0f0e5a27e184cc81d95723f547cd14fd0ec791b2157",
+  "min_sdk": 28,
+  "signing": "debug",
+  "tests": {
+    "jvm": 21,
+    "node": 55,
+    "android_api_28": 51
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 32
+  },
+  "emulator_checks": [
+    "Upgrade from 0.8.0 on a 1920x720 Android 9 emulator",
+    "Dashboard, settings, app grid and voice screen navigation",
+    "Native APK approval and recorded installation source",
+    "Long press grants a requested runtime permission through the local shell fixture",
+    "Android retained the grant after a reboot",
+    "Keystore API key saved from the keyboard and removed when disabled",
+    "Voice over another app returns after silence and on a second trigger",
+    "All four existing Frida bundles match the preceding build"
+  ],
+  "live_openrouter_tested": false,
+  "vehicle_tested": false
+}

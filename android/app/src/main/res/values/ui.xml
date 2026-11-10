@@ -7,13 +7,13 @@
     <string name="ui_5" formatted="false">"Button 1 · passenger"</string>
     <string name="ui_6" formatted="false">"Button 2 · passenger"</string>
     <string name="ui_7" formatted="false">"Button 3 · passenger"</string>
-    <string name="ui_8" formatted="false">"Button 4 · passenger"</string>
+    <string name="ui_8" formatted="false">"Button 4 · passenger (radio on supported panels)"</string>
     <string name="ui_9" formatted="false">"Button 5 · passenger"</string>
     <string name="ui_10" formatted="false">"Panel settings are waiting to apply: "</string>
     <string name="ui_11" formatted="false">"Saved locally but not applied to the panel: "</string>
-    <string name="ui_12" formatted="false">"Connected"</string>
+    <string name="ui_12" formatted="false">"Worker started. Check connection status for adapter readiness."</string>
     <string name="ui_13" formatted="false">"Waiting to reconnect: "</string>
-    <string name="ui_14" formatted="false">"Connected automatically"</string>
+    <string name="ui_14" formatted="false">"Worker started after boot"</string>
     <string name="ui_15" formatted="false">"Automatic connection will retry: "</string>
     <string name="ui_16" formatted="false">"Our frida-inject 17.18.0 is required; found: "</string>
     <string name="ui_18" formatted="false">"Connection is not configured yet"</string>
@@ -66,7 +66,7 @@
     <string name="ui_65" formatted="false">"Voice recognition is local. The microphone runs only on the voice screen after you press Speak."</string>
     <string name="ui_66" formatted="false">"unassigned"</string>
     <string name="ui_67" formatted="false">"OEM panel buttons · Frida"</string>
-    <string name="ui_68" formatted="false">"Assign navigation, music and passenger buttons. Tap opens your action; hold invokes the OEM action. You can also assign Controls settings."</string>
+    <string name="ui_68" formatted="false">"Choose an app to replace the icon and tap action. Hold the button to open its original action."</string>
     <string name="ui_69" formatted="false">"Panel assignments enabled"</string>
     <string name="ui_70" formatted="false">"Settings saved. Press Connect Frida to apply them to the panel."</string>
     <string name="ui_71" formatted="false">"OEM action"</string>

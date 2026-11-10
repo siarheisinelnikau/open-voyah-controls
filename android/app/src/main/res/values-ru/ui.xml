@@ -7,13 +7,13 @@
     <string name="ui_5" formatted="false">"Кнопка 1 · пассажир"</string>
     <string name="ui_6" formatted="false">"Кнопка 2 · пассажир"</string>
     <string name="ui_7" formatted="false">"Кнопка 3 · пассажир"</string>
-    <string name="ui_8" formatted="false">"Кнопка 4 · пассажир"</string>
+    <string name="ui_8" formatted="false">"Кнопка 4 · пассажир (радио на совместимых панелях)"</string>
     <string name="ui_9" formatted="false">"Кнопка 5 · пассажир"</string>
     <string name="ui_10" formatted="false">"Настройки панели ожидают применения: "</string>
     <string name="ui_11" formatted="false">"Настройки сохранены в приложении, но не применены к панели: "</string>
-    <string name="ui_12" formatted="false">"Подключено"</string>
+    <string name="ui_12" formatted="false">"Обработчик запущен. Готовность функций смотрите в состоянии подключения."</string>
     <string name="ui_13" formatted="false">"Ожидание повторного подключения: "</string>
-    <string name="ui_14" formatted="false">"Подключено автоматически"</string>
+    <string name="ui_14" formatted="false">"Обработчик запущен после загрузки"</string>
     <string name="ui_15" formatted="false">"Автоподключение будет повторено: "</string>
     <string name="ui_16" formatted="false">"Требуется наш frida-inject 17.18.0, найден: "</string>
     <string name="ui_18" formatted="false">"Подключение ещё не настроено"</string>
@@ -66,7 +66,7 @@
     <string name="ui_65" formatted="false">"Голос распознаётся локально. Микрофон работает только на экране голосовых команд после нажатия «Говорить»."</string>
     <string name="ui_66" formatted="false">"не назначено"</string>
     <string name="ui_67" formatted="false">"Кнопки штатной панели · Frida"</string>
-    <string name="ui_68" formatted="false">"Выбери приложения для навигации, музыки и пассажирских кнопок. Короткое нажатие — выбранное действие, длинное — штатное. Можно выбрать и настройки Controls."</string>
+    <string name="ui_68" formatted="false">"Выберите приложение, чтобы заменить значок и действие по нажатию. Удержание откроет штатное действие кнопки."</string>
     <string name="ui_69" formatted="false">"Назначения панели включены"</string>
     <string name="ui_70" formatted="false">"Настройки сохранены. Для передачи в панель сначала нажмите «Подключить Frida»."</string>
     <string name="ui_71" formatted="false">"Штатное действие"</string>

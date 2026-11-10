@@ -4,7 +4,7 @@ import java.util.Objects;
 
 /** Only user-selected, explicit actions; no arbitrary shell or intent URI execution. */
 public final class Action {
-    public enum Kind { NONE, LAUNCH_APP, SYSTEM_SETTINGS, CONTROLS_SETTINGS }
+    public enum Kind { NONE, LAUNCH_APP, SYSTEM_SETTINGS, CONTROLS_SETTINGS, START_VOICE }
     public static final Action NONE = new Action(Kind.NONE, "", "");
     public final Kind kind;
     public final String component;

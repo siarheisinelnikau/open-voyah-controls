@@ -1,0 +1,40 @@
+{
+  "version": "0.6.0",
+  "date": "2026-11-09",
+  "apk": "OpenVoyahControls-0.6.0-debug.apk",
+  "size": 132403161,
+  "sha256": "cdca666f55fc101b59bc5f88d03ef71b97e5d315ff08c923925a76a48001d23c",
+  "min_sdk": 28,
+  "target_sdk": 35,
+  "signing": "debug",
+  "tests": {
+    "jvm": 19,
+    "node": 44,
+    "android_x86_64": {
+      "api_28": 39,
+      "api_33": 39
+    },
+    "shell_cluster_transactions": 8,
+    "shell_boot_configuration": 2
+  },
+  "emulator_checks": {
+    "api_28": [
+      "APK install and launch",
+      "Launch from installed apps",
+      "Local APK install through system confirmation",
+      "Private virtual display"
+    ],
+    "api_33": [
+      "Microphone permission denial and grant",
+      "One-touch offline listener",
+      "Private virtual display and DPI change"
+    ]
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 10
+  },
+  "vehicle_tested": false,
+  "cluster_profiles": 2,
+  "cluster_payloads_in_apk": false
+}

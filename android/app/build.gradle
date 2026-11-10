@@ -1,4 +1,8 @@
-plugins { id 'com.android.application' }
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
+}
 android {
     namespace 'org.openvoyah.controls'
     compileSdk 35
@@ -8,16 +12,26 @@ android {
         applicationId 'org.openvoyah.controls'
         minSdk 28
         targetSdk 35
-        versionCode 6
-        versionName '0.5.0'
+        versionCode 13
+        versionName '0.11.0'
         testInstrumentationRunner 'android.test.InstrumentationTestRunner'
     }
+    buildFeatures { compose = true }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     buildTypes { release { minifyEnabled false } }
     lint { abortOnError true }
 }
+kotlin {
+    compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 }
+}
+
 dependencies {
     implementation project(':core')
+    implementation platform('androidx.compose:compose-bom:2025.05.01')
+    implementation 'androidx.activity:activity-compose:1.10.1'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.9.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
     implementation 'com.alphacephei:vosk-android:0.3.75@aar'
     implementation 'net.java.dev.jna:jna:5.18.1@aar'
 }
@@ -26,6 +40,7 @@ tasks.register('compileFridaHook', Exec) {
     workingDir rootProject.projectDir
     commandLine(System.getProperty('os.name').toLowerCase().contains('windows') ? 'npm.cmd' : 'npm', 'run', 'build:hook')
     inputs.files(rootProject.fileTree('hooks'), rootProject.file('package-lock.json'))
-    outputs.files('src/main/assets/hooks/launcher-buttons.bundle.js', 'src/main/assets/hooks/localization.bundle.js')
+    outputs.files('src/main/assets/hooks/launcher-buttons.bundle.js', 'src/main/assets/hooks/localization.bundle.js',
+        'src/main/assets/hooks/window.bundle.js', 'src/main/assets/hooks/navigation.bundle.js')
 }
 tasks.named('preBuild').configure { dependsOn 'compileFridaHook' }
