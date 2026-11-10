@@ -3,6 +3,23 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.compose'
 }
+
+def signingVariables = [
+    store: 'OPEN_VOYAH_RELEASE_KEYSTORE',
+    storePassword: 'OPEN_VOYAH_RELEASE_STORE_PASSWORD',
+    alias: 'OPEN_VOYAH_RELEASE_KEY_ALIAS',
+    keyPassword: 'OPEN_VOYAH_RELEASE_KEY_PASSWORD',
+    certificate: 'OPEN_VOYAH_RELEASE_CERT_SHA256',
+]
+def releaseSigner = signingVariables.collectEntries { name, variable ->
+    [(name): providers.environmentVariable(variable).getOrNull()]
+}
+def signingReady = releaseSigner.values().every { it != null && !it.isEmpty() }
+def releasePin = releaseSigner.certificate?.toLowerCase(Locale.ROOT)
+def validReleasePin = releasePin != null && (releasePin ==~ /[0-9a-f]{64}/)
+def emulatorFixture = providers.gradleProperty('ovc.emulatorFixture').getOrElse('false') == 'true'
+def runtimeAssets = layout.buildDirectory.dir('generated/runtime-assets')
+
 android {
     namespace 'org.openvoyah.controls'
     compileSdk 35
@@ -12,13 +29,37 @@ android {
         applicationId 'org.openvoyah.controls'
         minSdk 28
         targetSdk 35
-        versionCode 13
-        versionName '0.11.0'
+        versionCode 14
+        versionName '0.12.0'
         testInstrumentationRunner 'android.test.InstrumentationTestRunner'
+        buildConfigField 'String', 'RELEASE_CERT_SHA256', '"' + (validReleasePin ? releasePin : '') + '"'
+        buildConfigField 'boolean', 'OVC_EMULATOR_FIXTURE', 'false'
     }
-    buildFeatures { compose = true }
+    signingConfigs {
+        if (signingReady && validReleasePin) {
+            production {
+                storeFile = file(releaseSigner.store)
+                storePassword = releaseSigner.storePassword
+                keyAlias = releaseSigner.alias
+                keyPassword = releaseSigner.keyPassword
+            }
+        }
+    }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+    sourceSets.main.assets.srcDir(runtimeAssets)
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
-    buildTypes { release { minifyEnabled false } }
+    buildTypes {
+        debug {
+            buildConfigField 'boolean', 'OVC_EMULATOR_FIXTURE', emulatorFixture.toString()
+        }
+        release {
+            minifyEnabled false
+            if (signingReady && validReleasePin) signingConfig signingConfigs.production
+        }
+    }
     lint { abortOnError true }
 }
 kotlin {
@@ -36,11 +77,52 @@ dependencies {
     implementation 'net.java.dev.jna:jna:5.18.1@aar'
 }
 
+def verifyReleaseSigning = tasks.register('verifyReleaseSigning') {
+    group = 'verification'
+    description = 'Check that the private release key matches the configured public certificate pin.'
+    doLast {
+        if (!signingReady) {
+            def missing = signingVariables.findAll { name, variable -> !releaseSigner[name] }.values()
+            throw new GradleException('Release signing requires ' + missing.join(', ') + '.')
+        }
+        if (!validReleasePin) {
+            throw new GradleException('OPEN_VOYAH_RELEASE_CERT_SHA256 must contain 64 hexadecimal digits.')
+        }
+        java.security.KeyStore keystore
+        try {
+            keystore = java.security.KeyStore.getInstance(file(releaseSigner.store), releaseSigner.storePassword.toCharArray())
+        } catch (Exception ignored) {
+            throw new GradleException('Could not open the release keystore with the supplied credentials.')
+        }
+        def certificate = keystore.getCertificate(releaseSigner.alias)
+        if (!keystore.isKeyEntry(releaseSigner.alias) || certificate == null) {
+            throw new GradleException('The release alias must refer to a private key.')
+        }
+        def actual = java.security.MessageDigest.getInstance('SHA-256').digest(certificate.encoded).encodeHex().toString()
+        if (actual != releasePin) {
+            throw new GradleException('The release certificate does not match OPEN_VOYAH_RELEASE_CERT_SHA256.')
+        }
+        try {
+            if (!(keystore.getKey(releaseSigner.alias, releaseSigner.keyPassword.toCharArray()) instanceof java.security.PrivateKey)) {
+                throw new GradleException('The release alias does not provide a signing key.')
+            }
+        } catch (java.security.GeneralSecurityException ignored) {
+            throw new GradleException('Could not unlock the release key with the supplied credentials.')
+        }
+    }
+}
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach { dependsOn verifyReleaseSigning }
+
 tasks.register('compileFridaHook', Exec) {
     workingDir rootProject.projectDir
     commandLine(System.getProperty('os.name').toLowerCase().contains('windows') ? 'npm.cmd' : 'npm', 'run', 'build:hook')
-    inputs.files(rootProject.fileTree('hooks'), rootProject.file('package-lock.json'))
+    inputs.files(rootProject.fileTree('hooks'), rootProject.file('package-lock.json'),
+        rootProject.file('app/src/main/assets/voice/verified-commands.json'))
     outputs.files('src/main/assets/hooks/launcher-buttons.bundle.js', 'src/main/assets/hooks/localization.bundle.js',
         'src/main/assets/hooks/window.bundle.js', 'src/main/assets/hooks/navigation.bundle.js')
 }
-tasks.named('preBuild').configure { dependsOn 'compileFridaHook' }
+def stageRuntimeMetadata = tasks.register('stageRuntimeMetadata', Sync) {
+    from(rootProject.file('dist/FRIDA_RUNTIME.json')) { into 'production' }
+    into runtimeAssets
+}
+tasks.named('preBuild').configure { dependsOn 'compileFridaHook', stageRuntimeMetadata }
