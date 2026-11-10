@@ -32,6 +32,16 @@
         <item name="android:activityCloseExitAnimation">@anim/cockpit_exit</item>
     </style>
 
+    <style name="CockpitDialogTheme" parent="android:style/Theme.Material.Dialog.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@style/CockpitDialogMotion</item>
+    </style>
+
+    <style name="CockpitDialogMotion" parent="android:style/Animation.Dialog">
+        <item name="android:windowEnterAnimation">@anim/cockpit_enter</item>
+        <item name="android:windowExitAnimation">@anim/cockpit_exit</item>
+    </style>
+
     <style name="QuickVoiceTheme" parent="android:style/Theme.Material.Dialog.NoActionBar">
         <item name="android:fontFamily">sans-serif</item>
         <item name="android:colorAccent">@color/cockpit_accent</item>

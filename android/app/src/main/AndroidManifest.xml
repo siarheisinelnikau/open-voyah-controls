@@ -38,6 +38,7 @@
         <activity-alias android:name=".PanelVoiceActivity" android:targetActivity=".QuickVoiceActivity"
             android:exported="true" android:permission="android.permission.WRITE_SECURE_SETTINGS" />
         <activity android:name=".FirmwareActivity" android:exported="false" android:label="@string/firmware_settings" />
+        <activity android:name=".VehicleSettingsActivity" android:exported="false" android:label="@string/vehicle_settings_title" />
         <activity android:name=".AppsActivity" android:exported="false" android:label="@string/installed_apps" />
         <receiver android:name=".platform.apps.ApkInstallResultReceiver" android:exported="false" />
         <activity android:name=".DisplayActivity" android:exported="false" android:label="@string/virtual_display" />

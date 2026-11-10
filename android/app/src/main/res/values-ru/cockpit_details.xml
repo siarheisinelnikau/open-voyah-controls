@@ -1,0 +1,26 @@
+<resources>
+    <string name="firmware_screen_description">Совместимость лаунчера, перевод Android и восстановление штатных настроек.</string>
+    <string name="firmware_device_heading">Головное устройство</string>
+    <string name="firmware_translation_heading">Перевод интерфейса Android</string>
+    <string name="firmware_recovery_heading">Штатное восстановление</string>
+    <string name="cockpit_enabled">Включено</string>
+    <string name="cockpit_disabled">Выключено</string>
+    <string name="cockpit_setup_required">Нужна настройка</string>
+    <string name="cockpit_dictionary_russian">Русский словарь</string>
+    <string name="cockpit_dictionary_english">Английский словарь</string>
+    <string name="cluster_package_heading">Проверка и выбор пакета</string>
+    <string name="cluster_backup_heading">Резервная копия и восстановление</string>
+    <string name="cluster_install_heading">Установка или восстановление</string>
+    <string name="cluster_install_description">Перед заменой файлов сохраните копию и сведения о соответствующей прошивке.</string>
+    <string name="cluster_status_heading">Состояние операции</string>
+    <string name="display_screen_description">Масштаб приложений, плотность предпросмотра и данные виртуального дисплея.</string>
+    <string name="display_scale_heading">Масштаб экранов</string>
+    <string name="display_sources_heading">Медиа и навигация</string>
+    <string name="display_preview_description">На виртуальном экране отображаются текущий трек и данные локального маршрута.</string>
+    <string name="display_preview_waiting">Подготовка предпросмотра…</string>
+    <string name="display_preview_track">Текущий трек</string>
+    <string name="binding_apps_loading">Поиск приложений…</string>
+    <string name="binding_apps_no_match">По этому запросу приложений нет.</string>
+    <string name="binding_delete_confirm">Удалить это назначение кнопки?</string>
+    <string name="binding_changed">Назначение изменилось. Откройте его заново и повторите действие.</string>
+</resources>

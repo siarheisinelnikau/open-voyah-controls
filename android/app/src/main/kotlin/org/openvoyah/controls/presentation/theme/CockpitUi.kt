@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 
-internal enum class CockpitIcon { HOME, APPS, VOICE, DISPLAY, BUTTONS, SETTINGS, ARROW, BACK, DOWNLOAD, LOCK }
+internal enum class CockpitIcon { HOME, APPS, VOICE, DISPLAY, BUTTONS, SETTINGS, ARROW, BACK, DOWNLOAD, LOCK, CAR, LANGUAGE, ENERGY }
 
 @Composable
 internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier) {
@@ -80,6 +80,21 @@ internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier) {
                     box(5f, 10f, 14f, 10f)
                     path { moveTo(8f, 10f); lineTo(8f, 7f); cubicTo(8f, 2f, 16f, 2f, 16f, 7f); lineTo(16f, 10f) }
                     line(12f, 14f, 12f, 16f)
+                }
+                CockpitIcon.CAR -> {
+                    path { moveTo(3f, 12f); lineTo(6f, 6f); lineTo(18f, 6f); lineTo(21f, 12f) }
+                    box(3f, 11f, 18f, 7f)
+                    line(6f, 18f, 6f, 20f); line(18f, 18f, 18f, 20f)
+                    line(6f, 14.5f, 8f, 14.5f); line(16f, 14.5f, 18f, 14.5f)
+                }
+                CockpitIcon.LANGUAGE -> {
+                    drawCircle(color, 9f, Offset(12f, 12f), style = stroke)
+                    line(3f, 12f, 21f, 12f)
+                    path { moveTo(12f, 3f); cubicTo(7f, 7f, 7f, 17f, 12f, 21f); cubicTo(17f, 17f, 17f, 7f, 12f, 3f) }
+                }
+                CockpitIcon.ENERGY -> path {
+                    moveTo(14f, 2.5f); lineTo(5.5f, 13.5f); lineTo(11.5f, 13.5f)
+                    lineTo(10f, 21.5f); lineTo(18.5f, 10.5f); lineTo(12.5f, 10.5f); close()
                 }
             }
         }

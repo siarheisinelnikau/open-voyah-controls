@@ -1,0 +1,14 @@
+<resources>
+    <string name="vehicle_settings_title">Настройки автомобиля</string>
+    <string name="vehicle_settings_description">Штатные настройки вождения, комфорта и мультимедиа.</string>
+    <string name="vehicle_assistance_title">Ассистенты вождения</string>
+    <string name="vehicle_assistance_description">Ищите раздел ассистентов, интеллектуального вождения или Apollo в штатном меню автомобиля. Доступность зависит от модели и прошивки. Включение выполняется штатными органами управления.</string>
+    <string name="vehicle_settings_open">Открыть штатные настройки автомобиля</string>
+    <string name="vehicle_settings_unavailable">Откройте меню автомобиля со штатной панели. На этой магнитоле Android не предоставляет Controls прямой вход.</string>
+    <string name="vehicle_manual">Руководства VOYAH</string>
+    <string name="vehicle_cabin_title">Салон и мультимедиа</string>
+    <string name="vehicle_cabin_description">Климат, сиденья, зеркала и свет настраиваются штатными органами управления. Звук и параметры экрана находятся в настройках мультимедиа.</string>
+    <string name="vehicle_infotainment_open">Открыть штатные настройки мультимедиа</string>
+    <string name="vehicle_energy_title">Вождение и энергия</string>
+    <string name="vehicle_energy_description">Режимы вождения, рекуперация и зарядка доступны в штатном меню, если их поддерживает автомобиль.</string>
+</resources>

@@ -1,13 +1,9 @@
 package org.openvoyah.controls
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
-import android.text.InputType
-import android.widget.EditText
-import android.widget.LinearLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,21 +11,25 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
@@ -45,6 +45,12 @@ import org.openvoyah.controls.data.settings.VoiceSettingsDocuments
 import org.openvoyah.controls.data.voice.CloudVoiceSettings
 import org.openvoyah.controls.platform.voice.OfflineVoiceInput
 import org.openvoyah.controls.presentation.voice.OnlineVoiceDialog
+import org.openvoyah.controls.presentation.theme.CockpitAction
+import org.openvoyah.controls.presentation.theme.CockpitAppPicker
+import org.openvoyah.controls.presentation.theme.CockpitDialogs
+import org.openvoyah.controls.presentation.theme.CockpitModal
+import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.theme.ControlsTheme
 import org.openvoyah.controls.presentation.voice.VoiceAudioDialog
 import org.openvoyah.controls.presentation.voice.VoiceOption
@@ -65,7 +71,7 @@ class VoiceActivity : ComponentActivity() {
     private var onlineSaving by mutableStateOf(false)
     private var onlineFailed by mutableStateOf(false)
     private var settingsBusy = false
-    private var activeDialog: AlertDialog? = null
+    private val dialogs = CockpitDialogs(this)
 
     private val saveVoice = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let { file -> transfer(file, false) }
@@ -173,22 +179,33 @@ class VoiceActivity : ComponentActivity() {
         val levels = defaults.map { "${it.title()} · ${settings.level(it.id())}" }.toTypedArray()
         choose(R.string.default_levels, levels) { index ->
             val command = defaults[index]
-            showDialog(AlertDialog.Builder(this).setTitle(command.title()).setItems(arrayOf("1", "2", "3")) { _, level ->
+            dialogs.choices(command.title(), arrayOf("1", "2", "3"), { level ->
                 changeSettings(reload = false) { settings.level(command.id(), level + 1) }
             })
         }
     }
 
     private fun showWindowOptions() {
-        val keys = arrayOf("doubleSmoke", "doubleVentilation")
-        val values = BooleanArray(keys.size) { settings.option(keys[it]) }
-        showDialog(AlertDialog.Builder(this).setTitle(text(R.string.window_options))
-            .setMultiChoiceItems(arrayOf(text(R.string.double_smoke), text(R.string.double_ventilation)),
-                values) { _, index, checked -> values[index] = checked }
-            .setNegativeButton(text(R.string.ui_89), null)
-            .setPositiveButton(text(R.string.ui_104)) { _, _ ->
-                changeSettings(reload = false) { keys.forEachIndexed { index, key -> settings.option(key, values[index]) } }
-            })
+        val smoke = settings.option("doubleSmoke")
+        val ventilation = settings.option("doubleVentilation")
+        dialogs.show { close ->
+            var smokeDraft by remember { mutableStateOf(smoke) }
+            var ventilationDraft by remember { mutableStateOf(ventilation) }
+            CockpitModal(text(R.string.window_options), footer = {
+                CockpitTextAction(text(R.string.ui_89), close)
+                CockpitAction(text(R.string.ui_104), {
+                    val values = smokeDraft to ventilationDraft
+                    close()
+                    changeSettings(reload = false) {
+                        settings.option("doubleSmoke", values.first)
+                        settings.option("doubleVentilation", values.second)
+                    }
+                }, primary = true)
+            }) {
+                CockpitSwitch(text(R.string.double_smoke), smokeDraft) { smokeDraft = it }
+                CockpitSwitch(text(R.string.double_ventilation), ventilationDraft) { ventilationDraft = it }
+            }
+        }
     }
 
     private fun showRecoveryOptions() {
@@ -212,13 +229,11 @@ class VoiceActivity : ComponentActivity() {
         val details = if (command.id() == VolumePhrases.COMMAND_ID) {
             String.format(Locale.ROOT, text(R.string.voice_volume_examples), command.title())
         } else command.phrases().joinToString("\n")
-        val dialog = AlertDialog.Builder(this).setTitle(command.title()).setNegativeButton(text(R.string.ui_172), null)
         if (command.id() in setOf("RestartMusic", "RestartNavigator")) {
-            dialog.setMessage(details + "\n\n" + text(R.string.voice_restart_assignment))
+            dialogs.message(command.title(), details + "\n\n" + text(R.string.voice_restart_assignment), text(R.string.ui_172))
         } else {
-            dialog.setMessage(details).setNeutralButton(text(R.string.ui_188)) { _, _ -> chooseApp(command) }
+            dialogs.message(command.title(), details, text(R.string.ui_188), Runnable { chooseApp(command) }, text(R.string.ui_172))
         }
-        showDialog(dialog)
     }
 
     private fun chooseApp(command: VoiceCatalog.Command) {
@@ -226,36 +241,35 @@ class VoiceActivity : ComponentActivity() {
             VoiceCommandUseCase.isWeather(command.id()) -> { status = text(R.string.weather_offline); return }
             command.id().startsWith("Call_") -> { status = text(R.string.ui_190); return }
         }
-        lifecycleScope.launch {
-            val apps = withContext(Dispatchers.IO) { InstalledApps.list(applicationContext) }
-            if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return@launch
-            val labels = (listOf(text(R.string.ui_191)) + apps.map { it.label() }).toTypedArray()
-            showDialog(AlertDialog.Builder(this@VoiceActivity).setTitle(text(R.string.ui_192) + command.title() + "»")
-                .setItems(labels) { _, index ->
-                    val component = if (index == 0) "" else apps[index - 1].component().flattenToString()
-                    changeSettings(reload = false, onSaved = {
-                        assigned = if (component.isEmpty()) assigned - command.id() else assigned + command.id()
-                    }) { settings.app(command.id(), component) }
-                })
+        dialogs.show { close ->
+            CockpitAppPicker(text(R.string.ui_192) + command.title() + "»", close, { entry ->
+                val component = entry?.component()?.flattenToString().orEmpty()
+                close()
+                changeSettings(reload = false, onSaved = {
+                    assigned = if (component.isEmpty()) assigned - command.id() else assigned + command.id()
+                }) { settings.app(command.id(), component) }
+            }, defaultChoice = text(R.string.ui_191), backLabel = text(R.string.ui_89))
         }
     }
 
     private fun addContact() {
-        val fields = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(px(20), 0, px(20), 0)
+        dialogs.show { close ->
+            var name by remember { mutableStateOf("") }
+            var phone by remember { mutableStateOf("") }
+            CockpitModal(text(R.string.ui_195), footer = {
+                CockpitTextAction(text(R.string.ui_89), close)
+                CockpitAction(text(R.string.ui_104), {
+                    val enteredName = name
+                    val enteredPhone = phone
+                    close()
+                    changeSettings { settings.contact(enteredName, enteredPhone) }
+                }, primary = true)
+            }) {
+                OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(text(R.string.ui_193)) }, singleLine = true)
+                OutlinedTextField(phone, { phone = it }, Modifier.fillMaxWidth(), label = { Text(text(R.string.ui_194)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
+            }
         }
-        val name = EditText(this).apply { hint = text(R.string.ui_193); setSingleLine() }
-        val phone = EditText(this).apply { hint = text(R.string.ui_194); inputType = InputType.TYPE_CLASS_PHONE }
-        fields.addView(name)
-        fields.addView(phone)
-        showDialog(AlertDialog.Builder(this).setTitle(text(R.string.ui_195)).setView(fields)
-            .setNegativeButton(text(R.string.ui_89), null)
-            .setPositiveButton(text(R.string.ui_104)) { _, _ ->
-                val enteredName = name.text.toString()
-                val enteredPhone = phone.text.toString()
-                changeSettings { settings.contact(enteredName, enteredPhone) }
-            })
     }
 
     private fun changeSettings(reload: Boolean = true, onSaved: () -> Unit = {}, write: suspend () -> Unit) {
@@ -302,13 +316,7 @@ class VoiceActivity : ComponentActivity() {
     }
 
     private fun choose(title: Int, labels: Array<String>, selected: (Int) -> Unit) {
-        showDialog(AlertDialog.Builder(this).setTitle(text(title)).setItems(labels) { _, index -> selected(index) }
-            .setNegativeButton(text(R.string.ui_89), null))
-    }
-
-    private fun showDialog(builder: AlertDialog.Builder) {
-        activeDialog?.dismiss()
-        activeDialog = builder.show()
+        dialogs.choices(text(title), labels, { selected(it) })
     }
 
     private fun showError(message: String) {
@@ -316,11 +324,10 @@ class VoiceActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        activeDialog?.dismiss()
+        dialogs.dismiss()
         super.onDestroy()
     }
 
-    private fun px(dp: Int) = (dp * resources.displayMetrics.density).toInt()
     private fun text(id: Int) = UiText.get(id)
 
     private data class Configuration(

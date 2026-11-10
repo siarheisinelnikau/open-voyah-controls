@@ -1,7 +1,7 @@
 <resources>
     <string name="voice_language">Язык распознавания</string>
     <string name="firmware_settings">Прошивка и профили OEM</string>
-    <string name="firmware_info">Ниже — перевод текста Android: панель, настройки, автомобиль, Bluetooth-телефон. Встроен базовый словарь; полный можно импортировать. Эти настройки Frida не заменяют файлы прошивки. Установка перевода приборки — на отдельном экране выше.</string>
+    <string name="firmware_info">Перевод лаунчера, настроек автомобиля и Bluetooth-телефона. Можно выбрать встроенный словарь или импортировать свой.</string>
     <string name="translation_on">Перевод включён</string>
     <string name="translation_off">Перевод выключен</string>
     <string name="translate_ru">Русский перевод · базовый словарь</string>
