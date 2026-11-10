@@ -196,7 +196,7 @@ class ControlsHome(
         val links = listOf(
             Tile(CockpitIcon.VOICE, R.string.voice_options_title, R.string.cockpit_voice_description, Destination.VOICE),
             Tile(CockpitIcon.DISPLAY, R.string.virtual_display, R.string.cockpit_display_description, Destination.DISPLAY),
-            Tile(CockpitIcon.CAR, R.string.vehicle_settings_title, R.string.vehicle_settings_description, Destination.VEHICLE),
+            Tile(CockpitIcon.CAR, R.string.vehicle_settings_title, R.string.vehicle_settings_tile_summary, Destination.VEHICLE),
             Tile(CockpitIcon.SETTINGS, R.string.firmware_settings, R.string.cockpit_firmware_description, Destination.FIRMWARE),
             Tile(CockpitIcon.SETTINGS, R.string.ui_61, R.string.cockpit_system_description, Destination.SYSTEM),
         )

@@ -103,6 +103,7 @@ private fun BindingEditor(code: Int, descriptor: String, initialName: String, ex
         when (current) {
             BindingPage.FORM -> CockpitModal(label(if (existing == null) R.string.ui_102 else R.string.ui_103), footer = {
                 if (existing != null) CockpitTextAction(label(R.string.ui_105)) { page = BindingPage.REMOVE }
+                if (shortPress.isAssigned()) CockpitTextAction(label(R.string.ui_101)) { test(shortPress) }
                 CockpitTextAction(label(R.string.ui_89), close)
                 CockpitAction(label(R.string.ui_104), {
                     val title = name.trim()
@@ -126,7 +127,6 @@ private fun BindingEditor(code: Int, descriptor: String, initialName: String, ex
                 CockpitSwitch(label(R.string.ui_98), allDevices, descriptor.isNotEmpty()) { allDevices = it; error = null }
                 CockpitSwitch(label(R.string.ui_99), enabled) { enabled = it }
                 CockpitFeedback(label(R.string.ui_100))
-                CockpitAction(label(R.string.ui_101), { test(shortPress) }, enabled = shortPress.isAssigned())
             }
             BindingPage.SHORT, BindingPage.LONG -> ActionPicker({ page = BindingPage.FORM }, active = current == page) { action ->
                 if (current == BindingPage.SHORT) shortPress = action else longPress = action
