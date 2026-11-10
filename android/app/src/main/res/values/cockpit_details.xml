@@ -1,0 +1,26 @@
+<resources>
+    <string name="firmware_screen_description">Manage launcher compatibility, Android translation and OEM recovery.</string>
+    <string name="firmware_device_heading">Head unit</string>
+    <string name="firmware_translation_heading">Android interface translation</string>
+    <string name="firmware_recovery_heading">OEM recovery</string>
+    <string name="cockpit_enabled">Enabled</string>
+    <string name="cockpit_disabled">Disabled</string>
+    <string name="cockpit_setup_required">Setup required</string>
+    <string name="cockpit_dictionary_russian">Russian dictionary</string>
+    <string name="cockpit_dictionary_english">English dictionary</string>
+    <string name="cluster_package_heading">Inspect and select a package</string>
+    <string name="cluster_backup_heading">Backup and recovery</string>
+    <string name="cluster_install_heading">Install or restore</string>
+    <string name="cluster_install_description">Keep an exported backup with the matching firmware details before replacing cluster files.</string>
+    <string name="cluster_status_heading">Operation status</string>
+    <string name="display_screen_description">Manage app scaling, preview density and the data shown on the virtual display.</string>
+    <string name="display_scale_heading">Display scaling</string>
+    <string name="display_sources_heading">Media and navigation</string>
+    <string name="display_preview_description">Private preview for track information and local route updates.</string>
+    <string name="display_preview_waiting">Preparing preview…</string>
+    <string name="display_preview_track">Current track</string>
+    <string name="binding_apps_loading">Finding launchable apps…</string>
+    <string name="binding_apps_no_match">No apps match your search.</string>
+    <string name="binding_delete_confirm">Remove this button assignment?</string>
+    <string name="binding_changed">This assignment has changed. Reopen it and try again.</string>
+</resources>

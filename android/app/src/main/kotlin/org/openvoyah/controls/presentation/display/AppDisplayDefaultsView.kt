@@ -1,6 +1,5 @@
 package org.openvoyah.controls.presentation.display
 
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,43 +19,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
-import org.openvoyah.controls.data.frida.FridaWindowControls
 import org.openvoyah.controls.domain.display.AppWindowProfile
-import org.openvoyah.controls.presentation.theme.ControlsTheme
-
-object AppDisplayDefaultsView {
-    @JvmStatic
-    fun create(activity: ComponentActivity): ComposeView? {
-        val windows = FridaWindowControls(activity)
-        if (!windows.supportsDisplayDefaults()) return null
-        val model = ViewModelProvider(activity, viewModelFactory {
-            initializer { AppDisplayDefaultsViewModel(windows) }
-        })[AppDisplayDefaultsViewModel::class.java]
-        return ComposeView(activity).apply {
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            setContent { ControlsTheme { AppDisplayDefaultsControl(model) } }
-        }
-    }
-}
+import org.openvoyah.controls.presentation.theme.CockpitChoice
 
 @Composable
-private fun AppDisplayDefaultsControl(model: AppDisplayDefaultsViewModel) {
+internal fun AppDisplayDefaultsControl(model: AppDisplayDefaultsViewModel) {
     val state by model.state.collectAsStateWithLifecycle()
-    OutlinedButton(model::open, Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-        Text(label(R.string.app_display_defaults_title))
-    }
+    CockpitChoice(label(R.string.app_display_defaults_title), onClick = model::open)
     if (!state.visible) return
 
     AlertDialog(

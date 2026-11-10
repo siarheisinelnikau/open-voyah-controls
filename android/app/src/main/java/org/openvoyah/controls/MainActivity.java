@@ -1,12 +1,11 @@
 package org.openvoyah.controls;
 
-import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.text.InputType;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.*;
@@ -16,8 +15,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
-import java.util.function.Consumer;
 import org.openvoyah.controls.core.Action;
 import org.openvoyah.controls.core.Binding;
 import org.openvoyah.controls.core.PanelControls;
@@ -28,7 +25,9 @@ import org.openvoyah.controls.data.settings.SettingsStore;
 import org.openvoyah.controls.platform.input.ButtonInputAdapter;
 import org.openvoyah.controls.platform.ui.ActionExecutor;
 import org.openvoyah.controls.presentation.home.ControlsHome;
+import org.openvoyah.controls.presentation.settings.BindingDialogs;
 import org.openvoyah.controls.presentation.settings.PanelViewModel;
+import org.openvoyah.controls.presentation.theme.CockpitDialogs;
 
 public final class MainActivity extends ComponentActivity {
     private static final String OPEN_SETTINGS = "org.openvoyah.controls.action.OPEN_SETTINGS";
@@ -43,11 +42,13 @@ public final class MainActivity extends ComponentActivity {
     private LocalSettingsArchive archive;
     private PanelViewModel panelModel;
     private PanelControls.Result shownResult;
-    private AlertDialog progress;
+    private Dialog progress;
     private boolean visible;
     private SettingsStore.State state;
     private LinearLayout content;
-    private AlertDialog learning;
+    private Dialog learning;
+    private CockpitDialogs dialogs;
+    private BindingDialogs bindingDialogs;
 
     public static Intent settingsIntent(Context context) {
         return new Intent(context, MainActivity.class).setAction(OPEN_SETTINGS)
@@ -59,6 +60,8 @@ public final class MainActivity extends ComponentActivity {
         super.onCreate(saved);
         store = new SettingsStore(this);
         archive = new LocalSettingsArchive(this);
+        dialogs = new CockpitDialogs(this);
+        bindingDialogs = new BindingDialogs(dialogs);
         panelModel = new PanelViewModel(new FridaPanelControls(this, store));
         INK = getColor(R.color.cockpit_text);
         MUTED = getColor(R.color.cockpit_muted);
@@ -93,6 +96,7 @@ public final class MainActivity extends ComponentActivity {
         if (learning != null) learning.dismiss();
         super.onPause();
     }
+    @Override public void onDestroy() { dialogs.dismiss(); super.onDestroy(); }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
     private LinearLayout column() { LinearLayout view = new LinearLayout(this); view.setOrientation(LinearLayout.VERTICAL); return view; }
     private TextView text(String value, int size, int color) {
@@ -124,13 +128,13 @@ public final class MainActivity extends ComponentActivity {
             case APPS -> open(new Intent(this, AppsActivity.class));
             case VOICE -> open(new Intent(this, VoiceActivity.class));
             case DISPLAY -> open(new Intent(this, DisplayActivity.class));
+            case VEHICLE -> open(new Intent(this, VehicleSettingsActivity.class));
             case FIRMWARE -> open(new Intent(this, FirmwareActivity.class));
             case SYSTEM -> open(new Intent(Settings.ACTION_SETTINGS));
-            case LANGUAGE -> new AlertDialog.Builder(this).setTitle(UiText.get(R.string.cockpit_language))
-                .setItems(new String[]{"Русский", "English"}, (dialog, index) -> {
+            case LANGUAGE -> dialogs.choices(UiText.get(R.string.cockpit_language), new String[]{"Русский", "English"}, index -> {
                     UiText.language(index == 0 ? "ru" : "en");
                     recreate();
-                }).show();
+                });
         }
     }
 
@@ -210,19 +214,16 @@ public final class MainActivity extends ComponentActivity {
             Action action = state.steeringActions.getOrDefault(PanelSlots.STEERING.get(i), Action.NONE);
             choices[i] = UiText.get(titles[i / 2]) + " · " + UiText.get(i % 2 == 0 ? R.string.oem_short : R.string.oem_hold) + "\n" + label(action);
         }
-        new AlertDialog.Builder(this).setTitle(UiText.get(R.string.oem_steering))
-            .setItems(choices, (d, i) -> chooseAction(action -> {
+        dialogs.choices(UiText.get(R.string.oem_steering), choices, i -> bindingDialogs.choose(action -> {
                 String slot = PanelSlots.STEERING.get(i);
                 if (action.isAssigned()) state.steeringActions.put(slot, action); else state.steeringActions.remove(slot);
                 if (save() && !panelModel.configured()) error(UiText.get(R.string.ui_72));
-            })).setNeutralButton(UiText.get(R.string.oem_restore_keys), (d, w) ->
-                new AlertDialog.Builder(this).setTitle(UiText.get(R.string.oem_restore_keys))
-                    .setMessage(UiText.get(R.string.oem_restore_keys_info))
-                    .setPositiveButton(UiText.get(R.string.ui_187), (dialog, item) -> {
+            }), UiText.get(R.string.oem_restore_keys), () ->
+                dialogs.message(UiText.get(R.string.oem_restore_keys), UiText.get(R.string.oem_restore_keys_info),
+                    UiText.get(R.string.ui_187), () -> {
                         state.steeringActions.clear();
                         save();
-                    }).setNegativeButton(UiText.get(R.string.ui_89), null).show())
-            .setNegativeButton(UiText.get(R.string.ui_172), null).show();
+                    }, UiText.get(R.string.ui_89)));
     }
     private void renderPanel() {
         LinearLayout panel = card(); panel.addView(text(UiText.get(R.string.ui_67), 22, INK));
@@ -236,7 +237,7 @@ public final class MainActivity extends ComponentActivity {
         for (int i = 0; i < PanelSlots.PANEL.size(); i++) {
             String slot = PanelSlots.PANEL.get(i), title = UiText.get(PANEL_TITLES[i]);
             Action action = state.panelActions.getOrDefault(slot, Action.NONE);
-            panel.addView(button(title + "\n" + (action.isAssigned() ? label(action) : UiText.get(R.string.ui_71)), () -> chooseAction(chosen -> {
+            panel.addView(button(title + "\n" + (action.isAssigned() ? label(action) : UiText.get(R.string.ui_71)), () -> bindingDialogs.choose(chosen -> {
                 if (chosen.isAssigned()) state.panelActions.put(slot, chosen); else state.panelActions.remove(slot);
                 if (save()) {
                     render();
@@ -259,8 +260,7 @@ public final class MainActivity extends ComponentActivity {
     private void renderBridgeState(PanelViewModel.State state) {
         if (state.busy()) {
             if (progress == null) {
-                progress = new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_79))
-                    .setMessage(UiText.get(R.string.ui_80)).setCancelable(false).show();
+                progress = dialogs.message(UiText.get(R.string.ui_79), UiText.get(R.string.ui_80), null, null, null, false);
             }
             return;
         }
@@ -268,8 +268,7 @@ public final class MainActivity extends ComponentActivity {
         if (state.result() == null || state.result() == shownResult) return;
         shownResult = state.result();
         render();
-        new AlertDialog.Builder(this).setTitle(UiText.get(shownResult.successful() ? R.string.ui_81 : R.string.ui_82))
-            .setMessage(shownResult.message()).setPositiveButton(UiText.get(R.string.ui_83), null).show();
+        dialogs.message(UiText.get(shownResult.successful() ? R.string.ui_81 : R.string.ui_82), shownResult.message(), UiText.get(R.string.ui_83));
     }
 
     private void dismissProgress() {
@@ -284,15 +283,13 @@ public final class MainActivity extends ComponentActivity {
             if (visible && !isFinishing()) error(message);
         });
     }
-    private void error(String message) { new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_84)).setMessage(message).setPositiveButton(UiText.get(R.string.ui_83), null).show(); }
+    private void error(String message) { dialogs.message(UiText.get(R.string.ui_84), message, UiText.get(R.string.ui_83)); }
     private void open(Intent intent) { try { startActivity(intent); } catch (RuntimeException ex) { error(UiText.get(R.string.ui_85)); } }
     private void capture() {
         ButtonAccessibilityService service = ButtonAccessibilityService.connected();
         if (service == null) { error(UiText.get(R.string.ui_86)); return; }
-        learning = new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_87))
-            .setMessage(UiText.get(R.string.ui_88))
-            .setNegativeButton(UiText.get(R.string.ui_89), null).create();
-        learning.setOnDismissListener(d -> { service.cancelCapture(); learning = null; }); learning.show();
+        learning = dialogs.message(UiText.get(R.string.ui_87), UiText.get(R.string.ui_88), null, null,
+            UiText.get(R.string.ui_89), true, () -> { service.cancelCapture(); learning = null; });
         service.beginCapture(new ButtonInputAdapter.Capture() {
             public void captured(int code, String descriptor, String deviceName) {
                 if (isFinishing() || isDestroyed()) return;
@@ -302,100 +299,65 @@ public final class MainActivity extends ComponentActivity {
             public void expired() { if (learning != null) learning.dismiss(); if (!isFinishing()) error(UiText.get(R.string.ui_90)); }
         });
     }
-    private EditText field(String hint, String value, boolean numeric) {
-        EditText edit = new EditText(this); edit.setHint(hint); edit.setText(value); edit.setSingleLine(true);
-        if (numeric) edit.setInputType(InputType.TYPE_CLASS_NUMBER); return edit;
-    }
     private void manual() {
-        EditText code = field(UiText.get(R.string.ui_91), "", true);
-        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_92)).setView(code).setPositiveButton(UiText.get(R.string.ui_93), null).setNegativeButton(UiText.get(R.string.ui_89), null).create();
-        dialog.setOnShowListener(d -> dialog.getButton(-1).setOnClickListener(v -> {
-            try { int key = Integer.parseInt(code.getText().toString());
-                if (key <= 0 || key > 65535 || key == 3 || key == 26) throw new IllegalArgumentException();
-                dialog.dismiss(); edit(key, "", KeyEvent.keyCodeToString(key), null);
-            } catch (IllegalArgumentException ex) { code.setError(UiText.get(R.string.ui_94)); }
-        })); dialog.show();
+        bindingDialogs.manual(key -> edit(key, "", KeyEvent.keyCodeToString(key), null));
     }
     private void edit(int code, String descriptor, String initialLabel, Binding existing) {
-        LinearLayout body = column(); body.setPadding(dp(20), dp(6), dp(20), dp(10));
-        EditText name = field(UiText.get(R.string.ui_95), initialLabel, false); body.addView(name);
-        body.addView(text(UiText.get(R.string.ui_96) + code, 14, MUTED));
-        Action[] actions = { existing == null ? Action.NONE : existing.shortPress, existing == null ? Action.NONE : existing.longPress };
-        Button shortButton = button(UiText.get(R.string.ui_50) + label(actions[0]), () -> {});
-        Button longButton = button(UiText.get(R.string.ui_97) + label(actions[1]), () -> {});
-        shortButton.setOnClickListener(v -> chooseAction(a -> { actions[0] = a; shortButton.setText(UiText.get(R.string.ui_50) + label(a)); }));
-        longButton.setOnClickListener(v -> chooseAction(a -> { actions[1] = a; longButton.setText(UiText.get(R.string.ui_97) + label(a)); }));
-        body.addView(shortButton); body.addView(longButton);
-        CheckBox any = new CheckBox(this); any.setText(UiText.get(R.string.ui_98)); any.setChecked(descriptor.isEmpty()); any.setEnabled(!descriptor.isEmpty()); body.addView(any);
-        CheckBox enabled = new CheckBox(this); enabled.setText(UiText.get(R.string.ui_99)); enabled.setChecked(existing == null || existing.enabled); body.addView(enabled);
-        body.addView(text(UiText.get(R.string.ui_100), 14, MUTED));
-        body.addView(button(UiText.get(R.string.ui_101), () -> new ActionExecutor(this).execute(actions[0])));
-        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(existing == null ? UiText.get(R.string.ui_102) : UiText.get(R.string.ui_103)).setView(body)
-            .setPositiveButton(UiText.get(R.string.ui_104), null).setNegativeButton(UiText.get(R.string.ui_89), null)
-            .setNeutralButton(existing == null ? "" : UiText.get(R.string.ui_105), (d, w) -> { if (existing != null) { state.bindings.remove(existing); if (save()) render(); } }).create();
-        dialog.setOnShowListener(d -> {
-            if (existing == null) dialog.getButton(-3).setVisibility(View.GONE);
-            dialog.getButton(-1).setOnClickListener(v -> {
-                String title = name.getText().toString().trim();
-                if (title.isEmpty() || title.length() > 120) { name.setError(UiText.get(R.string.ui_106)); return; }
-                String device = any.isChecked() ? "" : descriptor;
-                for (Binding b : state.bindings) if (b != existing && b.keyCode == code && b.device.equals(device)) { name.setError(UiText.get(R.string.ui_107)); return; }
-                Binding binding = new Binding(existing == null ? UUID.randomUUID().toString() : existing.id, title, device, code, actions[0], actions[1], enabled.isChecked());
-                List<Binding> previous = new ArrayList<>(state.bindings);
-                if (existing != null) state.bindings.set(state.bindings.indexOf(existing), binding); else state.bindings.add(binding);
-                if (save()) { dialog.dismiss(); render(); } else { state.bindings.clear(); state.bindings.addAll(previous); }
-            });
-        }); dialog.show();
+        bindingDialogs.edit(code, descriptor, initialLabel, existing, binding -> saveBinding(binding, existing),
+            () -> removeBinding(existing), action -> new ActionExecutor(this).execute(action));
     }
-    private void chooseAction(Consumer<Action> selected) {
-        new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_108)).setItems(new String[]{UiText.get(R.string.ui_109), UiText.get(R.string.ui_110), UiText.get(R.string.ui_61), UiText.get(R.string.ui_111), UiText.get(R.string.quick_voice_title)}, (d, index) -> {
-            if (index == 0) selected.accept(Action.NONE);
-            if (index == 1) chooseApp(selected);
-            if (index == 2) selected.accept(new Action(Action.Kind.SYSTEM_SETTINGS, "", UiText.get(R.string.ui_61)));
-            if (index == 3) selected.accept(new Action(Action.Kind.CONTROLS_SETTINGS, "", UiText.get(R.string.ui_111)));
-            if (index == 4) selected.accept(new Action(Action.Kind.START_VOICE, "", UiText.get(R.string.quick_voice_title)));
-        }).show();
+    private int bindingIndex(Binding binding) {
+        if (state == null || binding == null) return -1;
+        for (int index = 0; index < state.bindings.size(); index++) {
+            if (state.bindings.get(index).id.equals(binding.id)) return index;
+        }
+        return -1;
     }
-    private void chooseApp(Consumer<Action> selected) {
-        new Thread(() -> {
-            List<Action> choices = new ArrayList<>();
-            for (InstalledApps.Entry app : InstalledApps.list(this)) choices.add(app.binding());
-            runOnUiThread(() -> {
-                if (isFinishing() || isDestroyed()) return;
-                if (choices.isEmpty()) { error(UiText.get(R.string.ui_112)); return; }
-                LinearLayout panel = column(); EditText search = field(UiText.get(R.string.ui_113), "", false); panel.addView(search);
-                ListView list = new ListView(this); panel.addView(list, new LinearLayout.LayoutParams(-1, dp(300)));
-                List<Action> visible = new ArrayList<>(choices);
-                ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, new ArrayList<>());
-                Runnable refresh = () -> { adapter.clear(); for (Action a : visible) adapter.add(a.label + "\n" + a.component.split("/")[0]); adapter.notifyDataSetChanged(); };
-                list.setAdapter(adapter); refresh.run();
-                search.addTextChangedListener(new android.text.TextWatcher() {
-                    public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
-                    public void onTextChanged(CharSequence s, int start, int before, int count) {
-                        String q = s.toString().toLowerCase(java.util.Locale.ROOT); visible.clear();
-                        for (Action a : choices) if ((a.label + " " + a.component).toLowerCase(java.util.Locale.ROOT).contains(q)) visible.add(a);
-                        refresh.run();
-                    }
-                    public void afterTextChanged(android.text.Editable e) { }
-                });
-                AlertDialog picker = new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_114)).setView(panel).setNegativeButton(UiText.get(R.string.ui_89), null).create();
-                list.setOnItemClickListener((p, v, position, id) -> { selected.accept(visible.get(position)); picker.dismiss(); }); picker.show();
-            });
-        }, "app-picker").start();
+    private String saveBinding(Binding binding, Binding existing) {
+        int index = bindingIndex(existing);
+        if (state == null || (existing != null && index < 0)) return UiText.get(R.string.binding_changed);
+        for (Binding other : state.bindings) {
+            if (!other.id.equals(binding.id) && other.keyCode == binding.keyCode && other.device.equals(binding.device)) {
+                return UiText.get(R.string.ui_107);
+            }
+        }
+        List<Binding> previous = new ArrayList<>(state.bindings);
+        if (index < 0) state.bindings.add(binding); else state.bindings.set(index, binding);
+        try {
+            store.save(state);
+        } catch (RuntimeException ex) {
+            state.bindings.clear();
+            state.bindings.addAll(previous);
+            return ex.getMessage() == null ? UiText.get(R.string.ui_84) : ex.getMessage();
+        }
+        publishPanel();
+        render();
+        return null;
+    }
+    private void removeBinding(Binding existing) {
+        int index = bindingIndex(existing);
+        if (index < 0) { error(UiText.get(R.string.binding_changed)); return; }
+        Binding previous = state.bindings.remove(index);
+        if (save()) render(); else state.bindings.add(index, previous);
     }
     private void timings() {
-        LinearLayout body = column(); body.setPadding(dp(20), dp(10), dp(20), dp(10));
-        EditText hold = field(UiText.get(R.string.ui_115), String.valueOf(state.holdMs), true);
-        EditText debounce = field(UiText.get(R.string.ui_116), String.valueOf(state.debounceMs), true); body.addView(hold); body.addView(debounce);
-        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_117)).setView(body).setPositiveButton(UiText.get(R.string.ui_104), null).setNegativeButton(UiText.get(R.string.ui_89), null).create();
-        dialog.setOnShowListener(d -> dialog.getButton(-1).setOnClickListener(v -> {
-            try { int h = Integer.parseInt(hold.getText().toString()), b = Integer.parseInt(debounce.getText().toString());
-                if (h < 250 || h > 2000 || b < 0 || b > 500) throw new IllegalArgumentException();
-                state.holdMs = h; state.debounceMs = b; if (save()) { dialog.dismiss(); render(); }
-            } catch (IllegalArgumentException ex) { hold.setError(UiText.get(R.string.ui_118)); }
-        })); dialog.show();
+        bindingDialogs.timings(state.holdMs, state.debounceMs, (hold, debounce) -> {
+            int oldHold = state.holdMs, oldDebounce = state.debounceMs;
+            state.holdMs = hold;
+            state.debounceMs = debounce;
+            if (save()) { render(); return true; }
+            state.holdMs = oldHold;
+            state.debounceMs = oldDebounce;
+            return false;
+        });
     }
-    private void confirmReset() { new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_119)).setMessage(UiText.get(R.string.ui_120)).setNegativeButton(UiText.get(R.string.ui_89), null).setPositiveButton(UiText.get(R.string.ui_121), (d, w) -> { state = new SettingsStore.State(); if (save()) render(); }).show(); }
+    private void confirmReset() {
+        dialogs.message(UiText.get(R.string.ui_119), UiText.get(R.string.ui_120), UiText.get(R.string.ui_121), () -> {
+            SettingsStore.State previous = state;
+            state = new SettingsStore.State();
+            if (save()) render(); else state = previous;
+        }, UiText.get(R.string.ui_89));
+    }
     private void exportSettings() { document(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE, "open-voyah-controls.json"), EXPORT); }
     private void importSettings() { document(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE), IMPORT); }
     private void document(Intent intent, int request) { try { startActivityForResult(intent, request); } catch (RuntimeException ex) { error(UiText.get(R.string.ui_122)); } }
@@ -422,12 +384,10 @@ public final class MainActivity extends ComponentActivity {
                 LocalSettingsArchive.Restore imported = archive.prepare(raw);
                 String detail = UiText.get(R.string.ui_127) + imported.bindingCount + UiText.get(R.string.ui_128);
                 if (imported.complete) detail += "\n\n" + UiText.get(R.string.settings_archive_scope);
-                new AlertDialog.Builder(this).setTitle(UiText.get(R.string.ui_126)).setMessage(detail)
-                    .setNegativeButton(UiText.get(R.string.ui_89), null)
-                    .setPositiveButton(UiText.get(R.string.ui_129), (d, w) -> {
-                        try { archive.apply(imported); publishPanel(); render(); }
-                        catch (Exception ex) { error(ex.getMessage()); }
-                    }).show();
+                dialogs.message(UiText.get(R.string.ui_126), detail, UiText.get(R.string.ui_129), () -> {
+                    try { archive.apply(imported); publishPanel(); render(); }
+                    catch (Exception ex) { error(ex.getMessage()); }
+                }, UiText.get(R.string.ui_89));
             }
         } catch (Exception ex) { error(UiText.get(R.string.ui_130) + ex.getMessage()); }
     }
