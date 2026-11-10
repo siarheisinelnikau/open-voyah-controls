@@ -5,6 +5,10 @@ Open Voyah Controls is MIT-licensed. The following build and runtime dependencie
 | Component | Version | License |
 | --- | --- | --- |
 | Frida Java bridge | 7.0.13 | LGPL-2.0 with wxWindows exception 3.1 |
+| Kotlin standard library | 2.1.21 | Apache-2.0 |
+| Kotlin coroutines | 1.10.2 | Apache-2.0 |
+| AndroidX Jetpack Compose and Material 3 | Compose BOM 2025.05.01 | Apache-2.0 |
+| AndroidX Activity and Lifecycle | 1.10.1 and 2.9.0 | Apache-2.0 |
 | Vosk for Android | 0.3.75 | Apache-2.0 |
 | Russian and English Vosk models | 0.22 and 0.15 | Apache-2.0 |
 | Java Native Access | 5.18.1 | Apache-2.0 or LGPL-2.1-or-later. This project uses the Apache-2.0 option. |

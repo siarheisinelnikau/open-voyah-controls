@@ -4,6 +4,8 @@ Camera	Basic	камера|камеру
 Music	Basic	музыка|музыку|включи музыку
 Navigator	Basic	навигатор|карты|открой навигатор
 Radio	Basic	радио
+RestartMusic	Basic	перезапусти музыку
+RestartNavigator	Basic	перезапусти навигатор|перезапусти карты
 DecreaseTemperature	Basic	жарко
 FastDecreaseTemperature	Basic	очень жарко
 FastIncreaseTemperature	Basic	очень холодно
@@ -18,9 +20,9 @@ OpenFuelPort	Basic	бензобак|заправка|бензин
 CarWashMode	Basic	режим мойки|мойка
 PowerHold	Basic	пауэр холд
 WiperMaintain	Basic	дворники|щётки
-GetFromMemoryCellOne	Basic	водитель один
-GetFromMemoryCellThree	Basic	водитель три
-GetFromMemoryCellTwo	Basic	водитель два
+GetFromMemoryCellOne	Basic	водитель один|сиденье водителя один|сидение водителя один|настрой сиденье водителя один|сиденье под водителя один
+GetFromMemoryCellThree	Basic	водитель три|сиденье водителя три|настрой сиденье водителя три
+GetFromMemoryCellTwo	Basic	водитель два|сиденье водителя два|настрой сиденье водителя два
 SmokeCommand	Basic	давай покурим
 VentilationCommand	Basic	проветривание|свежий воздух|проветрить|проветри|душно
 DisableDriverCondition	DriverSeat	выключи вентиляцию|выключи вентиляцию водителя|выключи вентиляцию сиденья водителя
@@ -34,7 +36,7 @@ EnableHeatDriverLevelOne	DriverSeat	подогрев водителя урове
 EnableHeatDriverLevelTree	DriverSeat	подогрев водителя уровень три|подогрев уровень три|подогрев три|подогрев сиденья водителя уровень три|подогрев сиденья уровень три
 EnableHeatDriverLevelTwo	DriverSeat	подогрев водителя уровень два|подогрев уровень два|подогрев два|подогрев сиденья уровень два|подогрев сиденья водителя уровень два
 DisableDriverMassage	DriverSeat	выключи массаж|выключи массаж водителя|выключи массаж сиденья водителя
-EnableMassageDriverLevelDefault	DriverSeat	массаж|массаж водителя|массаж сиденья|массаж сиденья водителя
+EnableMassageDriverLevelDefault	DriverSeat	массаж|массаж водителя|массаж сиденья|массаж сиденья водителя|включи массаж|включи массаж водителя
 EnableMassageDriverLevelOne	DriverSeat	массаж водителя уровень один|массаж уровень один|массаж один|массаж сиденья уровень один|массаж сиденья водителя уровень один
 EnableMassageDriverLevelTree	DriverSeat	массаж водителя уровень три|массаж уровень три|массаж три|массаж сиденья водителя уровень три|массаж сиденья уровень три
 EnableMassageDriverLevelTwo	DriverSeat	массаж водителя уровень два|массаж уровень два|массаж два|массаж сиденья уровень два|массаж сиденья водителя уровень два
@@ -55,6 +57,7 @@ OffroadMode	Mode	режим бездорожье|бездорожье|режим
 SnowMode	Mode	режим снег|снег
 SportMode	Mode	режим спорт|спорт
 ElectroMode	Mode	режим электро|электро
+ForcedElectroMode	Mode	принудительный электро режим|принудительно электро
 FuelMode	Mode	режим топливо|топливо
 HybridMode	Mode	гибрид|режим гибрид
 IntellectMode	Mode	режим интеллектуальный|интеллектуальный|режим смарт|смарт
@@ -68,6 +71,8 @@ RebootTbox	Other	перезагрузить модем|перезагрузит�
 DriverA	Other	водитель а
 DriverB	Other	водитель б
 DriverC	Other	водитель ц
+Weather	Other	погода|погода сегодня|текущая погода
+WeatherTomorrow	Other	погода завтра|прогноз на завтра
 Like	Other	лайк|нравится
 RemoveLike	Other	убери лайк|отмени лайк
 DisLike	Other	не нравится|дизлайк
@@ -84,7 +89,7 @@ EnableHeatPassengerLevelOne	PassengerSeat	подогрев пассажира у
 EnableHeatPassengerLevelTree	PassengerSeat	подогрев пассажира уровень три|подогрев пассажира три|подогрев сиденья пассажира уровень три
 EnableHeatPassengerLevelTwo	PassengerSeat	подогрев пассажира уровень два|подогрев пассажира два|подогрев сиденья пассажира уровень два
 DisablePassengerMassage	PassengerSeat	выключи массаж пассажира|выключи массаж сиденья пассажира
-EnableMassagePassengerLevelDefault	PassengerSeat	массаж пассажира|массаж сиденья пассажира
+EnableMassagePassengerLevelDefault	PassengerSeat	массаж пассажира|массаж сиденья пассажира|включи массаж пассажира
 EnableMassagePassengerLevelOne	PassengerSeat	массаж пассажира уровень один|массаж пассажира один|массаж сиденья пассажира уровень один
 EnableMassagePassengerLevelTree	PassengerSeat	массаж пассажира уровень три|массаж пассажира три|массаж сиденья пассажира уровень три
 EnableMassagePassengerLevelTwo	PassengerSeat	массаж пассажира уровень два|массаж пассажира два|массаж сиденья пассажира уровень два
@@ -124,7 +129,7 @@ MediaPlay	Media	продолжи музыку|воспроизведение
 MediaPause	Media	пауза|останови музыку
 MediaNext	Media	следующий трек
 MediaPrevious	Media	предыдущий трек
-VolumeUp	Media	громче
-VolumeDown	Media	тише
+VolumeUp	Media	громче|сделай громче
+VolumeDown	Media	тише|сделай тише
 VolumeMute	Media	выключи звук
 SystemSettings	Media	системные настройки

@@ -4,6 +4,9 @@ import android.test.AndroidTestCase;
 import org.json.JSONObject;
 import org.openvoyah.controls.core.Action;
 import org.openvoyah.controls.core.Binding;
+import org.openvoyah.controls.data.frida.FridaBridge;
+import org.openvoyah.controls.data.settings.SettingsStore;
+import org.openvoyah.controls.platform.boot.RecoveryJobs;
 
 /** Executes against Android's actual JSON and preferences implementation on a test emulator. */
 public class SettingsStoreTest extends AndroidTestCase {
@@ -26,20 +29,20 @@ public class SettingsStoreTest extends AndroidTestCase {
         boolean previousConfigured = bridge.getBoolean("configured", false);
         android.app.job.JobScheduler scheduler = getContext().getSystemService(android.app.job.JobScheduler.class);
         try {
-            BootHookService.cancel(getContext());
+            RecoveryJobs.cancel(getContext());
             bridge.edit().putBoolean("configured", false).commit();
             new BootReceiver().onReceive(getContext(), new android.content.Intent(android.content.Intent.ACTION_BOOT_COMPLETED));
-            assertNull(scheduler.getPendingJob(BootHookService.JOB_ID));
+            assertNull(scheduler.getPendingJob(RecoveryJobs.ID));
             bridge.edit().putBoolean("configured", true).commit();
             new BootReceiver().onReceive(getContext(), new android.content.Intent("unrelated"));
-            assertNull(scheduler.getPendingJob(BootHookService.JOB_ID));
+            assertNull(scheduler.getPendingJob(RecoveryJobs.ID));
             new BootReceiver().onReceive(getContext(), new android.content.Intent(android.content.Intent.ACTION_BOOT_COMPLETED));
-            android.app.job.JobInfo job = scheduler.getPendingJob(BootHookService.JOB_ID);
+            android.app.job.JobInfo job = scheduler.getPendingJob(RecoveryJobs.ID);
             assertNotNull(job); assertTrue(job.isPersisted()); assertEquals(30000L, job.getInitialBackoffMillis());
-            BootHookService.cancel(getContext());
-            assertNull(scheduler.getPendingJob(BootHookService.JOB_ID));
+            RecoveryJobs.cancel(getContext());
+            assertNull(scheduler.getPendingJob(RecoveryJobs.ID));
         } finally {
-            BootHookService.cancel(getContext());
+            RecoveryJobs.cancel(getContext());
             bridge.edit().putBoolean("configured", previousConfigured).commit();
         }
     }
@@ -74,10 +77,16 @@ public class SettingsStoreTest extends AndroidTestCase {
         try { store.save(state); fail(); } catch (IllegalArgumentException expected) { }
     }
     public void testFridaConfigUsesIndependentNamespaceAndActions() throws Exception {
-        JSONObject config = new JSONObject(FridaBridge.config(sample()));
+        SettingsStore.State state = sample();
+        state.enabled = true;
+        state.steeringActions.put("voiceShort", new Action(Action.Kind.START_VOICE, "", "Speak"));
+        JSONObject config = new JSONObject(FridaBridge.config(state));
         assertEquals(1, config.getInt("schema")); assertTrue(config.getBoolean("enabled"));
         assertEquals("LAUNCH_APP", config.getJSONObject("actions").getJSONObject("navbar01").getString("kind"));
-        assertEquals(3, config.length());
+        assertTrue(config.getBoolean("steeringEnabled"));
+        assertEquals("START_VOICE", config.getJSONObject("steering").getJSONObject("voiceShort").getString("kind"));
+        assertEquals(1, config.getJSONObject("actions").length());
+        assertEquals(1, config.getJSONObject("steering").length());
     }
     public void testDisabledConfigAndResetRemoveActions() throws Exception {
         store.save(sample()); store.save(new SettingsStore.State());

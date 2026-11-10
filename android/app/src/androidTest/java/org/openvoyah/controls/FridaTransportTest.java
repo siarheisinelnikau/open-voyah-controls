@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.openvoyah.controls.data.frida.FridaTransport;
 
 /** Actual loopback sockets: terminal echo must be disabled before transmitting a bundle. */
 public class FridaTransportTest extends AndroidTestCase {
@@ -41,9 +42,8 @@ public class FridaTransportTest extends AndroidTestCase {
                 } catch (Throwable ex) { failure.set(ex); }
             });
             peer.start();
-            java.lang.reflect.Method command = FridaBridge.class.getDeclaredMethod("command", String.class);
-            command.setAccessible(true);
-            assertEquals("uploaded", command.invoke(new FridaBridge(getContext(), server.getLocalPort()), script));
+            FridaTransport transport = new FridaTransport(server.getLocalPort(), () -> "Interrupted", () -> "Missing response");
+            assertEquals("uploaded", transport.execute(script));
             peer.join(3000); assertFalse(peer.isAlive());
             if (failure.get() != null) throw new AssertionError(failure.get());
         }

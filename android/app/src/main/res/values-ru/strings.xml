@@ -1,4 +1,27 @@
 <resources>
     <string name="app_name">Open Voyah Controls</string>
     <string name="service_description">Переназначает выбранные аппаратные кнопки и запускает назначенные приложения. Содержимое экрана не читается. Службу можно отключить в любой момент.</string>
+    <string name="voice_model_repair_failed">Не удалось сбросить модель распознавания</string>
+    <string name="voice_audio_interrupted">Распознавание остановилось, потому что звук перехватило другое приложение</string>
+    <string name="voice_audio_settings">Звук голосовых команд</string>
+    <string name="voice_duck_media">Приглушать музыку во время распознавания</string>
+    <string name="voice_spoken_feedback">Повторять команды установленным офлайн-голосом</string>
+    <string name="voice_volume_examples">Выберите значение от 0 до 100 процентов. Например, можно сказать «%1$s».</string>
+    <string name="settings_archive_title">Резервная копия настроек</string>
+    <string name="settings_archive_description">Сохраните или восстановите назначения кнопок, голосовые настройки и контакты, язык, дисплей и переводы.</string>
+    <string name="settings_archive_export">Экспорт настроек приложения</string>
+    <string name="settings_archive_import">Импорт настроек приложения</string>
+    <string name="settings_archive_scope">Файл также восстановит голосовые настройки, локальные контакты, язык интерфейса, настройки дисплея и словарь локализации.</string>
+    <string name="settings_archive_invalid">Некорректный файл настроек приложения</string>
+    <string name="settings_archive_save_failed">Не удалось сохранить настройки приложения</string>
+    <string name="voice_listening_action">Слушаю…</string>
+    <string name="voice_options_title">Голосовые настройки</string>
+    <string name="voice_no_commands">Команды не найдены.</string>
+    <string name="voice_catalog_loading">Загружаю голосовые команды…</string>
+    <string name="voice_button_hint">Назначьте «Голосовой помощник» на кнопку руля или панели. Нажмите кнопку и произнесите одну команду.</string>
+    <string name="voice_executing">Выполняю команду…</string>
+    <string name="voice_no_speech">Команду не услышал</string>
+    <string name="voice_vehicle_sent">Команда отправлена автомобилю</string>
+    <string name="voice_requires_park">Переведите автомобиль в P для этой команды</string>
+    <string name="voice_refresh_bridge">Нажмите «Подключить Frida», чтобы обновить голосовой обработчик автомобиля</string>
 </resources>

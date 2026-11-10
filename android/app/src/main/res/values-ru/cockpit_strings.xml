@@ -1,0 +1,16 @@
+<resources>
+    <string name="cockpit_overview">Быстрый доступ</string>
+    <string name="cockpit_buttons">Кнопки</string>
+    <string name="cockpit_settings">Настройки</string>
+    <string name="cockpit_apps_description">Запуск приложений и установка APK</string>
+    <string name="cockpit_voice_description">Команды, язык и звук</string>
+    <string name="cockpit_display_description">Медиа и навигация на отдельном экране</string>
+    <string name="cockpit_headline">Управление мультимедиа</string>
+    <string name="cockpit_subtitle">Настройте, что открывают кнопки на панели и руле.</string>
+    <string name="cockpit_firmware_description">Заводские настройки и восстановление</string>
+    <string name="cockpit_system_description">Открыть настройки Android</string>
+    <string name="cockpit_language">Язык интерфейса</string>
+    <string name="cockpit_back">Назад</string>
+    <string name="cockpit_panel">Кнопки панели</string>
+    <string name="cockpit_panel_description">Настройте ярлыки штатной панели</string>
+</resources>

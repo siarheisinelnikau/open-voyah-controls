@@ -5,8 +5,13 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.*;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import org.openvoyah.controls.data.frida.FridaBridge;
+import org.openvoyah.controls.data.settings.LocalizationSettings;
+import org.openvoyah.controls.data.settings.SettingsStore;
+
+import org.openvoyah.controls.presentation.theme.CockpitViews;
 
 /** Firmware-facing operations run independently from activity lifecycle and UI rendering. */
 public final class FirmwareActivity extends Activity {
@@ -16,11 +21,23 @@ public final class FirmwareActivity extends Activity {
     private boolean busy;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state); settings = new LocalizationSettings(this);
-        ScrollView scroll = new ScrollView(this); LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL); int pad = Math.round(24 * getResources().getDisplayMetrics().density);
-        root.setPadding(pad,pad,pad,pad); scroll.addView(root); setContentView(scroll);
-        TextView title = new TextView(this); title.setText(UiText.get(R.string.firmware_settings)); title.setTextSize(26); root.addView(title);
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout page = CockpitViews.page(this, R.string.firmware_settings);
+        scroll.addView(page);
+        setContentView(scroll);
+        LinearLayout root = CockpitViews.card(page);
         add(root, R.string.cluster_title, () -> startActivity(new Intent(this,ClusterActivity.class)));
+        if (FridaBridge.windowHookSupported()) {
+            add(root, R.string.window_hook_title, () -> {
+                boolean enabled = FridaBridge.windowHookEnabled(this);
+                new AlertDialog.Builder(this).setTitle(UiText.get(R.string.window_hook_title))
+                    .setMessage(UiText.get(enabled ? R.string.window_hook_disable : R.string.window_hook_enable))
+                    .setPositiveButton(UiText.get(R.string.ui_187), (d, w) -> run(() -> {
+                        new FridaBridge(this).setWindowHook(!enabled);
+                        return UiText.get(enabled ? R.string.window_hook_off : R.string.window_hook_on);
+                    })).setNegativeButton(UiText.get(R.string.ui_89), null).show();
+            });
+        }
         TextView info = new TextView(this); info.setText(UiText.get(R.string.firmware_info)); info.setTextSize(17); root.addView(info);
         status = new TextView(this); status.setText(android.os.Build.PRODUCT + " / " + org.openvoyah.controls.core.Firmware.identify(android.os.Build.PRODUCT)
             + "\n" + UiText.get(settings.enabled()?R.string.translation_on:R.string.translation_off)); status.setTextSize(18); root.addView(status);
@@ -37,7 +54,7 @@ public final class FirmwareActivity extends Activity {
     }
     private void add(LinearLayout root, int label, Runnable action) {
         Button button = new Button(this); button.setText(UiText.get(label)); button.setAllCaps(false);
-        button.setOnClickListener(v -> { if (!busy) { try { action.run(); } catch(Exception ex) { status.setText(ex.getMessage()); } } }); root.addView(button);
+        button.setOnClickListener(v -> { if (!busy) { try { action.run(); } catch(Exception ex) { status.setText(ex.getMessage()); } } }); CockpitViews.addButton(root, button);
     }
     private String apply() throws Exception {
         if (!FridaBridge.wasConfigured(this)) return UiText.get(R.string.translation_saved);

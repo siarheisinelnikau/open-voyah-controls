@@ -1,0 +1,13 @@
+<resources>
+    <string name="voice_online_title">Online interpretation</string>
+    <string name="voice_online_switch">Use OpenRouter when a phrase is not in the catalog</string>
+    <string name="voice_online_explain">OpenRouter receives the text of a confidently recognized phrase. The free router can choose a volume step or restart assigned music or navigation.</string>
+    <string name="voice_online_key">OpenRouter API key</string>
+    <string name="voice_online_key_saved">Leave blank to keep the saved key</string>
+    <string name="voice_online_key_invalid">Enter a valid OpenRouter API key.</string>
+    <string name="voice_online_save_failed">Online interpretation settings could not be saved.</string>
+    <string name="voice_online_checking">Interpreting…</string>
+    <string name="voice_online_unavailable">Online interpretation is unavailable.</string>
+    <string name="voice_restart_assignment">Choose the music or navigation app in Voice settings first.</string>
+    <string name="voice_restarted">App restarted.</string>
+</resources>

@@ -80,7 +80,8 @@
       "bus": "vehicle",
       "phase": "main",
       "value": 1,
-      "property": "IVI_CHRG_PORT_CAP"
+      "property": "IVI_CHRG_PORT_CAP",
+      "parked": true
     }
   ],
   "OpenFuelPort": [
@@ -88,7 +89,8 @@
       "bus": "vehicle",
       "phase": "main",
       "value": 1,
-      "property": "IVI_FUEL_PORT_CAP"
+      "property": "IVI_FUEL_PORT_CAP",
+      "parked": true
     }
   ],
   "GetFromMemoryCellOne": [
@@ -96,7 +98,8 @@
       "bus": "vehicle",
       "phase": "main",
       "value": 1,
-      "property": "DMS_GET_MEMORY_REQ"
+      "property": "DMS_GET_MEMORY_REQ",
+      "parked": true
     }
   ],
   "GetFromMemoryCellThree": [
@@ -104,7 +107,8 @@
       "bus": "vehicle",
       "phase": "main",
       "value": 3,
-      "property": "DMS_GET_MEMORY_REQ"
+      "property": "DMS_GET_MEMORY_REQ",
+      "parked": true
     }
   ],
   "GetFromMemoryCellTwo": [
@@ -112,7 +116,8 @@
       "bus": "vehicle",
       "phase": "main",
       "value": 2,
-      "property": "DMS_GET_MEMORY_REQ"
+      "property": "DMS_GET_MEMORY_REQ",
+      "parked": true
     }
   ],
   "DisableDriverCondition": [
@@ -224,7 +229,8 @@
       "bus": "vehicle",
       "phase": "main",
       "value": 1,
-      "property": "OUT_LAMP_OFF"
+      "property": "OUT_LAMP_OFF",
+      "parked": true
     }
   ],
   "LowBeam": [
@@ -240,7 +246,8 @@
       "bus": "vehicle",
       "phase": "main",
       "value": 1,
-      "property": "POSITION_LAMP_SWITCH"
+      "property": "POSITION_LAMP_SWITCH",
+      "parked": true
     }
   ],
   "RearFog": [
@@ -584,7 +591,8 @@
       "bus": "vehicle",
       "phase": "main",
       "value": 1,
-      "property": "VEHICLE_TUNK_CONTROL"
+      "property": "VEHICLE_TUNK_CONTROL",
+      "parked": true
     }
   ],
   "OpenTrunkCommand": [
@@ -592,7 +600,8 @@
       "bus": "vehicle",
       "phase": "main",
       "value": 2,
-      "property": "VEHICLE_TUNK_CONTROL"
+      "property": "VEHICLE_TUNK_CONTROL",
+      "parked": true
     }
   ],
   "DisableTrunkCommand": [
@@ -600,7 +609,8 @@
       "bus": "vehicle",
       "phase": "main",
       "value": 2,
-      "property": "UNABLE_TAIL_DOOR"
+      "property": "UNABLE_TAIL_DOOR",
+      "parked": true
     }
   ],
   "EnableTrunkCommand": [
@@ -608,7 +618,8 @@
       "bus": "vehicle",
       "phase": "main",
       "value": 1,
-      "property": "UNABLE_TAIL_DOOR"
+      "property": "UNABLE_TAIL_DOOR",
+      "parked": true
     }
   ],
   "CloseAllWindowCommand": [

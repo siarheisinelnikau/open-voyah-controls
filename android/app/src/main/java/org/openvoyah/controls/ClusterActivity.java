@@ -6,6 +6,8 @@ import android.os.Bundle;
 import android.widget.*;
 import java.util.concurrent.*;
 
+import org.openvoyah.controls.presentation.theme.CockpitViews;
+
 /** No installation is scheduled on boot. Interrupted writes require status inspection. */
 public final class ClusterActivity extends Activity {
     private static final ExecutorService WORKER=Executors.newSingleThreadExecutor();
@@ -14,9 +16,11 @@ public final class ClusterActivity extends Activity {
     private ClusterController controller;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state); controller=new ClusterController(this);
-        ScrollView scroll=new ScrollView(this); LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
-        int pad=Math.round(24*getResources().getDisplayMetrics().density); root.setPadding(pad,pad,pad,pad); scroll.addView(root); setContentView(scroll);
-        TextView title=new TextView(this); title.setText(UiText.get(R.string.cluster_title)); title.setTextSize(26); root.addView(title);
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout page = CockpitViews.page(this, R.string.cluster_title);
+        scroll.addView(page);
+        setContentView(scroll);
+        LinearLayout root = CockpitViews.card(page);
         TextView info=new TextView(this); info.setText(UiText.get(R.string.cluster_info)); info.setTextSize(17); root.addView(info);
         status=new TextView(this); status.setTextSize(17); status.setText(getSharedPreferences("cluster",0).getString("status",UiText.get(R.string.cluster_initial))); root.addView(status);
         add(root,R.string.cluster_inspect,()->run(controller::inspect));
@@ -27,7 +31,7 @@ public final class ClusterActivity extends Activity {
         add(root,R.string.cluster_restore,()->confirm(R.string.cluster_restore,controller::restore));
     }
     private void add(LinearLayout root,int label,Runnable action) {
-        Button button=new Button(this); button.setText(UiText.get(label)); button.setAllCaps(false); root.addView(button);
+        Button button=new Button(this); button.setText(UiText.get(label)); button.setAllCaps(false); CockpitViews.addButton(root, button);
         button.setOnClickListener(v->{ if(!BUSY.get()) { try { action.run(); } catch(Exception ex) { status.setText(ex.getMessage()); } } });
     }
     private void confirm(int label,Operation operation) {

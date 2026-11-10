@@ -1,11 +1,12 @@
 package org.openvoyah.controls;
 
 import android.content.Context;
-import org.json.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.zip.*;
+import org.json.*;
+import org.openvoyah.controls.data.frida.FridaBridge;
 
 /** Cluster operations do not depend on Frida or the launcher hook being available. */
 final class ClusterController {

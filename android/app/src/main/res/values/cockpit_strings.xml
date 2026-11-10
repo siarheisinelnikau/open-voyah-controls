@@ -1,0 +1,16 @@
+<resources>
+    <string name="cockpit_overview">Quick access</string>
+    <string name="cockpit_buttons">Buttons</string>
+    <string name="cockpit_settings">Settings</string>
+    <string name="cockpit_apps_description">Open apps and install local APKs</string>
+    <string name="cockpit_voice_description">Commands, language and audio</string>
+    <string name="cockpit_display_description">Media and navigation on a separate display</string>
+    <string name="cockpit_headline">Head unit controls</string>
+    <string name="cockpit_subtitle">Choose what opens from the panel and steering wheel.</string>
+    <string name="cockpit_firmware_description">OEM settings and recovery</string>
+    <string name="cockpit_system_description">Open the Android settings</string>
+    <string name="cockpit_language">Interface language</string>
+    <string name="cockpit_back">Back</string>
+    <string name="cockpit_panel">Launcher buttons</string>
+    <string name="cockpit_panel_description">Customize the factory panel shortcuts</string>
+</resources>

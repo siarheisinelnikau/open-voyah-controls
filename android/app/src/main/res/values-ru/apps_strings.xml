@@ -1,0 +1,15 @@
+<resources>
+    <string name="apps_subtitle">Нажмите, чтобы открыть. Настройки доступны по значку или долгому нажатию.</string>
+    <string name="app_settings_title">Настройки приложения</string>
+    <string name="app_settings_for">Настройки «%1$s»</string>
+    <string name="apps_managed">Установлено здесь</string>
+    <string name="apps_empty">Нет приложений по этому запросу.</string>
+    <string name="apps_loading">Загрузка приложений…</string>
+    <string name="apps_load_failed">Не удалось загрузить список приложений.</string>
+    <string name="apps_permissions">Разрешения</string>
+    <string name="apps_permission_unavailable">Не удалось подтвердить изменение. Откройте сведения о приложении в Android или проверьте локальный root-доступ.</string>
+    <string name="apps_permission_stock">Разрешения этого приложения доступны в настройках Android.</string>
+    <string name="apps_permission_empty">У приложения нет поддерживаемых разрешений времени выполнения.</string>
+    <string name="apps_permission_persisted">Android сохраняет эти разрешения для установленного приложения.</string>
+    <string name="apps_app_info">О приложении в Android</string>
+</resources>

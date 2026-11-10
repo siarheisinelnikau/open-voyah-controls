@@ -3,37 +3,151 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const source = fs.readFileSync(path.join(__dirname, '../hooks/launcher-buttons.js'), 'utf8').replace('export function install', 'function install') + '\ninstall(Java);';
+const source = ['panel-icons.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+    .replace(/^import .*;$/gm, '').replaceAll('export function', 'function')).join('\n') + '\ninstall(Java);';
 
 function harness(config, options = {}) {
     let originalCalls = 0;
-    const launched = [], logs = [], retries = [];
-    const click = { call() { originalCalls++; return 'oem'; } };
+    const launched = [], logs = [], retries = [], timers = [];
+    let inClick = false, inTheme = false;
+    const click = { call(nav, view) {
+        if (!inClick) return dispatchClick(nav, view);
+        originalCalls++;
+        return 'oem';
+    }};
+    function dispatchClick(nav, view) {
+        inClick = true;
+        try { return click.implementation.call(nav, view); }
+        finally { inClick = false; }
+    }
     let originalHolds = 0;
-    const longClick = { call() { originalHolds++; return false; } };
+    const holds = [0,1].map(() => ({call() { originalHolds++; return false; }}));
     const init = { call() {} };
+    const theme = { call(nav) {
+        if (!inTheme) return dispatchTheme(nav);
+        for (const view of Object.values(nav.views ?? {})) view.background = view.stock;
+    }};
+    function dispatchTheme(nav) {
+        inTheme = true;
+        try { return theme.implementation.call(nav); }
+        finally { inTheme = false; }
+    }
+    const release = { call() {} };
+    const selection = { call(nav) {
+        nav.stockUpdates++;
+        nav.checked = nav.stockChecked ?? -1;
+    }};
+    const manager = {
+        resolveActivity(intent) {
+            if (options.missing && options.missing === intent.component) return null;
+            return {
+                activityInfo: {value:{}},
+                loadIcon() {
+                    return {component:intent.component ?? intent.action, getIntrinsicWidth:() => 128, getIntrinsicHeight:() => 64};
+                }
+            };
+        }
+    };
     const context = {
         getContentResolver() { return {}; },
+        getPackageManager() { return manager; },
         startActivity: { overload() { return { call(self, intent, extras) {
             if (options.failLaunch) throw new Error('Activity not found');
             launched.push({ intent, display: extras.display });
         } }; } }
     };
+    function makeBar(screen) {
+        const nav = {isNav:true, mScreenId:{value:screen}, mContext:{value:context}, views:{}, equals(other) { return other === this; }};
+        nav.stockUpdates = 0;
+        nav.mScreenUpRadioGroup = {value: {
+            getCheckedRadioButtonId: () => nav.checked,
+            check: id => { nav.checked = id; }
+        }};
+        for (const [field, resource] of [
+            ['mScreenUpHomeView', 'screen_up_home_icon'],
+            ['mScreenUpItemView1', 'screen_up_icon_1'],
+            ['mScreenUpItemView2', 'screen_up_icon_2'],
+            ['mScreenUpItemView3', 'screen_up_icon_3'],
+            ['mScreenUpItemView4', 'screen_up_icon_4']
+        ]) {
+            const view = {
+                stock: {resource}, draws:0, holdEnabled:false,
+                equals(other) { return other === this; },
+                getId:() => 10 + Object.keys(nav.views).indexOf(resource), getResources:() => ({getResourceEntryName:() => resource}),
+                getLayoutParams:() => ({width:{value:116},height:{value:90}}), getWidth:() => 0, getHeight:() => 0,
+                getPaddingLeft:() => 4, getPaddingTop:() => 5, getPaddingRight:() => 6, getPaddingBottom:() => 7,
+                setPadding(...insets) { this.insets = insets; },
+                setBackground(background) { this.background = background; this.draws++; },
+                setLongClickable(value) { this.holdEnabled = value; },
+                mListenerInfo: {value:{mOnClickListener:{value:nav}}}
+            };
+            view.background = view.stock;
+            nav[field] = {value:view};
+            nav.views[resource] = view;
+        }
+        return nav;
+    }
+    const existing = (options.existing ?? []).map(makeBar);
     const classes = {
-        'com.qinggan.mainlauncher.navigation.NavigationBar': { class: { isInstance(value) { return value.isNav === true; } }, onClick: { overload() { return click; } }, initScreenUpViews: { overload() { return init; } } },
-        'android.view.View': { performLongClick: { overload() { return longClick; } } },
+        'com.qinggan.mainlauncher.navigation.NavigationBar': {
+            class: { isInstance(value) { return value.isNav === true; } }, onClick: {overload:() => click},
+            initScreenUpViews: {overload:() => init}, updateTheme: options.noTheme ? undefined : {overload:() => theme},
+            release: {overload:() => release},
+            updateSelectedApp: options.noSelection ? undefined : {overload:() => selection}
+        },
+        'android.view.View': { performLongClick: { overload(...coordinates) { return holds[coordinates.length ? 1 : 0]; } } },
         'android.provider.Settings$Global': { getString(resolver, key) { assert.equal(key, 'org.openvoyah.controls.panel'); return typeof config === 'string' ? config : JSON.stringify(config); } },
-        'android.content.Intent': { $new(action) { return { action, addCategory(c) { this.category = c; }, setComponent(c) { this.component = c; }, addFlags(f) { this.flags = f; } }; } },
+        'android.content.Intent': { $new(action) { return {
+            action, addCategory(c) { this.category = c; }, setComponent(c) { this.component = c; }, addFlags(f) { this.flags = f; },
+            putExtra: { overload() { return { call(intent, key, value) { intent.extras = {[key]:value}; } }; } }
+        }; } },
         'android.content.ComponentName': { unflattenFromString(s) { return s; }, $new(pkg, cls) { return pkg + '/' + cls; } },
         'android.app.ActivityOptions': { makeBasic() { return { setLaunchDisplayId(id) { this.display = id; }, toBundle() { return { display: this.display }; } }; } },
+        'android.app.ActivityThread': {currentApplication:() => context},
+        'android.content.pm.PackageManager': {MATCH_DEFAULT_ONLY:{value:65536}},
+        'android.graphics.drawable.LayerDrawable': {$new([states, icon]) { return {
+            states, icon, setLayerGravity(index, gravity) { this.gravity = gravity; }, setLayerSize(index, width, height) { this.size = [width,height]; }
+        }; }},
+        'android.graphics.drawable.StateListDrawable': {$new() { return {entries:[], addState(ids, drawable) { this.entries.push({ids, drawable}); }}; }},
+        'android.graphics.drawable.GradientDrawable': {$new() { return {setColor(color) { this.color = color; }, setCornerRadius(radius) { this.radius = radius; }}; }},
+        'android.graphics.drawable.ColorDrawable': {$new(color) { return {color}; }},
+        'android.R$attr': {state_checked: {value: 16842912}},
+        'android.graphics.drawable.RippleDrawable': {$new(color, layer) { return {color, layer}; }},
+        'android.content.res.ColorStateList': {valueOf:color => color},
+        'android.view.Gravity': {CENTER:{value:17}},
+        'java.util.WeakHashMap': {$new() {
+            const map = new Map();
+            return {put:(k,v) => map.set(k,v), remove:k => map.delete(k), keySet:() => ({toArray:() => [...map.keys()]})};
+        }},
         'android.util.Log': { i(tag, line) { logs.push(line); }, w(tag, line) { logs.push(line); } }
     };
-    vm.runInNewContext(source, { Java: { cast(x) { return x; }, choose(name, callbacks) { callbacks.onComplete(); }, scheduleOnMainThread(fn) { fn(); }, perform(fn) { fn(); }, use(name) { if(options.noNav && name.endsWith('NavigationBar'))throw Error('class not loaded'); assert.ok(classes[name], name); return classes[name]; } }, Process: { id: 42 }, console: { log(line) { logs.push(line); } }, setTimeout(fn,ms) { retries.push({fn,ms}); } });
+    vm.runInNewContext(source, {
+        Java: {
+            array(name, values) { return values; }, retain(x) { return x; }, cast(x) { return x; },
+            choose(name, callbacks) { existing.forEach(nav => callbacks.onMatch(Object.assign(nav, {$dispose(){}}))); callbacks.onComplete(); },
+            scheduleOnMainThread(fn) { fn(); }, perform(fn) { fn(); },
+            use(name) { if (options.noNav && name.endsWith('NavigationBar')) throw Error('class not loaded'); assert.ok(classes[name], name); return classes[name]; }
+        },
+        Process: { id: 42 }, console: { log(line) { logs.push(line); } },
+        setTimeout(fn,ms) { retries.push({fn,ms}); }, setInterval(fn) { timers.push(fn); return fn; },
+        clearInterval(fn) { timers.splice(timers.indexOf(fn),1); }
+    });
     return {
-        retries, logs,
-        hold(screen, resource, isNav = true) {
+        retries, logs, existing,
+        bar(screen) { const nav = makeBar(screen); init.implementation.call(nav); return nav; },
+        setConfig(value) { config = value; },
+        tick() { timers.forEach(fn => fn()); },
+        theme(nav) { dispatchTheme(nav); },
+        select(nav, pkg, activity) { selection.implementation.call(nav, pkg, activity); },
+        release(nav) { release.implementation.call(nav); },
+        tap(nav, name) { return dispatchClick(nav, nav.views[name]); },
+        hold(screen, resource, isNav = true, ...coordinates) {
             const owner = { isNav, mScreenId: { value: screen }, mContext: { value: context } };
-            return longClick.implementation.call({ mListenerInfo: { value: { mOnClickListener: { value: owner } } }, getId() { return 10; }, getResources() { return { getResourceEntryName() { return resource; } }; } });
+            return holds[coordinates.length ? 1 : 0].implementation.call({
+                mListenerInfo: {value:{mOnClickListener:{value:owner}}}, getId:() => 10,
+                equals(other) { return other === this; },
+                getResources:() => ({getResourceEntryName:() => resource})
+            }, ...coordinates);
         },
         init(screen) {
             const enabled = [];
@@ -41,7 +155,7 @@ function harness(config, options = {}) {
             for (const name of ['mScreenUpHomeView', 'mScreenUpItemView1', 'mScreenUpItemView2', 'mScreenUpItemView3', 'mScreenUpItemView4']) nav[name] = { value: { setLongClickable(value) { if (value) enabled.push(name); } } };
             init.implementation.call(nav); return enabled;
         },
-        click(screen, resource) { return click.implementation.call({ mScreenId: { value: screen }, mContext: { value: context } }, { getId() { return 10; }, getResources() { return { getResourceEntryName() { return resource; } }; } }); },
+        click(screen, resource) { const nav = makeBar(screen); return dispatchClick(nav, nav.views[resource] ?? { getId:() => 10, getResources:() => ({getResourceEntryName:() => resource}) }); },
         launched, logs, get originalCalls() { return originalCalls; }, get originalHolds() { return originalHolds; }
     };
 }
@@ -54,6 +168,14 @@ test('missing NavigationBar schedules recovery and installs when class becomes a
 });
 const action = { kind: 'LAUNCH_APP', component: 'com.example.player/.Main' };
 const config = actions => ({ schema: 1, enabled: true, actions });
+
+test('a voice shortcut launches the guarded voice entry point on its own display', () => {
+    const h = harness(config({ navbar11: { kind: 'START_VOICE' } }));
+    h.click(1, 'screen_up_home_icon');
+    assert.equal(h.originalCalls, 0);
+    assert.equal(h.launched[0].display, 1);
+    assert.equal(h.launched[0].intent.component, 'org.openvoyah.controls/org.openvoyah.controls.PanelVoiceActivity');
+});
 
 test('navigation launches chosen activity on central display and suppresses OEM handler', () => {
     const h = harness(config({ navbar01: action })); h.click(0, 'screen_up_icon_1');
@@ -101,9 +223,11 @@ test('settings actions run on the requested display', () => {
 });
 
 test('long press runs OEM click once, consumes release, and never launches replacement', () => {
-    const h = harness(config({ navbar01: action }));
-    assert.equal(h.hold(0, 'screen_up_icon_1'), true);
-    assert.equal(h.originalCalls, 1); assert.equal(h.originalHolds, 0); assert.equal(h.launched.length, 0);
+    for (const coordinates of [[], [18,24]]) {
+        const h = harness(config({navbar01: action}));
+        assert.equal(h.hold(0, 'screen_up_icon_1', true, ...coordinates), true);
+        assert.equal(h.originalCalls, 1); assert.equal(h.originalHolds, 0); assert.equal(h.launched.length, 0);
+    }
 });
 test('long press preserves OEM long handler for disabled, invalid and unmapped buttons', () => {
     for (const value of [null, config({}), { schema: 1, enabled: false, actions: { navbar01: action } }, 'bad json', config({ navbar01: { kind: 'NONE' } })]) {
@@ -120,4 +244,126 @@ test('new launcher bars enable holds only on supported display positions', () =>
     const h = harness(config({}));
     assert.deepEqual(h.init(0), ['mScreenUpItemView1', 'mScreenUpItemView2']);
     assert.equal(h.init(1).length, 5); assert.equal(h.init(2).length, 0);
+});
+
+test('existing navigation, music and passenger radio buttons use the same component for their icon and tap', () => {
+    const navigation = {kind:'LAUNCH_APP', component:'test.navigation/.Maps'};
+    const radio = {kind:'LAUNCH_APP', component:'test.radio/.Listen'};
+    const h = harness(config({navbar01:navigation, navbar02:action, navbar14:radio}), {existing:[0,1]});
+    const [center, passenger] = h.existing;
+    for (const [bar, name, app, display] of [
+        [center, 'screen_up_icon_1', navigation, 0],
+        [center, 'screen_up_icon_2', action, 0],
+        [passenger, 'screen_up_icon_3', radio, 1]
+    ]) {
+        const view = bar.views[name];
+        assert.equal(view.background.layer.icon.component, app.component);
+        assert.deepEqual(view.background.layer.size, [56,28]);
+        assert.deepEqual(view.insets, [4,5,6,7]);
+        h.tap(bar, name);
+        assert.equal(h.launched.at(-1).intent.component, app.component);
+        assert.equal(h.launched.at(-1).display, display);
+    }
+    const climate = center.views.screen_up_icon_3;
+    assert.equal(climate.background, climate.stock);
+    assert.equal(h.tap(center, 'screen_up_icon_3'), 'oem');
+});
+
+test('assignment changes and OEM theme reload refresh icons and disabling restores stock', () => {
+    const h = harness(config({navbar01:action}));
+    const bar = h.bar(0), view = bar.views.screen_up_icon_1;
+    assert.equal(view.background.layer.icon.component, action.component);
+    h.theme(bar);
+    assert.equal(view.background.layer.icon.component, action.component);
+    const alternative = {kind:'LAUNCH_APP', component:'test.maps/.Maps'};
+    h.setConfig(config({navbar01:alternative}));
+    h.tick();
+    assert.equal(view.background.layer.icon.component, alternative.component);
+    const previousDraws = view.draws;
+    h.tick();
+    assert.equal(view.draws, previousDraws);
+    h.setConfig({schema:2,enabled:true,actions:{navbar01:alternative}});
+    h.tick();
+    assert.equal(view.background, view.stock);
+    h.setConfig(config({navbar01:alternative}));
+    h.tick();
+    assert.equal(view.background.layer.icon.component, alternative.component);
+    const token = 'a'.repeat(32);
+    h.setConfig({schema:1,enabled:false,restoreIcons:token});
+    h.tick();
+    assert.equal(view.background, view.stock);
+    assert.ok(h.logs.includes('OVC_PANEL_ICONS_RESTORED ' + token));
+    assert.equal(h.tap(bar, 'screen_up_icon_1'), 'oem');
+    h.release(bar);
+    h.setConfig(config({navbar01:alternative}));
+    h.tick();
+    assert.equal(view.background, view.stock);
+});
+
+test('unavailable or failed launches keep or restore the stock icon and action', () => {
+    const missing = harness(config({navbar01:action}), {missing:action.component, failLaunch:true});
+    const initial = missing.bar(0), first = initial.views.screen_up_icon_1;
+    assert.equal(first.background, first.stock);
+    assert.equal(missing.tap(initial, 'screen_up_icon_1'), 'oem');
+
+    const failing = harness(config({navbar01:action, navbar02:action}), {failLaunch:true});
+    const bar = failing.bar(0), navigation = bar.views.screen_up_icon_1;
+    assert.notEqual(navigation.background, navigation.stock);
+    assert.equal(failing.tap(bar, 'screen_up_icon_1'), 'oem');
+    assert.equal(navigation.background, navigation.stock);
+    assert.equal(bar.views.screen_up_icon_2.background.layer.icon.component, action.component);
+    assert.equal(failing.originalCalls, 1);
+});
+
+test('a launcher without the confirmed theme method still handles clicks', () => {
+    const h = harness(config({navbar01:action}), {noTheme:true});
+    const bar = h.bar(0);
+    assert.equal(bar.views.screen_up_icon_1.background, bar.views.screen_up_icon_1.stock);
+    h.tap(bar, 'screen_up_icon_1');
+    assert.equal(h.launched[0].intent.component, action.component);
+});
+
+test('selection follows the exact foreground component on its own display', () => {
+    const h = harness(config({ navbar14: action }));
+    const driver = h.bar(0);
+    const passenger = h.bar(1);
+    const player = passenger.views.screen_up_icon_3;
+    h.select(driver, 'com.example.player', 'com.example.player.Main');
+    assert.equal(driver.checked, -1);
+    h.select(passenger, 'com.example.player', 'com.example.player.Main');
+    assert.equal(passenger.checked, player.getId());
+    assert.equal(passenger.stockUpdates, 1);
+    assert.equal(player.background.layer.states.entries[0].ids[0], 16842912);
+    h.select(passenger, 'com.example.player', '.OtherActivity');
+    assert.equal(passenger.checked, -1);
+    h.select(passenger, 'com.example.player', '.Main');
+    assert.equal(passenger.checked, player.getId());
+    h.setConfig(config({}));
+    passenger.stockChecked = 30;
+    h.select(passenger, 'com.example.player', '.Main');
+    assert.equal(passenger.checked, 30);
+    assert.equal(passenger.stockUpdates, 4);
+});
+
+test('missing foreground selection callback preserves icon and tap support', () => {
+    const h = harness(config({ navbar02: action }), {noSelection:true});
+    const bar = h.bar(0);
+    assert.equal(bar.views.screen_up_icon_2.background.layer.icon.component, action.component);
+    h.tap(bar, 'screen_up_icon_2');
+    assert.equal(h.launched.length, 1);
+});
+
+test('every central app shortcut supplies the OEM panel width to the window agent', () => {
+    const component = 'org.example.navigator/.Main';
+    const action = {kind:'LAUNCH_APP',component};
+    const h = harness({schema:1,enabled:true,actions:{navbar01:action,navbar02:action,navbar12:action}});
+    const central = h.bar(0), passenger = h.bar(1);
+    central.mLp = {value:{width:{value:171}}};
+    passenger.mLp = {value:{width:{value:165}}};
+    h.tap(central, 'screen_up_icon_1');
+    h.tap(central, 'screen_up_icon_2');
+    h.tap(passenger, 'screen_up_icon_1');
+    assert.equal(h.launched[0].intent.extras['org.openvoyah.controls.extra.LEFT_PANEL_PX'], 171);
+    assert.equal(h.launched[1].intent.extras['org.openvoyah.controls.extra.LEFT_PANEL_PX'], 171);
+    assert.equal(h.launched[2].intent.extras, undefined);
 });

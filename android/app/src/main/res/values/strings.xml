@@ -1,4 +1,27 @@
 <resources>
     <string name="app_name">Open Voyah Controls</string>
     <string name="service_description">Reassigns selected hardware buttons and launches assigned apps. Does not read screen content. You can disable the service at any time.</string>
+    <string name="voice_model_repair_failed">Could not reset the offline voice model</string>
+    <string name="voice_audio_interrupted">Listening stopped because audio focus changed</string>
+    <string name="voice_audio_settings">Voice audio</string>
+    <string name="voice_duck_media">Lower media volume while listening</string>
+    <string name="voice_spoken_feedback">Read back commands using an installed offline voice</string>
+    <string name="voice_volume_examples">Choose a percentage from 0 to 100. You can say “%1$s”.</string>
+    <string name="settings_archive_title">Settings backup</string>
+    <string name="settings_archive_description">Save or restore button assignments, voice options and contacts, language, display and translations.</string>
+    <string name="settings_archive_export">Export app settings</string>
+    <string name="settings_archive_import">Import app settings</string>
+    <string name="settings_archive_scope">This file also restores voice settings, local contacts, interface language, display preferences and the localization dictionary.</string>
+    <string name="settings_archive_invalid">Invalid app settings file</string>
+    <string name="settings_archive_save_failed">Could not save app settings</string>
+    <string name="voice_listening_action">Listening…</string>
+    <string name="voice_options_title">Voice settings</string>
+    <string name="voice_no_commands">No commands match the search.</string>
+    <string name="voice_catalog_loading">Loading voice commands…</string>
+    <string name="voice_button_hint">Assign Voice assistant to a steering-wheel or launcher button. Press the button and say one command.</string>
+    <string name="voice_executing">Running command…</string>
+    <string name="voice_no_speech">No command heard</string>
+    <string name="voice_vehicle_sent">Command sent to the vehicle</string>
+    <string name="voice_requires_park">Shift to Park to use this command</string>
+    <string name="voice_refresh_bridge">Select Connect Frida to update the vehicle voice adapter</string>
 </resources>

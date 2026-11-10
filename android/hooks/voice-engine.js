@@ -2,6 +2,14 @@ import plans from './voice-plans.json';
 
 // Protocol names, not enum ordinals: the installed SDK supplies its own ABI.
 export function planFor(id, options = {}) {
+    if (['SetDriverTemperature', 'SetPassengerTemperature', 'SetFanSpeed'].includes(id)) {
+        const value = options.climateValue;
+        const fan = id === 'SetFanSpeed';
+        if (!Number.isInteger(value) || value < (fan ? 1 : 16) || value > (fan ? 8 : 30))
+            throw Error('Climate value is outside the supported range');
+        const property = fan ? 'AC_BLOWER' : id === 'SetDriverTemperature' ? 'AC_LEFT_TEMP' : 'AC_RIGHT_TEMP';
+        return [{bus: fan ? 'climate' : 'temperature', property, value, phase:'main', h97Climate:true}];
+    }
     if (id.endsWith('LevelDefault')) {
         const level=options.levels?.[id] ?? 2;
         if (![1,2,3].includes(level)) throw Error('Invalid default level');
@@ -55,12 +63,16 @@ export function planFor(id, options = {}) {
         }
         return result;
     }
-    const engine = {ElectroMode:2,FuelMode:3,HybridMode:3,IntellectMode:1,SaveMode:4,SaveModeWithSOC:4};
+    const engine = {ElectroMode:2,ForcedElectroMode:5,FuelMode:3,HybridMode:3,IntellectMode:1,SaveMode:4,SaveModeWithSOC:4};
     if (engine[id]) {
         if (!['FREE','FREE_REST','DREAMER'].includes(profile)) throw Error('Select a vehicle profile for energy mode');
         let value=engine[id];
-        if(profile==='DREAMER') value=id==='HybridMode'?1:id.startsWith('Save')?3:value;
-        const result=profile==='DREAMER'?[op('FORCE_EV_MODE_SET',0)]:[];
+        if (profile === 'DREAMER') {
+            if (id === 'HybridMode') value = 1;
+            if (id.startsWith('Save')) value = 3;
+            if (id === 'ForcedElectroMode') value = 2;
+        }
+        const result = profile === 'DREAMER' ? [op('FORCE_EV_MODE_SET', id === 'ForcedElectroMode' ? 1 : 0)] : [];
         result.push(op('IVI_SOC_MODESET',value));
         if(id==='SaveModeWithSOC') {
             const names=['двадцать пять','тридцать','тридцать пять','сорок','сорок пять','пятьдесят','пятьдесят пять','шестьдесят','шестьдесят пять','семьдесят','семьдесят пять','восемьдесят'];

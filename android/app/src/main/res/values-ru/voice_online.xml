@@ -1,0 +1,13 @@
+<resources>
+    <string name="voice_online_title">Распознавание команд по смыслу</string>
+    <string name="voice_online_switch">Использовать OpenRouter для фраз вне каталога</string>
+    <string name="voice_online_explain">OpenRouter получает текст уверенно распознанной фразы. Бесплатная модель может изменить громкость на один шаг или перезапустить назначенное приложение музыки или навигации.</string>
+    <string name="voice_online_key">Ключ API OpenRouter</string>
+    <string name="voice_online_key_saved">Оставьте пустым, чтобы сохранить текущий ключ</string>
+    <string name="voice_online_key_invalid">Введите действительный ключ API OpenRouter.</string>
+    <string name="voice_online_save_failed">Не удалось сохранить настройки OpenRouter.</string>
+    <string name="voice_online_checking">Уточняю команду…</string>
+    <string name="voice_online_unavailable">Сетевое распознавание команд недоступно.</string>
+    <string name="voice_restart_assignment">Сначала назначьте приложение музыки или навигации в настройках голоса.</string>
+    <string name="voice_restarted">Приложение перезапущено.</string>
+</resources>

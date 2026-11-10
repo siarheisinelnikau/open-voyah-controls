@@ -13,10 +13,14 @@ public class FirmwareTest {
     @Test public void bothLanguagesHaveIdenticalCommandCoverageAndExactMatching() throws Exception {
         VoiceCatalog ru = new VoiceCatalog(getClass().getResourceAsStream("/voice-catalog.tsv"));
         VoiceCatalog en = new VoiceCatalog(getClass().getResourceAsStream("/voice-catalog-en.tsv"));
-        assertEquals(129,en.all().size());
+        assertEquals(134,en.all().size());
+        assertEquals(ru.all().size(), en.all().size());
         for (var c : ru.all()) assertNotNull(en.byId(c.id()));
         for (var c : en.all()) for (String phrase : c.phrases()) assertEquals(c,en.match(phrase));
         assertNull(en.match("do not open trunk"));
+        assertEquals("VolumeUp", en.match("make it louder").id());
+        assertEquals("VolumeUp", ru.match("сделай громче").id());
+        assertEquals("RestartNavigator", ru.match("перезапусти навигатор").id());
         assertEquals("DriverB",en.match("driver b").id());
     }
     @Test public void englishStopNeverExecutes() throws Exception {

@@ -1,0 +1,15 @@
+<resources>
+    <string name="apps_subtitle">Tap to open. Use the settings icon or touch and hold for app settings.</string>
+    <string name="app_settings_title">App settings</string>
+    <string name="app_settings_for">Settings for %1$s</string>
+    <string name="apps_managed">Installed here</string>
+    <string name="apps_empty">No apps match your search.</string>
+    <string name="apps_loading">Loading apps…</string>
+    <string name="apps_load_failed">The app list could not be loaded.</string>
+    <string name="apps_permissions">Permissions</string>
+    <string name="apps_permission_unavailable">The permission change could not be verified. Open Android app info or check the local root connection.</string>
+    <string name="apps_permission_stock">Manage this app in Android app info.</string>
+    <string name="apps_permission_empty">This app requests no supported runtime permissions.</string>
+    <string name="apps_permission_persisted">Android remembers these choices for this installation.</string>
+    <string name="apps_app_info">Android app info</string>
+</resources>
