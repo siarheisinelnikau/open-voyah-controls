@@ -1,5 +1,6 @@
 <resources>
     <string name="vehicle_settings_title">Настройки автомобиля</string>
+    <string name="vehicle_settings_tile_summary">Вождение, салон и мультимедиа</string>
     <string name="vehicle_settings_description">Штатные настройки вождения, комфорта и мультимедиа.</string>
     <string name="vehicle_assistance_title">Ассистенты вождения</string>
     <string name="vehicle_assistance_description">Ищите раздел ассистентов, интеллектуального вождения или Apollo в штатном меню автомобиля. Доступность зависит от модели и прошивки. Включение выполняется штатными органами управления.</string>
