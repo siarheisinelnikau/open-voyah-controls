@@ -39,6 +39,16 @@ public final class VoiceSettingsTest extends AndroidTestCase {
         store.importJson("{\"schema\":1,\"values\":{\"profile\":\"DREAMER\"}}");
         store.restore();assertEquals("FREE",store.profile());
     }
+    public void testOneWindowOptionsSaveRestoresBothPreviousValues() throws Exception {
+        store.importJson("{\"schema\":1,\"values\":{\"doubleSmoke\":\"false\",\"doubleVentilation\":\"false\",\"language\":\"en\"}}");
+        store.windowOptions(true, true);
+        assertTrue(store.option("doubleSmoke"));
+        assertTrue(store.option("doubleVentilation"));
+        store.restore();
+        assertFalse(store.option("doubleSmoke"));
+        assertFalse(store.option("doubleVentilation"));
+        assertEquals("en", store.language());
+    }
     public void testFailedFirstConnectionRetainsDesiredStateAndSchedulesRecovery() throws Exception {
         var prefs=getContext().getSharedPreferences("bridge",0);boolean old=prefs.getBoolean("configured",false);
         try {

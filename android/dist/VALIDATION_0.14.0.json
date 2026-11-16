@@ -1,0 +1,94 @@
+{
+  "version": "0.14.0",
+  "installer_version": "0.3.0",
+  "date": "2026-11-10",
+  "apk": "OpenVoyahControls-v0.14.0-debug.apk",
+  "size": 158733106,
+  "sha256": "47f3d98a9567a33c11a98907a93f8c3ac57bbb7ad4133d9ec1fea2eae999e02c",
+  "min_sdk": 28,
+  "signing": "debug",
+  "emulator_fixture_transport": false,
+  "production_ready": false,
+  "vehicle_tested": false,
+  "artifacts": {
+    "OpenVoyahControls-v0.14.0-debug.apk": {
+      "size": 158733106,
+      "sha256": "47f3d98a9567a33c11a98907a93f8c3ac57bbb7ad4133d9ec1fea2eae999e02c"
+    },
+    "OpenVoyahControlsInstaller-v0.3.0.exe": {
+      "size": 3704832,
+      "sha256": "318f6045a1215f383cbc86c0e7278c99d80f1103e36d771210306b075549f332"
+    },
+    "OpenVoyahControlsInstaller-v0.3.0-portable-development.zip": {
+      "size": 64923797,
+      "sha256": "11bf9bbd253bc8853af4f0432da3c7c5c4e56928a5308caf224b13029811652f"
+    }
+  },
+  "runtime": {
+    "version": "17.26.2",
+    "url": "https://github.com/frida/frida/releases/download/17.26.2/frida-inject-17.26.2-android-arm64.xz",
+    "archive_sha256": "97aac7e5bbf4a90156b9c89bb3bc9cefb7e837676f1047270cce34d9e4c97b0f",
+    "file": "open-voyah-controls-frida-17.26.2",
+    "binary_sha256": "b58f44918fc27843484fc62502b3d2c90ea686a85ed484bed062b23482cd1733",
+    "size": 84634560
+  },
+  "tests": {
+    "jvm": 28,
+    "node": 78,
+    "windows_rust": 10,
+    "access_login_shell": 4,
+    "boot_and_pc_recovery_shell": 15,
+    "supervisor_shell": 6,
+    "cluster_transaction_shell": 8,
+    "android_api_30_selected": 29,
+    "android_api_33_selected": 28,
+    "android_api_28": "Not rerun for this change"
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 46
+  },
+  "verification_levels": {
+    "code": "Direct entry points, protocol validation, adapter policies and supported branches inspected; no model-wide vehicle compatibility inferred.",
+    "bench": "Local process fixtures, Windows native application, disposable x86_64 Android 11 and 13 emulators with SELinux Enforcing.",
+    "vehicle": "Not performed. No OEM boot partition, physical button, actuator, ARM64 injection or sleep/wake result is certified."
+  },
+  "root_channel_checks": [
+    "Executed the installer access-generation shell twice on both emulators, with only the root-owned BusyBox location substituted for the test binary.",
+    "App UID authenticated to the actual loopback Telnet service and executed id -u as root without su.",
+    "Verified UTF-8 and mixed-case data, twelve consecutive 32 KB single-line heredocs, rejection of a wrong key and successful subsequent authentication.",
+    "Verified idempotent listener start, refusal to replace a foreign listener, kernel lock recovery after a killed holder, and verified stop/restart.",
+    "First-run acknowledgment reported unreviewed firmware, microphone permission present and Accessibility connected; it did not report vehicle readiness.",
+    "Ran the official Frida 17.26.2 x86_64 injector and the pinned Java bridge only in the Controls process on API 30 and 33 under Enforcing. Verified the official ARM64 archive and binary hashes separately."
+  ],
+  "user_flow_checks": [
+    "Opened voice directly from Quick access, exercised RECORD_AUDIO denial and grant, suppressed duplicate opening callbacks, and returned to the previous app after a later press on API 33.",
+    "Loaded both bundled offline voice models with native Vosk in selected instrumented tests.",
+    "On API 30, granted unknown-source access, selected a local single APK, confirmed native installation, saw its verified receipt and opened it from Installed apps.",
+    "Selected that installed app in a saved F9 tap assignment and launched it from Android Settings through the virtual hardware keyboard and Accessibility.",
+    "Cancelled the native confirmation for a local APK update; the app reported cancellation and retained the installed package.",
+    "Rendered the current Quick access, Settings, first-run result, Windows Installation and Windows Releases and logs screens; inspected actual captures."
+  ],
+  "windows": {
+    "build": "Optimized unsigned development build, no production Android certificate pin",
+    "portable": "Includes matching SDK tools, compact Java runtime, current support scripts and the pinned ARM64 injector.",
+    "portable_verifier": "Bundled Java and apksigner verified the current APK v2 signature.",
+    "archive_integrity": "ZIP CRC check passed.",
+    "rendering": "GDI and native controls with a blocking message loop; 24-second bounded diagnostic with 12 samples. Settled visible and hidden windows recorded zero paints.",
+    "cpu_one_core_percent_mean": 0.141,
+    "cpu_one_core_percent_max": 1.553,
+    "cpu_samples": 22
+  },
+  "limits": [
+    "Prepare and install still requires OEM ADB root, a root-owned BusyBox with standalone loopback Telnet and flock, an existing root-run logcat init entry, and a writable system mount. These prerequisites were not established on a vehicle.",
+    "The Windows full preparation workflow was checked through mocks and its actual access-generation shell, not a production ARM64 device with an OEM system partition.",
+    "The development kit does not bypass production APK signing, certificate pinning or exact-firmware review. The shipped reviewed catalogs remain empty.",
+    "Cold OEM boot, sleep/wake, real microphone acoustics, OEM process restarts and physical actions require separate device checks.",
+    "API 28 must be rerun, followed by a signed release first-run check. The final APK hash was confirmed on the API 33 emulator before tests.",
+    "The API 30 stock file picker did not respond to file-row touch input in this emulator. Keyboard navigation selected the file successfully. Do not infer that vehicle file-picker touch is verified.",
+    "Injected adb input keyevent did not exercise the Accessibility assignment in this emulator. A Linux input event on its virtual hardware keyboard did launch the assigned app.",
+    "Passenger display policy, OEM freeform behavior, split/APKS handling and low-storage/model-extraction failure are not certified by the single-APK UI check.",
+    "Additional CAN camera/star/media routes, dedicated overseas navbar and login adapters, and separate Rest/Mi/BY qualification remain outstanding. Guest profiles remain unavailable for Dreamer Rest variants.",
+    "No application catalog, download catalog or store was added in this change."
+  ]
+}

@@ -12,12 +12,9 @@ captures/
 node_modules/
 dist/runtime/
 dist/CLUSTER_PACKS.json
-app/src/main/assets/hooks/launcher-buttons.bundle.js
+app/src/main/assets/hooks/*.bundle.js
 app/src/main/assets/speech-model-ru/
 dist/*.zip
 dist/*.part
 
 app/src/main/assets/speech-model-en/
-app/src/main/assets/hooks/localization.bundle.js
-app/src/main/assets/hooks/window.bundle.js
-app/src/main/assets/hooks/navigation.bundle.js

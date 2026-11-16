@@ -1,3 +1,9 @@
 <resources>
-    <string name="oem_steering_scope">Настройка кнопок голоса и пользовательского действия доступна с совместимым обработчиком руля. Круговой обзор сохраняет штатное действие.</string>
+    <string name="oem_steering_scope">Кнопки голоса, звезды и камеры требуют совместимого профиля автомобиля. Если профиль читает начало и конец нажатия, назначьте и короткое нажатие, и удержание; иначе кнопка целиком остаётся штатной. Сбой после перехвата не вызывает повторной команды.</string>
+    <string name="oem_camera">Камера</string>
+    <string name="panel_main_home">Домой · центральный экран</string>
+    <string name="panel_main_apps">Все приложения · центральный экран</string>
+    <string name="panel_passenger_home">Домой · пассажир</string>
+    <string name="panel_passenger_apps">Все приложения · пассажир</string>
+    <string name="panel_passenger_seat">Сиденье · пассажир</string>
 </resources>

@@ -1,0 +1,10 @@
+<resources>
+    <string name="voice_microphone_ready">Microphone access is allowed.</string>
+    <string name="voice_microphone_needed">Allow microphone access to use voice commands.</string>
+    <string name="voice_microphone_settings_needed">Microphone access is blocked. Allow it in Android app settings.</string>
+    <string name="voice_microphone_allow">Allow microphone</string>
+    <string name="voice_microphone_open_settings">Open app settings</string>
+    <string name="voice_microphone_waiting">Waiting for Android permission…</string>
+    <string name="voice_microphone_unavailable">Android microphone permission could not be opened.</string>
+    <string name="quick_voice_microphone_settings">Microphone settings</string>
+</resources>

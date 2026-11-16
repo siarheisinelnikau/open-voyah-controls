@@ -10,8 +10,8 @@
     <string name="translation_import">Импортировать словарь JSON</string>
     <string name="translation_export">Экспортировать словарь JSON</string>
     <string name="translation_restore">Вернуть предыдущий словарь</string>
-    <string name="profile_restore">Восстановить исходный OEM-аккаунт</string>
-    <string name="profile_restore_info">Будет восстановлен аккаунт, сохранённый перед первым переключением A/B/C. Штатная система может применить положения сидений и зеркал.</string>
+    <string name="profile_restore">Восстановить запись аккаунта</string>
+    <string name="profile_restore_info">Восстанавливает запись аккаунта, сохранённую перед первым переключением гостевого профиля. Остальные настройки автомобиля в эту копию не входят. Штатная система может применить положения сидений и зеркал.</string>
     <string name="translation_saved">Сохранено. Подключите Frida на главном экране.</string>
     <string name="translation_applied">Настройки переданы. Откройте штатные экраны заново. Состояние hooks доступно в диагностике Frida.</string>
     <string name="unknown_command">Команда не распознана. Повторите или выберите её из списка.</string>

@@ -1,0 +1,6 @@
+<resources>
+    <string name="frida_local_unavailable">Нет локального доступа к устройству. Проверьте состояние подключения. Если проблема сохраняется, используйте «Prepare and install» в Windows-установщике.</string>
+    <string name="frida_local_timeout">Время ожидания локального подключения истекло. Проверьте состояние подключения перед повторным подключением.</string>
+    <string name="frida_local_interrupted">Локальное подключение прервалось до завершения операции. Проверьте его состояние перед повторным подключением.</string>
+    <string name="frida_operation_failed">Не удалось завершить операцию. Проверьте состояние подключения.</string>
+</resources>

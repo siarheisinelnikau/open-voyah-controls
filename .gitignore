@@ -1,0 +1,23 @@
+# Local caches and private signing material are never source artifacts.
+**/__pycache__/
+*.py[cod]
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Local development guidance and tool workspaces.
+.agents/
+.codex/
+.claude/
+.cursor/
+.gemini/
+.aider*
+AGENTS.md
+AGENTS.override.md
+SKILL.md
+CLAUDE.md
+GEMINI.md
+.github/copilot-instructions.md
+.github/instructions/
+.github/prompts/

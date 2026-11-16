@@ -1,7 +1,7 @@
 <resources>
     <string name="panel_restore_unconfirmed">Подключение закрыто. Откройте лаунчер заново, если на панели остались заменённые значки.</string>
     <string name="quick_voice_title">Голосовой помощник</string>
-    <string name="quick_mic_denied">Разрешите доступ к микрофону для голосовой кнопки.</string>
+    <string name="quick_mic_denied">Доступ к микрофону отключён. Разрешите его в настройках микрофона.</string>
     <string name="weather_offline">Прогноз погоды недоступен без сети.</string>
     <string name="installed_apps">Установленные приложения</string>
     <string name="open_app">Открыть</string>

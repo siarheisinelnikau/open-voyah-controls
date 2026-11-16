@@ -26,7 +26,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.AlertDialog
+import org.openvoyah.controls.presentation.theme.CockpitAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -178,10 +178,12 @@ internal fun AppsScreen(
 private fun AppTile(app: LocalApp, open: () -> Unit, settings: () -> Unit, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.large
-    Surface(modifier = modifier, shape = shape, color = colors.surface, border = BorderStroke(1.dp, colors.outlineVariant)) {
+    val press = org.openvoyah.controls.presentation.theme.rememberPressMotion()
+    Surface(modifier = modifier.then(press.modifier), shape = shape, color = press.color, border = BorderStroke(1.dp, colors.outlineVariant)) {
         Row(Modifier.fillMaxWidth().clip(shape), verticalAlignment = Alignment.CenterVertically) {
             Row(
                 Modifier.weight(1f).heightIn(min = 84.dp).combinedClickable(
+                    interactionSource = press.source, indication = androidx.compose.foundation.LocalIndication.current,
                     role = Role.Button, onClick = open, onLongClick = settings, onLongClickLabel = text(R.string.app_settings_title),
                 ).padding(start = 13.dp, top = 12.dp, bottom = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(13.dp), verticalAlignment = Alignment.CenterVertically,

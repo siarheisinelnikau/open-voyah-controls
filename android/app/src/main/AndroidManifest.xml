@@ -11,6 +11,8 @@
         <package android:name="com.qinggan.app.vehicle" />
         <package android:name="com.qinggan.bluetoothphone" />
         <package android:name="com.qinggan.cluster" />
+        <package android:name="com.qinggan.canbus.service" />
+        <package android:name="com.qinggan.app.login" />
         <package android:name="android" />
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
         <intent>
@@ -40,7 +42,16 @@
         <activity android:name=".FirmwareActivity" android:exported="false" android:label="@string/firmware_settings" />
         <activity android:name=".VehicleSettingsActivity" android:exported="false" android:label="@string/vehicle_settings_title" />
         <activity android:name=".AppsActivity" android:exported="false" android:label="@string/installed_apps" />
+        <activity android:name=".UpdatesActivity" android:exported="false" android:label="@string/updates_title" />
+        <receiver android:name=".platform.updates.UpdateInstallResultReceiver" android:exported="false" />
+        <receiver android:name=".platform.updates.UpdatePackageReplacedReceiver" android:exported="false">
+            <intent-filter><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter>
+        </receiver>
+        <service android:name=".platform.updates.UpdateRecoveryJobService" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <receiver android:name=".platform.apps.ApkInstallResultReceiver" android:exported="false" />
+        <activity android:name=".SetupActivity" android:exported="true" android:excludeFromRecents="true" android:launchMode="singleTop"
+            android:permission="android.permission.WRITE_SECURE_SETTINGS" />
         <activity android:name=".DisplayActivity" android:exported="false" android:label="@string/virtual_display" />
         <activity android:name=".ClusterActivity" android:exported="false" android:label="@string/cluster_title" />
         <receiver android:name=".BootReceiver" android:exported="false">

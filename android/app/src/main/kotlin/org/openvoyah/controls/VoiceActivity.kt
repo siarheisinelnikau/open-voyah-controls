@@ -1,5 +1,6 @@
 package org.openvoyah.controls
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -7,6 +8,7 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -31,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +47,7 @@ import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.data.settings.VoiceSettingsDocuments
 import org.openvoyah.controls.data.voice.CloudVoiceSettings
 import org.openvoyah.controls.platform.voice.OfflineVoiceInput
+import org.openvoyah.controls.platform.voice.MicrophonePermission
 import org.openvoyah.controls.presentation.voice.OnlineVoiceDialog
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAppPicker
@@ -55,6 +59,7 @@ import org.openvoyah.controls.presentation.theme.ControlsTheme
 import org.openvoyah.controls.presentation.voice.VoiceAudioDialog
 import org.openvoyah.controls.presentation.voice.VoiceOption
 import org.openvoyah.controls.presentation.voice.VoiceSettingsScreen
+import org.openvoyah.controls.presentation.voice.VoiceMicrophoneViewModel
 
 /** Configuration and command catalog. The guarded popup owns recording and dispatch. */
 class VoiceActivity : ComponentActivity() {
@@ -72,6 +77,12 @@ class VoiceActivity : ComponentActivity() {
     private var onlineFailed by mutableStateOf(false)
     private var settingsBusy = false
     private val dialogs = CockpitDialogs(this)
+    private val microphone by viewModels<VoiceMicrophoneViewModel>()
+    private val microphonePermission by lazy { MicrophonePermission(applicationContext) }
+
+    private val requestMicrophone = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        refreshMicrophone(requestFinished = true)
+    }
 
     private val saveVoice = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let { file -> transfer(file, false) }
@@ -87,6 +98,32 @@ class VoiceActivity : ComponentActivity() {
         documents = VoiceSettingsDocuments(contentResolver, settings)
         setContent { ControlsTheme { Content() } }
         lifecycleScope.launch { loadScreen() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshMicrophone()
+    }
+
+    private fun refreshMicrophone(requestFinished: Boolean = false) {
+        microphone.refresh(microphonePermission.granted(), microphonePermission.requested(),
+            shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO), requestFinished)
+    }
+
+    private fun recoverMicrophone() {
+        when (microphone.state.value.access) {
+            VoiceMicrophoneViewModel.Access.ALLOWED -> Unit
+            VoiceMicrophoneViewModel.Access.SETTINGS -> systemAction { startActivity(microphonePermission.settingsIntent()) }
+            VoiceMicrophoneViewModel.Access.REQUESTABLE -> if (microphone.beginRequest()) {
+                try {
+                    microphonePermission.recordRequest()
+                    requestMicrophone.launch(Manifest.permission.RECORD_AUDIO)
+                } catch (_: RuntimeException) {
+                    refreshMicrophone(requestFinished = true)
+                    showError(text(R.string.voice_microphone_unavailable))
+                }
+            }
+        }
     }
 
     private suspend fun loadScreen() {
@@ -125,8 +162,9 @@ class VoiceActivity : ComponentActivity() {
             return
         }
 
+        val microphoneState by microphone.state.collectAsStateWithLifecycle()
         VoiceSettingsScreen(config.catalog, config.language, config.vehicleCommandsReviewed, assigned, status,
-            ::showCommand, ::showOption, ::finish)
+            microphoneState, ::recoverMicrophone, ::showCommand, ::showOption, ::finish)
         if (onlineDialog) {
             OnlineVoiceDialog(onlineConfigured, onlineSaving, onlineFailed, { onlineDialog = false }, ::saveOnline)
         }
@@ -141,6 +179,8 @@ class VoiceActivity : ComponentActivity() {
     private fun showOption(option: VoiceOption) {
         if (settingsBusy) return
         when (option) {
+            VoiceOption.TRY_VOICE -> if (microphonePermission.granted()) startActivity(QuickVoiceActivity.intent(this))
+                else recoverMicrophone()
             VoiceOption.LANGUAGE -> choose(R.string.voice_language, arrayOf("Русский", "English")) {
                 changeSettings { settings.language(if (it == 0) "ru" else "en") }
             }
@@ -197,8 +237,7 @@ class VoiceActivity : ComponentActivity() {
                     val values = smokeDraft to ventilationDraft
                     close()
                     changeSettings(reload = false) {
-                        settings.option("doubleSmoke", values.first)
-                        settings.option("doubleVentilation", values.second)
+                        settings.windowOptions(values.first, values.second)
                     }
                 }, primary = true)
             }) {

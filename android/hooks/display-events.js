@@ -26,17 +26,26 @@ export function installClusterMedia(Java) {
             const resolver = App.getContentResolver();
             const key = APP + '.clusterMedia';
             let hasPublished = false;
-            let previous = String(Global.getString(resolver, key) || '');
+            let published = '', discarded = '';
             setInterval(() => Java.perform(() => {
                 const raw = String(Global.getString(resolver, key) || '');
-                if (!raw || raw === previous) return;
-                previous = raw;
+                if (!raw || raw === published || raw === discarded) return;
+                let snapshot;
+                try { snapshot = raw.length <= 4096 ? JSON.parse(raw) : null; }
+                catch (error) {
+                    discarded = raw;
+                    console.log('OVC_CLUSTER_MEDIA_ERROR ' + error.name);
+                    return;
+                }
+                const {title, artist, album, playing, expires} = snapshot ?? {};
+                const now = Date.now();
+                if (!Number.isFinite(expires) || expires <= now || expires > now + 6000
+                        || ![title, artist, album].every(text => typeof text === 'string' && text.length <= 240)
+                        || typeof playing !== 'boolean' || (!title && !hasPublished)) {
+                    discarded = raw;
+                    return;
+                }
                 try {
-                    if (raw.length > 4096) return;
-                    const {title, artist, album, playing, expires} = JSON.parse(raw);
-                    if (!Number.isFinite(expires) || expires < Date.now() || expires > Date.now() + 6000
-                            || ![title, artist, album].every(text => typeof text === 'string' && text.length <= 240)
-                            || typeof playing !== 'boolean' || (!title && !hasPublished)) return;
                     const cluster = Manager.getInstance(App, null);
                     if (!cluster || !cluster.getClusterConnect()) return;
                     const info = Info.$new(Source.Other.value);
@@ -45,8 +54,15 @@ export function installClusterMedia(Java) {
                     info.setSongName(title);
                     info.setArtist(artist);
                     info.setAlbumName(album);
+                    const dispatchTime = Date.now();
+                    if (expires <= dispatchTime || expires > dispatchTime + 6000) {
+                        discarded = raw;
+                        return;
+                    }
                     cluster.updateMediaSrcInfo(info);
                     hasPublished = Boolean(title);
+                    // Retry a transient failure only while this snapshot is still valid.
+                    published = raw;
                 } catch (error) { console.log('OVC_CLUSTER_MEDIA_ERROR ' + error.name); }
             }), 1000);
             console.log('OVC_CLUSTER_READY');

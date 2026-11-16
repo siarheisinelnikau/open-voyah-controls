@@ -46,6 +46,7 @@ test('Android 9 and 11 install distinct window adapters and leave unrelated laun
 function steeringHarness(options = {}) {
     const press = {kind:'START_VOICE'}, long = {kind:'SYSTEM_SETTINGS'};
     const config = {schema:1, steeringEnabled:true, steering:{voiceShort:press, voiceLong:long, cameraShort:press}};
+    if (options.source) config.steeringSource = options.source;
     let original = 0, launches = 0;
     const logs = [];
     const method = className => ({overload:() => ({returnType:{className}})});
@@ -57,18 +58,19 @@ function steeringHarness(options = {}) {
         'KEYCODE_IVOKA', 'KEYCODE_SWC_USER_DEFINE', 'KEYCODE_SWC_AVM', 'KEYACTION_SHORT', 'KEYACTION_LONG'
     ].map((name, i) => [name, {value:i + 1}]));
     Object.assign(Event, {getKeyCode:method('int'), getAction:method('int'), isCanceled:method('boolean'),
-        getDownTime:method('long')});
+        getDownTime:method('long'), class:{getClassLoader:()=>({})}});
     if (options.collision) Event.KEYCODE_SWC_AVM.value = Event.KEYCODE_IVOKA.value;
     const Java = {perform: fn => fn(), use(name) {
         return {
             'android.os.Build$VERSION':{SDK_INT:{value:options.sdk ?? 30}},
+            'java.lang.Class':{forName(_name, initialize) { assert.equal(initialize,true); }},
             'android.app.ActivityThread':{currentApplication:()=>({getContentResolver:()=>({})})},
             'android.provider.Settings$Global':{getString:()=>JSON.stringify(config)},
             'com.qinggan.system.QGKeyEvent':Event,
             'com.qinggan.system.KeyManager$5':{onEvent:{overload:()=>callbacks[0]},onKeyEvent:{overload:()=>callbacks[1]}}
         }[name];
     }};
-    vm.runInNewContext(source('steering-android11.js') + '\ninstallSteering(Java);', {
+    vm.runInNewContext(source('java-types.js', 'steering-android11.js') + '\ninstallSteering(Java);', {
         Java, console:{log(line) { logs.push(line); }},
         createActionLauncher:() => () => { launches++; if (options.fail) throw Error('Unavailable'); return true; }
     });
@@ -95,8 +97,9 @@ test('OEM steering consumes one successful gesture and keeps the original on fai
     assert.equal(h.original, 3);
 });
 
-test('OEM steering leaves camera, ambiguous time and a newly assigned duplicate native', () => {
+test('OEM steering leaves unassigned camera, ambiguous time and a newly assigned duplicate native', () => {
     const h = steeringHarness(), [first, second] = h.callbacks;
+    delete h.config.steering.cameraShort;
     assert.equal(first.implementation(h.event(100, 4, 3)), false);
     assert.equal(first.implementation(h.event(0, 4)), false);
     assert.equal(first.implementation(h.event(200, 4, 1, true)), false);
@@ -110,9 +113,31 @@ test('OEM steering leaves camera, ambiguous time and a newly assigned duplicate 
 });
 
 test('OEM steering signature and key collisions leave both callbacks unmodified', () => {
-    for (const options of [{sdk:28}, {wrongReturn:true}, {collision:true}]) {
+    for (const options of [{sdk:29}, {wrongReturn:true}, {collision:true}]) {
         const h = steeringHarness(options);
         assert.ok(h.logs.some(line => line.startsWith('OVC_STEERING_UNSUPPORTED')));
         assert.ok(h.callbacks.every(callback => !callback.implementation));
+    }
+});
+
+test('camera and custom gestures use named OEM codes on both supported SDKs', () => {
+    for (const sdk of [28, 30]) {
+        const h = steeringHarness({sdk}), [first, second] = h.callbacks;
+        h.config.steering.customLong = {kind:'SYSTEM_SETTINGS'};
+        assert.equal(first.implementation(h.event(100, 4, 3)), true);
+        assert.equal(second.implementation(h.event(100, 4, 3)), true);
+        assert.equal(first.implementation(h.event(200, 5, 2)), true);
+        assert.equal(h.launches, 2);
+        assert.equal(first.implementation(h.event(300, 5, 3)), false);
+        assert.equal(h.original, 1);
+        assert.ok(h.logs.some(line => line.startsWith('OVC_STEERING_READY protocol=2 ')));
+    }
+});
+
+test('a delegated CAN route installs no competing QG consumer', () => {
+    for (const source of ['can-terminal', 'can-edges']) {
+        const h = steeringHarness({source});
+        assert.ok(h.callbacks.every(callback => !callback.implementation));
+        assert.ok(h.logs.some(line => line.includes('delegated=can')));
     }
 });

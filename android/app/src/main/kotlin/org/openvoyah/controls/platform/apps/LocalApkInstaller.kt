@@ -11,17 +11,23 @@ import androidx.core.content.IntentCompat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
-import java.security.MessageDigest
 import java.util.UUID
 
 /** Stages a single APK in a session owned by Controls. Android presents and enforces confirmation. */
-internal class LocalApkInstaller(context: Context) {
+internal class LocalApkInstaller(
+    context: Context,
+    private val stager: LocalApkStager = LocalApkStager(context),
+    private val sessions: LocalApkSessions = AndroidLocalApkSessions(context),
+) {
     data class Approval(val sessionId: Int, val intent: Intent)
 
     data class State(
@@ -38,14 +44,33 @@ internal class LocalApkInstaller(context: Context) {
         val bytes: Long,
         val digest: String?,
         val completedPackage: String?,
+        val packageName: String?,
     )
 
     private val context = context.applicationContext
-    private val packageInstaller get() = context.packageManager.packageInstaller
     private val preferences = this.context.getSharedPreferences("apk_install_session", Context.MODE_PRIVATE)
     val state = progress.asStateFlow()
 
     suspend fun recover() = withContext(Dispatchers.IO) {
+        try { staging.withLock {
+            stager.cleanupInterrupted()
+            if (preferences.contains("creating_package")) {
+                val recovered = discardCreation()
+                synchronized(lock) {
+                    if (recovered) update(State(message = R.string.apk_install_ended))
+                    else update(State(message = R.string.apps_install_discard_failed, interrupted = true))
+                }
+                return@withContext
+            }
+        } }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) {
+            synchronized(lock) {
+                update(progress.value.copy(message = R.string.apps_install_cleanup_failed,
+                    interrupted = progress.value.interrupted || active() != null || preferences.contains("creating_package")))
+            }
+            return@withContext
+        }
         val pending = synchronized(lock) {
             val current = active() ?: return@withContext
             if (current.completedPackage == null) {
@@ -59,7 +84,7 @@ internal class LocalApkInstaller(context: Context) {
         }
         try {
             val verified = try {
-                pending.bytes in 1..MAX_APK_BYTES && pending.digest != null &&
+                pending.bytes in 1..LocalApkStager.MAX_APK_BYTES && pending.digest != null &&
                     AppInstallProvenance(context).recordSuccessfulSession(
                         requireNotNull(pending.completedPackage), pending.bytes, pending.digest,
                     )
@@ -77,61 +102,72 @@ internal class LocalApkInstaller(context: Context) {
     }
 
     suspend fun stage(uri: Uri) = withContext(Dispatchers.IO) {
-        synchronized(lock) {
-            if (progress.value.busy || active() != null) return@withContext
-            update(State(message = R.string.apps_install_preparing, busy = true))
-        }
-        var sessionId: Int? = null
-        var commitAttempted = false
-        try {
-            check(uri.scheme == "content" && context.packageManager.canRequestPackageInstalls())
-            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
-                if (Build.VERSION.SDK_INT >= 31) setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
-            }
-            val id = packageInstaller.createSession(params)
-            sessionId = id
-            val token = UUID.randomUUID().toString()
+        staging.withLock {
             synchronized(lock) {
-                check(preferences.edit().putInt("session", id).putString("token", token).commit())
+                if (progress.value.busy || active() != null) return@withContext
+                if (preferences.contains("creating_package")) { showInterrupted(); return@withContext }
+                update(State(message = R.string.apps_install_preparing, busy = true))
             }
-            packageInstaller.openSession(id).use { session ->
-                val digest = MessageDigest.getInstance("SHA-256")
-                var length = 0L
-                val input = checkNotNull(context.contentResolver.openInputStream(uri))
-                input.use {
-                    session.openWrite("base.apk", 0, -1).use { output ->
-                        val buffer = ByteArray(128 * 1024)
-                        while (true) {
-                            ensureActive()
-                            val count = input.read(buffer)
-                            if (count == -1) break
-                            length += count
-                            check(length <= MAX_APK_BYTES)
-                            digest.update(buffer, 0, count)
-                            output.write(buffer, 0, count)
-                        }
-                        check(length > 0)
+            var sessionId: Int? = null
+            var staged: StagedLocalApk? = null
+            var commitAttempted = false
+            try {
+                if (uri.scheme != "content") throw LocalApkStagingFailure(LocalApkRefusal.INVALID_APK)
+                check(sessions.canInstall())
+                stager.cleanupInterrupted()
+                val inspected = stager.stage(uri)
+                staged = inspected
+                ensureActive()
+                val token = UUID.randomUUID().toString()
+                synchronized(lock) {
+                    // This foreign target is durable before Android can allocate a session. No
+                    // commit can occur until the creation marker is replaced by the returned ID.
+                    check(preferences.edit().putString("creating_package", inspected.packageName)
+                        .putString("token", token).commit())
+                }
+                val id = sessions.create(inspected.packageName, inspected.bytes)
+                sessionId = id
+                synchronized(lock) {
+                    check(preferences.edit().putInt("session", id).putString("package", inspected.packageName)
+                        .remove("creating_package").commit())
+                }
+                sessions.open(id).use { session ->
+                    session.openWrite(inspected.bytes).use { output ->
+                        stager.copy(inspected, output)
                         session.fsync(output)
                     }
+                    ensureActive()
+                    val result = Intent(context, ApkInstallResultReceiver::class.java)
+                        .setAction(RESULT_ACTION).setData(Uri.fromParts(RESULT_SCHEME, token, null))
+                    val flags = PendingIntent.FLAG_CANCEL_CURRENT or if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
+                    val sender = PendingIntent.getBroadcast(context, id, result, flags).intentSender
+                    synchronized(lock) {
+                        check(preferences.edit().putLong("bytes", inspected.bytes).putString("digest", inspected.digest).commit())
+                        update(State(message = R.string.apps_install_working, busy = true))
+                    }
+                    commitAttempted = true
+                    session.commit(sender)
                 }
-                ensureActive()
-                val result = Intent(context, ApkInstallResultReceiver::class.java)
-                    .setAction(RESULT_ACTION).setData(Uri.fromParts(RESULT_SCHEME, token, null))
-                val flags = PendingIntent.FLAG_CANCEL_CURRENT or if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
-                val sender = PendingIntent.getBroadcast(context, id, result, flags).intentSender
-                synchronized(lock) {
-                    check(preferences.edit().putLong("bytes", length).putString("digest", digest.digest().toHexString()).commit())
-                    update(State(message = R.string.apps_install_working, busy = true))
+            } catch (cancelled: CancellationException) {
+                if (!commitAttempted) discardBeforeCommit(sessionId, R.string.apk_install_ended)
+                throw cancelled
+            } catch (failure: Exception) {
+                val message = when ((failure as? LocalApkStagingFailure)?.refusal) {
+                    LocalApkRefusal.OWN_PACKAGE -> R.string.apps_install_self_update
+                    LocalApkRefusal.INVALID_APK -> R.string.apps_install_invalid_apk
+                    LocalApkRefusal.CHANGED -> R.string.apps_install_changed_apk
+                    null -> R.string.apps_install_failed
                 }
-                commitAttempted = true
-                session.commit(sender)
+                if (!commitAttempted) discardBeforeCommit(sessionId, message)
+                else synchronized(lock) { if (active()?.id == sessionId && progress.value.approval == null) showInterrupted() }
+            } finally {
+                withContext(NonCancellable) {
+                    try { staged?.let { stager.discard(it) } }
+                    catch (_: Exception) { synchronized(lock) {
+                        update(progress.value.copy(message = R.string.apps_install_cleanup_failed))
+                    } }
+                }
             }
-        } catch (cancelled: CancellationException) {
-            if (!commitAttempted) discardBeforeCommit(sessionId, R.string.apk_install_ended)
-            throw cancelled
-        } catch (_: Exception) {
-            if (!commitAttempted) discardBeforeCommit(sessionId, R.string.apps_install_failed)
-            else synchronized(lock) { if (active()?.id == sessionId && progress.value.approval == null) showInterrupted() }
         }
     }
 
@@ -146,12 +182,25 @@ internal class LocalApkInstaller(context: Context) {
     }
 
     suspend fun discardInterrupted() = withContext(Dispatchers.IO) {
-        synchronized(lock) {
-            val pending = active() ?: return@synchronized
-            if (!progress.value.interrupted) return@synchronized
-            if (abandon(pending.id) && clearActive()) {
-                update(State(message = R.string.apk_install_ended))
-            } else update(State(message = R.string.apps_install_discard_failed, interrupted = true))
+        staging.withLock {
+            try { stager.cleanupInterrupted() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) {
+                synchronized(lock) { update(State(message = R.string.apps_install_cleanup_failed, interrupted = true)) }
+                return@withLock
+            }
+            synchronized(lock) {
+                if (preferences.contains("creating_package")) {
+                    if (discardCreation()) update(State(message = R.string.apk_install_ended))
+                    else update(State(message = R.string.apps_install_discard_failed, interrupted = true))
+                    return@synchronized
+                }
+                val pending = active() ?: return@synchronized
+                if (!progress.value.interrupted) return@synchronized
+                if (abandon(pending.id, pending.packageName) && clearActive()) {
+                    update(State(message = R.string.apk_install_ended))
+                } else update(State(message = R.string.apps_install_discard_failed, interrupted = true))
+            }
         }
     }
 
@@ -185,8 +234,30 @@ internal class LocalApkInstaller(context: Context) {
     }
 
     private fun discardBeforeCommit(sessionId: Int?, message: Int) = synchronized(lock) {
-        if (sessionId == null || (abandon(sessionId) && clearActive())) update(State(message = message))
+        val discarded = if (preferences.contains("creating_package")) discardCreation()
+            else sessionId == null || (abandon(sessionId, active()?.packageName) && clearActive())
+        if (discarded) update(State(message = message))
         else showInterrupted()
+    }
+
+    /** A creation marker proves that our Android commit was never reached. Never infer success. */
+    private fun discardCreation(): Boolean {
+        return try {
+            val target = preferences.getString("creating_package", null)
+            if (target.isNullOrBlank() || target == context.packageName ||
+                preferences.getString("token", null).isNullOrBlank()) return false
+            fun matching(): List<LocalApkSessionInfo> {
+                val current = sessions.current()
+                check(current.size <= LocalApkSessions.MAX_SESSION_SCAN)
+                // Unknown metadata cannot establish that a freshly allocated session is absent.
+                check(current.none { it.packageName.isNullOrBlank() })
+                return current.filter { it.packageName == target }
+            }
+            val current = matching()
+            if (current.any { it.installer != context.packageName || it.sealed }) return false
+            for (session in current) if (!abandon(session.id, target)) return false
+            matching().isEmpty() && clearActive()
+        } catch (_: Exception) { false }
     }
 
     private fun active(): Pending? {
@@ -194,19 +265,35 @@ internal class LocalApkInstaller(context: Context) {
         val token = preferences.getString("token", null)
         return if (id >= 0 && token != null) {
             Pending(id, token, preferences.getLong("bytes", 0), preferences.getString("digest", null),
-                preferences.getString("completed_package", null))
+                preferences.getString("completed_package", null), preferences.getString("package", null))
         } else null
     }
 
-    private fun abandon(id: Int): Boolean = try {
-        if (packageInstaller.getSessionInfo(id) != null) packageInstaller.abandonSession(id)
-        true
+    private fun abandon(id: Int, expectedPackage: String?): Boolean = try {
+        sessions.abandon(id, expectedPackage)
     } catch (_: RuntimeException) {
         false
     }
 
-    private fun clearActive() = preferences.edit().remove("session").remove("token")
-        .remove("bytes").remove("digest").remove("approval_received").remove("completed_package").commit()
+    private fun clearActive(): Boolean {
+        val before = preferences.all
+        val cleared = preferences.edit().remove("session").remove("token").remove("package")
+            .remove("creating_package").remove("bytes").remove("digest").remove("approval_received")
+            .remove("completed_package").commit()
+        if (!cleared) {
+            // Android updates the in-memory map even when commit reports a disk failure. Retain
+            // the receipt in memory as well so reopening/discarding can retry after storage recovers.
+            val restore = preferences.edit()
+            for ((key, value) in before) when (value) {
+                is String -> restore.putString(key, value)
+                is Int -> restore.putInt(key, value)
+                is Long -> restore.putLong(key, value)
+                is Boolean -> restore.putBoolean(key, value)
+            }
+            restore.commit()
+        }
+        return cleared
+    }
 
     private fun complete(message: Int) {
         if (clearActive()) update(State(message = message))
@@ -222,8 +309,8 @@ internal class LocalApkInstaller(context: Context) {
     private companion object {
         const val RESULT_ACTION = "org.openvoyah.controls.action.APK_INSTALL_RESULT"
         const val RESULT_SCHEME = "ovc-apk-install"
-        const val MAX_APK_BYTES = 2_147_483_647L
         val lock = Any()
+        val staging = Mutex()
         val progress = MutableStateFlow(State())
         var verifying = false
     }

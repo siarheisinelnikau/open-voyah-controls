@@ -29,8 +29,8 @@ android {
         applicationId 'org.openvoyah.controls'
         minSdk 28
         targetSdk 35
-        versionCode 15
-        versionName '0.13.0'
+        versionCode 22
+        versionName '0.19.1'
         testInstrumentationRunner 'android.test.InstrumentationTestRunner'
         buildConfigField 'String', 'RELEASE_CERT_SHA256', '"' + (validReleasePin ? releasePin : '') + '"'
         buildConfigField 'boolean', 'OVC_EMULATOR_FIXTURE', 'false'
@@ -75,6 +75,7 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
     implementation 'com.alphacephei:vosk-android:0.3.75@aar'
     implementation 'net.java.dev.jna:jna:5.18.1@aar'
+    testImplementation 'junit:junit:4.13.2'
 }
 
 def verifyReleaseSigning = tasks.register('verifyReleaseSigning') {
@@ -116,13 +117,20 @@ tasks.matching { it.name == 'preReleaseBuild' }.configureEach { dependsOn verify
 tasks.register('compileFridaHook', Exec) {
     workingDir rootProject.projectDir
     commandLine(System.getProperty('os.name').toLowerCase().contains('windows') ? 'npm.cmd' : 'npm', 'run', 'build:hook')
-    inputs.files(rootProject.fileTree('hooks'), rootProject.file('package-lock.json'),
+    inputs.files(rootProject.fileTree('hooks'), rootProject.file('package-lock.json'), rootProject.file('package.json'),
         rootProject.file('app/src/main/assets/voice/verified-commands.json'))
     outputs.files('src/main/assets/hooks/launcher-buttons.bundle.js', 'src/main/assets/hooks/localization.bundle.js',
-        'src/main/assets/hooks/window.bundle.js', 'src/main/assets/hooks/navigation.bundle.js')
+        'src/main/assets/hooks/window.bundle.js', 'src/main/assets/hooks/navigation.bundle.js',
+        'src/main/assets/hooks/can.bundle.js', 'src/main/assets/hooks/oversea-profiles.bundle.js')
 }
 def stageRuntimeMetadata = tasks.register('stageRuntimeMetadata', Sync) {
     from(rootProject.file('dist/FRIDA_RUNTIME.json')) { into 'production' }
     into runtimeAssets
 }
-tasks.named('preBuild').configure { dependsOn 'compileFridaHook', stageRuntimeMetadata }
+def verifyVoiceAssets = tasks.register('verifyVoiceAssets', Exec) {
+    group = 'verification'
+    description = 'Verify both complete offline speech models against pinned archives.'
+    workingDir rootProject.projectDir
+    commandLine 'python', 'tools/verify_voice_assets.py'
+}
+tasks.named('preBuild').configure { dependsOn 'compileFridaHook', stageRuntimeMetadata, verifyVoiceAssets }

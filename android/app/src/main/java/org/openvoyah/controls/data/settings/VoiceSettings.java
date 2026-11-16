@@ -30,6 +30,14 @@ public final class VoiceSettings {
     public void level(String command,int value) { update("level."+command,Integer.toString(value)); }
     public boolean option(String key) { return prefs.getString(key,"false").equals("true"); }
     public void option(String key,boolean value) { update(key,Boolean.toString(value)); }
+    public void windowOptions(boolean doubleSmoke, boolean doubleVentilation) {
+        try {
+            JSONObject root = new JSONObject(exportJson());
+            root.getJSONObject("values").put("doubleSmoke", Boolean.toString(doubleSmoke))
+                .put("doubleVentilation", Boolean.toString(doubleVentilation));
+            importJson(root.toString());
+        } catch (Exception ex) { throw new IllegalStateException(UiText.get(R.string.ui_219), ex); }
+    }
     public void audio(boolean duckMedia, boolean spokenFeedback) {
         try {
             JSONObject root = new JSONObject(exportJson());

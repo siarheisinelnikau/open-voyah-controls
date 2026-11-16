@@ -60,11 +60,21 @@ class ProductionRootAccess(context: Context) {
 
     @Throws(IOException::class)
     fun requireActivation() {
+        requireNoUpdatePause()
         execute(ACTIVATION_GUARD)
     }
 
     @Throws(IOException::class)
-    fun executeActive(script: String): String = execute(ACTIVATION_GUARD + script)
+    fun executeActive(script: String): String {
+        requireNoUpdatePause()
+        return execute(ACTIVATION_GUARD + script)
+    }
+
+    private fun requireNoUpdatePause() {
+        if (app.getSharedPreferences("bridge", Context.MODE_PRIVATE).contains("updatePauseToken")) {
+            throw Refused(UiText.get(R.string.runtime_update_paused))
+        }
+    }
 
     fun injectorGuard(): String {
         val injector = shell(injectorPath())
@@ -75,6 +85,8 @@ class ProductionRootAccess(context: Context) {
     @Synchronized
     @Throws(IOException::class)
     fun sealDeployment(artifacts: Map<String, String>) {
+        requireNoUpdatePause()
+
         val verified = evidence()
         val pins = linkedMapOf(runtime.name to runtime.digest)
         pins.putAll(artifacts)
@@ -97,9 +109,21 @@ class ProductionRootAccess(context: Context) {
             appendLine("set -e")
             appendLine("stage=\$(mktemp '$BASE/.trust.XXXXXXXX')")
             appendLine("trap 'rm -f \"\$stage\"' EXIT")
+            appendLine("ovc_key='/data/user/0/${app.packageName}/files/root-channel.key'")
+            appendLine("ovc_access='/data/adb/open-voyah-controls-access'")
+            appendLine("test ! -L \"\$ovc_key\" && test -f \"\$ovc_key\" && test \"\$(stat -c '%u:%a:%h' \"\$ovc_key\")\" = '${Process.myUid()}:600:1' || exit 77")
+            appendLine("test \"\$(wc -c < \"\$ovc_key\")\" = 65 || exit 77")
+            appendLine("test ! -L \"\$ovc_access\" && test \"\$(stat -c '%u:%a' \"\$ovc_access\")\" = 0:700 || exit 77")
+            appendLine("for ovc_file in key uid; do test ! -L \"\$ovc_access/\$ovc_file\" && test -f \"\$ovc_access/\$ovc_file\" && test \"\$(stat -c '%u:%a:%h' \"\$ovc_access/\$ovc_file\")\" = 0:600:1 || exit 77; done")
+            appendLine("test \"\$(cat \"\$ovc_access/uid\")\" = '${Process.myUid()}' || exit 77")
+            appendLine("ovc_key_stamp=\$(stat -c '%d:%i:%s:%Y:%Z' \"\$ovc_key\") || exit 77")
+            appendLine("ovc_key_hash=\$(sha256sum \"\$ovc_key\") && ovc_key_hash=\${ovc_key_hash%% *} || exit 77")
+            appendLine("ovc_access_hash=\$(sha256sum \"\$ovc_access/key\") && ovc_access_hash=\${ovc_access_hash%% *} || exit 77")
+            appendLine("test \"\$ovc_key_hash\" = \"\$ovc_access_hash\" && test \"\$(stat -c '%d:%i:%s:%Y:%Z' \"\$ovc_key\")\" = \"\$ovc_key_stamp\" || exit 77")
             appendLine("cat > \"\$stage\" <<'OVC_TRUST_RECORD'")
             append(receipt)
             appendLine("OVC_TRUST_RECORD")
+            appendLine("printf 'lifetime\\t${app.packageName}\\t${Process.myUid()}\\t%s\\t%s\\n' \"\$ovc_key_stamp\" \"\$ovc_key_hash\" >> \"\$stage\"")
             appendLine("chmod 600 \"\$stage\" && sync && mv -f \"\$stage\" '$BASE/trust.tsv' && sync")
         }
         execute(script)
@@ -117,7 +141,7 @@ class ProductionRootAccess(context: Context) {
         val packages = listOf(installed(app.packageName, expected, null)) +
             profile.packages.map { installed(it.name, it.signer, it.apk) }
         val guard = deviceGuard(profile.device)
-        val broker = AuthorizedRootBroker.existing()
+        val broker = AuthorizedRootChannel.existing(app)
         val response = broker.execute(buildString {
             append(guard)
             for (pkg in packages) {
@@ -197,15 +221,16 @@ class ProductionRootAccess(context: Context) {
 
     private data class Installed(val name: String, val path: String, val expectedHash: String?)
     private data class VerifiedPackage(val name: String, val path: String, val stamp: String, val apkHash: String)
-    private data class Proof(val broker: AuthorizedRootBroker, val packages: List<VerifiedPackage>, val guard: String)
+    private data class Proof(val broker: AuthorizedRootChannel, val packages: List<VerifiedPackage>, val guard: String)
 
     companion object {
         const val BASE = "/data/adb/open-voyah-controls"
         const val ACTIVATION_GUARD = "test ! -e '$BASE/recovery.blocked' && test ! -L '$BASE/recovery.blocked' || exit 78\n" +
             "test ! -e '$BASE/recovery.visual-pending' && test ! -L '$BASE/recovery.visual-pending' || exit 78\n" +
+            "test ! -e '$BASE/update.pending' && test ! -L '$BASE/update.pending' || exit 78\n" +
             "ovc_old=/data/local/tmp/open-voyah-controls\n" +
             "for ovc_dir in \"\$ovc_old\" \"\$ovc_old/locale-setting\" \"\$ovc_old/locale-vehicle\" " +
-            "\"\$ovc_old/locale-bluetooth\" \"\$ovc_old/window\" \"\$ovc_old/navigation\"; do\n" +
+            "\"\$ovc_old/locale-bluetooth\" \"\$ovc_old/window\" \"\$ovc_old/navigation\" \"\$ovc_old/can\"; do\n" +
             "test ! -e \"\$ovc_dir/enabled\" && test ! -L \"\$ovc_dir/enabled\" || exit 78\ndone\n"
         private val artifactPath = Regex("(?:[a-z0-9-]+/)?[a-z0-9.-]+")
         private val apkPath = Regex("/[A-Za-z0-9_./+=~-]{1,511}\\.apk")

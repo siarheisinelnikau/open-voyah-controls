@@ -63,6 +63,8 @@ internal class FridaVoiceDispatcher(
         result(R.string.voice_vehicle_sent)
     } catch (cancelled: CancellationException) {
         throw cancelled
+    } catch (error: OverseaProfiles.Refused) {
+        result(error.label, failed = true)
     } catch (error: Exception) {
         result(blockedLabel(error.message.orEmpty()) ?: R.string.voice_vehicle_unknown, failed = true)
     }
