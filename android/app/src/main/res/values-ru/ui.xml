@@ -164,7 +164,6 @@
     <string name="ui_163" formatted="false">"Некорректный компонент приложения"</string>
     <string name="ui_164" formatted="false">"Не удалось прочитать словарь: "</string>
     <string name="ui_165" formatted="false">"Восстановить предыдущие настройки"</string>
-    <string name="ui_166" formatted="false">"Открыть главные настройки"</string>
     <string name="ui_167" formatted="false">"Голосовое управление"</string>
     <string name="ui_168" formatted="false">"Распознавание на устройстве · "</string>
     <string name="ui_169" formatted="false">" команд"</string>

@@ -9,7 +9,7 @@ Normal app screens share `MainActivity` and use Jetpack Compose. The root destin
 | `SetupActivity` | Installer/first-run handshake, progress, result and recovery actions |
 | Private display `Presentation` | Media and navigation content in `DisplayPreviewScreen` |
 
-`AppsActivity`, `VoiceActivity`, `DisplayActivity`, `VehicleSettingsActivity`, `FirmwareActivity`, `ClusterActivity` and `UpdatesActivity` remain compatibility aliases to `MainActivity`. Their component names select the corresponding route so installed shortcuts and saved assignments remain usable. `PanelVoiceActivity` remains an exported alias to the separate voice popup. Setup retains its permission-protected Android entry point.
+Normal screens use explicit routes in `MainActivity`. The application declares three real Activities and no activity aliases. The voice popup and installer handshake require a privileged permission for external callers; the application can open its own screens directly.
 
 Launching Controls or using the explicit app-grid entry returns to the root grid. With reviewed panel assignments enabled, a short press on the central lower-left menu button opens this grid by default; holding the button keeps the native launcher action. Detail destinations have Back navigation within the shared host. Android system screens and the foreground voice popup remain separate boundaries.
 
@@ -36,6 +36,6 @@ State collection follows the destination lifecycle. Settings snapshots copy muta
 
 ## Verification scope
 
-Routing tests cover direct app-grid entry, internal Back, compatibility aliases, dialogs and host recreation. Document and permission returns are guarded by route lifecycle; the voice model also tests document-return sequencing. Compose checks inspect the actual app content tree and save real screenshots on explicitly isolated emulators. Android-owned permission and installation windows are separate from app content.
+Routing tests cover direct app-grid entry, explicit screen routes, internal Back, dialogs and host recreation. Manifest tests require exactly the three real Activities and check the external permission boundaries. Document and permission returns are guarded by route lifecycle; the voice model also tests document-return sequencing. Compose checks inspect the actual app content tree and save real screenshots on explicitly isolated emulators. Android-owned permission and installation windows are separate from app content.
 
 Build/lint checks, screenshots and frame measurements answer different questions. Screenshots establish layout; interaction tests establish routing; bounded idle, hidden and animation-disabled measurements establish whether rendering settles on the tested emulator. They do not certify the frame rate or OEM behavior on a vehicle. Validation records apply to their listed revisions and completed checks; a source migration alone does not establish a new test result.

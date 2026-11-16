@@ -119,6 +119,39 @@ public class SettingsStoreTest extends AndroidTestCase {
         assertEquals("panel", actual.bindings.get(0).device);
         assertEquals(SettingsStore.encode(expected), store.exportJson());
     }
+    public void testExplicitVoiceActionsKeepTheirKindAcrossDecodeAndPersistence() throws Exception {
+        SettingsStore.State expected = sample();
+        Action voice = new Action(Action.Kind.START_VOICE, "", "Speak");
+        expected.panelActions.put("navbar02", voice);
+        expected.steeringActions.put("voiceShort", voice);
+        expected.bindings.add(new Binding("voice", "Voice", "panel", 87, voice, Action.NONE, true));
+        String encoded = SettingsStore.encode(expected);
+        SettingsStore.State decoded = SettingsStore.decode(encoded);
+        store.save(decoded);
+        SettingsStore.State actual = new SettingsStore(getContext()).load();
+        for (SettingsStore.State state : new SettingsStore.State[]{decoded, actual}) {
+            assertEquals(Action.Kind.START_VOICE, state.panelActions.get("navbar02").kind);
+            assertEquals("", state.panelActions.get("navbar02").component);
+            assertEquals("Speak", state.panelActions.get("navbar02").label);
+            assertEquals(Action.Kind.START_VOICE, state.steeringActions.get("voiceShort").kind);
+            assertEquals(Action.Kind.START_VOICE, state.bindings.get(1).shortPress.kind);
+            assertEquals(Action.Kind.LAUNCH_APP, state.panelActions.get("navbar01").kind);
+            assertEquals("com.example.player/.Main", state.panelActions.get("navbar01").component);
+            assertEquals(900, state.holdMs);
+            assertTrue(state.panelEnabled);
+        }
+        assertEquals(encoded, store.exportJson());
+    }
+    public void testApplicationLaunchActionsKeepTheirExactStoredComponent() throws Exception {
+        SettingsStore.State expected = sample();
+        Action selected = new Action(Action.Kind.LAUNCH_APP, "com.example.voice/.Capture", "Voice application");
+        expected.panelActions.put("navbar02", selected);
+        store.save(SettingsStore.decode(SettingsStore.encode(expected)));
+        Action actual = new SettingsStore(getContext()).load().panelActions.get("navbar02");
+        assertEquals(Action.Kind.LAUNCH_APP, actual.kind);
+        assertEquals(selected.component, actual.component);
+        assertEquals(selected.label, actual.label);
+    }
     public void testImportReplacesAtomically() throws Exception {
         store.importJson(SettingsStore.encode(sample())); String before = store.exportJson();
         try { store.importJson("{broken}"); fail(); } catch (org.json.JSONException expected) { }

@@ -164,7 +164,6 @@
     <string name="ui_163" formatted="false">"Invalid app component"</string>
     <string name="ui_164" formatted="false">"Could not read vocabulary: "</string>
     <string name="ui_165" formatted="false">"Restore previous settings"</string>
-    <string name="ui_166" formatted="false">"Open main settings"</string>
     <string name="ui_167" formatted="false">"Voice control"</string>
     <string name="ui_168" formatted="false">"On-device recognition · "</string>
     <string name="ui_169" formatted="false">" commands"</string>

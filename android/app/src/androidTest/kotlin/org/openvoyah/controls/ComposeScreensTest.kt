@@ -1,9 +1,10 @@
 package org.openvoyah.controls
 
+import android.Manifest
 import android.app.Activity
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Build
@@ -16,6 +17,9 @@ import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.TextView
 import androidx.lifecycle.ViewModelProvider
+import org.openvoyah.controls.core.Action
+import org.openvoyah.controls.platform.ui.ActionExecutor
+import org.openvoyah.controls.presentation.navigation.ControlsNavigation
 import org.openvoyah.controls.presentation.navigation.ControlsNavigationViewModel
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import java.io.File
@@ -47,19 +51,21 @@ class ComposeScreensTest : InstrumentationTestCase() {
         super.tearDown()
     }
 
-    fun testNormalScreenAliasesAndNativeActivitiesRenderCompose() {
+    fun testNormalRoutesAndProtectedNativeActivitiesRenderCompose() {
         val routes = listOf(
-            "MainActivity" to "home", "AppsActivity" to "apps",
-            "VoiceActivity" to "voice", "FirmwareActivity" to "firmware",
-            "VehicleSettingsActivity" to "vehicle", "ClusterActivity" to "cluster",
-            "DisplayActivity" to "display", "UpdatesActivity" to "updates",
+            ControlsRoute.APPS to "home", ControlsRoute.APPS to "apps",
+            ControlsRoute.VOICE to "voice", ControlsRoute.FIRMWARE to "firmware",
+            ControlsRoute.VEHICLE to "vehicle", ControlsRoute.CLUSTER to "cluster",
+            ControlsRoute.DISPLAY to "display", ControlsRoute.UPDATES to "updates",
         )
-        for ((type, name) in routes) {
-            val activity = launch(Intent().setComponent(ComponentName(app.packageName, "${app.packageName}.$type")))
-            assertTrue("$type did not resolve to the shared host", activity is MainActivity)
+        for ((route, name) in routes) {
+            val activity = launch(ControlsNavigation.intent(app, route)) as MainActivity
+            assertEquals("$route did not resolve to the shared host", MainActivity::class.java, activity.javaClass)
+            awaitRoute(activity, route)
             assertComposeContent(activity)
-            if (type == "MainActivity" || type == "AppsActivity") assertAppGrid(activity as MainActivity)
-            if (type == "DisplayActivity") {
+            if (route == ControlsRoute.APPS) assertAppGrid(activity)
+            if (route == ControlsRoute.VOICE) awaitText(UiText.get(R.string.ui_185), 10_000)
+            if (route == ControlsRoute.DISPLAY) {
                 val deadline = SystemClock.uptimeMillis() + 8_000
                 fun ready() = nodes().any { it.text?.toString()?.matches(Regex("[0-9]+ × [0-9]+ · [0-9]+ DPI")) == true }
                 while (!ready() && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(100)
@@ -74,7 +80,12 @@ class ComposeScreensTest : InstrumentationTestCase() {
         assertComposeContent(setup)
         capture("setup")
         instrumentation.runOnMainSync { setup.finish() }
+        assertEquals("The ordinary app must not hold the privileged external-entry permission",
+            PackageManager.PERMISSION_DENIED, app.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS))
+        val voiceAction = Action(Action.Kind.START_VOICE, "", UiText.get(R.string.quick_voice_title))
+        assertTrue("The same UID must retain its protected voice action", ActionExecutor(app).canExecute(voiceAction))
         val voice = launch(QuickVoiceActivity.intent(app))
+        assertTrue("The protected same-UID entry did not open its real activity", voice is QuickVoiceActivity)
         assertComposeContent(voice)
         capture("quick-voice")
     }
@@ -120,6 +131,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         scrollTo(UiText.get(R.string.voice_options_title))
         clickText(UiText.get(R.string.voice_options_title))
         awaitRoute(recreated, ControlsRoute.VOICE)
+        awaitText(UiText.get(R.string.ui_185), 10_000)
         awaitText(UiText.get(R.string.cockpit_back))
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         awaitRoute(recreated, ControlsRoute.SETTINGS)

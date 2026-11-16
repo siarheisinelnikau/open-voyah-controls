@@ -8,21 +8,12 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -35,7 +26,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
@@ -56,6 +46,7 @@ import org.openvoyah.controls.platform.voice.MicrophonePermission
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAppPicker
 import org.openvoyah.controls.presentation.theme.CockpitDialogs
+import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitModal
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
@@ -195,14 +186,11 @@ internal fun VoiceDestination(back: () -> Unit, tryVoice: () -> Unit) {
     }
     val config = state.configuration
     if (config == null) {
-        Surface(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-            Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(state.startupError?.let { voiceText(R.string.ui_164) + it } ?: voiceText(R.string.voice_catalog_loading),
-                    style = MaterialTheme.typography.titleMedium)
-                if (state.startupError != null) {
-                    Button({ settings.restorePrevious() }, enabled = !state.busy) { Text(voiceText(R.string.ui_165)) }
-                }
-                TextButton(back) { Text(voiceText(R.string.ui_166)) }
+        CockpitDetail(voiceText(R.string.voice_options_title), "", back) {
+            Text(state.startupError?.let { voiceText(R.string.ui_164) + it } ?: voiceText(R.string.voice_catalog_loading),
+                style = MaterialTheme.typography.bodyLarge)
+            if (state.startupError != null) {
+                Button({ settings.restorePrevious() }, enabled = !state.busy) { Text(voiceText(R.string.ui_165)) }
             }
         }
         return

@@ -67,7 +67,7 @@ Open **Settings → Vehicle settings** for the original driving, cabin and infot
 
 ![Saved account-record recovery in the signed Android 9 app](docs/screenshots/account-recovery.png)
 
-The [0.20.0 validation record](dist/VALIDATION_0.20.0.json) covers app-grid entry, single-host navigation, settings migration, search, signed upgrades and rendering on Android 9 and 11. See the [local change notes](docs/releases/0.20.0.md). The previous [0.19.1](dist/VALIDATION_0.19.1.json) and [0.19.0](dist/VALIDATION_0.19.0.json) records retain account recovery, Windows installer 0.6.2, startup and root-channel checks for their listed revisions. The ordinary APK runs as its own application UID; injected JavaScript retains its target process UID. Exact OEM boot permissions, ARM64 injection, physical CAN behavior and complete Oversea account restoration remain unqualified; no vehicle was used.
+The [0.20.1 validation record](dist/VALIDATION_0.20.1.json) covers explicit screen routes, the three real Activity entry points, protected internal voice launch, settings preservation and signed upgrades on Android 9 and 11. See the [local change notes](docs/releases/0.20.1.md). The [0.20.0 record](dist/VALIDATION_0.20.0.json) retains the app-grid, search and rendering checks for that revision. Earlier [0.19.1](dist/VALIDATION_0.19.1.json) and [0.19.0](dist/VALIDATION_0.19.0.json) records retain account recovery, Windows installer 0.6.2, startup and root-channel checks for their listed revisions. The ordinary APK runs as its own application UID; injected JavaScript retains its target process UID. Exact OEM boot permissions, ARM64 injection, physical CAN behavior and complete Oversea account restoration remain unqualified; no vehicle was used.
 
 ## Settings backup
 
@@ -77,7 +77,7 @@ Use **Export app settings** to save button assignments, voice options and contac
 
 The existing Gradle modules contain logical MVVM and Clean Architecture layers. `core` owns Android-free command rules, button timing, typed display events and ports. Within `app`, presentation ViewModels expose immutable StateFlow state, data adapters own preferences, document serialization and Frida gateways, and platform adapters handle Android intents, permissions, media, input, audio and job events.
 
-`MainActivity` hosts the app grid and normal Compose routes for Settings, Buttons, voice settings, display, vehicle, firmware, cluster and updates. `QuickVoiceActivity` remains the foreground popup, and `SetupActivity` retains the installer/first-run boundary. Former normal-screen component names remain compatibility aliases to the shared host. Android owns file pickers, permission and installation dialogs, system settings and the native virtual-display surface. The injected Qinggan bus adapter lives under `hooks`. See [Compose routes and motion](docs/COMPOSE_UI.md) for lifecycle and rendering boundaries.
+`MainActivity` hosts the app grid and normal Compose routes for Settings, Buttons, voice settings, display, vehicle, firmware, cluster and updates. `QuickVoiceActivity` is the foreground popup; `SetupActivity` handles the installer and first-run handshake. Both have permission-protected external entry points. Android owns file pickers, permission and installation dialogs, system settings and the native virtual-display surface. The injected Qinggan bus adapter lives under `hooks`. See [Compose routes and motion](docs/COMPOSE_UI.md) for lifecycle and rendering boundaries.
 
 ## Documentation
 

@@ -35,10 +35,12 @@ public final class ActionExecutor implements ButtonEngine.Sink {
             var resolved = context.getPackageManager().resolveActivity(intent, 0);
             if (resolved == null || resolved.activityInfo == null) return false;
             var info = resolved.activityInfo;
+            boolean ownUid = info.applicationInfo.uid == context.getApplicationInfo().uid;
             return info.enabled && info.applicationInfo.enabled
                 && (info.applicationInfo.flags & android.content.pm.ApplicationInfo.FLAG_SUSPENDED) == 0
-                && (info.packageName.equals(context.getPackageName()) || info.exported)
-                && (info.permission == null || context.checkSelfPermission(info.permission) == android.content.pm.PackageManager.PERMISSION_GRANTED);
+                && (ownUid || info.exported)
+                && (ownUid || info.permission == null
+                    || context.checkSelfPermission(info.permission) == android.content.pm.PackageManager.PERMISSION_GRANTED);
         } catch (RuntimeException ex) { return false; }
     }
     public void execute(Action action) {

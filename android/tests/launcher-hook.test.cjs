@@ -194,12 +194,40 @@ test('missing NavigationBar schedules recovery and installs when class becomes a
 const action = { kind: 'LAUNCH_APP', component: 'com.example.player/.Main' };
 const config = actions => ({ schema: 1, enabled: true, actions });
 
-test('a voice shortcut launches the guarded voice entry point on its own display', () => {
-    const h = harness(config({ navbar11: { kind: 'START_VOICE' } }));
-    h.click(1, 'screen_up_home_icon');
-    assert.equal(h.originalCalls, 0);
-    assert.equal(h.launched[0].display, 1);
-    assert.equal(h.launched[0].intent.component, 'org.openvoyah.controls/org.openvoyah.controls.PanelVoiceActivity');
+test('voice shortcuts target the real QuickVoiceActivity directly on their own display', () => {
+    const component = 'org.openvoyah.controls/org.openvoyah.controls.QuickVoiceActivity';
+    for (const [screen, slot, resource] of [[0, 'navbar01', 'screen_up_icon_1'], [1, 'navbar11', 'screen_up_home_icon']]) {
+        const h = harness(config({ [slot]: { kind: 'START_VOICE' } }));
+        const bar = h.bar(screen);
+        assert.equal(bar.views[resource].background.layer.icon.component, component);
+        h.tap(bar, resource);
+        assert.equal(h.originalCalls, 0);
+        assert.equal(h.launched.length, 1);
+        const launch = h.launched[0];
+        assert.equal(launch.display, screen);
+        assert.equal(launch.intent.component, component);
+        assert.equal(launch.intent.flags, 0x20000000 | 0x10000000 | 0x00200000);
+        assert.equal(launch.intent.action, undefined);
+        assert.equal(launch.intent.category, undefined);
+        assert.equal(launch.intent.extras, undefined);
+    }
+});
+
+test('unavailable or refused direct voice launches retain one native fallback', () => {
+    const component = 'org.openvoyah.controls/org.openvoyah.controls.QuickVoiceActivity';
+    for (const options of [{missing:component}, {failLaunch:true}]) {
+        const h = harness(config({navbar01:{kind:'START_VOICE'}, navbar02:action}), options);
+        const bar = h.bar(0), voice = bar.views.screen_up_icon_1;
+        assert.equal(h.tap(bar, 'screen_up_icon_1'), 'oem');
+        assert.equal(h.originalCalls, 1);
+        assert.equal(h.launched.length, 0);
+        assert.equal(voice.background, voice.stock);
+        options.missing = null;
+        options.failLaunch = false;
+        h.tap(bar, 'screen_up_icon_2');
+        assert.equal(h.launched.at(-1).intent.component, action.component);
+        assert.equal(h.originalCalls, 1);
+    }
 });
 
 test('navigation launches chosen activity on central display and suppresses OEM handler', () => {

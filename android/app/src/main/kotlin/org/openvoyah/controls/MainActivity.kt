@@ -24,7 +24,6 @@ import org.openvoyah.controls.presentation.cluster.ClusterDestination
 import org.openvoyah.controls.presentation.display.DisplayDestination
 import org.openvoyah.controls.presentation.firmware.FirmwareDestination
 import org.openvoyah.controls.presentation.home.ControlsSettingsDestination
-import org.openvoyah.controls.presentation.home.HomeDestination
 import org.openvoyah.controls.presentation.home.HomeUpdatesViewModel
 import org.openvoyah.controls.presentation.navigation.ControlsNavigation
 import org.openvoyah.controls.presentation.navigation.ControlsNavigationViewModel
@@ -62,7 +61,7 @@ class MainActivity : ComponentActivity() {
                             when (target) {
                                 ControlsRoute.APPS -> AppsDestination(entry, navigation::open, ::listen, ::systemSettings)
                                 ControlsRoute.SETTINGS, ControlsRoute.BUTTONS -> ControlsSettingsDestination(
-                                    target == ControlsRoute.BUTTONS, navigation::back, ::openHomeDestination)
+                                    target == ControlsRoute.BUTTONS, navigation::back, navigation::open)
                                 ControlsRoute.VOICE -> VoiceDestination(navigation::back, ::listen)
                                 ControlsRoute.DISPLAY -> DisplayDestination(navigation::back)
                                 ControlsRoute.VEHICLE -> VehicleSettingsDestination(navigation::back)
@@ -81,20 +80,6 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         navigation.enter(ControlsNavigation.route(intent))
-    }
-
-    private fun openHomeDestination(destination: HomeDestination) {
-        when (destination) {
-            HomeDestination.APPS -> navigation.open(ControlsRoute.APPS)
-            HomeDestination.LISTEN -> listen()
-            HomeDestination.VOICE -> navigation.open(ControlsRoute.VOICE)
-            HomeDestination.DISPLAY -> navigation.open(ControlsRoute.DISPLAY)
-            HomeDestination.VEHICLE -> navigation.open(ControlsRoute.VEHICLE)
-            HomeDestination.FIRMWARE -> navigation.open(ControlsRoute.FIRMWARE)
-            HomeDestination.SYSTEM -> systemSettings()
-            HomeDestination.UPDATES -> navigation.open(ControlsRoute.UPDATES)
-            HomeDestination.BUTTONS -> navigation.open(ControlsRoute.BUTTONS)
-        }
     }
 
     private fun listen() = external(QuickVoiceActivity.intent(this))

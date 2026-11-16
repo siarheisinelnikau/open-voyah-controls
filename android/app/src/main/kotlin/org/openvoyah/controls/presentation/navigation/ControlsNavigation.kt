@@ -10,7 +10,7 @@ import org.openvoyah.controls.MainActivity
 
 internal enum class ControlsRoute { APPS, SETTINGS, BUTTONS, VOICE, DISPLAY, VEHICLE, FIRMWARE, CLUSTER, UPDATES }
 
-/** One normal task, with explicit entry routes for installed shortcuts and button assignments. */
+/** One normal task, with explicit entry routes for button assignments and screen navigation. */
 internal object ControlsNavigation {
     const val OPEN_APPS = "org.openvoyah.controls.action.OPEN_APPS"
     const val OPEN_SETTINGS = "org.openvoyah.controls.action.OPEN_SETTINGS"
@@ -23,18 +23,6 @@ internal object ControlsNavigation {
             Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
     fun route(intent: Intent): ControlsRoute {
-        // Compatibility aliases take priority over extras supplied by their caller.
-        val alias = when (intent.component?.className?.substringAfterLast('.')) {
-            "AppsActivity" -> ControlsRoute.APPS
-            "VoiceActivity" -> ControlsRoute.VOICE
-            "DisplayActivity" -> ControlsRoute.DISPLAY
-            "VehicleSettingsActivity" -> ControlsRoute.VEHICLE
-            "FirmwareActivity" -> ControlsRoute.FIRMWARE
-            "ClusterActivity" -> ControlsRoute.CLUSTER
-            "UpdatesActivity" -> ControlsRoute.UPDATES
-            else -> null
-        }
-        if (alias != null) return alias
         if (intent.action == OPEN_APPS) return ControlsRoute.APPS
         if (intent.action == OPEN_SETTINGS) {
             return ControlsRoute.entries.firstOrNull { it.name == intent.getStringExtra(ROUTE) }
