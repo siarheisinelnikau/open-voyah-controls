@@ -33,7 +33,7 @@ public final class FridaPanelControls implements PanelControls {
         WORKER.execute(() -> {
             Result result;
             try { result = new Result(true, perform(operation)); }
-            catch (Exception ex) { result = new Result(false, ex.getMessage()); }
+            catch (Exception ex) { result = new Result(false, FridaFailureText.message(ex)); }
             Result completed = result;
             main.post(() -> done.accept(completed));
         });

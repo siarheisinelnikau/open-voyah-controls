@@ -1,7 +1,7 @@
 <resources>
     <string name="panel_restore_unconfirmed">Disconnected. Reopen the launcher to refresh any remaining panel icons.</string>
     <string name="quick_voice_title">Voice assistant</string>
-    <string name="quick_mic_denied">Allow microphone access to use the voice button.</string>
+    <string name="quick_mic_denied">Microphone access is off. Open microphone settings to allow it.</string>
     <string name="weather_offline">Weather is unavailable offline.</string>
     <string name="installed_apps">Installed apps</string>
     <string name="open_app">Open</string>

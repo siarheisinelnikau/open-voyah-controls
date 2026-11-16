@@ -1,0 +1,88 @@
+{
+  "version": "0.15.0",
+  "version_code": 17,
+  "installer_version": "0.4.0",
+  "date": "2026-11-11",
+  "signing": "local-release",
+  "vehicle_tested": false,
+  "production_ready": false,
+  "emulator_fixture_transport": false,
+  "android_certificate_sha256": "2ee3c67da07678052b8031a8cfcebea0cca71ca99a8cc6e6ac7a86ee50e484e9",
+  "windows_certificate_sha256": "821caf9af11a280aec7905b1683b6302d6d19ec26d1eb2aa1766cdf2eecef5bf",
+  "windows_trust": "Self-signed; cryptographic signature and PE digest checked with an explicit certificate pin. No system trust changes.",
+  "artifacts": {
+    "OpenVoyahControls-v0.15.0.apk": {
+      "size": 149600458,
+      "sha256": "b30263330316cc2d37b2ef38388f30b64cfbcf2df5d75a9629f885c067851af9"
+    },
+    "OpenVoyahControlsInstaller-v0.4.0.exe": {
+      "size": 3728200,
+      "sha256": "d29ce5c519d3c0fb9a0d6373806e91d8837a799090ab62703077302919930dee"
+    },
+    "OpenVoyahControlsInstaller-v0.4.0-portable-local-signed.zip": {
+      "size": 172995022,
+      "sha256": "44d750ff5c73e02410a9fd959437dec0141490dc197cc359e47afae030bcd4c0"
+    }
+  },
+  "runtime": {
+    "version": "17.26.2",
+    "url": "https://github.com/frida/frida/releases/download/17.26.2/frida-inject-17.26.2-android-arm64.xz",
+    "archive_sha256": "97aac7e5bbf4a90156b9c89bb3bc9cefb7e837676f1047270cce34d9e4c97b0f",
+    "file": "open-voyah-controls-frida-17.26.2",
+    "binary_sha256": "b58f44918fc27843484fc62502b3d2c90ea686a85ed484bed062b23482cd1733",
+    "size": 84634560
+  },
+  "tests": {
+    "android_9_instrumentation_debug": 72,
+    "jvm": 28,
+    "javascript": 86,
+    "windows_rust": 10,
+    "access_login_shell": 4,
+    "boot_and_pc_recovery_shell": 15,
+    "supervisor_shell": 6,
+    "cluster_transaction_shell": 8,
+    "button_detach_shell": 4
+  },
+  "lint": {
+    "debug": {
+      "errors": 0,
+      "warnings": 46
+    },
+    "release": {
+      "errors": 0,
+      "warnings": 46
+    }
+  },
+  "signed_emulator_checks": [
+    "API 28 and 30: final signed APK; actual authenticated app-UID root access; offline model load; microphone and Accessibility acknowledgment.",
+    "API 28 and 30: fresh nonce on an already open setup activity; rapid superseding requests; microphone denial and subsequent grant are reported correctly.",
+    "API 28: clean setup and same-signer update. Signer migration in both directions with explicit button-service detachment succeeds without reboot.",
+    "API 28 and 30: official Frida 17.26.2 x86_64 injector runs Java code in our app under SELinux Enforcing.",
+    "Access generation tested from the actual installer shell template with only the emulator BusyBox path substituted: repeat provisioning, start, stop, restart, stale lock and foreign listener.",
+    "Simulated zero free space prevents model extraction and keeps existing files. Raising the capacity allows actual native English model load; a ready model reopens without extraction reserve."
+  ],
+  "code_and_fixture_checks": [
+    "Overseas f6811 main and passenger navigation classes: display routing, explicit Home/All apps assignment, native hold/failure fallback, constructor tracking and two-bar restoration acknowledgment (7 JavaScript fixtures).",
+    "QG steering callbacks on SDK 28/30: voice/custom/camera constants, shared down-time deduplication and native fallback; both callback signatures required.",
+    "Steering readiness marker is required when steering assignments are enabled.",
+    "Local Authenticode verification passes Windows PowerShell and PowerShell 7; changed PE content, wrong certificate and unsigned input are rejected.",
+    "Portable APK verifier starts offline and verifies the release certificate. Every archive member matches SHA256SUMS.txt."
+  ],
+  "windows_rendering": {
+    "backend": "Native GDI and controls; blocking message pump",
+    "sample_seconds": 20.2311,
+    "average_one_core_percent": 0.618,
+    "max_one_core_percent": 6.182,
+    "settled_idle_and_hidden_paints": 0,
+    "scope": "24-second bounded demo, tab switch, hide, restore; no ongoing paint loop; GPU telemetry not measured"
+  },
+  "limits": [
+    "No vehicle or ARM64 OEM process was executed. No cold-boot, sleep/wake, CAN telemetry or actual passenger-display qualification.",
+    "Exact firmware, OEM APK and operation catalogs remain empty; no vehicle action is approved by this build.",
+    "Direct raw CAN steering interception and overseas account switching/backup/restore are not implemented.",
+    "Overseas foreground icon highlighting is absent; all OEM adapters need exact firmware validation.",
+    "A single local APK is supported. App catalog/store and split/APKS installation are separate missing capabilities.",
+    "The complete installer preparation on an OEM ARM64 system image remains untested; emulator access scripts do not certify OEM remount or root boot context.",
+    "The local Windows certificate is not a publicly trusted publisher certificate."
+  ]
+}

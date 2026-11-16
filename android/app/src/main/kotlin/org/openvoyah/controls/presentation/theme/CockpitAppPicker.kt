@@ -55,7 +55,7 @@ internal fun CockpitAppPicker(title: String, back: () -> Unit, select: (Installe
                 apps == AppList.Failed || entries.isEmpty() -> item { CockpitFeedback(UiText.get(R.string.ui_112)) }
                 visible.isEmpty() -> item { CockpitFeedback(UiText.get(R.string.binding_apps_no_match)) }
                 else -> items(visible, key = { it.component().flattenToString() }) { entry ->
-                    CockpitChoice(entry.label(), entry.component().packageName) { finishSearch(); select(entry) }
+                    CockpitChoice(entry.label(), entry.component().packageName, modifier = Modifier.animateItem()) { finishSearch(); select(entry) }
                 }
             }
         }

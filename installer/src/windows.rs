@@ -4,6 +4,7 @@ use crate::{
     production::{self, Identity, ReleaseApk},
     recovery,
     releases::{self, Catalog},
+    setup,
 };
 use std::{
     cell::{Cell, RefCell},
@@ -100,6 +101,7 @@ const BATCH: u16 = 35;
 const RUNTIME: u16 = 36;
 const INFO: u16 = 37;
 const RECOVERY_PAGE: u16 = 38;
+const INSTALL_APK: u16 = 39;
 const FINGERPRINT: u16 = 40;
 const READ_FINGERPRINT: u16 = 41;
 const OEM: u16 = 42;
@@ -192,6 +194,11 @@ enum Job {
         path: PathBuf,
         expected: Option<ReleaseApk>,
     },
+    Prepare {
+        path: PathBuf,
+        expected: Option<ReleaseApk>,
+        runtime: PathBuf,
+    },
     Batch(PathBuf),
     Launch,
     Remove,
@@ -282,6 +289,34 @@ fn storage() -> PathBuf {
         .join("OpenVoyahControlsInstaller")
 }
 
+fn setup_completion(adb: &Adb, result: Result<String>) -> Output {
+    let status = match result {
+        Ok(status) => status,
+        Err(error) => format!("Operation stopped. {error}"),
+    };
+    // Root/reboot can invalidate the selected transport even when setup is
+    // canceled. This bounded read must still replace the UI's old connection list.
+    match adb.devices(&AtomicBool::new(false)) {
+        Ok(devices) => Output::Devices(devices, status),
+        Err(error) => Output::Devices(
+            Vec::new(),
+            format!(
+                "{status}\r\nThe connection list could not be refreshed. Select Refresh before continuing. {error}"
+            ),
+        ),
+    }
+}
+
+fn preferred_device_index(devices: &[Device], serial: Option<&str>) -> Option<usize> {
+    let serial = serial?;
+    let mut matches = devices
+        .iter()
+        .enumerate()
+        .filter_map(|(index, device)| (device.serial == serial).then_some(index));
+    let index = matches.next()?;
+    matches.next().is_none().then_some(index)
+}
+
 fn run_job(
     job: Job,
     adb: Option<Adb>,
@@ -314,6 +349,25 @@ fn run_job(
     }
     let adb = adb
         .ok_or("Install Android SDK Platform-Tools, then select adb.exe under Releases & logs.")?;
+    if let Job::Prepare {
+        path,
+        expected,
+        runtime,
+    } = job
+    {
+        let selected = device.ok_or("Select the intended head unit before setup.")?;
+        let result = setup::prepare(
+            &adb,
+            &selected,
+            &path,
+            expected.as_ref(),
+            &runtime,
+            store,
+            stop,
+            progress,
+        );
+        return Ok(setup_completion(&adb, result));
+    }
     if matches!(job, Job::Refresh) {
         let devices = adb.devices(stop)?;
         let status = if devices.is_empty() {
@@ -584,7 +638,7 @@ impl State {
         self.styled_label(
             tab,
             PANEL_MUTED,
-            "Select a signed Controls release. Verified updates retain existing app data.",
+            "Choose a signed release. Setup prepares startup access and keeps your app data.",
             [253, 324, 700, 24],
             0,
         );
@@ -595,9 +649,10 @@ impl State {
             "Choose an Open Voyah Controls APK",
         );
         self.button(tab, BROWSE_APK, "Browse APK…", [816, 352, 141, 34]);
-        self.button(tab, INSTALL, "Install or update", [252, 398, 174, 37]);
-        self.button(tab, LAUNCH, "Open on device", [438, 398, 154, 37]);
-        self.button(tab, REMOVE, "Remove app", [604, 398, 134, 37]);
+        self.button(tab, INSTALL, "Prepare and install", [252, 398, 204, 37]);
+        self.button(tab, LAUNCH, "Open on device", [468, 398, 154, 37]);
+        self.button(tab, REMOVE, "Remove app", [634, 398, 134, 37]);
+        self.button(tab, INSTALL_APK, "APK only", [780, 398, 177, 37]);
         self.styled_label(tab, WORKSPACE_TEXT, "Other tools", [236, 473, 700, 23], 1);
         self.button(tab, BATCH, "Install APK folder…", [236, 502, 183, 36]);
         self.button(tab, RUNTIME, "Install Frida injector…", [431, 502, 198, 36]);
@@ -888,6 +943,7 @@ impl State {
         let ready = free && self.selected().is_some_and(Device::ready);
         for id in [
             INSTALL,
+            INSTALL_APK,
             LAUNCH,
             REMOVE,
             BATCH,
@@ -900,6 +956,7 @@ impl State {
             self.enable(id, ready);
         }
         for id in [
+            DEVICE,
             REFRESH,
             CONNECT,
             DISCONNECT,
@@ -962,15 +1019,16 @@ impl State {
             match event {
                 Event::Progress(text) => self.status(&text),
                 Event::Done(result) => {
-                    self.cancel = None;
+                    let result = dispatch_completion(result, &mut self.cancel, |path, digest| {
+                        stage_update(path, digest, &self.storage)
+                    });
                     match result {
                         Ok(Output::Status(s)) => self.status(&s),
                         Ok(Output::Devices(devices, text)) => {
                             let selected = self.selected().map(|d| d.serial.clone());
+                            let preferred = preferred_device_index(&devices, selected.as_deref());
                             self.devices = devices;
                             let labels: Vec<_> = self.devices.iter().map(Device::label).collect();
-                            let preferred = selected
-                                .and_then(|s| self.devices.iter().position(|d| d.serial == s));
                             if labels.is_empty() {
                                 self.set_items(DEVICE, ["No devices found"], Some(0));
                             } else {
@@ -992,14 +1050,9 @@ impl State {
                             self.switch(0);
                             self.status("Release download matched its SHA-256. Select Install or update to check its APK signer and the selected device.");
                         }
-                        Ok(Output::Update(path, digest)) => {
-                            match stage_update(&path, &digest, &self.storage) {
-                                Ok(()) => {
-                                    unsafe { DestroyWindow(self.hwnd) };
-                                    return;
-                                }
-                                Err(e) => self.status(&format!("Update could not be staged. {e}")),
-                            }
+                        Ok(Output::Update(_, _)) => {
+                            unsafe { DestroyWindow(self.hwnd) };
+                            return;
                         }
                         Err(e) => self.status(&format!("Operation stopped. {e}")),
                     }
@@ -1113,7 +1166,7 @@ impl State {
                     );
                 }
             }
-            INSTALL => {
+            INSTALL | INSTALL_APK => {
                 let path = PathBuf::from(self.text(APK).trim());
                 if !path.is_file() {
                     return Err("Choose an APK file first.".into());
@@ -1123,7 +1176,24 @@ impl State {
                     .as_ref()
                     .filter(|(downloaded, _)| downloaded == &path)
                     .map(|(_, release)| release.clone());
-                self.start(Job::Install { path, expected });
+                if id == INSTALL_APK {
+                    self.start(Job::Install { path, expected });
+                } else {
+                    let runtime = setup::portable_runtime().or_else(|| choose_file(self.hwnd,
+                        "Verified ARM64 Frida injector\0open-voyah-controls-frida-*\0All files\0*.*\0\0"));
+                    if let Some(runtime) = runtime {
+                        if confirm(
+                            self.hwnd,
+                            "Prepare and install Controls on the selected head unit? Setup requests ADB root, saves the original startup script on this PC, enables local startup access, microphone and button service. The head unit may restart once while preparing its system partition.",
+                        ) {
+                            self.start(Job::Prepare {
+                                path,
+                                expected,
+                                runtime,
+                            });
+                        }
+                    }
+                }
             }
             LAUNCH => self.start(Job::Launch),
             REMOVE => {
@@ -1935,7 +2005,7 @@ pub fn run() {
                 state.set_items(DEVICE, [sample.label().as_str()], Some(0));
                 state.devices.push(sample);
                 if tab == 0 {
-                    state.set(APK, "OpenVoyahControls-v0.12.0.apk");
+                    state.set(APK, "OpenVoyahControls-v0.17.0.apk");
                     state.status("Preview device and signed release selected.");
                 } else {
                     state.set(
@@ -2066,6 +2136,35 @@ fn capture_client(hwnd: HWND, path: &Path) -> Result<()> {
             .write_image_data(&rgb)
             .map_err(message)
     }
+}
+
+fn dispatch_completion(
+    result: Result<Output>,
+    cancel: &mut Option<Arc<AtomicBool>>,
+    install: impl FnOnce(&Path, &str) -> Result<()>,
+) -> Result<Output> {
+    let result = match result {
+        Ok(Output::Update(path, digest)) => {
+            // A queued download has not committed installation. Honor cancellation
+            // at dispatch; a started handoff is not retroactively canceled.
+            if cancel
+                .as_ref()
+                .is_some_and(|flag| flag.load(Ordering::Relaxed))
+            {
+                Ok(Output::Status(
+                    "Update canceled before installation. The downloaded file was kept for a later attempt.".into(),
+                ))
+            } else {
+                install(&path, &digest)
+                    .map(|()| Output::Update(path, digest))
+                    .map_err(|error| format!("Update could not be staged. {error}"))
+            }
+        }
+        result => result,
+    };
+    // Keep the cancellation state until the handoff decision has been made.
+    *cancel = None;
+    result
 }
 
 fn stage_update(download: &Path, digest: &str, storage: &Path) -> Result<()> {
@@ -2207,6 +2306,214 @@ fn replace_file(destination: &Path, replacement: &Path, backup: &Path) -> std::i
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn queued_update_completion_honors_cancel_before_dispatch() {
+        let cancel = Arc::new(AtomicBool::new(false));
+        let mut cancellation = Some(Arc::clone(&cancel));
+        let (tx, rx) = mpsc::channel();
+        assert!(
+            tx.send(Event::Done(Ok(Output::Update(
+                PathBuf::from("verified-download.exe"),
+                "ab".repeat(32),
+            ))))
+            .is_ok()
+        );
+        // The download finished, but the UI has not handed installation off yet.
+        cancel.store(true, Ordering::Relaxed);
+        let Event::Done(result) = rx.try_recv().unwrap() else {
+            panic!("Expected the queued update completion");
+        };
+        let installs = Cell::new(0);
+        let completed = dispatch_completion(result, &mut cancellation, |_, _| {
+            installs.set(installs.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(installs.get(), 0);
+        assert!(
+            matches!(completed, Output::Status(status) if status.starts_with("Update canceled before installation."))
+        );
+        assert!(cancellation.is_none());
+    }
+
+    #[test]
+    fn queued_update_completion_hands_off_before_later_cancel() {
+        let cancel = Arc::new(AtomicBool::new(false));
+        let mut cancellation = Some(Arc::clone(&cancel));
+        let (tx, rx) = mpsc::channel();
+        assert!(
+            tx.send(Event::Done(Ok(Output::Update(
+                PathBuf::from("verified-download.exe"),
+                "ab".repeat(32),
+            ))))
+            .is_ok()
+        );
+        let Event::Done(result) = rx.try_recv().unwrap() else {
+            panic!("Expected the queued update completion");
+        };
+        let installs = Cell::new(0);
+        let completed = dispatch_completion(result, &mut cancellation, |path, digest| {
+            assert_eq!(path, Path::new("verified-download.exe"));
+            assert_eq!(digest, "ab".repeat(32));
+            installs.set(installs.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+        // Cancellation after a completed handoff cannot undo the started helper.
+        cancel.store(true, Ordering::Relaxed);
+        assert_eq!(installs.get(), 1);
+        assert!(matches!(completed, Output::Update(_, _)));
+        assert!(cancellation.is_none());
+    }
+
+    fn transport_fixture() -> (PathBuf, PathBuf, Adb) {
+        let project = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let root = device::new_folder(&project.join("target"), "transport-fixture").unwrap();
+        let platform = root.join("platform-tools");
+        fs::create_dir_all(&platform).unwrap();
+        let executable = platform.join("adb.exe");
+        let compiler = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+        assert!(
+            Command::new(compiler)
+                .arg(project.join("tests/fixtures/android_tools.rs"))
+                .arg("-o")
+                .arg(&executable)
+                .status()
+                .unwrap()
+                .success()
+        );
+        for library in ["AdbWinApi.dll", "AdbWinUsbApi.dll"] {
+            fs::write(platform.join(library), b"mock adb library").unwrap();
+        }
+        let adb = Adb::from_path(executable).unwrap();
+        (root, platform, adb)
+    }
+
+    #[test]
+    fn setup_completion_rebinds_the_device_after_an_adb_root_restart() {
+        let (root, platform, adb) = transport_fixture();
+        let stop = AtomicBool::new(false);
+        let selected = adb.devices(&stop).unwrap().remove(0);
+        assert_eq!(selected.transport, Some(7));
+        fs::write(platform.join("no-root"), b"yes").unwrap();
+        fs::write(platform.join("change-transport-after-root"), b"yes").unwrap();
+        let (connected, _) = setup::root_device(&adb, &selected, &stop, &|_| {}).unwrap();
+        assert_eq!(connected.transport, Some(9));
+        assert!(
+            run_job(
+                Job::Info,
+                Some(adb.clone()),
+                Some(selected.clone()),
+                &root,
+                &stop,
+                |_| {},
+            )
+            .is_err()
+        );
+        let completed = run_job(
+            Job::Prepare {
+                path: root.join("unused.apk"),
+                expected: None,
+                runtime: root.join("missing-runtime"),
+            },
+            Some(adb.clone()),
+            Some(selected.clone()),
+            &root,
+            &stop,
+            |_| {},
+        );
+        let Ok(Output::Devices(devices, status)) = completed else {
+            panic!(
+                "Setup completion must replace the UI's stale device transports, including on failure"
+            );
+        };
+        assert!(status.starts_with("Operation stopped."));
+        let selected = devices
+            .get(preferred_device_index(&devices, Some(&selected.serial)).unwrap())
+            .unwrap()
+            .clone();
+        assert_eq!(selected.transport, Some(9));
+        for job in [
+            Job::Info,
+            Job::Launch,
+            Job::Service {
+                action: ServiceAction::Rollback,
+                fingerprint: "example/demo/build".into(),
+                input: String::new(),
+                backup: None,
+            },
+        ] {
+            assert!(
+                run_job(
+                    job,
+                    Some(adb.clone()),
+                    Some(selected.clone()),
+                    &root,
+                    &stop,
+                    |_| {},
+                )
+                .is_ok()
+            );
+        }
+    }
+
+    #[test]
+    fn setup_completion_refreshes_success_and_cancellation_without_losing_the_result() {
+        let (root, platform, adb) = transport_fixture();
+        let stop = AtomicBool::new(false);
+        let selected = adb.devices(&stop).unwrap().remove(0);
+        fs::write(platform.join("transport"), "9").unwrap();
+        let Output::Devices(devices, status) =
+            setup_completion(&adb, Ok("Setup verified by Android.".into()))
+        else {
+            panic!("Successful setup must refresh its connection");
+        };
+        assert_eq!(status, "Setup verified by Android.");
+        assert_eq!(devices[0].transport, Some(9));
+
+        fs::write(root.join("runtime"), b"fixture runtime").unwrap();
+        stop.store(true, Ordering::Relaxed);
+        let result = run_job(
+            Job::Prepare {
+                path: root.join("unused.apk"),
+                expected: None,
+                runtime: root.join("runtime"),
+            },
+            Some(adb.clone()),
+            Some(selected),
+            &root,
+            &stop,
+            |_| {},
+        );
+        let Ok(Output::Devices(devices, status)) = result else {
+            panic!("Canceled setup must still discard the old transport");
+        };
+        assert!(status.contains("Canceled"));
+        assert_eq!(devices[0].transport, Some(9));
+        assert!(stop.load(Ordering::Relaxed));
+
+        fs::write(platform.join("devices-unavailable"), b"yes").unwrap();
+        let Output::Devices(devices, status) =
+            setup_completion(&adb, Err("Canceled after requesting root.".into()))
+        else {
+            panic!("A failed refresh must clear the old connection list");
+        };
+        assert!(devices.is_empty());
+        assert!(status.contains("Canceled after requesting root."));
+        assert!(status.contains("Select Refresh before continuing"));
+    }
+
+    #[test]
+    fn refreshed_selection_requires_one_matching_device() {
+        let mut devices =
+            adb::parse_devices("unit-b device transport_id:8\nunit-a device transport_id:9");
+        assert_eq!(preferred_device_index(&devices, Some("unit-a")), Some(1));
+        assert_eq!(preferred_device_index(&devices, Some("missing")), None);
+        assert_eq!(preferred_device_index(&devices, None), None);
+        devices.extend(adb::parse_devices("unit-a device transport_id:10"));
+        assert_eq!(preferred_device_index(&devices, Some("unit-a")), None);
+    }
 
     #[test]
     fn engineering_dates_cross_beijing_midnight_and_calendar_boundaries() {
@@ -2391,6 +2698,33 @@ mod tests {
             Some(archive)
         )));
         assert!(platform.join("full-remove").is_file());
+        fs::write(platform.join("no-root"), b"yes").unwrap();
+        assert!(setup::root_device(&adb, &devices[0], &stop, &|_| {}).is_ok());
+        fs::write(platform.join("no-root"), b"yes").unwrap();
+        fs::write(platform.join("root-denied"), b"yes").unwrap();
+        assert!(
+            setup::root_device(&adb, &devices[0], &stop, &|_| {})
+                .unwrap_err()
+                .contains("does not allow ADB root")
+        );
+        fs::remove_file(platform.join("root-denied")).unwrap();
+        fs::write(platform.join("swap-after-root"), b"yes").unwrap();
+        assert!(
+            setup::root_device(&adb, &devices[0], &stop, &|_| {})
+                .unwrap_err()
+                .contains("different device identity")
+        );
+        fs::remove_file(platform.join("changed-identity")).unwrap();
+        let target = adb.target(&devices[0], &stop).unwrap();
+        assert!(!setup::probe_app(&target).unwrap().reviewed);
+        fs::write(platform.join("setup-result"), b"ready\thooks\t1\t1").unwrap();
+        assert!(setup::probe_app(&target).unwrap().reviewed);
+        fs::write(platform.join("setup-result"), b"failed\tvoice\t0\t0").unwrap();
+        assert!(
+            setup::probe_app(&target)
+                .unwrap_err()
+                .contains("failed at 'voice'")
+        );
         fs::write(
             platform.join("foreign-transport"),
             "changed after selection",

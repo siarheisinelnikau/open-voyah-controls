@@ -9,17 +9,22 @@ serial=${3:-}
 exported_sha=${4:-}
 boot=/system/etc/init.logcat.sh
 private=/data/adb/open-voyah-controls
+access=/data/adb/open-voyah-controls-access
 legacy=/data/local/tmp/open-voyah-controls
 private_state=/data/adb/open-voyah-controls-boot
 legacy_state=/data/local/tmp/open-voyah-controls-boot
-runtime=open-voyah-controls-frida-17.18.0
+runtime=open-voyah-controls-frida-17.26.2
+previous_runtime=open-voyah-controls-frida-17.18.0
 legacy_injector=/data/local/tmp/$runtime
-runtime_sha=d8ce6fe18db97594d1c7a43be4f8fb405fc76f6a01470df34504bca6461328d0
+previous_legacy_injector=/data/local/tmp/$previous_runtime
+runtime_sha=b58f44918fc27843484fc62502b3d2c90ea686a85ed484bed062b23482cd1733
+previous_runtime_sha=d8ce6fe18db97594d1c7a43be4f8fb405fc76f6a01470df34504bca6461328d0
 app=org.openvoyah.controls
-channels='launcher locale-setting locale-vehicle locale-bluetooth window navigation'
+channels='launcher locale-setting locale-vehicle locale-bluetooth window navigation can'
 keys="$app.panel $app.voice $app.localization $app.clusterMedia $app.windowProfiles $app.windowRequest"
 marker_v1='# OPEN_VOYAH_CONTROLS_BOOT_V1'
 marker_v2='# OPEN_VOYAH_CONTROLS_BOOT_V2'
+marker_v3='# OPEN_VOYAH_CONTROLS_BOOT_V3'
 
 fail() { printf '%s\n' "$*" >&2; exit 1; }
 digest() { sha256sum "$1" | awk '{print $1}'; }
@@ -41,7 +46,7 @@ start_of() {
 
 case "$mode" in
     status|backup|restore|rollback|rearm) [ "$#" = 3 ] || fail 'Provide the exact build fingerprint and device serial.' ;;
-    install) [ "$#" = 4 ] || fail 'Provide the exported backup digest, build fingerprint and device serial.' ;;
+    install|install-access) [ "$#" = 4 ] || fail 'Provide the exported backup digest, build fingerprint and device serial.' ;;
     restore-exported)
         [ "$#" = 7 ] || fail 'Provide same-device backup metadata and the exported original.'
         exported_context=$5; exported_owner=$6; exported_mode=$7
@@ -60,7 +65,7 @@ sdk=$(getprop ro.build.version.sdk)
 numeric "$sdk" || fail 'Android SDK could not be determined.'
 boot_id=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)
 valid_boot_id "$boot_id" || fail 'Kernel boot identity could not be verified.'
-if [ "$mode" = install ]; then
+if [ "$mode" = install ] || [ "$mode" = install-access ]; then
     case "$sdk" in 28|30) ;; *) fail 'Boot installation supports Android 9 and 11.';; esac
     [ "$(getprop ro.product.cpu.abi)" = arm64-v8a ] || fail 'The prepared runtime requires Android ARM64.'
     [ "$(getenforce)" = Enforcing ] || fail 'Boot installation requires SELinux Enforcing.'
@@ -76,7 +81,7 @@ boot_entry() {
     if ! exists "$boot"; then
         if load_backup; then echo unknown; else echo absent; fi
     elif ! safe_file "$boot"; then echo unknown
-    elif grep -Fxq "$marker_v1" "$boot" || grep -Fxq "$marker_v2" "$boot"; then echo present
+    elif grep -Fxq "$marker_v1" "$boot" || grep -Fxq "$marker_v2" "$boot" || grep -Fxq "$marker_v3" "$boot"; then echo present
     else echo absent
     fi
 }
@@ -99,6 +104,14 @@ load_backup() {
     if exists "$state/installed.sha256"; then
         safe_file "$state/installed.sha256" || return 1
         installed=$(cat "$state/installed.sha256") && is_sha "$installed" || return 1
+    fi
+    pending=
+    if exists "$state/pending-installed.sha256"; then
+        safe_file "$state/pending-installed.sha256" || return 1
+        pending=$(cat "$state/pending-installed.sha256") && is_sha "$pending" || return 1
+        # The boot rename and its receipt cannot be committed together. Accept the
+        # pending generation only when those exact bytes are already active.
+        if safe_file "$boot" && [ "$(digest "$boot")" = "$pending" ]; then installed=$pending; fi
     fi
 }
 backup_result() {
@@ -132,7 +145,7 @@ classify() {
     case "$args" in
         '/system/bin/sh /data/adb/open-voyah-controls/supervise.sh '*|\
         '/system/bin/sh /data/local/tmp/open-voyah-controls/supervise.sh '*|\
-        "/data/adb/open-voyah-controls/$runtime -p "*|"/data/local/tmp/$runtime -p "*) ;;
+        /data/adb/open-voyah-controls/open-voyah-controls-frida-*' -p '*|/data/local/tmp/open-voyah-controls-frida-*' -p '*) ;;
         *) return 1;;
     esac
     # A matching command line without a verifiable identity is not safe to signal.
@@ -143,8 +156,9 @@ classify() {
         return 0
     fi
     for scope in "$private" "$legacy"; do
-        inject="$scope/$runtime"
-        if [ "$scope" = "$legacy" ]; then inject="/data/local/tmp/$runtime"; fi
+      for known_runtime in "$runtime" "$previous_runtime"; do
+        inject="$scope/$known_runtime"
+        if [ "$scope" = "$legacy" ]; then inject="/data/local/tmp/$known_runtime"; fi
         for item in $channels; do
             dir=$(worker_dir "$scope" "$item")
             suffix=
@@ -164,11 +178,12 @@ classify() {
                 esac
             fi
         done
+      done
     done
     printf 'unverified - - %s -\n' "$p"
 }
 owned_processes() {
-    candidates=$(grep -aF -l -e "$private" -e "$legacy" -e "/data/local/tmp/$runtime" /proc/[0-9]*/cmdline 2>/dev/null || true)
+    candidates=$(grep -aF -l -e "$private" -e "$legacy" -e '/data/local/tmp/open-voyah-controls-frida-' /proc/[0-9]*/cmdline 2>/dev/null || true)
     for proc in $candidates; do
         entry=${proc%/cmdline}
         classify "${entry##*/}" || true
@@ -205,7 +220,127 @@ active_markers() {
         done
     done
 }
-pending_visuals() {
+# Visual session recovery helpers start. Keep this block sourceable for Android shell fixtures.
+visual_uuid() (
+    valid_boot_id "$1" || return 1
+    vu_compact=$(printf '%s' "$1" | tr -d '-') || return 1
+    [ "${#vu_compact}" = 32 ] || return 1
+    case "$vu_compact" in *[!a-f0-9]*) return 1;; esac
+)
+visual_pid_valid() (
+    vpid_value=$1
+    case "$vpid_value" in ''|0*|1|*[!0-9]*) return 1;; esac
+    if [ "${#vpid_value}" -gt 10 ]; then return 1; fi
+    if [ "${#vpid_value}" -lt 10 ]; then return 0; fi
+    vpid_limit=2147483647
+    # Android's numeric test can wrap a whole PID. Compare only individual digits.
+    while [ -n "$vpid_value" ]; do
+        vpid_digit=${vpid_value%"${vpid_value#?}"}
+        vpid_max=${vpid_limit%"${vpid_limit#?}"}
+        if [ "$vpid_digit" -lt "$vpid_max" ]; then return 0; fi
+        if [ "$vpid_digit" -gt "$vpid_max" ]; then return 1; fi
+        vpid_value=${vpid_value#?}
+        vpid_limit=${vpid_limit#?}
+    done
+    return 0
+)
+visual_session_state() {
+    vs_state=absent
+    vs_hash=
+    vs_path="$(worker_dir "$1" "$2")/visual.session"
+    if ! exists "$vs_path"; then return 0; fi
+    vs_state=uncertain
+    private_dir "$1" && private_dir "${vs_path%/*}" && safe_file "$vs_path" &&
+        [ "$(stat -c %u:%a:%h "$vs_path" 2>/dev/null)" = 0:600:1 ] || return 0
+    vs_size=$(stat -c %s "$vs_path" 2>/dev/null) || return 0
+    numeric "$vs_size" && [ "$vs_size" -le 128 ] || return 0
+    vs_stamp=$(stat -c '%d:%i:%s:%Y:%Z:%u:%a:%h' "$vs_path" 2>/dev/null) || return 0
+    vs_record=$(cat "$vs_path" 2>/dev/null) || return 0
+    vs_bytes=$(wc -c < "$vs_path") || return 0
+    numeric "$vs_bytes" && [ "$vs_bytes" = "$vs_size" ] &&
+        [ "$vs_bytes" -eq "$(( ${#vs_record}+1 ))" ] || return 0
+    case "$vs_record" in ''|*[!a-f0-9:-]*) return 0;; esac
+    vs_boot=${vs_record%%:*}
+    vs_parts=${vs_record#*:}
+    vs_pid=${vs_parts%%:*}
+    vs_parts=${vs_parts#*:}
+    vs_since=${vs_parts%%:*}
+    vs_nonce=${vs_parts#*:}
+    [ "$vs_record" = "$vs_boot:$vs_pid:$vs_since:$vs_nonce" ] && visual_uuid "$vs_boot" &&
+        visual_pid_valid "$vs_pid" &&
+        numeric "$vs_since" && [ "${#vs_since}" -le 20 ] && [ "${#vs_nonce}" = 32 ] || return 0
+    case "$vs_since" in 0) ;; 0*|'') return 0;; esac
+    case "$vs_nonce" in *[!a-f0-9]*) return 0;; esac
+    vs_current_boot=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null) || return 0
+    visual_uuid "$vs_current_boot" || return 0
+    vs_target=changed
+    if [ "$vs_current_boot" = "$vs_boot" ] && [ -d "/proc/$vs_pid" ]; then
+        vs_proc=$(cat "/proc/$vs_pid/stat" 2>/dev/null) || return 0
+        case "$vs_proc" in *') '*) ;; *) return 0;; esac
+        vs_target=$(
+            set -f
+            IFS=' '
+            set -- ${vs_proc##*) }
+            [ "$#" -ge 20 ] || exit 1
+            vs_proc_state=$1
+            shift 19
+            vs_proc_start=$1
+            case "$vs_proc_state" in [A-Za-z]) ;; *) exit 1;; esac
+            numeric "$vs_proc_start" || exit 1
+            case "$vs_proc_state" in
+                Z|X) echo changed;;
+                *) if [ "$vs_proc_start" = "$vs_since" ]; then echo current; else echo changed; fi;;
+            esac
+        ) || return 0
+    fi
+    case "$vs_target" in current|changed) ;; *) return 0;; esac
+    vs_hash=$(printf '%s\n' "$vs_record" | sha256sum | awk '{print $1}') || return 0
+    is_sha "$vs_hash" && safe_file "$vs_path" &&
+        [ "$(stat -c '%d:%i:%s:%Y:%Z:%u:%a:%h' "$vs_path" 2>/dev/null)" = "$vs_stamp" ] &&
+        [ "$(digest "$vs_path")" = "$vs_hash" ] || return 0
+    vs_state=$vs_target
+}
+clear_visual_session() (
+    vcs_scope=$1; vcs_channel=$2; vcs_reason=$3; vcs_expected=$4
+    case "$vcs_scope:$vcs_channel" in "$private:launcher"|"$private:window"|"$legacy:launcher"|"$legacy:window") ;; *) return 1;; esac
+    is_sha "$vcs_expected" || return 1
+    visual_session_state "$vcs_scope" "$vcs_channel"
+    case "$vs_state:$vcs_reason" in current:restored|changed:restored|changed:changed) ;; *) return 1;; esac
+    [ "$vs_hash" = "$vcs_expected" ] && safe_file "$vs_path" &&
+        [ "$(stat -c '%d:%i:%s:%Y:%Z:%u:%a:%h' "$vs_path" 2>/dev/null)" = "$vs_stamp" ] &&
+        [ "$(digest "$vs_path")" = "$vcs_expected" ] && rm -f "$vs_path" && sync
+)
+finish_visual_restore() (
+    if [ "$3" = absent ]; then
+        visual_session_state "$1" "$2"
+        [ "$vs_state" = absent ]
+    else
+        clear_visual_session "$1" "$2" restored "$3"
+    fi
+)
+retire_changed_visual_sessions() {
+    vret_result=0
+    for vret_scope in "$private" "$legacy"; do
+        for vret_channel in launcher window; do
+            visual_session_state "$vret_scope" "$vret_channel"
+            if [ "$vs_state" = changed ]; then
+                clear_visual_session "$vret_scope" "$vret_channel" changed "$vs_hash" || vret_result=1
+            fi
+        done
+    done
+    return "$vret_result"
+}
+pending_visual_sessions() {
+    for vp_scope in "$private" "$legacy"; do
+        for vp_channel in launcher window; do
+            visual_session_state "$vp_scope" "$vp_channel"
+            case "$vs_state" in current|uncertain) return 0;; esac
+        done
+    done
+    return 1
+}
+# Visual session recovery helpers end.
+pending_visual_markers() {
     for file in "$private_state/visual.pending" "$legacy_state/visual.pending" \
         "$private/recovery.visual-pending" "$legacy/recovery.visual-pending"; do
         if exists "$file"; then
@@ -216,6 +351,9 @@ pending_visuals() {
         fi
     done
     return 1
+}
+pending_visuals() {
+    pending_visual_markers || pending_visual_sessions
 }
 ready_channels() {
     list=$1
@@ -245,10 +383,12 @@ ready_channels() {
 }
 legacy_state_value() {
     if safe_file "$boot" && grep -Fxq "$marker_v1" "$boot"; then echo active; return; fi
-    if exists "$legacy_injector"; then
-        if [ -f "$legacy_injector" ] && [ ! -L "$legacy_injector" ]; then echo active; else echo unknown; fi
-        return
-    fi
+    for inject in "$legacy_injector" "$previous_legacy_injector"; do
+        if exists "$inject"; then
+            if [ -f "$inject" ] && [ ! -L "$inject" ]; then echo active; else echo unknown; fi
+            return
+        fi
+    done
     if ! exists "$legacy"; then echo absent; return; fi
     if ! private_dir "$legacy"; then echo unknown; return; fi
     for file in "$legacy/boot-start.sh" "$legacy/supervise.sh" "$legacy/localization.js"; do
@@ -263,12 +403,26 @@ legacy_state_value() {
     done
     echo inert
 }
+verified_access() (
+    private_dir /data/adb && private_dir "$access" || return 1
+    for name in access-start.sh login.sh checksums; do safe_file "$access/$name" || return 1; done
+    [ "$(stat -c %a "$access/access-start.sh")" = 700 ] &&
+        [ "$(stat -c %a "$access/login.sh")" = 700 ] && [ "$(stat -c %a "$access/checksums")" = 600 ] || return 1
+    cd "$access" && [ "$(wc -l < checksums)" = 3 ] && sha256sum -c checksums >/dev/null 2>&1
+)
+access_state() {
+    if ! exists "$access"; then echo absent; return; fi
+    if ! verified_access; then echo unknown; return; fi
+    /system/bin/sh "$access/access-start.sh" --status || echo unknown
+}
 report_status() {
     entry=$(boot_entry)
     printf 'OVC_BOOT_ENTRY=%s\n' "$entry"
     if safe_file "$boot"; then printf 'OVC_BOOT_SHA256=%s\n' "$(digest "$boot")"; fi
     printf 'OVC_BOOT_BACKUP=%s\n' "$(backup_result)"
     inert=no
+    access_status=$(access_state)
+    printf 'OVC_ACCESS=%s\n' "$access_status"
     if ! scopes_safe; then
         printf '%s\n' OVC_RUNTIME=unknown OVC_LEGACY_STATE=unknown OVC_RECOVERY_BLOCKED=unknown OVC_ROLLBACK_INERT=no
         return
@@ -287,7 +441,7 @@ report_status() {
     elif [ -n "$processes$markers$names" ]; then echo 'OVC_RUNTIME=active'
     else
         echo 'OVC_RUNTIME=inactive'
-        if [ "$entry" = absent ] && ! pending_visuals; then
+        if [ "$entry" = absent ] && ! pending_visuals && { [ "$access_status" = absent ] || [ "$access_status" = inactive ]; }; then
             case "$legacy_status" in absent|inert) inert=yes;; esac
         fi
     fi
@@ -392,6 +546,13 @@ reviewed_boot_worker() {
     is_sha "$expected" && [ "$(digest "$private/boot-start.sh")" = "$expected" ] &&
         /system/bin/sh "$private/boot-start.sh" --verify
 }
+render_legacy_entry() {
+    # Reproduce the original V1 tool exactly; a marker alone never authorizes recovery.
+    head -n 1 "$state/original"
+    printf '%s\n' "$marker_v1"
+    printf '%s\n' '( w=/data/local/tmp/open-voyah-controls/boot-start.sh; i=0; while [ ! -x "$w" ] && [ "$i" -lt 40 ]; do sleep 2; i=$((i+1)); done; if [ -x "$w" ]; then /system/bin/sh "$w"; fi ) </dev/null >/dev/null 2>&1 &'
+    tail -n +2 "$state/original"
+}
 render_boot_entry() {
     # Keep V2 rendering stable: verified PC restores reproduce these exact bytes.
     head -n 1 "$state/original"
@@ -422,6 +583,29 @@ render_boot_entry() {
 OVC_BOOT_ENTRY
     tail -n +2 "$state/original"
 }
+render_access_entry() {
+    # V3 is reproducible from the original alone, so PC restore does not need the APK or keys.
+    head -n 1 "$state/original"
+    printf '%s\n' "$marker_v3"
+    cat <<'OVC_ACCESS_ENTRY'
+(
+    PATH=/system/bin:/system/xbin
+    export PATH
+    a=/data/adb/open-voyah-controls-access
+    waits=0
+    while [ ! -d "$a" ] && [ "$waits" -lt 40 ]; do sleep 2; waits=$((waits+1)); done
+    if [ "$(id -u)" = 0 ] && [ "$(getenforce)" = Enforcing ] &&
+        [ -d /data/adb ] && [ ! -L /data/adb ] && [ "$(stat -c %u:%a /data/adb)" = 0:700 ] &&
+        [ -d "$a" ] && [ ! -L "$a" ] && [ "$(stat -c %u:%a "$a")" = 0:700 ] &&
+        [ -f "$a/access-start.sh" ] && [ ! -L "$a/access-start.sh" ] && [ "$(stat -c %u:%a "$a/access-start.sh")" = 0:700 ] &&
+        [ -f "$a/checksums" ] && [ ! -L "$a/checksums" ] && [ "$(stat -c %u:%a "$a/checksums")" = 0:600 ]; then
+        cd "$a" && [ "$(wc -l < checksums)" = 3 ] && sha256sum -c checksums >/dev/null 2>&1 &&
+            /system/bin/sh "$a/access-start.sh"
+    fi
+) </dev/null >/dev/null 2>&1 &
+OVC_ACCESS_ENTRY
+    render_boot_entry | tail -n +3
+}
 replace_boot() {
     direction=$1
     entry=$(boot_entry)
@@ -435,24 +619,41 @@ replace_boot() {
     [ "$(context_of "$boot")" = "$context" ] && [ "$(attrs_of "$boot")" = "$attrs" ] || return 1
     if [ "$direction" = install ]; then
         [ "$original" = "$exported_sha" ] || return 1
-        reviewed_boot_worker && ! exists "$private/recovery.blocked" || return 1
-        case ",$(ready_channels "$(owned_processes)" "$private")," in *,launcher,*) ;; *) return 1;; esac
-        if [ "$entry" = present ] && [ "$current" = "$installed" ] && grep -Fxq "$marker_v2" "$boot"; then
+        if [ "$mode" = install-access ]; then
+            verified_access && /system/bin/sh "$access/access-start.sh" --verify || return 1
+        else
+            reviewed_boot_worker && ! exists "$private/recovery.blocked" || return 1
+            case ",$(ready_channels "$(owned_processes)" "$private")," in *,launcher,*) ;; *) return 1;; esac
+        fi
+        if [ -n "$pending" ] && [ "$current" = "$pending" ]; then
+            save_text "$state/installed.sha256" "$current" || return 1
+            sync
+            rm -f "$state/pending-installed.sha256" || return 1
+            pending=
+        fi
+        if [ "$entry" = present ] && [ "$current" = "$installed" ] &&
+            { grep -Fxq "$marker_v3" "$boot" || { [ "$mode" = install ] && grep -Fxq "$marker_v2" "$boot"; }; }; then
             echo 'OVC_BOOT_INSTALL=already-installed'
             return 0
         fi
-        [ "$state" = "$private_state" ] && [ "$entry" = absent ] && [ "$current" = "$original" ] || return 1
+        [ "$state" = "$private_state" ] && {
+            { [ "$entry" = absent ] && [ "$current" = "$original" ]; } ||
+            { [ "$mode" = install-access ] && [ "$current" = "$installed" ] && grep -Fxq "$marker_v2" "$boot"; }
+        } || return 1
     else
         [ "$entry" = present ] && [ -n "$installed" ] && [ "$current" = "$installed" ] || return 1
     fi
     stage=$(mktemp /system/etc/init.logcat.ovc.XXXXXX) || return 1
     cp -p "$state/original" "$stage" || return 1
-    if [ "$direction" = install ]; then render_boot_entry > "$stage" || return 1; fi
+    if [ "$direction" = install ]; then
+        if [ "$mode" = install-access ]; then render_access_entry > "$stage" || return 1
+        else render_boot_entry > "$stage" || return 1; fi
+    fi
     /system/bin/sh -n "$stage" && chcon "$context" "$stage" || return 1
     [ "$(attrs_of "$stage")" = "$attrs" ] && [ "$(context_of "$stage")" = "$context" ] || return 1
     expected=$(digest "$stage")
     is_sha "$expected" || return 1
-    if [ "$direction" = install ]; then save_text "$state/installed.sha256" "$expected" || return 1
+    if [ "$direction" = install ]; then save_text "$state/pending-installed.sha256" "$expected" || return 1
     else [ "$expected" = "$original" ] || return 1
     fi
     sync
@@ -462,6 +663,12 @@ replace_boot() {
     sync
     [ "$(digest "$boot")" = "$expected" ] && [ "$(attrs_of "$boot")" = "$attrs" ] &&
         [ "$(context_of "$boot")" = "$context" ] || return 1
+    if [ "$direction" = install ]; then
+        save_text "$state/installed.sha256" "$expected" || return 1
+        sync
+    fi
+    rm -f "$state/pending-installed.sha256" || return 1
+    sync
     if [ "$direction" = install ]; then echo 'OVC_BOOT_INSTALL=installed'
     else echo 'OVC_BOOT_RESTORE=restored'
     fi
@@ -477,7 +684,7 @@ prepare_exported_restore() {
         return 1
     read -r shebang < "$state/original" || return 1
     [ "$shebang" = '#!/system/bin/sh' ] && ! grep -Fxq "$marker_v1" "$state/original" &&
-        ! grep -Fxq "$marker_v2" "$state/original" || return 1
+        ! grep -Fxq "$marker_v2" "$state/original" && ! grep -Fxq "$marker_v3" "$state/original" || return 1
     chown "$exported_owner" "$state/original" && chmod "$exported_mode" "$state/original" || return 1
     [ "$(attrs_of "$state/original")" = "$exported_owner:$exported_mode" ] || return 1
     printf '%s\n' "$exported_sha" > "$state/original.sha256"
@@ -488,39 +695,63 @@ prepare_exported_restore() {
     # Treat the temporary root-private directory as a fully checked current-generation backup.
     current=$(digest "$boot")
     if [ "$current" = "$exported_sha" ]; then return 0; fi
-    grep -Fxq "$marker_v2" "$boot" && render_boot_entry > "$state/candidate" &&
-        [ "$(digest "$state/candidate")" = "$current" ] || return 1
+    if grep -Fxq "$marker_v3" "$boot"; then render_access_entry > "$state/candidate" || return 1
+    elif grep -Fxq "$marker_v2" "$boot"; then render_boot_entry > "$state/candidate" || return 1
+    elif grep -Fxq "$marker_v1" "$boot"; then render_legacy_entry > "$state/candidate" || return 1
+    else return 1; fi
+    [ "$(digest "$state/candidate")" = "$current" ] || return 1
     printf '%s\n' "$current" > "$state/installed.sha256"
 }
 token() {
     value=$(tr -d '-' < /proc/sys/kernel/random/uuid 2>/dev/null) || return 1
     [ "${#value}" = 32 ] && case "$value" in *[!a-f0-9]*) false;; *) printf '%s\n' "$value";; esac
 }
-release_panel() {
+release_panel() (
     scope=$1
+    visual_session_state "$scope" launcher
+    case "$vs_state" in
+        uncertain) return 1;;
+        changed) clear_visual_session "$scope" launcher changed "$vs_hash"; return $?;;
+        current) release_session=$vs_hash;;
+        absent) release_session=absent;;
+    esac
     safe_file "$scope/hook.log" || return 1
     request=$(token) || return 1
     settings put global "$app.panel" "{\"schema\":1,\"enabled\":false,\"steeringEnabled\":false,\"restoreIcons\":\"$request\"}" || return 1
     for delay in 1 2 3 4 5 6; do
-        if grep -Fq "OVC_PANEL_ICONS_RESTORED $request" "$scope/hook.log"; then return 0; fi
+        if grep -Fq "OVC_PANEL_ICONS_RESTORED $request" "$scope/hook.log"; then
+            finish_visual_restore "$scope" launcher "$release_session"
+            return $?
+        fi
         sleep 1
     done
     return 1
-}
-release_windows() {
+)
+release_windows() (
     scope=$1
+    visual_session_state "$scope" window
+    case "$vs_state" in
+        uncertain) return 1;;
+        changed) clear_visual_session "$scope" window changed "$vs_hash"; return $?;;
+        current) release_session=$vs_hash;;
+        absent) release_session=absent;;
+    esac
     safe_file "$scope/window/hook.log" || return 1
     request=$(token) || return 1
     user=$(am get-current-user 2>/dev/null) && numeric "$user" || return 1
+    [ "$user" = 0 ] || return 1
     now=$(date +%s) && numeric "$now" || return 1
     expires=$((now*1000+8000))
     settings put global "$app.windowRequest" "{\"schema\":1,\"id\":\"$request\",\"operation\":\"release\",\"user\":$user,\"component\":\"\",\"expires\":$expires}" || return 1
     for delay in 1 2 3 4 5 6; do
-        if grep -F "OVC_WINDOW_RESULT $request " "$scope/window/hook.log" | grep -Fq '"status":"applied"'; then return 0; fi
+        if grep -F "OVC_WINDOW_RESULT $request " "$scope/window/hook.log" | grep -Fq '"status":"applied"'; then
+            finish_visual_restore "$scope" window "$release_session"
+            return $?
+        fi
         sleep 1
     done
     return 1
-}
+)
 stop_owned() {
     # Every signal is re-checked against uid, executable, exact arguments, and kernel start time.
     list=$(owned_processes)
@@ -549,7 +780,7 @@ clear_legacy_markers() (
     if ! exists "$legacy"; then return 0; fi
     enter_legacy || return 1
     if exists ./enabled; then rm -f ./enabled || return 1; fi
-    for item in locale-setting locale-vehicle locale-bluetooth window navigation; do
+    for item in locale-setting locale-vehicle locale-bluetooth window navigation can; do
         if exists "./$item"; then
             ( enter_legacy_channel "$item" && rm -f ./enabled ) || return 1
         fi
@@ -562,7 +793,7 @@ retire_legacy() {
             for file in ./boot-start.sh ./supervise.sh ./localization.js ./launcher-buttons.js; do
                 if exists "$file"; then safe_file "$file" && rm -f "$file" || return 1; fi
             done
-            for item in locale-setting locale-vehicle locale-bluetooth window navigation; do
+            for item in locale-setting locale-vehicle locale-bluetooth window navigation can; do
                 if exists "./$item"; then
                     (
                         enter_legacy_channel "$item" || return 1
@@ -574,10 +805,13 @@ retire_legacy() {
             done
         ) || return 1
     fi
-    if exists "$legacy_injector"; then
-        [ -f "$legacy_injector" ] && [ ! -L "$legacy_injector" ] &&
-            [ "$(digest "$legacy_injector")" = "$runtime_sha" ] && rm -f "$legacy_injector" || return 1
-    fi
+    for spec in "$runtime:$runtime_sha" "$previous_runtime:$previous_runtime_sha"; do
+        inject="/data/local/tmp/${spec%%:*}"
+        if exists "$inject"; then
+            [ -f "$inject" ] && [ ! -L "$inject" ] &&
+                [ "$(digest "$inject")" = "${spec#*:}" ] && rm -f "$inject" || return 1
+        fi
+    done
 }
 rollback() {
     scopes_safe || fail 'An unexpected runtime directory prevents safe rollback.'
@@ -588,6 +822,7 @@ rollback() {
     sync
     errors=0
     am force-stop --user all "$app" >/dev/null 2>&1 || errors=1
+    retire_changed_visual_sessions || errors=1
     # Remove a pending command before letting a live agent perform its one-time restoration.
     settings delete global "$app.voice" >/dev/null 2>&1 || errors=1
     processes=$(owned_processes)
@@ -595,11 +830,13 @@ rollback() {
     names=$(setting_names) || errors=1
     visuals=not-active
     already_pending=no
-    if pending_visuals; then already_pending=yes; fi
+    if pending_visual_markers; then already_pending=yes; fi
+    sessions_pending=no
+    if pending_visual_sessions; then sessions_pending=yes; fi
     legacy_touched=no
     if safe_file "$legacy/worker.boot" && [ "$(cat "$legacy/worker.boot")" = "$boot_id" ]; then legacy_touched=yes; fi
     if printf '%s\n' "$processes" | grep -Fq " $legacy "; then legacy_touched=yes; fi
-    if [ "$already_pending" = yes ] || [ "$legacy_touched" = yes ] || [ -n "$processes$signals$names" ]; then
+    if [ "$already_pending" = yes ] || [ "$sessions_pending" = yes ] || [ "$legacy_touched" = yes ] || [ -n "$processes$signals$names" ]; then
         save_text "$journal/visual.pending" "$boot_id"
         sync
         visuals=acknowledged
@@ -630,6 +867,19 @@ rollback() {
     clear_legacy_markers || errors=1
     sync
     if stop_owned; then retire_legacy || errors=1; else errors=1; fi
+    if exists "$access"; then
+        if verified_access; then
+            touch "$access/disabled" && chmod 600 "$access/disabled" || errors=1
+            /system/bin/sh "$access/access-start.sh" --stop || errors=1
+            if exists "$access/accessibility-added"; then
+                services=$(settings get secure enabled_accessibility_services)
+                remaining=$(printf '%s' "$services" | tr ':' '\n' | awk '$0!="org.openvoyah.controls/org.openvoyah.controls.ButtonAccessibilityService" && $0!="org.openvoyah.controls/.ButtonAccessibilityService" && $0!="null" && NF { if(n++) printf ":"; printf "%s",$0 }')
+                settings put secure enabled_accessibility_services "$remaining" || errors=1
+                [ -n "$remaining" ] || settings put secure accessibility_enabled 0 || errors=1
+                rm -f "$access/accessibility-added"
+            fi
+        else errors=1; fi
+    fi
     for key in $keys; do settings delete global "$key" >/dev/null 2>&1 || errors=1; done
     replace_boot restore || { errors=1; echo 'OVC_BOOT_RESTORE=unconfirmed'; }
     state=$saved_state
@@ -644,17 +894,19 @@ rollback() {
 
 case "$mode" in
     backup) export_backup ;;
-    install) replace_boot install || fail 'Installation refused. Verify the exported original, firmware, and staged runtime.' ;;
+    install|install-access) replace_boot install || fail 'Installation refused. Verify the exported original, firmware, and staged runtime.' ;;
     restore) replace_boot restore || fail 'Restoration refused. The original or installed boot file could not be verified.' ;;
     rollback) rollback ;;
     restore-exported)
-        prepare_exported_restore || fail 'The exported original does not reproduce this exact V2 boot file. No boot changes were made.'
+        prepare_exported_restore || fail 'The exported original does not reproduce this exact boot file. No boot changes were made.'
         rollback
         ;;
     rearm)
         report_status
         [ "$inert" = yes ] && private_dir /data/adb && ensure_dir "$private" ||
             fail 'Rearm requires an inert runtime and root-private deployment directory.'
+        retire_changed_visual_sessions || fail 'A changed visual session could not be retired safely.'
+        if pending_visuals; then fail 'Visual recovery became pending. Inspect the unit before rearming.'; fi
         if exists "$private/recovery.blocked"; then rm -f "$private/recovery.blocked"; fi
         if safe_file "$private/recovery.visual-pending"; then rm -f "$private/recovery.visual-pending"; fi
         for item in $channels; do

@@ -321,6 +321,10 @@ pub struct Target<'a> {
 }
 
 impl Target<'_> {
+    pub fn serial(&self) -> &str {
+        &self.serial
+    }
+
     fn args<S: AsRef<OsStr>>(&self, args: impl IntoIterator<Item = S>) -> Vec<OsString> {
         [
             OsString::from("-t"),
@@ -357,7 +361,7 @@ impl Target<'_> {
             value.is_empty()
                 || !value
                     .bytes()
-                    .all(|c| c.is_ascii_alphanumeric() || b"_./:+-,".contains(&c))
+                    .all(|c| c.is_ascii_alphanumeric() || b"_./:+-,@".contains(&c))
         }) {
             return Err("Unsafe argument for a head-unit operation.".into());
         }
@@ -569,6 +573,58 @@ mod tests {
         assert_eq!(endpoint("[::1]:5556").unwrap(), "[::1]:5556");
         for value in ["-a:1", "host:0", "host:65536", "bad host:1", "host; id:1"] {
             assert!(endpoint(value).is_err());
+        }
+    }
+
+    #[test]
+    fn script_arguments_accept_android_versioned_names_without_accepting_shell_syntax() {
+        // Cancellation guarantees this exercises the real argument gate without starting ADB.
+        let stop = AtomicBool::new(true);
+        let adb = Adb {
+            path: PathBuf::from("unused-adb.exe"),
+        };
+        let device = Device {
+            serial: "owned-fixture".into(),
+            state: "device".into(),
+            model: String::new(),
+            transport: Some(1),
+        };
+        let target = adb.target(&device, &stop).unwrap();
+        for argument in [
+            "/system/etc/init/android.hidl.example@1.0-service.rc",
+            "/vendor/etc/init/android.hardware.example@2.1-service.rc",
+        ] {
+            assert_eq!(
+                target.script("exit 0\n", &[argument], 1).unwrap_err(),
+                "Canceled before the next command."
+            );
+        }
+        for argument in [
+            "",
+            "name;id",
+            "name&id",
+            "name|id",
+            "$(id)",
+            "`id`",
+            "\"name\"",
+            "'name'",
+            "two words",
+            "name\tvalue",
+            "name\nvalue",
+            "name\rvalue",
+            "name\\value",
+            "*.rc",
+            "name?.rc",
+            "${name}",
+            "name>file",
+            "name<file",
+            "name#comment",
+        ] {
+            assert_eq!(
+                target.script("exit 0\n", &[argument], 1).unwrap_err(),
+                "Unsafe argument for a head-unit operation.",
+                "{argument:?}"
+            );
         }
     }
 }

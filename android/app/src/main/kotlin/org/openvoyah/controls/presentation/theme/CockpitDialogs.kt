@@ -128,10 +128,13 @@ internal fun CockpitModal(title: String, footer: (@Composable () -> Unit)? = nul
 }
 
 @Composable
-internal fun CockpitChoice(title: String, subtitle: String? = null, enabled: Boolean = true, onClick: () -> Unit) {
+internal fun CockpitChoice(title: String, subtitle: String? = null, enabled: Boolean = true,
+                          modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    Surface(onClick, Modifier.fillMaxWidth().heightIn(min = 52.dp), enabled = enabled, shape = MaterialTheme.shapes.medium,
-        color = colors.surfaceVariant) {
+    val press = rememberPressMotion(enabled)
+    Surface(onClick, modifier.fillMaxWidth().then(press.modifier).heightIn(min = 52.dp), enabled = enabled,
+        interactionSource = press.source, shape = MaterialTheme.shapes.medium, color = press.color,
+        border = BorderStroke(1.dp, colors.outlineVariant)) {
         Row(Modifier.padding(horizontal = 13.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             Column(Modifier.weight(1f)) {
@@ -145,7 +148,8 @@ internal fun CockpitChoice(title: String, subtitle: String? = null, enabled: Boo
 
 @Composable
 internal fun CockpitTextAction(title: String, action: () -> Unit) {
-    TextButton(action, Modifier.heightIn(min = 48.dp)) { Text(title) }
+    val press = rememberPressMotion()
+    TextButton(action, press.modifier.heightIn(min = 48.dp), interactionSource = press.source) { Text(title) }
 }
 
 @Composable

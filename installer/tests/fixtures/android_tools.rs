@@ -5,7 +5,7 @@ const BOOT_SHA: &str = "c4da4be759d9d08f1962899015f2d05b13e18c6515ae99b9a5f10869
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let command: Vec<&str> = args[1..].iter().map(String::as_str).collect();
+    let mut command: Vec<&str> = args[1..].iter().map(String::as_str).collect();
     let executable = Path::new(&args[0]);
     let state = executable.parent().unwrap();
     let installed = state.join("installed-apk");
@@ -34,13 +34,34 @@ fn main() {
         println!("Signer #1 certificate SHA-256 digest: {cert}");
         return;
     }
+    let transport = fs::read_to_string(state.join("transport")).unwrap_or("7".into());
+    if command.first() == Some(&"-t") {
+        if command.get(1) != Some(&transport.as_str()) {
+            eprintln!("The selected transport is no longer connected.");
+            std::process::exit(1);
+        }
+        // Share the command handlers while rejecting every stale transport above.
+        command[1] = "7";
+    }
     if let ["-t", "7", "shell", "-T", "sh", "-s", "--", tail @ ..] = command.as_slice() {
         let mut script = String::new();
         std::io::stdin().read_to_string(&mut script).unwrap();
         match tail {
-            [] if script.contains("ro.build.version.sdk") => {
-                println!("ro.build.fingerprint=example/demo/build\nro.serialno=hardware-a\nro.product.name=f0506h\nro.product.cpu.abi=arm64-v8a\nro.build.version.sdk=30");
+            ["example/demo/build", "hardware-a"] if script.contains("OVC_BUTTONS_DETACHED") => {
+                assert!(!active.exists() && !legacy.exists());
+                fs::write(state.join("buttons-detached"), "confirmed").unwrap();
+                println!("OVC_BUTTONS_DETACHED");
                 return;
+            }
+            [] if script.contains("ro.build.version.sdk") => {
+                let serial = if state.join("changed-identity").exists() { "hardware-b" } else { "hardware-a" };
+                println!("ro.build.fingerprint=example/demo/build\nro.serialno={serial}\nro.product.name=f0506h\nro.product.cpu.abi=arm64-v8a\nro.build.version.sdk=30");
+                return;
+            }
+            [nonce] if script.contains("/app-probe") => {
+                assert_eq!(fs::read_to_string(state.join("setup-nonce")).unwrap(), *nonce);
+                let result = fs::read_to_string(state.join("setup-result")).unwrap_or("unreviewed\tfirmware\t1\t1".into());
+                println!("{nonce}\t{result}"); return;
             }
             ["org.openvoyah.controls"] if script.contains("pm path --user 0") => {
                 if installed.exists() {
@@ -84,7 +105,11 @@ fn main() {
     }
     match command.as_slice() {
         ["devices", "-l"] => {
-            println!("List of devices attached\nunit-a device model:Demo transport_id:7\nunit-b unauthorized transport_id:8");
+            if state.join("devices-unavailable").exists() {
+                eprintln!("Fixture device enumeration failed.");
+                std::process::exit(1);
+            }
+            println!("List of devices attached\nunit-a device model:Demo transport_id:{transport}\nunit-b unauthorized transport_id:8");
         }
         ["-t", "7", "get-serialno"] => println!("{}", if foreign.exists() { "different-unit" } else { "unit-a" }),
         ["-t", "7", "install", "-r", "--user", "0", path] if path.ends_with(".apk") => {
@@ -97,18 +122,38 @@ fn main() {
         }
         ["-t", "7", "uninstall", "-k", "org.openvoyah.controls"] => {
             assert!(!active.exists() && !legacy.exists());
+            assert!(state.join("buttons-detached").exists());
+            fs::remove_file(state.join("buttons-detached")).unwrap();
             fs::remove_file(&installed).unwrap();
             println!("Success");
         }
         ["-t", "7", "uninstall", "org.openvoyah.controls"] => {
             assert!(blocked.exists() && !active.exists() && !legacy.exists());
+            assert!(state.join("buttons-detached").exists());
+            fs::remove_file(state.join("buttons-detached")).unwrap();
             fs::remove_file(&installed).unwrap();
             fs::write(state.join("full-remove"), "confirmed").unwrap();
             println!("Success");
         }
         ["-t", "7", "shell", "pm", "list", "users"] => println!("Users:\n    UserInfo{{0:Owner:13}} running"),
         ["-t", "7", "shell", "am", "get-current-user"] => println!("0"),
-        ["-t", "7", "shell", "id", "-u"] => println!("0"),
+        ["-t", "7", "shell", "id", "-u"] => println!("{}", if state.join("no-root").exists() { "2000" } else { "0" }),
+        ["-t", "7", "root"] => {
+            if state.join("root-denied").exists() { println!("adbd cannot run as root in production builds"); }
+            else {
+                let _ = fs::remove_file(state.join("no-root"));
+                if state.join("change-transport-after-root").exists() {
+                    fs::write(state.join("transport"), "9").unwrap();
+                }
+                if state.join("swap-after-root").exists() { fs::write(state.join("changed-identity"), b"yes").unwrap(); }
+                println!("restarting adbd as root");
+            }
+        }
+        ["-t", "7", "shell", "getenforce"] => println!("Enforcing"),
+        ["-t", "7", "shell", "cat", "/proc/sys/kernel/random/uuid"] => println!("abababab-abab-abab-abab-abababababab"),
+        ["-t", "7", "shell", "am", "start", "--user", "0", "-n", "org.openvoyah.controls/.SetupActivity", "--es", "request", nonce] => {
+            fs::write(state.join("setup-nonce"), nonce).unwrap(); println!("Starting: Intent");
+        }
         ["-t", "7", "exec-out", "cat", "/data/adb/open-voyah-controls-boot/original"] => {
             use std::io::Write;
             std::io::stdout().write_all(ORIGINAL).unwrap();

@@ -1,0 +1,7 @@
+<resources>
+    <string name="settings_archive_exporting">Сохранение полной резервной копии настроек…</string>
+    <string name="settings_archive_reading">Чтение и проверка файла настроек…</string>
+    <string name="settings_archive_applying">Восстановление настроек и обновление активных функций. Подождите…</string>
+    <string name="settings_archive_restored">Настройки восстановлены.</string>
+    <string name="settings_archive_runtime_failed">Настройки сохранены, но активные функции не удалось обновить. Нажмите «Подключить», чтобы повторить попытку.\n</string>
+</resources>

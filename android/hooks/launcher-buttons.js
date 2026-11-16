@@ -7,7 +7,9 @@ const LEFT_PANEL = PREFIX + '.extra.LEFT_PANEL_PX';
 const PANELS = [
     [
         ['mScreenUpItemView1', 'screen_up_icon_1', 'navbar01'],
-        ['mScreenUpItemView2', 'screen_up_icon_2', 'navbar02']
+        ['mScreenUpItemView2', 'screen_up_icon_2', 'navbar02'],
+        ['mScreenUpHomeView', 'screen_up_home_icon', 'mainHome'],
+        ['mScreenUpAllAppView', 'screen_up_all_app_icon', 'mainApps']
     ],
     [
         ['mScreenUpHomeView', 'screen_up_home_icon', 'navbar11'],
@@ -18,7 +20,13 @@ const PANELS = [
     ]
 ];
 
-function createActionIntent(Java) {
+function panelView(nav, field) {
+    // Optional positions differ between launcher builds; keep other assignments usable.
+    try { return nav[field]?.value ?? null; }
+    catch (_) { return null; }
+}
+
+export function createActionIntent(Java) {
     const Intent = Java.use('android.content.Intent');
     const Component = Java.use('android.content.ComponentName');
     return action => {
@@ -105,7 +113,7 @@ Java.perform(function () {
         const slots = PANELS[nav.mScreenId.value];
         if (!slots) return null;
         const name = view.getResources().getResourceEntryName(view.getId()).toString();
-        return slots.find(([field, resource]) => resource === name && view.equals(nav[field].value))?.[2] ?? null;
+        return slots.find(([field, resource]) => resource === name && view.equals(panelView(nav, field)))?.[2] ?? null;
     }
     function clickOwner(view) {
         const info = Java.cast(view, View).mListenerInfo.value;
@@ -167,7 +175,7 @@ Java.perform(function () {
                     if (action?.kind !== 'LAUNCH_APP') continue;
                     const [targetPackage, targetActivity] = action.component.split('/');
                     if (packageName !== targetPackage || active !== fullName(targetActivity)) continue;
-                    const view = this[field].value;
+                    const view = panelView(this, field);
                     if (view !== null && panelState?.active(this, view, action) && view.getId() > 0) ids.push(view.getId());
                 }
                 if (ids.length) {

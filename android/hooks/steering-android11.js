@@ -1,4 +1,5 @@
 import { createActionLauncher } from './launcher-buttons.js';
+import { initializedType } from './java-types.js';
 
 const EVENT = 'com.qinggan.system.QGKeyEvent';
 const CONFIG = 'org.openvoyah.controls.panel';
@@ -13,7 +14,7 @@ export function installSteering(Java, retries = 10) {
         const installed = [];
         try {
             const sdk = Java.use('android.os.Build$VERSION').SDK_INT.value;
-            if (sdk !== 30) {
+            if (![28, 30].includes(sdk)) {
                 console.log('OVC_STEERING_UNSUPPORTED Android SDK ' + sdk);
                 return;
             }
@@ -25,7 +26,12 @@ export function installSteering(Java, retries = 10) {
             }
             const resolver = app.getContentResolver();
             const Global = Java.use('android.provider.Settings$Global');
-            const Event = Java.use(EVENT);
+            const initial = Global.getString(resolver, CONFIG);
+            if (initial && ['can-terminal', 'can-edges'].includes(JSON.parse(String(initial)).steeringSource)) {
+                console.log('OVC_STEERING_READY protocol=2 delegated=can');
+                return;
+            }
+            const Event = initializedType(Java, EVENT);
             const Callback = Java.use('com.qinggan.system.KeyManager$5');
             requireReturn(Event.getKeyCode.overload(), 'int');
             requireReturn(Event.getAction.overload(), 'int');
@@ -45,7 +51,7 @@ export function installSteering(Java, retries = 10) {
                 requireReturn(Callback.onKeyEvent.overload(EVENT), 'boolean')
             ];
             const launch = createActionLauncher(Java);
-            const keys = new Map([[voice, 'voice'], [custom, 'custom']]);
+            const keys = new Map([[voice, 'voice'], [custom, 'custom'], [camera, 'camera']]);
             const gestures = new Map([[short, 'Short'], [long, 'Long']]);
             const handled = new Map();
             for (const callback of callbacks) {
@@ -67,7 +73,8 @@ export function installSteering(Java, retries = 10) {
                                     handled.set(key, attempt);
                                     const raw = Global.getString(resolver, CONFIG);
                                     const config = raw && JSON.parse(String(raw));
-                                    const action = config?.schema === 1 && config.steeringEnabled === true
+                                    const action = config?.schema === 1 && !['can-terminal', 'can-edges'].includes(config.steeringSource)
+                                        && config.steeringEnabled === true
                                         && config.steering?.[key + gesture];
                                     if (action) {
                                         attempt.pending = true;
@@ -82,7 +89,7 @@ export function installSteering(Java, retries = 10) {
                     return callback.call(this, ...args);
                 };
             }
-            console.log('OVC_STEERING_READY Android 11 voice and custom keys');
+            console.log('OVC_STEERING_READY protocol=2 sdk=' + sdk + ' voice custom camera');
         } catch (error) {
             for (const callback of installed) {
                 try { callback.implementation = null; } catch (restoreError) {

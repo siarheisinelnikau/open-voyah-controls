@@ -1,0 +1,4 @@
+<resources>
+    <string name="runtime_update_paused">Controls are paused for an application update. Finish or cancel it from Updates before reconnecting.</string>
+    <string name="runtime_update_reconnect">The update has ended. Controls remain disconnected; reconnect to verify the installed version before using assignments.</string>
+</resources>

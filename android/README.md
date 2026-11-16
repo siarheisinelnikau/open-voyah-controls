@@ -6,9 +6,9 @@ The APK requires Android 9 (API 28) or newer. The firmware adapters require a re
 
 ## Screenshots
 
-![Quick access on an Android 9 emulator](docs/screenshots/cockpit-0.9.0-en.png)
+![Compose quick access on an Android 9 emulator](docs/screenshots/cockpit-0.19.0-en.png)
 
-![Settings with the vehicle section on Android 11](docs/screenshots/cockpit-settings-0.13.0-en.png)
+![Compose settings on an Android 9 emulator](docs/screenshots/cockpit-settings-0.19.0-en.png)
 
 ## Build
 
@@ -26,29 +26,35 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. On Linux or m
 
 ## Button assignments
 
-- For Android hardware keys, enable the accessibility service and capture the desired key. Short and long presses can have separate assignments.
-- For the OEM launcher, use a reviewed head unit with an existing owner-authorized local privilege broker. Run `python tools/prepare_runtime.py` to fetch and verify the pinned ARM64 injector, then stage it through the Windows installer.
+- For Android hardware keys, enable the accessibility service and capture the desired key. Assign a tap action before adding a hold action. A missing target or a hold-only mapping leaves the whole gesture to Android. When only a tap is assigned, releasing a held key runs that action.
+- Use **Prepare and install** in the Windows installer. It verifies the signed APK and runtime, saves the original startup script on the PC, and provisions authenticated local Telnet through the OEM logcat startup entry. Android uses that channel to start Frida; `su` is not required. The first-run screen checks the app connection, offline speech model, microphone permission, Accessibility connection, and each enabled reviewed handler.
 - In the app, choose an app for a panel button and select **Connect Frida**. On the supported panel, the selected app supplies the icon and opens on a tap. On launchers with the foreground callback, the assigned icon highlights when its activity is active on that display. Hold the button to open its original action. Clear an assignment to restore the factory icon and tap action. The radio button is passenger position 4 on the inspected layout.
-- **OEM steering wheel buttons** is available on a reviewed Android 11 launcher with compatible Qinggan events. Assign separate press and hold actions to the voice and custom keys. Surround view uses the factory action. **Restore factory buttons** clears the overrides. Android hardware key bindings remain available through Accessibility.
+- **OEM steering wheel buttons** supports reviewed Android 9/11 QG callbacks, with separate press and hold assignments for voice, custom and camera keys. A separately reviewed CAN service can supply either short/long terminal events or down/up gestures. The down/up mode requires both targets to be available before capture and never replays a consumed physical gesture after a late failure. **Restore factory buttons** clears the assignments. Android hardware key bindings remain available through Accessibility. See the [adapter limits](docs/FIRMWARE.md#steering-and-display-adapters) and [JavaScript agent guide](docs/FRIDA_AGENTS.md).
 
 The worker waits for Android and a stable system process before attaching. It reattaches when the target changes and can be stopped from the app. Connection status shows panel, voice, and optional hook readiness separately. The [boot and firmware guide](docs/FIRMWARE.md) covers the optional init entry and rollback.
 
-![Editing a button with a short-press app assignment](docs/screenshots/cockpit-binding-0.13.0-en.png)
+![First-run result on an Android 9 test emulator: local access is ready, vehicle firmware remains unreviewed](docs/screenshots/first-run-0.19.0-en.png)
+
+![Compose panel assignments on Android 9](docs/screenshots/buttons-0.19.0-en.png)
 
 ## Apps and displays
 
 - Tap a tile in **Installed apps** to open it. Use the settings icon or touch and hold to open **App settings**, which contains width, DPI, permissions, and display selection. On supported Android 9 and 11 firmware, the window service leaves room for the navigation panel on central display launches, including apps without saved settings. The [firmware guide](docs/FIRMWARE.md#steering-and-display-adapters) describes the launch and display scope.
-- **Install local APK** opens Android's local file picker. Android confirms the selected package and records the result of the app's install session.
-- The **Permissions** section shows supported runtime permissions for installations verified by Controls. The authorized broker can apply and verify an individual grant or revocation. Android stores effective permissions across normal reboots. Installations from Windows or another app use **Android app info**. Supported special accesses open their Android settings screens.
+- **Install local APK** opens Android's local file picker. Controls verifies a bounded private copy before submitting the selected package to Android for confirmation. The Controls APK itself must use Updates or the Windows installer.
+- The **Permissions** section shows supported runtime permissions for installations verified by Controls. The authorized local channel can apply and verify an individual grant or revocation. Android stores effective permissions across normal reboots. Installations from Windows or another app use **Android app info**. Supported special accesses open their Android settings screens.
 - **Virtual display** creates a private display with its own DPI. Grant media access to show the current track. Instrument cluster media sharing and the navigation feed are separate opt-in features. The firmware needs the matching OEM cluster service.
 
-![Installed apps with per-app settings shortcuts on Android 11](docs/screenshots/apps-grid-0.11.0-en.png)
+![Installed apps with per-app settings shortcuts on Android 9](docs/screenshots/apps-grid-0.19.0-en.png)
 
-![Window width, DPI, and a system-recorded microphone grant for a verified app on Android 9](docs/screenshots/app-settings-0.12.0-en.png)
+![Display settings and Compose content inside the private preview on Android 9](docs/screenshots/cockpit-display-0.19.0-en.png)
 
-![App DPI defaults with the central screen setting saved on Android 11](docs/screenshots/display-defaults-0.12.0-en.png)
+![Offline voice settings in the signed Android 9 app](docs/screenshots/voice-0.19.0-en.png)
 
-![Display scaling, media settings and the private preview on Android 11](docs/screenshots/cockpit-display-0.13.0-en.png)
+## App updates
+
+Open **Settings → Updates** to check official releases, see the installed version, or disable the default startup check. Downloads and installation require **Download and install**. Controls verifies the APK and positively checks that its runtime is paused before Android asks for installation approval. Interrupted attempts remain recoverable without automatic resubmission. See [App updates](docs/UPDATES.md) for the verification and recovery behavior.
+
+![Updates settings in the signed Android 9 app](docs/screenshots/updates-0.19.0-en.png)
 
 ## Vehicle settings and maintenance
 
@@ -56,11 +62,11 @@ Open **Settings → Vehicle settings** for the original driving, cabin and infot
 
 **Firmware and OEM profiles** groups compatibility, translation and recovery. The cluster screen separates package inspection, backup, and confirmed installation or restoration. See [Instrument cluster localization](docs/CLUSTER.md).
 
-![Vehicle settings with the factory-panel fallback on an Android 11 emulator](docs/screenshots/cockpit-vehicle-0.13.0-en.png)
+![Vehicle settings with the factory-panel fallback on an Android 9 emulator](docs/screenshots/cockpit-vehicle-0.19.0-en.png)
 
-![Firmware and OEM settings grouped by task on an Android 11 emulator](docs/screenshots/cockpit-firmware-0.13.0-en.png)
+![Saved account-record recovery in the signed Android 9 app](docs/screenshots/account-record-recovery-0.19.1-en.png)
 
-The [0.13.0 validation record](dist/VALIDATION_0.13.0.json) covers Android 9 and 11 emulators. Head unit checks are tracked separately.
+The [0.19.1 validation record](dist/VALIDATION_0.19.1.json) covers account-record recovery, native Android 9/11 failure cases, portable account evidence and Windows installer 0.6.2. See the [local change notes](docs/releases/0.19.1.md) and [account recovery boundaries](docs/ACCOUNT_RECOVERY.md). The previous [0.19.0 record](dist/VALIDATION_0.19.0.json) retains the broader Compose, motion, startup and root-channel checks. Injected JavaScript retains its target process UID. Exact OEM boot permissions, ARM64 injection, physical CAN behavior and complete Oversea account restoration remain unqualified; no vehicle was used.
 
 ## Settings backup
 
@@ -68,12 +74,15 @@ Use **Export app settings** to save button assignments, voice options and contac
 
 ## Code layout
 
-The existing Gradle modules contain logical layers. `core` owns portable command rules, button timing, typed display events, and integration ports. The cockpit screens and app-owned dialogs use Kotlin and Jetpack Compose with lifecycle-aware StateFlow for asynchronous state. Android provides its file pickers, system settings, permission dialogs, and the native virtual-display surface. Within `app`, `presentation` holds screen models, `data` holds preferences and Frida gateways, and `platform` adapts Android media, input, audio, and job events. Android entry points retain their component names across updates. The injected Qinggan bus adapter lives under `hooks`.
+The existing Gradle modules contain logical layers. `core` owns portable command rules, button timing, typed display events, and integration ports. All app-owned screen and dialog content uses Kotlin and Jetpack Compose with lifecycle-aware StateFlow for asynchronous state, including the home controls and private display content. Android provides its file pickers, system settings, permission dialogs, and the native virtual-display surface. See [Compose coverage and motion](docs/COMPOSE_UI.md) for the boundaries and checks. Within `app`, `presentation` holds screen models, `data` holds preferences and Frida gateways, and `platform` adapts Android media, input, audio, and job events. Android entry points retain their component names across updates. The injected Qinggan bus adapter lives under `hooks`.
 
 ## Documentation
 
 - [Voice commands and settings](docs/VOICE.md)
 - [Firmware, profiles, and text localization](docs/FIRMWARE.md)
 - [Head unit qualification and recovery](docs/PRODUCTION.md)
+- [Injection targets, screens and button mappings](docs/INJECTION_MAP.md)
+- [JavaScript agents and the root boundary](docs/FRIDA_AGENTS.md)
+- [Compose screens and motion](docs/COMPOSE_UI.md)
 - [Instrument cluster packages, backup, and recovery](docs/CLUSTER.md)
 - [Third-party dependencies and licenses](THIRD_PARTY.md)

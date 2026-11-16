@@ -1,6 +1,5 @@
 package org.openvoyah.controls.presentation.home
 
-import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -11,6 +10,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +40,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,37 +54,40 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.openvoyah.controls.data.settings.SettingsStore
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitHeading
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.ControlsTheme
+import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.theme.rememberPressMotion
 
-/** Compose navigation around the existing Android settings actions. */
+/** Compose navigation and settings, with Android actions supplied by the host. */
 class ControlsHome(
     activity: ComponentActivity,
     version: String,
     open: (Destination) -> Unit,
-    buttons: () -> View,
-    settings: () -> View,
+    actions: HomeActions,
     startInSettings: Boolean,
 ) {
-    enum class Destination { APPS, VOICE, DISPLAY, VEHICLE, FIRMWARE, LANGUAGE, SYSTEM }
+    enum class Destination { APPS, LISTEN, VOICE, DISPLAY, VEHICLE, FIRMWARE, LANGUAGE, SYSTEM, UPDATES }
 
-    private var revision by mutableIntStateOf(0)
+    private val model = ViewModelProvider(activity)[HomeControlsViewModel::class.java]
+    private val updates = ViewModelProvider(activity)[HomeUpdatesViewModel::class.java]
     private var settingsRequests by mutableIntStateOf(0)
 
     init {
         activity.setContent {
-            ControlsTheme { HomeScreen(version, revision, open, buttons, settings, startInSettings) }
+            ControlsTheme { HomeScreen(version, open, actions, startInSettings) }
         }
     }
 
-    fun refresh() {
-        revision += 1
-    }
+    fun refresh(state: SettingsStore.State?, error: String?, health: String, connected: Boolean) =
+        model.refresh(state, error, health, connected)
 
     fun showSettings() {
         settingsRequests += 1
@@ -93,12 +96,12 @@ class ControlsHome(
     @Composable
     private fun HomeScreen(
         version: String,
-        revision: Int,
         open: (Destination) -> Unit,
-        buttons: () -> View,
-        settings: () -> View,
+        actions: HomeActions,
         startInSettings: Boolean,
     ) {
+        val state by model.state.collectAsStateWithLifecycle()
+        val update by updates.checks.collectAsStateWithLifecycle()
         var page by rememberSaveable { mutableStateOf(if (startInSettings) Page.SETTINGS else Page.OVERVIEW) }
         LaunchedEffect(settingsRequests) {
             if (settingsRequests > 0) page = Page.SETTINGS
@@ -141,8 +144,11 @@ class ControlsHome(
                         AnimatedContent(
                             targetState = page,
                             transitionSpec = {
-                                (fadeIn(tween(210)) + slideInVertically(tween(210, easing = FastOutSlowInEasing)) { 12 })
-                                    .togetherWith(fadeOut(tween(110)))
+                                val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                                (fadeIn(tween(CockpitMotion.ENTER)) + slideInHorizontally(
+                                    tween(CockpitMotion.ENTER, easing = FastOutSlowInEasing)) { direction * it / 40 })
+                                    .togetherWith(fadeOut(tween(CockpitMotion.EXIT)) + slideOutHorizontally(
+                                        tween(CockpitMotion.EXIT)) { -direction * it / 80 })
                             },
                             label = "cockpit page",
                         ) { target ->
@@ -151,16 +157,21 @@ class ControlsHome(
                                     .padding(horizontal = if (wide) 30.dp else 16.dp, vertical = 20.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                             ) {
+                                update.candidate?.let { candidate ->
+                                    ActionRow(UiText.get(R.string.updates_available_version).format(candidate.version),
+                                        UiText.get(R.string.updates_settings_summary), CockpitIcon.DOWNLOAD,
+                                        { open(Destination.UPDATES) })
+                                }
                                 when (target) {
                                     Page.OVERVIEW -> Overview(wide, open) { page = Page.BUTTONS }
                                     Page.BUTTONS -> {
                                         CockpitHeading(UiText.get(target.label))
-                                        key(revision) { AndroidView({ buttons() }, Modifier.fillMaxWidth()) }
+                                        HomeButtons(state, actions)
                                     }
                                     Page.SETTINGS -> {
                                         CockpitHeading(UiText.get(target.label))
                                         SettingsLinks(wide, open)
-                                        key(revision) { AndroidView({ settings() }, Modifier.fillMaxWidth()) }
+                                        HomeSettings(state, actions)
                                     }
                                 }
                             }
@@ -177,7 +188,7 @@ class ControlsHome(
         Hero(wide)
         val tiles = listOf(
             Tile(CockpitIcon.APPS, R.string.installed_apps, R.string.cockpit_apps_description, Destination.APPS),
-            Tile(CockpitIcon.VOICE, R.string.voice_options_title, R.string.cockpit_voice_description, Destination.VOICE),
+            Tile(CockpitIcon.VOICE, R.string.quick_voice_title, R.string.quick_voice_start_description, Destination.LISTEN),
             Tile(CockpitIcon.DISPLAY, R.string.virtual_display, R.string.cockpit_display_description, Destination.DISPLAY),
         )
         if (wide) {
@@ -199,6 +210,7 @@ class ControlsHome(
             Tile(CockpitIcon.CAR, R.string.vehicle_settings_title, R.string.vehicle_settings_tile_summary, Destination.VEHICLE),
             Tile(CockpitIcon.SETTINGS, R.string.firmware_settings, R.string.cockpit_firmware_description, Destination.FIRMWARE),
             Tile(CockpitIcon.SETTINGS, R.string.ui_61, R.string.cockpit_system_description, Destination.SYSTEM),
+            Tile(CockpitIcon.DOWNLOAD, R.string.updates_title, R.string.updates_settings_summary, Destination.UPDATES),
         )
         if (wide) {
             links.chunked(2).forEach { row ->
@@ -236,10 +248,12 @@ private fun NavItem(
 ) {
     val opacity by animateFloatAsState(if (selected) 1f else 0f, tween(170), label = "navigation highlight")
     val colors = MaterialTheme.colorScheme
-    Surface(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, color = Color.Transparent) {
+    val press = rememberPressMotion()
+    Surface(modifier.fillMaxWidth().then(press.modifier), shape = MaterialTheme.shapes.medium, color = Color.Transparent) {
         Row(
             Modifier.background(colors.primaryContainer.copy(alpha = opacity))
-                .selectable(selected = selected, role = Role.Tab, onClick = onSelect)
+                .selectable(selected = selected, role = Role.Tab, interactionSource = press.source,
+                    indication = androidx.compose.foundation.LocalIndication.current, onClick = onSelect)
                 .heightIn(min = 52.dp).padding(horizontal = if (compact) 7.dp else 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(9.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -293,10 +307,12 @@ private fun Hero(wide: Boolean) {
 @Composable
 private fun FeatureTile(tile: Tile, modifier: Modifier, open: (ControlsHome.Destination) -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val press = rememberPressMotion()
     Surface(
         onClick = { open(tile.destination) },
-        modifier = modifier,
-        color = colors.surface,
+        modifier = modifier.then(press.modifier),
+        interactionSource = press.source,
+        color = press.color,
         shape = MaterialTheme.shapes.large,
         border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
     ) {
@@ -317,8 +333,10 @@ private fun FeatureTile(tile: Tile, modifier: Modifier, open: (ControlsHome.Dest
 @Composable
 private fun ActionRow(title: String, subtitle: String, icon: CockpitIcon, open: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
+    val press = rememberPressMotion()
     Surface(
-        onClick = open, modifier = modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, color = colors.surface,
+        onClick = open, modifier = modifier.fillMaxWidth().then(press.modifier), shape = MaterialTheme.shapes.medium,
+        interactionSource = press.source, color = press.color,
         border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
     ) {
         Row(Modifier.fillMaxWidth().heightIn(min = 66.dp).padding(horizontal = 15.dp, vertical = 8.dp),
