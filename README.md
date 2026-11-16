@@ -11,7 +11,7 @@ Open Voyah Controls is an Android app for Voyah head units. It lets you assign l
 
 | Quick access | Settings |
 | --- | --- |
-| ![Compose quick access on Android 9](android/docs/screenshots/cockpit-0.19.0-en.png) | ![Compose settings on Android 9](android/docs/screenshots/cockpit-settings-0.19.0-en.png) |
+| ![Compose quick access on Android 9](android/docs/screenshots/home.png) | ![Compose settings on Android 9](android/docs/screenshots/settings.png) |
 
 Screenshots are from Android emulators. See [Head unit qualification and recovery](android/docs/PRODUCTION.md) for the device evidence required before enabling a production build.
 

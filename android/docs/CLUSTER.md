@@ -23,8 +23,6 @@ The tool writes the packages and their checksums to `dist/`.
 
 Open **Firmware and OEM profiles → Instrument cluster localization**.
 
-![Inspection, backup, installation and recovery on an Android 11 emulator](screenshots/cockpit-cluster-0.13.0-en.png)
-
 1. Check the exact firmware and recovery status.
 2. Import the ZIP for that firmware.
 3. Save a backup. The app retains one copy on the cluster and another in Android storage.
