@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun CockpitDetail(title: String, subtitle: String, back: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    CockpitBackdrop {
         Column(
             Modifier.windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 22.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -88,9 +88,7 @@ internal fun CockpitSection(
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = MaterialTheme.shapes.medium, color = colors.surfaceVariant) {
-                    CockpitGlyph(icon, Modifier.padding(9.dp).size(22.dp))
-                }
+                CockpitGlyph(icon, Modifier.size(24.dp))
                 Column(Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleLarge)
                     subtitle?.let { Text(it, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium) }

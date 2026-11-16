@@ -15,7 +15,7 @@ The app identifies the candidate vehicle family using Android's `Build.PRODUCT`.
 | `f6803f` | Dreamer Rest Mi |
 | `f6806` | Dreamer Rest Mi V2 |
 
-## Driver profiles
+## Firmware coverage
 
 The following is a code-coverage matrix, not a list of qualified vehicles. Every row still needs an exact firmware record and device verification. The shipped production catalogs are empty.
 
@@ -29,9 +29,17 @@ The following is a code-coverage matrix, not a list of qualified vehicles. Every
 
 The standard navbar adapter targets `com.qinggan.mainlauncher.navigation.NavigationBar`. Product `f6811` instead selects `com.qinggan.launcher.navigation.NavigationBarMain` and `NavigationBarSecond`. Both classes must expose the observed click and theme signatures before either is modified. The Android 9/11 steering adapter requires both observed `KeyManager$5` callbacks, matching `QGKeyEvent` signatures and a valid shared down-time. Voice, custom and camera keys use named constants. Unsupported signatures keep stock behavior. Runtime CAN enums are addressed by observed names, never guessed ordinals; command availability is still controlled by the exact reviewed command catalog.
 
-The guest profile adapter covers Free, Free Rest, Free Rest BY, and Dreamer once the specific build and profile operation have been reviewed. The app checks the local profile service and snapshots the current account record, its metadata and four account properties before switching. It separately writes the current seat slots to the OEM tracking provider. This is a recovery snapshot for the account record and properties; provider rows and other vehicle settings are outside its scope. The first verified snapshot stays available across switches. Open **Firmware and OEM profiles** and select **Restore saved account record** to request restoration. See [account recovery boundaries](ACCOUNT_RECOVERY.md).
+## Driver seat and mirror memory
 
-Overseas driver A/B/C correspond to the three static `LoginUtil.chooseUserA/B/C(Context):boolean` methods in `com.qinggan.app.login`. The separate probe checks all three signatures without calling them. It accepts one request-specific receipt from a stable process identity and has a bounded injector lifetime. When the API is present, a bounded read of the observed `/private/configs/token/accountInfo` backing file distinguishes a literal guest record, an identified account, and unavailable or changing data. Symlinks and oversized records are rejected; file identity and contents must remain stable across two reads. No account fields enter the receipt or logs, and the record does not identify slot A/B/C. This file is outside the login application's data directory, so an app-data backup alone is insufficient. The probe never authorizes a write: the login implementation and its complete account-state/restore contract are still missing. Guest restoration is rejected on Oversea and other unsupported products before touching account files. A successful OEM boolean alone would not prove an active profile or restored settings. Numeric driver commands 1/2/3 address seat memory; they are not account A/B/C commands.
+**Driver 1/2/3** recall the saved driver seat and mirror memory slots. The command IDs `GetFromMemoryCellOne`, `GetFromMemoryCellTwo` and `GetFromMemoryCellThree` send `DMS_GET_MEMORY_REQ` with values 1, 2 and 3 respectively. The inspected OEM memory data includes driver seat positions and left/right mirror positions. Controls sends a recall request through the vehicle service; it does not save new memory positions or call the account adapter for these commands.
+
+Each recall requires approval for the exact firmware, a fresh **Parking** gear reading and zero vehicle speed. A service acknowledgment does not verify the final seat or mirror positions. See the [driver-memory guide](DRIVER_MEMORY.md) for voice phrases and use.
+
+## Separate OEM account integration
+
+Account **A/B/C** use a separate adapter. Guest account switching on Free, Free Rest, Free Rest BY and Dreamer requires the reviewed build, operation and OEM handler. Its recovery snapshot covers the original account record, metadata and four property values. Seat-provider rows and other vehicle settings are outside that snapshot. The profile adapter separately writes the current seat/mirror slots to the OEM tracking provider before switching.
+
+On Oversea product `f6811`, the read-only probe checks `LoginUtil.chooseUserA/B/C(Context):boolean` in `com.qinggan.app.login` and a bounded classification of `/private/configs/token/accountInfo`. It never invokes account selection or identifies an active A/B/C slot. Overseas switching and restoration remain unavailable because the complete account-state and restoration contract is missing. See [OEM account-record recovery limits](ACCOUNT_RECOVERY.md).
 
 ## Launcher buttons
 

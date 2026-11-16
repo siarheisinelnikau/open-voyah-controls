@@ -48,6 +48,14 @@ internal class AppSettingsViewModel(
 
     private val mutable = MutableStateFlow<State?>(null)
     val state = mutable.asStateFlow()
+    private var gridEntry: Long? = null
+
+    fun enterGrid(entry: Long) {
+        if (gridEntry == entry) return
+        gridEntry = entry
+        // An explicit menu request returns immediately; pending adapter writes still finish once.
+        mutable.value = null
+    }
 
     fun open(app: LocalApp) {
         if (mutable.value != null) return

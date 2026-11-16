@@ -26,6 +26,9 @@ public final class SettingsStore {
         public boolean panelEnabled = false;
         public final java.util.Map<String, Action> panelActions = new java.util.LinkedHashMap<>();
         public final java.util.Map<String, Action> steeringActions = new java.util.LinkedHashMap<>();
+        public State() {
+            panelActions.put("mainApps", new Action(Action.Kind.CONTROLS_APPS, "", "Controls"));
+        }
     }
     public SettingsStore(Context context) { preferences = context.getSharedPreferences("controls", Context.MODE_PRIVATE); }
     public SharedPreferences preferences() { return preferences; }

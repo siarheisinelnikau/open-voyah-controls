@@ -47,8 +47,8 @@ export function createActionIntent(Java) {
             intent.addFlags(0x20000000);
         } else if (action.kind === 'SYSTEM_SETTINGS') {
             intent = Intent.$new('android.settings.SETTINGS');
-        } else if (action.kind === 'CONTROLS_SETTINGS') {
-            intent = Intent.$new(PREFIX + '.action.OPEN_SETTINGS');
+        } else if (action.kind === 'CONTROLS_SETTINGS' || action.kind === 'CONTROLS_APPS') {
+            intent = Intent.$new(PREFIX + (action.kind === 'CONTROLS_APPS' ? '.action.OPEN_APPS' : '.action.OPEN_SETTINGS'));
             intent.setComponent(Component.$new(PREFIX, PREFIX + '.MainActivity'));
             intent.addFlags(0x04000000 | 0x20000000);
         } else {
@@ -101,7 +101,7 @@ Java.perform(function () {
         if (!config || config.schema !== 1 || config.enabled !== true || !config.actions) return null;
         const action = config.actions[slot];
         if (!action) return null;
-        if (action.kind === 'CONTROLS_SETTINGS' || action.kind === 'SYSTEM_SETTINGS' || action.kind === 'START_VOICE') return action;
+        if (action.kind === 'CONTROLS_SETTINGS' || action.kind === 'CONTROLS_APPS' || action.kind === 'SYSTEM_SETTINGS' || action.kind === 'START_VOICE') return action;
         if (action.kind === 'LAUNCH_APP' && [PREFIX + '/.VoiceActivity', PREFIX + '/' + PREFIX + '.VoiceActivity'].includes(action.component)) {
             return {kind:'START_VOICE'};
         }

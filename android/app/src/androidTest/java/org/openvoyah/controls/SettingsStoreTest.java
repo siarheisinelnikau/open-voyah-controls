@@ -4,6 +4,7 @@ import android.test.AndroidTestCase;
 import org.json.JSONObject;
 import org.openvoyah.controls.core.Action;
 import org.openvoyah.controls.core.Binding;
+import org.openvoyah.controls.core.PanelSlots;
 import org.openvoyah.controls.data.frida.FridaBridge;
 import org.openvoyah.controls.data.settings.SettingsStore;
 import org.openvoyah.controls.platform.boot.RecoveryJobs;
@@ -23,6 +24,70 @@ public class SettingsStoreTest extends AndroidTestCase {
         Action action = new Action(Action.Kind.LAUNCH_APP, "com.example.player/.Main", "Плеер");
         state.panelActions.put("navbar01", action);
         state.bindings.add(new Binding("test", "Кнопка", "panel", 85, action, Action.NONE, true)); return state;
+    }
+    private void assertOnlyInactiveAppMenuDefault(SettingsStore.State state) {
+        assertFalse(state.panelEnabled);
+        assertEquals(1, state.panelActions.size());
+        assertEquals(Action.Kind.CONTROLS_APPS, state.panelActions.get("mainApps").kind);
+        assertEquals("", state.panelActions.get("mainApps").component);
+        for (String slot : PanelSlots.PANEL) {
+            if (!slot.equals("mainApps")) assertFalse(slot, state.panelActions.containsKey(slot));
+        }
+        assertTrue(state.steeringActions.isEmpty());
+        assertTrue(state.bindings.isEmpty());
+    }
+    public void testNewStateDefaultsOnlyTheInactiveAppMenu() {
+        assertOnlyInactiveAppMenuDefault(new SettingsStore.State());
+    }
+    public void testOldSchemaWithoutAnAppMenuGetsOnlyTheInactiveDefault() throws Exception {
+        String old = "{\"schema\":1,\"enabled\":true,\"holdMs\":650,\"debounceMs\":100,\"bindings\":[]}";
+        assertOnlyInactiveAppMenuDefault(SettingsStore.decode(old));
+        assertOnlyInactiveAppMenuDefault(SettingsStore.decode(new JSONObject(old)
+            .put("panelActions", new JSONObject()).toString()));
+    }
+    public void testOldSchemaMissingAppMenuPreservesExistingNavigation() throws Exception {
+        JSONObject old = new JSONObject(SettingsStore.encode(sample()));
+        old.getJSONObject("panelActions").remove("mainApps");
+        old.put("panelEnabled", false);
+        SettingsStore.State actual = SettingsStore.decode(old.toString());
+        assertFalse(actual.panelEnabled);
+        assertEquals(2, actual.panelActions.size());
+        assertEquals(Action.Kind.CONTROLS_APPS, actual.panelActions.get("mainApps").kind);
+        assertEquals(Action.Kind.LAUNCH_APP, actual.panelActions.get("navbar01").kind);
+        assertEquals("com.example.player/.Main", actual.panelActions.get("navbar01").component);
+        for (String slot : PanelSlots.PANEL) {
+            if (!slot.equals("mainApps") && !slot.equals("navbar01")) assertFalse(slot, actual.panelActions.containsKey(slot));
+        }
+    }
+    public void testExplicitlyClearedAppMenuSurvivesEncodingAndPersistence() throws Exception {
+        SettingsStore.State state = new SettingsStore.State();
+        state.panelActions.put("mainApps", Action.NONE);
+        String encoded = SettingsStore.encode(state);
+        assertEquals("NONE", new JSONObject(encoded).getJSONObject("panelActions")
+            .getJSONObject("mainApps").getString("kind"));
+        SettingsStore.State decoded = SettingsStore.decode(encoded);
+        assertFalse(decoded.panelEnabled);
+        assertEquals(1, decoded.panelActions.size());
+        assertEquals(Action.Kind.NONE, decoded.panelActions.get("mainApps").kind);
+        assertFalse(decoded.panelActions.get("mainApps").isAssigned());
+        store.save(decoded);
+        assertEquals(Action.Kind.NONE, new SettingsStore(getContext()).load().panelActions.get("mainApps").kind);
+    }
+    public void testChosenAppMenuApplicationSurvivesEncodingAndPersistence() throws Exception {
+        SettingsStore.State state = new SettingsStore.State();
+        Action selected = new Action(Action.Kind.LAUNCH_APP, "com.example.apps/.Library", "Library");
+        state.panelActions.put("mainApps", selected);
+        SettingsStore.State decoded = SettingsStore.decode(SettingsStore.encode(state));
+        assertFalse(decoded.panelEnabled);
+        assertEquals(1, decoded.panelActions.size());
+        assertEquals(Action.Kind.LAUNCH_APP, decoded.panelActions.get("mainApps").kind);
+        assertEquals(selected.component, decoded.panelActions.get("mainApps").component);
+        assertEquals(selected.label, decoded.panelActions.get("mainApps").label);
+        store.save(decoded);
+        Action actual = new SettingsStore(getContext()).load().panelActions.get("mainApps");
+        assertEquals(Action.Kind.LAUNCH_APP, actual.kind);
+        assertEquals(selected.component, actual.component);
+        assertEquals(selected.label, actual.label);
     }
     public void testBootSchedulesOnlyAfterExplicitConnectionAndCancellationWorks() {
         android.content.SharedPreferences bridge = getContext().getSharedPreferences("bridge", 0);
@@ -85,13 +150,15 @@ public class SettingsStoreTest extends AndroidTestCase {
         assertEquals("LAUNCH_APP", config.getJSONObject("actions").getJSONObject("navbar01").getString("kind"));
         assertTrue(config.getBoolean("steeringEnabled"));
         assertEquals("START_VOICE", config.getJSONObject("steering").getJSONObject("voiceShort").getString("kind"));
-        assertEquals(1, config.getJSONObject("actions").length());
+        assertEquals("CONTROLS_APPS", config.getJSONObject("actions").getJSONObject("mainApps").getString("kind"));
+        assertEquals(2, config.getJSONObject("actions").length());
         assertEquals(1, config.getJSONObject("steering").length());
     }
-    public void testDisabledConfigAndResetRemoveActions() throws Exception {
+    public void testDisabledConfigAndResetRemoveCustomActions() throws Exception {
         store.save(sample()); store.save(new SettingsStore.State());
         JSONObject config = new JSONObject(FridaBridge.config(store.load()));
-        assertFalse(config.getBoolean("enabled")); assertEquals(0, config.getJSONObject("actions").length());
+        assertFalse(config.getBoolean("enabled")); assertEquals(1, config.getJSONObject("actions").length());
+        assertEquals("CONTROLS_APPS", config.getJSONObject("actions").getJSONObject("mainApps").getString("kind"));
     }
     public void testLocalSettingsDoNotRequirePrivilegedPermission() {
         assertEquals(android.content.pm.PackageManager.PERMISSION_DENIED,
