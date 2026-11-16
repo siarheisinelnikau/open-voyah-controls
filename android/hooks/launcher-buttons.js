@@ -43,7 +43,7 @@ export function createActionIntent(Java) {
             }
         } else if (action.kind === 'START_VOICE') {
             intent = Intent.$new();
-            intent.setComponent(Component.$new(PREFIX, PREFIX + '.PanelVoiceActivity'));
+            intent.setComponent(Component.$new(PREFIX, PREFIX + '.QuickVoiceActivity'));
             intent.addFlags(0x20000000);
         } else if (action.kind === 'SYSTEM_SETTINGS') {
             intent = Intent.$new('android.settings.SETTINGS');
@@ -102,9 +102,6 @@ Java.perform(function () {
         const action = config.actions[slot];
         if (!action) return null;
         if (action.kind === 'CONTROLS_SETTINGS' || action.kind === 'CONTROLS_APPS' || action.kind === 'SYSTEM_SETTINGS' || action.kind === 'START_VOICE') return action;
-        if (action.kind === 'LAUNCH_APP' && [PREFIX + '/.VoiceActivity', PREFIX + '/' + PREFIX + '.VoiceActivity'].includes(action.component)) {
-            return {kind:'START_VOICE'};
-        }
         if (action.kind === 'LAUNCH_APP' && /^[A-Za-z0-9_.$]+\/[A-Za-z0-9_.$]+$/.test(action.component || '')) return {...action, slot};
         return null;
     }

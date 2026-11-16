@@ -94,10 +94,6 @@ public final class SettingsStore {
         String component = row.getString("component"), label = row.getString("label");
         if (component.length() > 512 || label.length() > 200) throw new IllegalArgumentException(UiText.get(R.string.ui_162));
         if (kind == Action.Kind.LAUNCH_APP && !component.matches("[A-Za-z0-9_.$]+/[A-Za-z0-9_.$]+")) throw new IllegalArgumentException(UiText.get(R.string.ui_163));
-        if (kind == Action.Kind.LAUNCH_APP && (component.equals("org.openvoyah.controls/.VoiceActivity")
-                || component.equals("org.openvoyah.controls/org.openvoyah.controls.VoiceActivity"))) {
-            return new Action(Action.Kind.START_VOICE, "", UiText.get(R.string.quick_voice_title));
-        }
         return new Action(kind, component, label);
     }
     private static JSONObject action(Action action) throws JSONException {

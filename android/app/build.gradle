@@ -29,8 +29,8 @@ android {
         applicationId 'org.openvoyah.controls'
         minSdk 28
         targetSdk 35
-        versionCode 23
-        versionName '0.20.0'
+        versionCode 24
+        versionName '0.20.1'
         testInstrumentationRunner 'android.test.InstrumentationTestRunner'
         buildConfigField 'String', 'RELEASE_CERT_SHA256', '"' + (validReleasePin ? releasePin : '') + '"'
         buildConfigField 'boolean', 'OVC_EMULATOR_FIXTURE', 'false'

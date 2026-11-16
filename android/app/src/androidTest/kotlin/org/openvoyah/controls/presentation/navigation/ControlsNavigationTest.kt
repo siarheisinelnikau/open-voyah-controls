@@ -3,14 +3,17 @@ package org.openvoyah.controls.presentation.navigation
 import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.test.InstrumentationTestCase
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
 import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.MainActivity
+import org.openvoyah.controls.QuickVoiceActivity
+import org.openvoyah.controls.SetupActivity
 
-/** Installed aliases and entry intents retain one normal host and an explicit saved back stack. */
+/** Three real activities retain one normal host, protected native entries and a saved back stack. */
 class ControlsNavigationTest : InstrumentationTestCase() {
     private val app get() = instrumentation.targetContext
     private var activity: MainActivity? = null
@@ -36,24 +39,26 @@ class ControlsNavigationTest : InstrumentationTestCase() {
         }
     }
 
-    fun testCompatibilityAliasesRetainTheHostAndExportBoundaries() {
+    fun testExactlyThreeRealActivitiesRetainTheHostAndProtectedEntryBoundaries() {
         val packages = app.packageManager
-        for ((alias, _) in aliases) {
-            val info = packages.getActivityInfo(component(alias), 0)
-            assertEquals("Alias $alias has a different host", MainActivity::class.java.name, info.targetActivity)
-            assertEquals("Alias $alias changed its caller boundary", alias == "VoiceActivity", info.exported)
+        val activities = checkNotNull(packages.getPackageInfo(app.packageName, PackageManager.GET_ACTIVITIES).activities)
+        val expected = setOf(MainActivity::class.java.name, QuickVoiceActivity::class.java.name, SetupActivity::class.java.name)
+        assertEquals("The package must contain exactly three real activities", 3, activities.size)
+        assertEquals(expected, activities.map { it.name }.toSet())
+        for (info in activities) {
+            assertNull("${info.name} must be a real activity", info.targetActivity)
         }
         val direct = packages.getActivityInfo(ComponentName(app, MainActivity::class.java), 0)
         assertTrue(direct.exported)
         assertNull(direct.targetActivity)
+        assertNull(direct.permission)
 
-        val microphone = packages.getActivityInfo(component("PanelVoiceActivity"), 0)
-        assertEquals("${app.packageName}.QuickVoiceActivity", microphone.targetActivity)
+        val microphone = packages.getActivityInfo(ComponentName(app, QuickVoiceActivity::class.java), 0)
+        assertNull(microphone.targetActivity)
         assertTrue(microphone.exported)
         assertEquals(Manifest.permission.WRITE_SECURE_SETTINGS, microphone.permission)
-        val quickVoice = packages.getActivityInfo(component("QuickVoiceActivity"), 0)
-        assertFalse(quickVoice.exported)
-        val setup = packages.getActivityInfo(component("SetupActivity"), 0)
+        val setup = packages.getActivityInfo(ComponentName(app, SetupActivity::class.java), 0)
+        assertNull(setup.targetActivity)
         assertTrue(setup.exported)
         assertEquals(Manifest.permission.WRITE_SECURE_SETTINGS, setup.permission)
     }
@@ -69,11 +74,10 @@ class ControlsNavigationTest : InstrumentationTestCase() {
         }
     }
 
-    fun testCompatibilityAliasesOverrideConflictingActionsAndRouteExtras() {
-        for ((alias, expected) in aliases) {
-            val intent = ControlsNavigation.intent(app, ControlsRoute.UPDATES)
-                .setComponent(component(alias)).setAction(ControlsNavigation.OPEN_APPS)
-            assertEquals("Alias $alias selected the caller's conflicting route", expected, ControlsNavigation.route(intent))
+    fun testExplicitAppsActionOverridesConflictingRouteExtras() {
+        for (route in ControlsRoute.entries) {
+            val intent = ControlsNavigation.intent(app, route).setAction(ControlsNavigation.OPEN_APPS)
+            assertEquals("OPEN_APPS must override the caller's $route extra", ControlsRoute.APPS, ControlsNavigation.route(intent))
         }
     }
 
@@ -163,18 +167,10 @@ class ControlsNavigationTest : InstrumentationTestCase() {
         }
     }
 
-    private fun component(alias: String) = ComponentName(app.packageName, "${app.packageName}.$alias")
-
     private fun <T> onMain(block: () -> T): T {
         var result: Result<T>? = null
         instrumentation.runOnMainSync { result = runCatching(block) }
         return checkNotNull(result).getOrThrow()
     }
 
-    private companion object {
-        val aliases = linkedMapOf("AppsActivity" to ControlsRoute.APPS, "VoiceActivity" to ControlsRoute.VOICE,
-            "DisplayActivity" to ControlsRoute.DISPLAY, "VehicleSettingsActivity" to ControlsRoute.VEHICLE,
-            "FirmwareActivity" to ControlsRoute.FIRMWARE, "ClusterActivity" to ControlsRoute.CLUSTER,
-            "UpdatesActivity" to ControlsRoute.UPDATES)
-    }
 }

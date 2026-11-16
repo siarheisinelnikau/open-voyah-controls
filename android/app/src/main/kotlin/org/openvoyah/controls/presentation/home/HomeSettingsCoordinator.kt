@@ -13,6 +13,7 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.Binding
 import org.openvoyah.controls.core.PanelControls
+import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.platform.input.ButtonInputAdapter
 import org.openvoyah.controls.platform.ui.ActionExecutor
 import org.openvoyah.controls.presentation.settings.BindingDialogs
@@ -95,10 +96,9 @@ internal class HomeSettingsCoordinator(
         if (attached && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) archives?.prepare(document)
     }
 
-    fun open(destination: HomeDestination, navigate: (HomeDestination) -> Unit) {
-        if (!active) return
-        if (destination == HomeDestination.SYSTEM) external(Intent(Settings.ACTION_SETTINGS)) else navigate(destination)
-    }
+    fun open(destination: ControlsRoute, navigate: (ControlsRoute) -> Unit) { if (active) navigate(destination) }
+
+    fun systemSettings() { if (active) external(Intent(Settings.ACTION_SETTINGS)) }
 
     fun language() {
         if (!active) return
