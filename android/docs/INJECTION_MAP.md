@@ -35,7 +35,7 @@ Entry: `hooks/launcher-buttons.js`, class `com.qinggan.mainlauncher.navigation.N
 | Passenger | `mScreenUpItemView3` / `screen_up_icon_3` | `navbar14` | Passenger position 4 / Radio |
 | Passenger | `mScreenUpItemView4` / `screen_up_icon_4` | `navbar15` | Passenger position 5 |
 
-The code deliberately keeps generic names where a stable semantic label has not been established. Central Home and All apps change only after an explicit assignment. Missing optional views leave the other supported positions usable. Climate controls and the vehicle settings button retain their factory behavior.
+The code deliberately keeps generic names where a stable semantic label has not been established. Central Home remains native until assigned. With reviewed panel assignments enabled, central All apps / menu defaults to the Controls app grid; existing saved assignments remain intact. Selecting the OEM action explicitly saves a native override. Missing optional views leave the other supported positions usable. Climate controls and the vehicle settings button retain their factory behavior.
 
 For an assigned and available target, a tap opens the selected app or supported Controls action on that button's display. A hold invokes the original OEM click once. An unassigned/disabled button or a failed replacement launch calls the original click once. Unsupported signatures or view ownership leave the original path in place.
 

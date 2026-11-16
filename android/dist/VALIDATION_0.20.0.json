@@ -1,0 +1,217 @@
+{
+  "version": "0.20.0",
+  "version_code": 23,
+  "installer_version": "0.6.2",
+  "date": "2026-11-16",
+  "source_commit": "bedf8b4d32ff70b2cf14887e03de2b9c14688cee",
+  "source_tree": "5508af45f041feab7eec215f811c12ad67d51ab4",
+  "source_reference_scope": "Local implementation commit and source tree before adding validation metadata.",
+  "binary_distribution": "local-only",
+  "vehicle_tested": false,
+  "production_ready": false,
+  "signing": "local-release",
+  "android_certificate_sha256": "2ee3c67da07678052b8031a8cfcebea0cca71ca99a8cc6e6ac7a86ee50e484e9",
+  "windows_certificate_sha256": "821caf9af11a280aec7905b1683b6302d6d19ec26d1eb2aa1766cdf2eecef5bf",
+  "artifacts": {
+    "OpenVoyahControls-v0.20.0.apk": {
+      "size": 150259383,
+      "sha256": "e0395ff713d2857ab785cdcea3b2c34e866d681a824b2264bbfc3f7912cbbaf5"
+    },
+    "OpenVoyahControlsInstaller-v0.6.2.exe": {
+      "size": 3832136,
+      "sha256": "d6c6d9324d9a8352c3d074cfc3fea1650ada4ca54c3c5beb85cc9ccef8e1da89"
+    },
+    "OpenVoyahControls-v0.20.0-first-run-local-signed.zip": {
+      "size": 172349233,
+      "sha256": "88161131fb77f60853c2cfed29581761cfce207697d8db4e6a4ab72522e0c1fe"
+    }
+  },
+  "tests": {
+    "javascript": {
+      "passed": 162
+    },
+    "jvm": {
+      "app": 46,
+      "core": 52
+    },
+    "native": {
+      "28": {
+        "sdk": 28,
+        "vehicle_tested": false,
+        "selinux": "Enforcing",
+        "suites": {
+          "data": {
+            "passed": 29,
+            "seconds": 1.019,
+            "classes": [
+              "org.openvoyah.controls.SettingsStoreTest",
+              "org.openvoyah.controls.LocalActionsTest",
+              "org.openvoyah.controls.presentation.home.HomeControlsViewModelTest",
+              "org.openvoyah.controls.LocalSettingsArchiveTest"
+            ]
+          },
+          "ui": {
+            "passed": 14,
+            "seconds": 40.355,
+            "classes": [
+              "org.openvoyah.controls.presentation.navigation.ControlsNavigationTest",
+              "org.openvoyah.controls.ComposeScreensTest",
+              "org.openvoyah.controls.presentation.updates.UpdatesScreenTest"
+            ]
+          }
+        },
+        "passed": 43
+      },
+      "30": {
+        "sdk": 30,
+        "vehicle_tested": false,
+        "selinux": "Enforcing",
+        "suites": {
+          "data": {
+            "passed": 29,
+            "seconds": 1.595,
+            "classes": [
+              "org.openvoyah.controls.SettingsStoreTest",
+              "org.openvoyah.controls.LocalActionsTest",
+              "org.openvoyah.controls.presentation.home.HomeControlsViewModelTest",
+              "org.openvoyah.controls.LocalSettingsArchiveTest"
+            ]
+          },
+          "ui": {
+            "passed": 14,
+            "seconds": 44.455,
+            "classes": [
+              "org.openvoyah.controls.presentation.navigation.ControlsNavigationTest",
+              "org.openvoyah.controls.ComposeScreensTest",
+              "org.openvoyah.controls.presentation.updates.UpdatesScreenTest"
+            ]
+          }
+        },
+        "passed": 43
+      }
+    },
+    "signed_upgrade": [
+      {
+        "sdk": 28,
+        "apk_sha256": "e0395ff713d2857ab785cdcea3b2c34e866d681a824b2264bbfc3f7912cbbaf5",
+        "upgrade": "0.19.1 to final 0.20.0",
+        "preserved_files": [
+          "files/root-channel.key",
+          "shared_prefs/controls.xml",
+          "shared_prefs/ui.xml",
+          "shared_prefs/updates.xml"
+        ],
+        "fixture": "synthetic valid app preferences and per-installation key; no broker connection claimed",
+        "selinux": "Enforcing",
+        "screen": "final-recovery-api28.png"
+      },
+      {
+        "sdk": 30,
+        "apk_sha256": "e0395ff713d2857ab785cdcea3b2c34e866d681a824b2264bbfc3f7912cbbaf5",
+        "upgrade": "0.19.1 to final 0.20.0",
+        "preserved_files": [
+          "files/root-channel.key",
+          "shared_prefs/controls.xml",
+          "shared_prefs/ui.xml",
+          "shared_prefs/updates.xml"
+        ],
+        "fixture": "synthetic valid app preferences and per-installation key; no broker connection claimed",
+        "selinux": "Enforcing",
+        "screen": "final-recovery-api30.png"
+      }
+    ],
+    "lint": {
+      "debug_errors": 0,
+      "release_errors": 0
+    }
+  },
+  "rendering": {
+    "28": {
+      "sdk": 28,
+      "apk_sha256": "e0395ff713d2857ab785cdcea3b2c34e866d681a824b2264bbfc3f7912cbbaf5",
+      "vehicle_tested": false,
+      "samples": {
+        "grid_idle": {
+          "additional_frames": 0,
+          "seconds": 2
+        },
+        "settings_idle": {
+          "additional_frames": 0,
+          "seconds": 2
+        },
+        "after_preview_idle": {
+          "additional_frames": 0,
+          "seconds": 2
+        },
+        "hidden": {
+          "additional_frames": 0,
+          "seconds": 2
+        },
+        "animation_disabled_idle": {
+          "additional_frames": 0,
+          "seconds": 2
+        }
+      },
+      "ordinary_apk_uid": 10106,
+      "virtual_display_released_on_route_exit": true,
+      "animated_route_frames": 79,
+      "disabled_route_frames": 24,
+      "limitations": "HWUI app counters on x86_64 emulators; no compositor-wide GPU, ARM64 or vehicle performance qualification."
+    },
+    "30": {
+      "sdk": 30,
+      "apk_sha256": "e0395ff713d2857ab785cdcea3b2c34e866d681a824b2264bbfc3f7912cbbaf5",
+      "vehicle_tested": false,
+      "samples": {
+        "grid_idle": {
+          "additional_frames": 0,
+          "seconds": 2
+        },
+        "settings_idle": {
+          "additional_frames": 0,
+          "seconds": 2
+        },
+        "after_preview_idle": {
+          "additional_frames": 0,
+          "seconds": 2
+        },
+        "hidden": {
+          "additional_frames": 0,
+          "seconds": 2
+        },
+        "animation_disabled_idle": {
+          "additional_frames": 0,
+          "seconds": 2
+        }
+      },
+      "ordinary_apk_uid": 10149,
+      "virtual_display_released_on_route_exit": true,
+      "animated_route_frames": 102,
+      "disabled_route_frames": 15,
+      "limitations": "HWUI app counters on x86_64 emulators; no compositor-wide GPU, ARM64 or vehicle performance qualification."
+    }
+  },
+  "palette": {
+    "description": "Neutral graphite, blue actions and orange voice accents; unboxed Controls icons.",
+    "role_contrast_ratios": {
+      "cockpit_text/cockpit_surface_raised": 14.06,
+      "cockpit_muted/cockpit_surface_highest": 6.16,
+      "cockpit_accent/cockpit_background": 6.14,
+      "cockpit_on_accent/cockpit_accent": 5.25,
+      "cockpit_on_accent_container/cockpit_accent_container": 10.41,
+      "cockpit_error/cockpit_surface": 7.85
+    }
+  },
+  "driver_memory": "Numbered slots recall driver seat and mirrors; separate from OEM account A/B/C.",
+  "installer": "Unchanged signed 0.6.2; SHA256 and local Authenticode signature reverified.",
+  "previous_validation": [
+    "VALIDATION_0.19.0.json",
+    "VALIDATION_0.19.1.json"
+  ],
+  "remaining": [
+    "Exact OEM boot and SELinux domain qualification",
+    "ARM64 injection on the intended firmware",
+    "Physical CAN, microphone, hardware button, passenger display and sleep/wake qualification",
+    "Complete overseas account restoration contract"
+  ]
+}

@@ -24,6 +24,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import org.openvoyah.controls.presentation.theme.CockpitBackdrop
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -75,7 +76,7 @@ internal fun AppSettingsScreen(
             }
         }
     }
-    Surface(color = colors.background) {
+    CockpitBackdrop {
         BoxWithConstraints(
             Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = 22.dp, vertical = 17.dp),

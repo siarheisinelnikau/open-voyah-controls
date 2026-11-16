@@ -22,6 +22,7 @@ public final class ActionExecutor implements ButtonEngine.Sink {
         switch (action.kind) {
             case START_VOICE: intent = QuickVoiceActivity.intent(context); break;
             case CONTROLS_SETTINGS: intent = MainActivity.settingsIntent(context); break;
+            case CONTROLS_APPS: intent = MainActivity.appsIntent(context); break;
             case SYSTEM_SETTINGS: intent = new Intent(Settings.ACTION_SETTINGS); break;
             case LAUNCH_APP:
                 ComponentName component = ComponentName.unflattenFromString(action.component);
@@ -55,6 +56,7 @@ public final class ActionExecutor implements ButtonEngine.Sink {
                     break;
                 case SYSTEM_SETTINGS: intent = new Intent(Settings.ACTION_SETTINGS); break;
                 case CONTROLS_SETTINGS: intent = MainActivity.settingsIntent(context); break;
+                case CONTROLS_APPS: intent = MainActivity.appsIntent(context); break;
                 default: return;
             }
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);

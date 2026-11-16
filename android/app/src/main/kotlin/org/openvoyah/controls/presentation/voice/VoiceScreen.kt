@@ -37,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import org.openvoyah.controls.presentation.theme.CockpitBackdrop
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -93,7 +94,7 @@ internal fun VoiceSettingsScreen(
         val query = VoiceCatalog.normalize(search)
         if (query.isBlank()) allCommands else allCommands.filter { searchable.getValue(it).contains(query) }
     }
-    Surface(color = MaterialTheme.colorScheme.background) {
+    CockpitBackdrop {
         BoxWithConstraints(
             Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding().padding(20.dp)
         ) {

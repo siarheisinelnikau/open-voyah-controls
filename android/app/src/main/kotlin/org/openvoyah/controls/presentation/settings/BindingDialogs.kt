@@ -152,6 +152,7 @@ private fun ActionPicker(back: () -> Unit, active: Boolean = true, select: (Acti
             CockpitChoice(label(R.string.ui_110)) { apps = true }
             CockpitChoice(label(R.string.ui_61)) { select(Action(Action.Kind.SYSTEM_SETTINGS, "", label(R.string.ui_61))) }
             CockpitChoice(label(R.string.ui_111)) { select(Action(Action.Kind.CONTROLS_SETTINGS, "", label(R.string.ui_111))) }
+            CockpitChoice(label(R.string.controls_apps)) { select(Action(Action.Kind.CONTROLS_APPS, "", label(R.string.controls_apps))) }
             CockpitChoice(label(R.string.quick_voice_title)) { select(Action(Action.Kind.START_VOICE, "", label(R.string.quick_voice_title))) }
         }
     }
@@ -165,6 +166,8 @@ private fun NumberField(title: String, value: String, invalid: Boolean, change: 
 
 private fun actionLabel(action: Action): String = when {
     action.kind == Action.Kind.START_VOICE -> label(R.string.quick_voice_title)
+    action.kind == Action.Kind.CONTROLS_APPS -> label(R.string.controls_apps)
+    action.kind == Action.Kind.CONTROLS_SETTINGS -> label(R.string.ui_111)
     action.isAssigned() -> action.label
     else -> label(R.string.ui_66)
 }

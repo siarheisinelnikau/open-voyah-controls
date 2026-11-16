@@ -4,10 +4,21 @@ import android.Manifest;
 import android.content.ComponentName;
 import android.content.pm.ActivityInfo;
 import android.test.AndroidTestCase;
+import org.openvoyah.controls.core.Action;
 import org.openvoyah.controls.core.voice.VoiceCommandUseCase;
 import org.openvoyah.controls.data.settings.VoiceSettings;
+import org.openvoyah.controls.platform.ui.ActionExecutor;
 
 public final class LocalActionsTest extends AndroidTestCase {
+    public void testAppMenuAndSettingsAvailabilityDoesNotNeedTransport() {
+        ActionExecutor executor = new ActionExecutor(getContext());
+        for (Action.Kind kind : new Action.Kind[]{Action.Kind.CONTROLS_APPS,
+                Action.Kind.CONTROLS_SETTINGS, Action.Kind.SYSTEM_SETTINGS}) {
+            assertTrue(kind.name(), executor.canExecute(new Action(kind, "", kind.name())));
+        }
+        assertFalse(executor.canExecute(Action.NONE));
+    }
+
     public void testWeatherFinishesWithoutActivityOrTransport() throws Exception {
         VoiceSettings settings = new VoiceSettings(getContext());
         VoiceCommandUseCase commands = new VoiceCommandUseCase(id -> {

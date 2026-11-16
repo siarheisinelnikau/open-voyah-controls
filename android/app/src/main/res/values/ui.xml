@@ -109,7 +109,7 @@
     <string name="ui_108" formatted="false">"Action"</string>
     <string name="ui_109" formatted="false">"Unassigned"</string>
     <string name="ui_110" formatted="false">"Launch app"</string>
-    <string name="ui_111" formatted="false">"Button settings"</string>
+    <string name="ui_111" formatted="false">"Controls settings"</string>
     <string name="ui_112" formatted="false">"No apps with an accessible launch activity were found."</string>
     <string name="ui_113" formatted="false">"Search apps"</string>
     <string name="ui_114" formatted="false">"App"</string>

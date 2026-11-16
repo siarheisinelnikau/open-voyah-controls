@@ -233,6 +233,69 @@ test('explicit center Home and All apps assignments use their own fields and dis
     assert.equal(h.launched.length, 3);
 });
 
+test('Controls app menu uses the explicit apps entry point, task flags, display and activity icon', () => {
+    const apps = {kind:'CONTROLS_APPS'};
+    const h = harness(config({mainApps:apps, navbar15:apps}));
+    const component = 'org.openvoyah.controls/org.openvoyah.controls.MainActivity';
+    for (const [screen, resource] of [[0, 'screen_up_all_app_icon'], [1, 'screen_up_icon_4']]) {
+        const bar = h.bar(screen), view = bar.views[resource];
+        assert.equal(view.background.layer.icon.component, component);
+        h.tap(bar, resource);
+        const launch = h.launched.at(-1);
+        assert.equal(launch.intent.action, 'org.openvoyah.controls.action.OPEN_APPS');
+        assert.equal(launch.intent.component, component);
+        assert.equal(launch.intent.flags, 0x04000000 | 0x20000000 | 0x10000000 | 0x00200000);
+        assert.equal(launch.intent.category, undefined);
+        assert.equal(launch.intent.extras, undefined);
+        assert.equal(launch.display, screen);
+    }
+    assert.equal(h.originalCalls, 0);
+    assert.equal(h.click(0, 'screen_up_home_icon'), 'oem');
+    assert.equal(h.click(1, 'screen_up_all_app_icon'), 'oem');
+    assert.equal(h.originalCalls, 2);
+});
+
+test('Controls app-menu hold invokes native once and consumes release for both hold signatures', () => {
+    for (const coordinates of [[], [18, 24]]) {
+        const h = harness(config({mainApps:{kind:'CONTROLS_APPS'}}));
+        h.holdAndRelease(h.bar(0), 'screen_up_all_app_icon', ...coordinates);
+        assert.equal(h.originalCalls, 1);
+        assert.equal(h.originalHolds, 0);
+        assert.equal(h.launched.length, 0);
+    }
+});
+
+test('clearing or disabling the Controls app menu restores the native icon, hold and tap', () => {
+    for (const next of [config({mainApps:{kind:'NONE'}}), config({}), {schema:1, enabled:false, actions:{mainApps:{kind:'CONTROLS_APPS'}}}]) {
+        const h = harness(config({mainApps:{kind:'CONTROLS_APPS'}})), bar = h.bar(0);
+        const view = bar.views.screen_up_all_app_icon;
+        assert.notEqual(view.background, view.stock);
+        h.setConfig(next); h.tick();
+        assert.equal(view.background, view.stock);
+        assert.equal(view.isLongClickable(), false);
+        assert.equal(h.tap(bar, 'screen_up_all_app_icon'), 'oem');
+        assert.equal(h.originalCalls, 1);
+        assert.equal(h.launched.length, 0);
+    }
+});
+
+test('unavailable and failed Controls app-menu launches preserve native action and independent music', () => {
+    for (const options of [{missing:'org.openvoyah.controls/org.openvoyah.controls.MainActivity'}, {failLaunch:true}]) {
+        const h = harness(config({mainApps:{kind:'CONTROLS_APPS'}, navbar02:action}), options);
+        const bar = h.bar(0), view = bar.views.screen_up_all_app_icon;
+        assert.equal(h.tap(bar, 'screen_up_all_app_icon'), 'oem');
+        assert.equal(h.originalCalls, 1);
+        assert.equal(h.launched.length, 0);
+        assert.equal(view.background, view.stock);
+        assert.equal(view.isLongClickable(), false);
+        options.failLaunch = false; options.missing = null;
+        assert.equal(h.tap(bar, 'screen_up_all_app_icon'), 'oem');
+        assert.equal(h.originalCalls, 2);
+        h.tap(bar, 'screen_up_icon_2');
+        assert.equal(h.launched.at(-1).intent.component, action.component);
+    }
+});
+
 test('assigned center Home and All apps holds invoke the native click once and consume release', () => {
     for (const [slot, resource] of [['mainHome', 'screen_up_home_icon'], ['mainApps', 'screen_up_all_app_icon']]) {
         for (const coordinates of [[], [18, 24]]) {

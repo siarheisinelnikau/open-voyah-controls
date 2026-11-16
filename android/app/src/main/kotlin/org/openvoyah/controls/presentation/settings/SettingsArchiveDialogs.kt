@@ -6,11 +6,13 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
+import java.util.WeakHashMap
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.settings.FridaSettingsArchiveRuntime
@@ -30,10 +32,11 @@ internal class ArchiveDialogDismissal(private val userDismissed: () -> Unit) {
 }
 
 /** The lifecycle collector is the only archive owner allowed to open or refresh Activity UI. */
-class SettingsArchiveDialogs(
+class SettingsArchiveDialogs @JvmOverloads constructor(
     private val activity: ComponentActivity,
     private val dialogs: CockpitDialogs,
     private val restored: Runnable,
+    private val owner: LifecycleOwner = activity,
 ) {
     private val model = ViewModelProvider(activity, object : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
@@ -41,23 +44,37 @@ class SettingsArchiveDialogs(
             LocalSettingsArchiveDocuments(activity.application),
             FridaSettingsArchiveRuntime(activity.application),
         ) as T
-    })[SettingsArchiveViewModel::class.java]
+    })["controls.settings.archive", SettingsArchiveViewModel::class.java]
+    private val ownership = Any().also { activeOwners[model] = it }
     private var dialog: Dialog? = null
     private var shown: State? = null
     private var dismissal: ArchiveDialogDismissal? = null
     private var recreating = false
+    private var disposed = false
 
-    init {
-        activity.lifecycleScope.launch {
-            activity.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                try { model.state.collect(::render) }
-                finally { dismiss() }
-            }
+    private val observation = owner.lifecycleScope.launch {
+        owner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            try { model.state.collect(::render) }
+            finally { dismiss() }
         }
     }
 
-    fun export(document: Uri) = model.export(document.toString())
-    fun prepare(document: Uri) = model.prepare(document.toString())
+    fun export(document: Uri) { if (ownsModel()) model.export(document.toString()) }
+    fun prepare(document: Uri) { if (ownsModel()) model.prepare(document.toString()) }
+
+    /** Closing a route invalidates its observer; an already authorized apply still finishes safely. */
+    fun dispose() {
+        if (disposed) return
+        disposed = true
+        observation.cancel()
+        dismiss()
+        if (activeOwners[model] === ownership) {
+            activeOwners.remove(model)
+            if (!activity.isChangingConfigurations) model.cancel()
+        }
+    }
+
+    private fun ownsModel(): Boolean = !disposed && activeOwners[model] === ownership
 
     private fun dismiss() {
         dismissal?.retain()
@@ -68,7 +85,7 @@ class SettingsArchiveDialogs(
     }
 
     private fun render(state: State) {
-        if (recreating || shown == state) return
+        if (!ownsModel() || recreating || shown == state) return
         dismiss()
         if (state == State.Idle) return
         if (state is State.Completed && state.refreshPending) {
@@ -84,7 +101,7 @@ class SettingsArchiveDialogs(
         }
         shown = state
         val applying = state is State.Working && state.work == Work.APPLY
-        val event = ArchiveDialogDismissal { if (model.state.value == state) model.cancel() }
+        val event = ArchiveDialogDismissal { if (ownsModel() && model.state.value == state) model.cancel() }
         dismissal = event
         dialog = dialogs.show(cancelable = !applying, onDismiss = event::deliver) { close ->
             val title = when (state) {
@@ -95,16 +112,16 @@ class SettingsArchiveDialogs(
             CockpitModal(UiText.get(title), footer = {
                 when (state) {
                     is State.Working -> if (!applying) CockpitTextAction(UiText.get(R.string.ui_89)) {
-                        model.cancel(); close()
+                        if (ownsModel()) model.cancel(); close()
                     }
                     is State.Confirmation -> {
-                        CockpitTextAction(UiText.get(R.string.ui_89)) { model.cancel(); close() }
+                        CockpitTextAction(UiText.get(R.string.ui_89)) { if (ownsModel()) model.cancel(); close() }
                         CockpitAction(UiText.get(R.string.ui_129), {
-                            model.confirm(); close()
+                            if (ownsModel()) model.confirm(); close()
                         }, primary = true)
                     }
                     else -> CockpitAction(UiText.get(R.string.ui_83), {
-                        model.cancel(); close()
+                        if (ownsModel()) model.cancel(); close()
                     }, primary = true)
                 }
             }) {
@@ -127,5 +144,10 @@ class SettingsArchiveDialogs(
                 Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+
+    private companion object {
+        // Tokens do not retain Activities or models after their ViewModelStore is cleared.
+        val activeOwners = WeakHashMap<SettingsArchiveViewModel, Any>()
     }
 }
