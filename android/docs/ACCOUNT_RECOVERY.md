@@ -1,21 +1,21 @@
-# Account recovery boundaries
+# OEM account-record recovery limits
 
-Account A/B/C selection and numeric seat-memory commands are separate operations. A successful method return or a delayed vehicle-data event does not establish a completed account transition.
+For **Driver 1/2/3**, see [driver seat and mirror memory](DRIVER_MEMORY.md). This technical page covers the separate OEM account A/B/C integration and saved account-record recovery.
 
-## Overseas accounts
+## Saved guest account record
 
-On product `f6811`, the observed interface is `com.qinggan.app.login.LoginUtil.chooseUserA/B/C(Context):boolean`. The current agent checks these signatures and observes a bounded account-file classification. It does not call the selection methods.
+The guest account adapter changes `/private/configs/token/accountInfo` and four observed property values. Its first verified snapshot retains the original record, ownership, permissions, SELinux label and property values. The snapshot is bound to the product, build fingerprint and a digest of the unit serial. Recovery validates it before writing and checks the restored record and values again after the OEM account broadcasts. A pending transaction journal blocks further guest switches; explicit record recovery remains available.
 
-The implementation of the login methods and their downstream writes is unavailable. A copy of the login package directory, the shared account file, or the three seat slots cannot establish a complete backup. The account file at `/private/configs/token/accountInfo` is outside the login application's data directory. Account settings can also involve OEM providers and other processes.
+This snapshot covers the record and property values only. `getprop` cannot distinguish a missing property from a present empty value. Seat-provider rows, saved seat/mirror positions, other OEM application data and complete live account state are outside its scope. **Restore saved account record** does not undo a driver-memory recall. The guest profile operation also requires the reviewed OEM handler and Park preflight.
 
-Before implementing selection and restoration, a reviewed contract must identify every affected file, database and journal, property, provider row, event and remote side effect. It must define how to obtain a consistent snapshot, preserve ownership and SELinux labels, detect interrupted transitions, and verify restoration of both persistent and live state. A provider write made to capture seat memory is itself a mutation and needs recovery coverage.
+Invalid, incomplete and legacy snapshots are preserved rather than overwritten. Keep original backups from earlier builds; a completion marker alone does not establish a verified snapshot.
 
-No overseas account-write approval is shipped. The portable firmware evidence collector and the read-only Frida probe supply complementary observations; neither is an account backup or a qualification of account restoration.
+## Overseas account interface
 
-## Guest account record
+On product `f6811`, the observed interface is `com.qinggan.app.login.LoginUtil.chooseUserA/B/C(Context):boolean`. The current probe checks the signatures and a bounded account-file classification without calling the selection methods. Account A/B/C do not identify driver-memory slots 1/2/3.
 
-The separate guest protocol changes one shared account file and four observed property values. Its recovery snapshot covers those exact surfaces. `getprop` does not distinguish a missing property from a present empty value, so this is a value snapshot. Seat-provider contents, other OEM application data and complete live account state are outside that snapshot. The existing profile refresh still requires the reviewed OEM handler and Park preflight.
+The login implementation and its downstream writes remain unavailable. The shared account file is outside the login application's data directory; copying that directory, this file or the three memory slots cannot establish complete account recovery. A reviewed restoration contract must cover every affected store, property, provider, event and remote side effect, including any provider write used to capture seat/mirror data.
 
-Recovery validates the entire snapshot before changing the account file or properties. Invalid or incomplete snapshots remain available for inspection rather than being overwritten. Keep original backups from earlier builds: a legacy completion marker alone is insufficient evidence for a verified recovery snapshot.
+Overseas switching and restoration remain unavailable. The portable evidence collector and read-only probe are observations, not backups or restoration qualification. An OEM method return or delayed vehicle-data event does not prove a completed transition.
 
-All account operations remain subject to exact firmware and package review. Local fixture success establishes the tested transaction behavior; it does not establish the complete OEM account contract or physical behavior on a vehicle.
+Local fixture results establish the tested transaction behavior only. Exact firmware review and vehicle evidence remain required for OEM account operations.

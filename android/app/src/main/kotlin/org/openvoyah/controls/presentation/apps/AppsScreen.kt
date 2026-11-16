@@ -1,17 +1,14 @@
 package org.openvoyah.controls.presentation.apps
 
-import androidx.compose.animation.AnimatedContent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -28,7 +25,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog as AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -42,29 +38,32 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
-import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.platform.apps.LocalApp
+import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
-import org.openvoyah.controls.presentation.theme.CockpitHeading
+import org.openvoyah.controls.presentation.theme.CockpitBackdrop
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.rememberPressMotion
 import java.util.Locale
 
-@OptIn(ExperimentalFoundationApi::class)
+/** The launcher root contains apps and Controls shortcuts without navigation chrome. */
 @Composable
 internal fun AppsScreen(
     state: AppsViewModel.State,
-    back: () -> Unit,
+    entry: Long,
+    navigate: (ControlsRoute) -> Unit,
+    listen: () -> Unit,
+    system: () -> Unit,
     install: () -> Unit,
     canInstall: () -> Boolean,
     allowInstalls: () -> Unit,
@@ -73,148 +72,111 @@ internal fun AppsScreen(
     showSettings: (LocalApp) -> Unit,
     open: (LocalApp) -> Unit,
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
-    var allow by rememberSaveable { mutableStateOf(false) }
-    val visible = remember(state.apps, query) {
-        val search = query.trim().lowercase(Locale.ROOT)
-        if (search.isEmpty()) state.apps else state.apps.filter {
-            it.label.lowercase(Locale.ROOT).contains(search) || it.packageName.lowercase(Locale.ROOT).contains(search)
-        }
+    var query by rememberSaveable(entry) { mutableStateOf("") }
+    var search by rememberSaveable(entry) { mutableStateOf(false) }
+    var allow by rememberSaveable(entry) { mutableStateOf(false) }
+    var savedEntry by rememberSaveable { mutableStateOf(entry) }
+    // Saved input keys are not validated when an absent route is restored from its registry.
+    if (savedEntry != entry) {
+        query = ""
+        search = false
+        allow = false
+        savedEntry = entry
     }
+    val visible = remember(state.apps, query) {
+        val filter = query.trim().lowercase(Locale.ROOT)
+        state.apps.filter { it.packageName != "org.openvoyah.controls" &&
+            (filter.isEmpty() || it.label.lowercase(Locale.ROOT).contains(filter) || it.packageName.lowercase(Locale.ROOT).contains(filter)) }
+    }
+    BackHandler(search) { search = false; query = "" }
     val colors = MaterialTheme.colorScheme
-    Surface(color = colors.background) {
-        Column(
-            Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()
-                .padding(horizontal = 22.dp, vertical = 17.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            CockpitHeading(text(R.string.installed_apps), text(R.string.apps_subtitle), back)
-            Row(
-                Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedTextField(
-                    value = query, onValueChange = { query = it }, modifier = Modifier.weight(1f),
-                    shape = MaterialTheme.shapes.medium, singleLine = true,
-                    label = { Text(text(R.string.ui_113)) },
-                )
-                Button(
-                    onClick = { if (canInstall()) install() else allow = true },
-                    modifier = Modifier.heightIn(min = 52.dp), shape = MaterialTheme.shapes.medium,
-                    enabled = installEnabled,
-                ) {
-                    Text(text(R.string.install_local_apk), style = MaterialTheme.typography.labelLarge)
+    CockpitBackdrop {
+        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()
+            .padding(horizontal = 24.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            AnimatedVisibility(search, enter = fadeIn(tween(150)), exit = fadeOut(tween(100))) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(query, { query = it }, Modifier.weight(1f), singleLine = true,
+                        label = { Text(text(R.string.ui_113)) }, shape = MaterialTheme.shapes.medium)
+                    TextButton({ search = false; query = "" }, Modifier.heightIn(min = 52.dp)) { Text(text(R.string.ui_89)) }
                 }
             }
             AnimatedVisibility(state.status != null, enter = fadeIn(tween(150)), exit = fadeOut(tween(100))) {
                 state.status?.let { message ->
-                    Surface(
-                        shape = MaterialTheme.shapes.medium, color = colors.surfaceVariant,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    ) {
-                        Column(Modifier.padding(horizontal = 13.dp, vertical = 8.dp)) {
-                            Text(text(message))
+                    Surface(shape = MaterialTheme.shapes.medium, color = colors.surfaceVariant,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
+                        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(text(message), Modifier.weight(1f))
                             discardInstall?.let { discard ->
-                                TextButton(discard, Modifier.heightIn(min = 48.dp)) {
-                                    Text(text(R.string.apps_install_discard))
-                                }
+                                TextButton(discard, Modifier.heightIn(min = 48.dp)) { Text(text(R.string.apps_install_discard)) }
                             }
                         }
                     }
                 }
             }
-            val listMessage = when {
-                state.loading -> R.string.apps_loading
-                visible.isEmpty() -> R.string.apps_empty
-                else -> null
-            }
-            AnimatedContent(
-                listMessage,
-                Modifier.weight(1f),
-                transitionSpec = { fadeIn(tween(170)).togetherWith(fadeOut(tween(100))) },
-                label = "app list",
-            ) { message ->
-                if (message != null) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text(message), color = colors.onSurfaceVariant)
+            LazyVerticalGrid(GridCells.Adaptive(148.dp), Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                item(key = "controls-settings") { Shortcut(R.string.ui_111, CockpitIcon.SETTINGS) { navigate(ControlsRoute.SETTINGS) } }
+                item(key = "controls-listen") { Shortcut(R.string.quick_voice_title, CockpitIcon.VOICE, open = listen) }
+                items(visible, key = { "app:${it.id}" }) { app ->
+                    LauncherTile(app.label, { if (app.launchEntry == null) showSettings(app) else open(app) },
+                        { showSettings(app) }, Modifier.animateItem(tween(150), tween(190), tween(110))) {
+                        AppIcon(app, Modifier.size(60.dp))
                     }
-                } else {
-                    LazyVerticalGrid(
-                        GridCells.Adaptive(265.dp),
-                        Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        items(visible, key = { it.id }) { app ->
-                            AppTile(app, {
-                                if (app.launchEntry == null) showSettings(app) else open(app)
-                            }, { showSettings(app) }, Modifier.animateItem(
-                                fadeInSpec = tween(150), placementSpec = tween(190), fadeOutSpec = tween(110),
-                            ))
-                        }
+                }
+                item(key = "controls-buttons") { Shortcut(R.string.cockpit_buttons, CockpitIcon.BUTTONS) { navigate(ControlsRoute.BUTTONS) } }
+                item(key = "controls-display") { Shortcut(R.string.virtual_display, CockpitIcon.DISPLAY) { navigate(ControlsRoute.DISPLAY) } }
+                item(key = "controls-vehicle") { Shortcut(R.string.vehicle_settings_title, CockpitIcon.CAR) { navigate(ControlsRoute.VEHICLE) } }
+                item(key = "controls-voice") { Shortcut(R.string.voice_options_title, CockpitIcon.VOICE) { navigate(ControlsRoute.VOICE) } }
+                item(key = "controls-updates") { Shortcut(R.string.updates_title, CockpitIcon.DOWNLOAD) { navigate(ControlsRoute.UPDATES) } }
+                item(key = "controls-system") { Shortcut(R.string.ui_61, CockpitIcon.SETTINGS, open = system) }
+                item(key = "controls-install") {
+                    Shortcut(R.string.install_local_apk, CockpitIcon.DOWNLOAD, enabled = installEnabled) {
+                        if (canInstall()) install() else allow = true
                     }
+                }
+                item(key = "controls-search") { Shortcut(R.string.ui_113, CockpitIcon.APPS) { search = true } }
+                if (state.loading || visible.isEmpty()) item(key = "app-list-state") {
+                    Text(text(if (state.loading) R.string.apps_loading else R.string.apps_empty),
+                        Modifier.padding(18.dp), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                 }
             }
         }
     }
-    if (allow) {
-        AlertDialog(
-            onDismissRequest = { allow = false },
-            title = { Text(text(R.string.install_local_apk)) },
-            text = { Text(text(R.string.allow_apk_install)) },
-            confirmButton = {
-                Button({ allow = false; allowInstalls() }, Modifier.heightIn(min = 50.dp)) {
-                    Text(text(R.string.ui_61))
-                }
-            },
-            dismissButton = {
-                TextButton({ allow = false }, Modifier.heightIn(min = 50.dp)) { Text(text(R.string.ui_89)) }
-            },
-        )
-    }
+    if (allow) AlertDialog(onDismissRequest = { allow = false },
+        title = { Text(text(R.string.install_local_apk)) }, text = { Text(text(R.string.allow_apk_install)) },
+        confirmButton = { Button({ allow = false; allowInstalls() }, Modifier.heightIn(min = 50.dp)) { Text(text(R.string.ui_61)) } },
+        dismissButton = { TextButton({ allow = false }, Modifier.heightIn(min = 50.dp)) { Text(text(R.string.ui_89)) } })
 }
 
 @Composable
-private fun AppTile(app: LocalApp, open: () -> Unit, settings: () -> Unit, modifier: Modifier) {
-    val colors = MaterialTheme.colorScheme
-    val shape = MaterialTheme.shapes.large
-    val press = org.openvoyah.controls.presentation.theme.rememberPressMotion()
-    Surface(modifier = modifier.then(press.modifier), shape = shape, color = press.color, border = BorderStroke(1.dp, colors.outlineVariant)) {
-        Row(Modifier.fillMaxWidth().clip(shape), verticalAlignment = Alignment.CenterVertically) {
-            Row(
-                Modifier.weight(1f).heightIn(min = 84.dp).combinedClickable(
-                    interactionSource = press.source, indication = androidx.compose.foundation.LocalIndication.current,
-                    role = Role.Button, onClick = open, onLongClick = settings, onLongClickLabel = text(R.string.app_settings_title),
-                ).padding(start = 13.dp, top = 12.dp, bottom = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(13.dp), verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AppIcon(app, Modifier.size(42.dp))
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(app.label, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    val source = when (app.origin) {
-                        InstallOrigin.CONTROLS -> text(R.string.apps_managed)
-                        InstallOrigin.ADB -> text(R.string.apps_source_adb_short)
-                        InstallOrigin.UNVERIFIED -> text(R.string.apps_source_unverified_short)
-                        else -> app.packageName
-                    }
-                    Text(source,
-                        style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        color = if (app.origin == InstallOrigin.CONTROLS) colors.primary else colors.onSurfaceVariant)
-                }
-            }
-            val name = text(R.string.app_settings_for).format(app.label)
-            IconButton(settings, Modifier.size(56.dp).semantics { contentDescription = name }) {
-                CockpitGlyph(CockpitIcon.SETTINGS, Modifier.size(22.dp))
-            }
-        }
+private fun Shortcut(label: Int, icon: CockpitIcon, enabled: Boolean = true, open: () -> Unit) {
+    LauncherTile(text(label), open, enabled = enabled) {
+        CockpitGlyph(icon, Modifier.size(60.dp))
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun LauncherTile(label: String, open: () -> Unit, settings: (() -> Unit)? = null,
+                         modifier: Modifier = Modifier, enabled: Boolean = true, icon: @Composable () -> Unit) {
+    val press = rememberPressMotion()
+    Column(modifier.then(press.modifier).fillMaxWidth().heightIn(min = 144.dp)
+            .combinedClickable(enabled = enabled, interactionSource = press.source,
+                indication = androidx.compose.foundation.LocalIndication.current, role = Role.Button,
+                onLongClick = settings, onLongClickLabel = settings?.let { text(R.string.app_settings_title) }, onClick = open)
+            .padding(horizontal = 10.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
+            icon()
+            Text(label, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center,
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.5f))
     }
 }
 
 @Composable
 internal fun AppIcon(app: LocalApp, modifier: Modifier) {
     val icon = remember(app.icon) { app.icon?.asImageBitmap() }
-    if (icon != null) Image(icon, null, modifier)
-    else CockpitGlyph(CockpitIcon.APPS, modifier)
+    if (icon != null) Image(icon, null, modifier) else CockpitGlyph(CockpitIcon.APPS, modifier)
 }
 
 private fun text(id: Int) = UiText.get(id)

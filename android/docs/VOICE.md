@@ -15,7 +15,9 @@ Voice settings shows whether physical vehicle commands have been reviewed for th
 
 The result distinguishes a vehicle service acknowledgment from a change confirmed by fresh telemetry. If feedback is partial or the outcome is unknown, the app ends the request and shows that result. Vehicle qualification also checks who can submit requests on the reviewed firmware and what happens when feedback or power is lost during motion.
 
-“Driver one/two/three” (Russian: “водитель один/два/три”) selects seat memory positions and requires the physical-command review and Park checks. “Driver A/B/C” selects account profiles through a separate adapter. On Oversea, the app can probe the login API without invoking it; account switching remains unavailable until complete backup and recovery are supported.
+“Driver one/two/three” (Russian: “водитель один/два/три”) recalls the saved **driver seat and mirror memory** slots 1/2/3. Save the positions through the vehicle's own memory controls. Recall requires approval for the exact firmware, **P (Park)** and zero speed. The current reply confirms service acceptance rather than the final seat/mirror positions. See the [driver-memory guide](DRIVER_MEMORY.md).
+
+“Driver A/B/C” concerns separate OEM accounts. Those commands do not select the numbered memory slots. Overseas account switching remains unavailable; see [OEM account-record recovery limits](ACCOUNT_RECOVERY.md) for the distinct account and recovery boundaries.
 
 ## Apps and media
 

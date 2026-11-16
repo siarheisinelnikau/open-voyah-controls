@@ -137,8 +137,8 @@ class QuickVoiceActivity : ComponentActivity() {
     }
 
     private fun openMicrophoneSettings() {
-        startActivity(Intent(this, VoiceActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED))
+        startActivity(org.openvoyah.controls.presentation.navigation.ControlsNavigation.intent(
+            this, org.openvoyah.controls.presentation.navigation.ControlsRoute.VOICE))
         finish()
     }
 

@@ -38,7 +38,7 @@ export function installOversea(Java, onNavigation = () => {}) {
             const actionFor = (config, slot) => {
                 if (config?.schema !== 1 || config.enabled !== true) return null;
                 const action = config.actions?.[slot];
-                if (!action || !['LAUNCH_APP','START_VOICE','SYSTEM_SETTINGS','CONTROLS_SETTINGS'].includes(action.kind)) return null;
+                if (!action || !['LAUNCH_APP','START_VOICE','SYSTEM_SETTINGS','CONTROLS_SETTINGS','CONTROLS_APPS'].includes(action.kind)) return null;
                 if (action.kind === 'LAUNCH_APP' && !/^[A-Za-z0-9_.$]+\/[A-Za-z0-9_.$]+$/.test(action.component ?? '')) return null;
                 return action;
             };

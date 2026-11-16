@@ -1,5 +1,6 @@
 package org.openvoyah.controls.presentation.updates
 
+import android.content.ComponentName
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Rect
@@ -13,9 +14,9 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.openvoyah.controls.BuildConfig
+import org.openvoyah.controls.MainActivity
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
-import org.openvoyah.controls.UpdatesActivity
 import org.openvoyah.controls.core.updates.ReleasePolicy
 import org.openvoyah.controls.data.updates.DownloadProgress
 import org.openvoyah.controls.data.updates.UpdateCheck
@@ -31,20 +32,25 @@ import java.util.concurrent.atomic.AtomicInteger
 /** Real Compose rendering and accessibility actions with explicit test-only state and callbacks. */
 class UpdatesScreenTest : InstrumentationTestCase() {
     private val app get() = instrumentation.targetContext
-    private var activity: UpdatesActivity? = null
+    private var activity: MainActivity? = null
     private lateinit var fixture: Fixture
     private var savedLanguage: String? = null
     private var savedEffectiveLanguage: String? = null
+    private var startupPreference: Boolean? = null
 
     override fun setUp() {
         super.setUp()
         check(BuildConfig.DEBUG && Build.HARDWARE in setOf("ranchu", "goldfish") && Build.PRODUCT.startsWith("sdk_"))
         savedLanguage = app.getSharedPreferences("ui", 0).getString("language", null)
         savedEffectiveLanguage = UiText.language()
+        val updates = app.getSharedPreferences("updates", 0)
+        startupPreference = if (updates.contains("check_on_startup")) updates.getBoolean("check_on_startup", true) else null
+        check(updates.edit().putBoolean("check_on_startup", false).commit())
         UiText.language("en")
         fixture = Fixture()
-        val launched = instrumentation.startActivitySync(Intent(app, UpdatesActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as UpdatesActivity
+        val launched = instrumentation.startActivitySync(Intent()
+            .setComponent(ComponentName(app.packageName, "${app.packageName}.UpdatesActivity"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as MainActivity
         activity = launched
         instrumentation.runOnMainSync {
             // Replace only this test activity's content. No real repository, installer or settings callback is invoked.
@@ -85,6 +91,9 @@ class UpdatesScreenTest : InstrumentationTestCase() {
                 // Restore before another app activity can resume. UiText reads this preference on every call.
                 check(app.getSharedPreferences("ui", 0).edit().apply {
                     savedLanguage?.let { putString("language", it) } ?: remove("language")
+                }.commit())
+                check(app.getSharedPreferences("updates", 0).edit().apply {
+                    startupPreference?.let { putBoolean("check_on_startup", it) } ?: remove("check_on_startup")
                 }.commit())
                 savedEffectiveLanguage?.let { assertEquals("UI language was not restored", it, UiText.language()) }
             } finally {

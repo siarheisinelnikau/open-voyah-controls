@@ -30,7 +30,7 @@ internal enum class CockpitIcon { HOME, APPS, VOICE, DISPLAY, BUTTONS, SETTINGS,
 
 @Composable
 internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier) {
-    val color = MaterialTheme.colorScheme.primary
+    val color = if (icon == CockpitIcon.VOICE) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
     Canvas(modifier.size(24.dp)) {
         scale(size.width / 24f, size.height / 24f, Offset.Zero) {
             val stroke = Stroke(1.55f, cap = StrokeCap.Round)

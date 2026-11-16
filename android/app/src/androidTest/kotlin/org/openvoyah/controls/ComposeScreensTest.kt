@@ -2,10 +2,12 @@ package org.openvoyah.controls
 
 import android.app.Activity
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.ComponentName
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Build
+import android.os.Bundle
 import android.os.SystemClock
 import android.test.InstrumentationTestCase
 import android.view.KeyEvent
@@ -13,6 +15,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.TextView
+import androidx.lifecycle.ViewModelProvider
+import org.openvoyah.controls.presentation.navigation.ControlsNavigationViewModel
+import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import java.io.File
 import java.util.ArrayDeque
 
@@ -42,18 +47,19 @@ class ComposeScreensTest : InstrumentationTestCase() {
         super.tearDown()
     }
 
-    fun testAllOwnedActivityRoutesRenderCompose() {
+    fun testNormalScreenAliasesAndNativeActivitiesRenderCompose() {
         val routes = listOf(
-            MainActivity::class.java to "home", AppsActivity::class.java to "apps",
-            VoiceActivity::class.java to "voice", FirmwareActivity::class.java to "firmware",
-            VehicleSettingsActivity::class.java to "vehicle", ClusterActivity::class.java to "cluster",
-            DisplayActivity::class.java to "display",
-            UpdatesActivity::class.java to "updates",
+            "MainActivity" to "home", "AppsActivity" to "apps",
+            "VoiceActivity" to "voice", "FirmwareActivity" to "firmware",
+            "VehicleSettingsActivity" to "vehicle", "ClusterActivity" to "cluster",
+            "DisplayActivity" to "display", "UpdatesActivity" to "updates",
         )
         for ((type, name) in routes) {
-            val activity = launch(Intent(app, type))
+            val activity = launch(Intent().setComponent(ComponentName(app.packageName, "${app.packageName}.$type")))
+            assertTrue("$type did not resolve to the shared host", activity is MainActivity)
             assertComposeContent(activity)
-            if (type == DisplayActivity::class.java) {
+            if (type == "MainActivity" || type == "AppsActivity") assertAppGrid(activity as MainActivity)
+            if (type == "DisplayActivity") {
                 val deadline = SystemClock.uptimeMillis() + 8_000
                 fun ready() = nodes().any { it.text?.toString()?.matches(Regex("[0-9]+ × [0-9]+ · [0-9]+ DPI")) == true }
                 while (!ready() && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(100)
@@ -73,9 +79,16 @@ class ComposeScreensTest : InstrumentationTestCase() {
         capture("quick-voice")
     }
 
-    fun testHomeTabsKeepComposeAfterRefreshingAndOpeningDialogs() {
-        val activity = launch(Intent(app, MainActivity::class.java))
+    fun testAppGridSettingsAndSubmenusKeepOneHostAfterRefreshAndDialogs() {
+        val activity = launch(MainActivity.appsIntent(app)) as MainActivity
+        assertAppGrid(activity)
+        clickText(UiText.get(R.string.ui_111))
+        awaitRoute(activity, ControlsRoute.SETTINGS)
+        awaitText(UiText.get(R.string.cockpit_back))
+        capture("settings")
+        scrollTo(UiText.get(R.string.cockpit_buttons))
         clickText(UiText.get(R.string.cockpit_buttons))
+        awaitRoute(activity, ControlsRoute.BUTTONS)
         awaitText(UiText.get(R.string.ui_67))
         assertComposeContent(activity)
         capture("buttons-panel")
@@ -86,7 +99,8 @@ class ComposeScreensTest : InstrumentationTestCase() {
         capture("steering-dialog")
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         capture("after-steering-back")
-        clickText(UiText.get(R.string.cockpit_settings))
+        clickText(UiText.get(R.string.cockpit_back))
+        awaitRoute(activity, ControlsRoute.SETTINGS)
         scrollTo(UiText.get(R.string.ui_59))
         clickText(UiText.get(R.string.ui_59))
         awaitText(UiText.get(R.string.ui_117))
@@ -99,8 +113,115 @@ class ComposeScreensTest : InstrumentationTestCase() {
         active = checkNotNull(instrumentation.waitForMonitorWithTimeout(recreation, 5_000))
         instrumentation.removeMonitor(recreation)
         instrumentation.waitForIdleSync()
-        awaitText(UiText.get(R.string.cockpit_settings))
-        assertComposeContent(checkNotNull(active))
+        val recreated = checkNotNull(active) as MainActivity
+        awaitRoute(recreated, ControlsRoute.SETTINGS)
+        assertComposeContent(recreated)
+
+        scrollTo(UiText.get(R.string.voice_options_title))
+        clickText(UiText.get(R.string.voice_options_title))
+        awaitRoute(recreated, ControlsRoute.VOICE)
+        awaitText(UiText.get(R.string.cockpit_back))
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        awaitRoute(recreated, ControlsRoute.SETTINGS)
+
+        // Exercise Android's real CLEAR_TOP/SINGLE_TOP delivery to the existing normal host.
+        instrumentation.runOnMainSync { recreated.startActivity(MainActivity.appsIntent(recreated)) }
+        assertAppGrid(recreated)
+        capture("apps-return")
+    }
+
+    fun testSearchSurvivesRecreationButAnExplicitAppsEntryClearsIt() {
+        val activity = launch(MainActivity.appsIntent(app)) as MainActivity
+        assertAppGrid(activity)
+        val query = "ovc-navigation-search-${SystemClock.uptimeMillis()}"
+        fun editor(): AccessibilityNodeInfo? = nodes().firstOrNull {
+            it.isVisibleToUser && it.isEditable && it.refresh() && it.isVisibleToUser && it.isEditable
+        }
+        fun awaitEditor(expected: String): AccessibilityNodeInfo {
+            val deadline = SystemClock.uptimeMillis() + 5_000
+            while (SystemClock.uptimeMillis() < deadline) {
+                editor()?.let { if (it.text?.toString().orEmpty() == expected) return it }
+                SystemClock.sleep(50)
+            }
+            failWithEvidence("search-editor", "No active search editor with the expected query: $expected")
+        }
+
+        scrollTo(UiText.get(R.string.ui_113))
+        clickText(UiText.get(R.string.ui_113))
+        val field = awaitEditor("")
+        assertTrue("Search does not advertise text input",
+            field.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SET_TEXT })
+        assertTrue("Search rejected its query", field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,
+            Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, query) }))
+        awaitEditor(query)
+
+        lateinit var navigation: ControlsNavigationViewModel
+        var entry = 0L
+        instrumentation.runOnMainSync {
+            navigation = ViewModelProvider(activity)[ControlsNavigationViewModel::class.java]
+            entry = navigation.entries.value
+        }
+        val monitor = instrumentation.addMonitor(MainActivity::class.java.name, null, false)
+        val recreated = try {
+            instrumentation.runOnMainSync { activity.recreate() }
+            checkNotNull(instrumentation.waitForMonitorWithTimeout(monitor, 5_000)) as MainActivity
+        } finally { instrumentation.removeMonitor(monitor) }
+        active = recreated
+        instrumentation.waitForIdleSync()
+        awaitRoute(recreated, ControlsRoute.APPS)
+        awaitEditor(query)
+        instrumentation.runOnMainSync {
+            val retained = ViewModelProvider(recreated)[ControlsNavigationViewModel::class.java]
+            assertSame(navigation, retained)
+            assertEquals("Recreation started a new entry", entry, retained.entries.value)
+            retained.open(ControlsRoute.SETTINGS)
+        }
+        awaitRoute(recreated, ControlsRoute.SETTINGS)
+        awaitText(UiText.get(R.string.cockpit_back))
+        // Ensure the outgoing grid has left composition before its saved state is restored.
+        instrumentation.waitForIdleSync()
+        SystemClock.sleep(350)
+        assertNull("Search remained active behind Settings", editor())
+
+        instrumentation.runOnMainSync { recreated.startActivity(MainActivity.appsIntent(recreated)) }
+        awaitRoute(recreated, ControlsRoute.APPS)
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        while ((editor() != null || textNode(query) != null) && SystemClock.uptimeMillis() < deadline) {
+            SystemClock.sleep(50)
+        }
+        assertNull("Explicit Apps entry restored the old search editor", editor())
+        assertNull("Explicit Apps entry restored the obsolete query", textNode(query))
+        scrollTo(UiText.get(R.string.ui_111))
+        assertAppGrid(recreated)
+
+        // A hidden stale query would still filter apps; reopening Search must reveal an empty value.
+        scrollTo(UiText.get(R.string.ui_113))
+        clickText(UiText.get(R.string.ui_113))
+        awaitEditor("")
+    }
+
+    private fun awaitRoute(activity: MainActivity, route: ControlsRoute) {
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        var current: ControlsRoute? = null
+        while (SystemClock.uptimeMillis() < deadline) {
+            instrumentation.runOnMainSync {
+                current = ViewModelProvider(activity)[ControlsNavigationViewModel::class.java].stack.value.last()
+            }
+            if (current == route) return
+            SystemClock.sleep(50)
+        }
+        failWithEvidence("route-${route.name}", "The existing host stayed at $current instead of $route")
+    }
+
+    private fun assertAppGrid(activity: MainActivity) {
+        awaitRoute(activity, ControlsRoute.APPS)
+        awaitText(UiText.get(R.string.ui_111))
+        val deadline = SystemClock.uptimeMillis() + 3_000
+        while (textNode(UiText.get(R.string.cockpit_back)) != null && SystemClock.uptimeMillis() < deadline) {
+            SystemClock.sleep(50)
+        }
+        assertNull("The app grid root must not show Back", textNode(UiText.get(R.string.cockpit_back)))
+        assertFalse("The original normal host was replaced", activity.isFinishing || activity.isDestroyed)
     }
 
     private fun launch(intent: Intent): Activity {
