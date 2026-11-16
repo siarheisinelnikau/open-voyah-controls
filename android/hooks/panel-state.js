@@ -1,13 +1,18 @@
 import { createPanelIcon } from './panel-icons.js';
 
 /** Owns reversible mutations of the observed launcher views on the UI thread. */
-export function installPanelState(Java, Nav, panels, readConfig, actionFor, buildIntent, ownsView) {
+export function installPanelState(Java, Nav, panels, readConfig, actionFor, buildIntent, ownsView, lifecycle = {}) {
     const Reference = Java.use('java.lang.ref.WeakReference');
     const View = Java.use('android.view.View');
     const RadioGroup = Java.use('android.widget.RadioGroup');
     const ActivityThread = Java.use('android.app.ActivityThread');
     const PackageManager = Java.use('android.content.pm.PackageManager');
-    const release = Nav.release.overload();
+    let release;
+    if (!lifecycle.skipRelease) {
+        try { release = Nav.release.overload(); }
+        catch (error) { if (!lifecycle.allowMissingRelease) throw error; }
+    }
+    const contextOf = lifecycle.contextOf ?? (nav => nav.mContext.value);
     const bars = [];
     let drawIcon, theme;
     let ready = false, disposed = false, queued = false, applied = '', lastError = '';
@@ -127,7 +132,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         if (!restoreBar(bar)) return false;
         const slots = panels[nav.mScreenId.value];
         if (!slots || config?.enabled !== true) return true;
-        const manager = nav.mContext.value.getPackageManager();
+        const manager = contextOf(nav).getPackageManager();
         for (const [field, , slot] of slots) {
             const action = actionFor(config, slot);
             if (action === null) continue;
@@ -175,7 +180,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         try {
             const bar = rememberBar(nav);
             bar.released = false;
-            if (!refresh(nav, bar, readConfig(nav.mContext.value))) applied = '';
+            if (!refresh(nav, bar, readConfig(contextOf(nav)))) applied = '';
         } catch (error) { applied = ''; report(error); }
     }
 
@@ -188,7 +193,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         return false;
     }
 
-    release.implementation = function () {
+    if (release) release.implementation = function () {
         try {
             const bar = findBar(this);
             if (bar) {
@@ -237,22 +242,29 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         return complete;
     }
 
-    // Observe only assignment changes and keep weak references to launcher views.
+    // Reclaim collected bars without reapplying unchanged live views.
     const timer = setInterval(() => Java.perform(() => {
         if (!ready || disposed || queued) return;
         try {
             const app = ActivityThread.currentApplication();
-            if (app === null || signature(readConfig(app)).key === applied) return;
+            const changed = app !== null && signature(readConfig(app)).key !== applied;
+            if (!changed && !bars.some(bar => bar.released || bar.owner.get() === null)) return;
             queued = true;
             Java.scheduleOnMainThread(() => {
                 try {
+                    if (disposed) return;
                     const current = ActivityThread.currentApplication();
-                    if (disposed || current === null) return;
+                    if (current === null) { visitBars(() => true); return; }
                     const config = readConfig(current);
                     const {key, token} = signature(config);
-                    if (key !== applied && visitBars((nav, bar) => refresh(nav, bar, config))) {
+                    const changed = key !== applied;
+                    const complete = visitBars((nav, bar) => changed ? refresh(nav, bar, config) : true);
+                    if (changed && complete) {
                         applied = key;
-                        if (token) console.log('OVC_PANEL_ICONS_RESTORED ' + token);
+                        if (token) {
+                            if (lifecycle.restored) lifecycle.restored(token);
+                            else console.log('OVC_PANEL_ICONS_RESTORED ' + token);
+                        }
                     }
                 } catch (error) { report(error); }
                 finally { queued = false; }
@@ -297,7 +309,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
             disposed = true;
             clearInterval(timer);
             if (theme) theme.implementation = null;
-            release.implementation = null;
+            if (release) release.implementation = null;
             Java.scheduleOnMainThread(() => {
                 for (const bar of bars) bar.released = true;
                 visitBars(() => true);

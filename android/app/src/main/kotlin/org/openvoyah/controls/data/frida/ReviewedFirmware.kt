@@ -13,6 +13,10 @@ internal object ReviewedFirmware {
     const val LAUNCHER = "com.qinggan.app.launcher"
     const val FRAMEWORK = "android"
     const val CLUSTER = "com.qinggan.cluster"
+    const val CAN_SERVICE = "com.qinggan.canbus.service"
+    const val LOGIN = "com.qinggan.app.login"
+    const val CAN_STEERING = "can-steering-terminal"
+    const val CAN_STEERING_EDGES = "can-steering-edges"
     const val WINDOW_SERVICE = "window-service"
     const val PASSENGER_WINDOW_DPI = "passenger-window-dpi"
     const val OEM_PROFILES = "oem-profiles"
@@ -24,8 +28,8 @@ internal object ReviewedFirmware {
         "vehicle" to "com.qinggan.app.vehicle",
         "bluetooth" to "com.qinggan.bluetoothphone",
     )
-    private val packages = setOf(LAUNCHER, FRAMEWORK, CLUSTER) + localizationTargets.values
-    private val operations = setOf(WINDOW_SERVICE, PASSENGER_WINDOW_DPI, OEM_PROFILES, TBOX_REBOOT, CLUSTER_WRITE)
+    private val packages = setOf(LAUNCHER, FRAMEWORK, CLUSTER, CAN_SERVICE, LOGIN) + localizationTargets.values
+    private val operations = setOf(WINDOW_SERVICE, PASSENGER_WINDOW_DPI, OEM_PROFILES, TBOX_REBOOT, CLUSTER_WRITE, CAN_STEERING, CAN_STEERING_EDGES)
     private val fingerprint = Regex("[A-Za-z0-9][A-Za-z0-9._:/+\\-]{0,255}")
     private val product = Regex("[A-Za-z0-9][A-Za-z0-9_.\\-]{0,63}")
     val sha256 = Regex("[0-9a-f]{64}")
@@ -67,7 +71,9 @@ internal object ReviewedFirmware {
             require(row.size == 5 && row[4] in operations)
             val key = identity(row)
             require(key in profiles && reviewed.getOrPut(key) { mutableSetOf() }.add(row[4]))
+            if (row[4] in setOf(CAN_STEERING, CAN_STEERING_EDGES)) require(CAN_SERVICE in profiles.getValue(key))
         }
+        require(reviewed.values.none { CAN_STEERING in it && CAN_STEERING_EDGES in it })
         val profile = profiles[device] ?: return null
         return Review(device, profile.values.toList(), reviewed[device]?.toSet().orEmpty())
     }

@@ -30,5 +30,8 @@ public final class LocalActionsTest extends AndroidTestCase {
         assertFalse(direct.exported);
         assertTrue(alias.exported);
         assertEquals(Manifest.permission.WRITE_SECURE_SETTINGS, alias.permission);
+        ActivityInfo setup = packages.getActivityInfo(new ComponentName(getContext(), SetupActivity.class), 0);
+        assertTrue(setup.exported);
+        assertEquals(Manifest.permission.WRITE_SECURE_SETTINGS, setup.permission);
     }
 }

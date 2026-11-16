@@ -15,7 +15,7 @@
     <string name="ui_13" formatted="false">"Waiting to reconnect: "</string>
     <string name="ui_14" formatted="false">"Worker started after boot"</string>
     <string name="ui_15" formatted="false">"Automatic connection will retry: "</string>
-    <string name="ui_16" formatted="false">"Our frida-inject 17.18.0 is required; found: "</string>
+    <string name="ui_16" formatted="false">"The prepared Frida runtime does not match this app; found: "</string>
     <string name="ui_18" formatted="false">"Connection is not configured yet"</string>
     <string name="ui_19" formatted="false">"Connect Frida in settings first"</string>
     <string name="ui_20" formatted="false">"Invalid voice channel response"</string>
@@ -76,7 +76,7 @@
     <string name="ui_75" formatted="false">"Check Frida status"</string>
     <string name="ui_76" formatted="false">"Disconnect Frida"</string>
     <string name="ui_77" formatted="false">"Our Frida hook has stopped. The panel uses OEM behavior."</string>
-    <string name="ui_78" formatted="false">"Requires an existing root shell and frida-inject. Connects only to the local vehicle address. After the first connection, the hook starts at boot without opening settings."</string>
+    <string name="ui_78" formatted="false">"Run Prepare and install in the Windows installer first. It prepares local access and the matching Frida runtime. Supported handlers can then start at boot without opening settings."</string>
     <string name="ui_79" formatted="false">"Panel connection"</string>
     <string name="ui_80" formatted="false">"Running command…"</string>
     <string name="ui_81" formatted="false">"Panel status"</string>

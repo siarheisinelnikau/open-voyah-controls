@@ -30,7 +30,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import org.openvoyah.controls.presentation.theme.CockpitAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -62,6 +62,7 @@ import org.openvoyah.controls.presentation.theme.CockpitHeading
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 
 internal enum class VoiceOption(val label: Int) {
+    TRY_VOICE(R.string.quick_voice_try),
     LANGUAGE(R.string.voice_language),
     LEVELS(R.string.default_levels),
     WINDOWS(R.string.window_options),
@@ -77,6 +78,8 @@ internal fun VoiceSettingsScreen(
     vehicleCommandsReviewed: Boolean,
     assignments: Set<String>,
     message: String?,
+    microphone: VoiceMicrophoneViewModel.State,
+    recoverMicrophone: () -> Unit,
     openCommand: (VoiceCatalog.Command) -> Unit,
     openOption: (VoiceOption) -> Unit,
     back: () -> Unit,
@@ -97,7 +100,7 @@ internal fun VoiceSettingsScreen(
             if (maxWidth >= 760.dp) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                     Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                        SettingsOptions(language, vehicleCommandsReviewed, message, openOption, back)
+                        SettingsOptions(language, vehicleCommandsReviewed, message, microphone, recoverMicrophone, openOption, back)
                     }
                     Surface(
                         Modifier.weight(1f).fillMaxSize(),
@@ -110,7 +113,7 @@ internal fun VoiceSettingsScreen(
                             LazyColumn(Modifier.weight(1f)) {
                                 if (visible.isEmpty()) item { EmptyResults() }
                                 items(visible, key = { it.id() }) {
-                                    CommandRow(it, it.id() in assignments, openCommand)
+                                    CommandRow(it, it.id() in assignments, openCommand, Modifier.animateItem())
                                 }
                             }
                         }
@@ -118,11 +121,11 @@ internal fun VoiceSettingsScreen(
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
-                    item { SettingsOptions(language, vehicleCommandsReviewed, message, openOption, back) }
+                    item { SettingsOptions(language, vehicleCommandsReviewed, message, microphone, recoverMicrophone, openOption, back) }
                     item { SearchField(search, { search = it }) }
                     if (visible.isEmpty()) item { EmptyResults() }
                     items(visible, key = { it.id() }) {
-                        CommandRow(it, it.id() in assignments, openCommand)
+                        CommandRow(it, it.id() in assignments, openCommand, Modifier.animateItem())
                     }
                 }
             }
@@ -131,7 +134,7 @@ internal fun VoiceSettingsScreen(
 }
 
 @Composable
-internal fun QuickVoicePopup(state: VoiceViewModel.State) {
+internal fun QuickVoicePopup(state: VoiceViewModel.State, recoverMicrophone: (() -> Unit)? = null) {
     val colors = MaterialTheme.colorScheme
     val border by animateColorAsState(
         if (state.failed) colors.error.copy(alpha = .65f) else colors.primary.copy(alpha = .42f),
@@ -170,6 +173,11 @@ internal fun QuickVoicePopup(state: VoiceViewModel.State) {
                         Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
+                    recoverMicrophone?.let { recover ->
+                        TextButton(recover, Modifier.heightIn(min = 48.dp)) {
+                            Text(label(R.string.quick_voice_microphone_settings))
+                        }
+                    }
                 }
             }
         }
@@ -177,7 +185,9 @@ internal fun QuickVoicePopup(state: VoiceViewModel.State) {
 }
 
 @Composable
-private fun SettingsOptions(language: String, vehicleCommandsReviewed: Boolean, message: String?, select: (VoiceOption) -> Unit, back: () -> Unit) {
+private fun SettingsOptions(language: String, vehicleCommandsReviewed: Boolean, message: String?,
+                            microphone: VoiceMicrophoneViewModel.State, recoverMicrophone: () -> Unit,
+                            select: (VoiceOption) -> Unit, back: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         CockpitHeading(label(R.string.voice_options_title), back = back)
         Surface(
@@ -192,6 +202,23 @@ private fun SettingsOptions(language: String, vehicleCommandsReviewed: Boolean, 
             ) {
                 CockpitGlyph(CockpitIcon.VOICE)
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val access = microphone.access
+                    val microphoneMessage = when {
+                        microphone.requesting -> R.string.voice_microphone_waiting
+                        access == VoiceMicrophoneViewModel.Access.ALLOWED -> R.string.voice_microphone_ready
+                        access == VoiceMicrophoneViewModel.Access.SETTINGS -> R.string.voice_microphone_settings_needed
+                        else -> R.string.voice_microphone_needed
+                    }
+                    Text(label(microphoneMessage), Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (access == VoiceMicrophoneViewModel.Access.ALLOWED) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.error)
+                    if (access != VoiceMicrophoneViewModel.Access.ALLOWED) {
+                        Button(recoverMicrophone, Modifier.heightIn(min = 50.dp), enabled = !microphone.requesting) {
+                            Text(label(if (access == VoiceMicrophoneViewModel.Access.SETTINGS)
+                                R.string.voice_microphone_open_settings else R.string.voice_microphone_allow))
+                        }
+                    }
                     Text(label(R.string.voice_button_hint), style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(label(if (vehicleCommandsReviewed) R.string.voice_vehicle_reviewed
@@ -214,6 +241,7 @@ private fun SettingsOptions(language: String, vehicleCommandsReviewed: Boolean, 
                                 else -> label(option.label)
                             }
                             OutlinedButton({ select(option) }, Modifier.weight(1f).heightIn(min = 54.dp),
+                                enabled = option != VoiceOption.TRY_VOICE || !microphone.requesting,
                                 shape = MaterialTheme.shapes.medium) {
                                 Text(name)
                             }
@@ -241,9 +269,9 @@ private fun EmptyResults() {
 }
 
 @Composable
-private fun CommandRow(command: VoiceCatalog.Command, assigned: Boolean, select: (VoiceCatalog.Command) -> Unit) {
+private fun CommandRow(command: VoiceCatalog.Command, assigned: Boolean, select: (VoiceCatalog.Command) -> Unit, modifier: Modifier = Modifier) {
     val title = command.title() + if (assigned) label(R.string.ui_186) else ""
-    Column {
+    Column(modifier) {
         Text(title, Modifier.fillMaxWidth().heightIn(min = 54.dp).clickable(role = Role.Button) { select(command) }
             .padding(horizontal = 8.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyLarge)
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

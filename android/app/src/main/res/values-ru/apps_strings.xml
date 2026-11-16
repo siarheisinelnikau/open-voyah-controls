@@ -45,4 +45,8 @@
     <string name="apps_install_discard_failed">Android не смог отменить предыдущую установку. Проверьте её состояние перед выбором другого APK.</string>
     <string name="apps_install_failed">Android не смог установить APK. Проверьте файл, свободное место и правила установки Android.</string>
     <string name="apps_install_unverified">APK установлен. Controls не удалось подтвердить источник, поэтому разрешения доступны в сведениях о приложении Android.</string>
+    <string name="apps_install_self_update">Для обновления Controls используйте раздел «Обновления».</string>
+    <string name="apps_install_invalid_apk">Выбранный файл не является читаемым APK Android. Выберите файл APK.</string>
+    <string name="apps_install_changed_apk">APK изменился во время подготовки. Выберите файл ещё раз.</string>
+    <string name="apps_install_cleanup_failed">Не удалось удалить подготовленный APK. Проверьте хранилище приложения и повторите попытку.</string>
 </resources>

@@ -13,6 +13,8 @@ Voice settings shows whether physical vehicle commands have been reviewed for th
 
 The result distinguishes a vehicle service acknowledgment from a change confirmed by fresh telemetry. If feedback is partial or the outcome is unknown, the app ends the request and shows that result. Vehicle qualification also checks who can submit requests on the reviewed firmware and what happens when feedback or power is lost during motion.
 
+“Driver one/two/three” (Russian: “водитель один/два/три”) selects seat memory positions and requires the physical-command review and Park checks. “Driver A/B/C” selects account profiles through a separate adapter. On Oversea, the app can probe the login API without invoking it; account switching remains unavailable until complete backup and recovery are supported.
+
 ![Voice button popup over Android Settings on the Android 9 emulator](screenshots/quick-voice-0.9.0-en.png)
 
 ## Apps and media

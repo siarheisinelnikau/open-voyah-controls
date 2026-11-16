@@ -16,16 +16,20 @@ public final class OemParityTest extends AndroidTestCase {
             commands.add(command);
             if(!failure.isEmpty() && command.contains(failure)) throw new IOException("Disconnected");
             if(command.equals("getprop ro.product.name")) return product;
-            if(command.startsWith("cat /private/")) return "Original%0%1%originalAid%originalUid";
+            if(command.contains("dd if=/private/configs/token/accountInfo")) return "Original%0%1%originalAid%originalUid";
+            for (String action : new String[]{"prepare", "switch", "restore"}) {
+                if (command.contains("\naction='" + action + "'\n")) return "OVC_GUEST_STATE_V2 " + action + " verified";
+            }
             return "";
         }
     }
     public void testOriginalProfileIdsAndDurableBackupPrecedeMutation() throws Exception {
         FakeShell shell=new FakeShell(); OemProfiles.switchDriver(shell,"B");
-        assertTrue(shell.commands.get(1).contains("/profile-backup/ready"));
+        assertTrue(shell.commands.get(1).contains("OVC_GUEST_KNOWN_STATE_V2"));
         String mutation=shell.commands.get(shell.commands.size()-1);
         assertTrue(mutation.contains("613f734f8fb7462ebd1db95d10000002%10000002"));
-        assertTrue(mutation.contains("setprop qinggan.account.uid 10000002"));
+        assertTrue(mutation.contains("uid='10000002'"));
+        assertTrue(mutation.contains("setprop qinggan.account.uid \"$uid\""));
         assertTrue(mutation.contains("com.qinggan.account.userinfo.changed"));
         assertTrue(mutation.contains("chmod 0444"));
     }
@@ -39,10 +43,10 @@ public final class OemParityTest extends AndroidTestCase {
     public void testBackupFailureAndAmbiguousSwitchAreNotRetried() throws Exception {
         FakeShell backup=new FakeShell(); backup.failure="profile-backup";
         try { OemProfiles.switchDriver(backup,"A");fail(); } catch(IOException expected) { }
-        assertFalse(backup.commands.stream().anyMatch(s->s.contains("accountInfo.ovc-new")));
-        FakeShell lost=new FakeShell(); lost.failure="accountInfo.ovc-new";
+        assertFalse(backup.commands.stream().anyMatch(s->s.contains("\naction='switch'\n")));
+        FakeShell lost=new FakeShell(); lost.failure="\naction='switch'\n";
         try { OemProfiles.switchDriver(lost,"C");fail(); } catch(IOException expected) { assertTrue(expected.getMessage().contains("not confirmed")); }
-        assertEquals(1L,lost.commands.stream().filter(s->s.contains("accountInfo.ovc-new")).count());
+        assertEquals(1L,lost.commands.stream().filter(s->s.contains("\naction='switch'\n")).count());
     }
     public void testSeatMemoryIsScopedToCurrentAccountAndXmlDecoded() throws Exception {
         JSONObject bean=OemProfiles.seatBean("<map><string name=\"seatPosition01aid\">{&quot;x&quot;:4}</string>"
@@ -63,9 +67,17 @@ public final class OemParityTest extends AndroidTestCase {
     }
     public void testRestoreRequiresCompletedSnapshotAndKeepsIt() throws Exception {
         FakeShell shell=new FakeShell(); OemProfiles.restore(shell);
-        String script=shell.commands.get(0);
-        assertTrue(script.contains("test -f /data/local/tmp/open-voyah-controls/profile-backup/ready"));
-        assertTrue(script.contains("setprop \"$p\""));assertFalse(script.contains("rm "));
+        String script=shell.commands.get(shell.commands.size()-1);
+        assertTrue(script.indexOf("verify \"$backup\" || exit 79") < script.indexOf("write_journal pending"));
+        assertTrue(script.contains("setprop \"$p\" \"$value\""));
+        assertFalse(script.contains("rm -f \"$backup"));
+    }
+    public void testGuestRestoreCannotOverwriteAnOverseasOrUnsupportedAccount() throws Exception {
+        for (String product : new String[]{"f6811", "f6804h", "unknown"}) {
+            FakeShell shell = new FakeShell(); shell.product = product;
+            try { OemProfiles.restore(shell); fail(); } catch (IOException expected) { }
+            assertEquals(java.util.Collections.singletonList("getprop ro.product.name"), shell.commands);
+        }
     }
     public void testLocalizationRejectsExecutableOrUnboundedContent() throws Exception {
         var good=new JSONObject("{\"schema\":1,\"enabled\":true,\"products\":[\"f0506h\"],\"packages\":{\"com.qinggan.app.launcher\":{\"设置\":\"Settings\"}}}");

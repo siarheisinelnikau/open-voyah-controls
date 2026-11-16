@@ -5,7 +5,9 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.view.InputDevice;
 import android.view.KeyEvent;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
 import org.openvoyah.controls.core.Binding;
@@ -17,8 +19,10 @@ public final class ButtonInputAdapter implements AutoCloseable {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ButtonEngine engine;
+    private final Map<Long, Long> captureOwners = new HashMap<>();
     private Capture capture;
-    private KeyEvent captureDown;
+    private long captureGeneration;
+    private boolean hasCaptureDown;
     private Runnable captureTimeout;
     private String captureDescriptor;
     private String captureDeviceName;
@@ -27,7 +31,7 @@ public final class ButtonInputAdapter implements AutoCloseable {
         engine = new ButtonEngine(new ButtonEngine.Scheduler() {
             @Override public Object after(long delay, Runnable callback) { handler.postDelayed(callback, delay); return callback; }
             @Override public void cancel(Object token) { handler.removeCallbacks((Runnable) token); }
-        }, sink);
+        }, sink, SystemClock::uptimeMillis);
     }
 
     public void configure(List<Binding> bindings, boolean enabled, int hold, int debounce) {
@@ -38,7 +42,9 @@ public final class ButtonInputAdapter implements AutoCloseable {
         cancelCapture();
         engine.cancelPending();
         capture = callback;
+        long generation = captureGeneration;
         captureTimeout = () -> {
+            if (captureGeneration != generation) return;
             Capture current = capture;
             cancelCapture();
             if (current != null) current.expired();
@@ -47,8 +53,12 @@ public final class ButtonInputAdapter implements AutoCloseable {
     }
 
     public void cancelCapture() {
+        captureGeneration++;
         capture = null;
-        // Retain a swallowed DOWN until its matching UP arrives.
+        hasCaptureDown = false;
+        captureDescriptor = null;
+        captureDeviceName = null;
+        // Keep swallowed edges separate from the next learning request.
         if (captureTimeout != null) handler.removeCallbacks(captureTimeout);
         captureTimeout = null;
     }
@@ -56,20 +66,25 @@ public final class ButtonInputAdapter implements AutoCloseable {
     public boolean handle(KeyEvent event) {
         int code = event.getKeyCode();
         if (code == KeyEvent.KEYCODE_HOME || code == KeyEvent.KEYCODE_POWER || code == KeyEvent.KEYCODE_UNKNOWN) return false;
-        InputDevice device = event.getDevice();
-        String descriptor = device == null ? "id:" + event.getDeviceId() : device.getDescriptor();
-        if (captureDown != null && captureDown.getDeviceId() == event.getDeviceId() && captureDown.getKeyCode() == code) {
+        long key = ((long) event.getDeviceId() << 32) | (code & 0xffffffffL);
+        Long owner = captureOwners.get(key);
+        if (owner != null) {
             if (event.getAction() == KeyEvent.ACTION_UP) {
-                Capture callback = capture;
-                String capturedDevice = captureDescriptor, deviceName = captureDeviceName;
-                captureDown = null;
-                cancelCapture();
-                if (callback != null && !event.isCanceled()) callback.captured(code, capturedDevice, deviceName);
+                captureOwners.remove(key);
+                if (owner.longValue() == captureGeneration) {
+                    Capture callback = capture;
+                    String capturedDevice = captureDescriptor, deviceName = captureDeviceName;
+                    cancelCapture();
+                    if (callback != null && !event.isCanceled()) callback.captured(code, capturedDevice, deviceName);
+                }
             }
             return true;
         }
-        if (capture != null && captureDown == null && event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-            captureDown = new KeyEvent(event);
+        InputDevice device = event.getDevice();
+        String descriptor = device == null ? "id:" + event.getDeviceId() : device.getDescriptor();
+        if (capture != null && !hasCaptureDown && event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+            captureOwners.put(key, captureGeneration);
+            hasCaptureDown = true;
             captureDescriptor = descriptor;
             captureDeviceName = device == null ? UiText.get(R.string.ui_2) + event.getDeviceId() : device.getName();
             return true;
@@ -88,7 +103,7 @@ public final class ButtonInputAdapter implements AutoCloseable {
 
     @Override public void close() {
         cancelCapture();
-        captureDown = null;
+        captureOwners.clear();
         engine.close();
         handler.removeCallbacksAndMessages(null);
     }

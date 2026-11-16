@@ -5,8 +5,8 @@ import lzma
 from pathlib import Path
 import urllib.request
 
-VERSION = "17.18.0"
-SHA256 = "a72de74276d914f6769b8b85f8dd287cbafa4527c42ae1c8dd87b0d23d261391"
+VERSION = "17.26.2"
+SHA256 = "97aac7e5bbf4a90156b9c89bb3bc9cefb7e837676f1047270cce34d9e4c97b0f"
 URL = f"https://github.com/frida/frida/releases/download/{VERSION}/frida-inject-{VERSION}-android-arm64.xz"
 
 def main():

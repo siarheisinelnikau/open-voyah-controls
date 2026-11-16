@@ -19,6 +19,21 @@ const DB: &str = "/data/data/com.qinggan.providers.settings/databases/qinggan_se
 const BACKUP: &str =
     "/data/data/com.qinggan.providers.settings/databases/.open-voyah-controls-backup";
 const KEYBOARDS: &[&str] = &["com.qinggan.app.qgime", "com.qinggan.app.qgime.second"];
+const DIAGNOSTIC_PROPERTIES: &str = r#"set -eu
+export PATH=/system/bin:/system/xbin
+export LC_ALL=C
+for property in \
+    ro.product.name ro.product.device ro.product.model ro.product.brand ro.product.manufacturer \
+    ro.product.cpu.abi ro.build.fingerprint ro.build.version.release ro.build.version.sdk \
+    ro.build.version.incremental ro.build.type ro.build.tags ro.boot.verifiedbootstate \
+    ro.boot.veritymode ro.boot.vbmeta.device_state ro.boot.flash.locked ro.boot.selinux \
+    ro.adb.secure ro.debuggable service.adb.root init.svc.adbd sys.boot_completed; do
+    value=$(getprop "$property" 2>/dev/null) || value='<unavailable>'
+    case "$value" in *[![:print:]]*) value='<unavailable>';; esac
+    [ "${#value}" -le 512 ] || value='<unavailable>'
+    printf '[%s]: [%s]\n' "$property" "$value"
+done
+"#;
 
 pub fn apk_files(folder: &Path) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
@@ -100,7 +115,7 @@ pub fn collect_logs(target: &Target<'_>, root: &Path, progress: impl Fn(String))
     let jobs: &[(&str, &[&str])] = &[
         ("logcat.txt", &["logcat", "-b", "all", "-d", "-t", "3000"]),
         ("crash.txt", &["logcat", "-b", "crash", "-d", "-t", "300"]),
-        ("properties.txt", &["shell", "getprop"]),
+        ("properties.txt", &["shell", DIAGNOSTIC_PROPERTIES]),
         ("storage.txt", &["shell", "df", "-h"]),
         ("mounts.txt", &["shell", "cat", "/proc/mounts"]),
         ("power.txt", &["shell", "dumpsys", "power"]),
@@ -108,6 +123,13 @@ pub fn collect_logs(target: &Target<'_>, root: &Path, progress: impl Fn(String))
         ("alarm.txt", &["shell", "dumpsys", "alarm"]),
         ("kernel.txt", &["shell", "dmesg"]),
         ("processes.txt", &["shell", "ps", "-A"]),
+        ("selinux.txt", &["shell", "getenforce"]),
+        ("adb-shell-identity.txt", &["shell", "id"]),
+        ("process-contexts.txt", &["shell", "ps", "-A", "-Z"]),
+        (
+            "startup-file-context.txt",
+            &["shell", "ls", "-lZ", "/system/etc/init.logcat.sh"],
+        ),
         ("tombstones.txt", &["shell", "ls", "-l", "/data/tombstones"]),
         ("anr.txt", &["shell", "ls", "-l", "/data/anr"]),
         ("dropbox.txt", &["shell", "dumpsys", "dropbox"]),

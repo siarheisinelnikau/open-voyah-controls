@@ -28,6 +28,41 @@ public class ButtonEngineTest {
         setup(); engine.down("panel", 85, 0, 0); hold(); engine.down("panel", 85, 2, 700); engine.up("panel", 85, false, 900);
         assertEquals(List.of(longAction), executed);
     }
+    @Test public void delayedHoldTimerUsesReleaseTimeAndCannotDispatchTwice() {
+        setup(); assertTrue(engine.down("panel", 85, 0, 100));
+        Runnable delayed = scheduled.get(0);
+        assertTrue(engine.up("panel", 85, false, 1000));
+        assertTrue(scheduled.isEmpty());
+        assertEquals(List.of(longAction), executed);
+        delayed.run();
+        assertFalse(engine.up("panel", 85, false, 1001));
+        assertEquals(List.of(longAction), executed);
+    }
+    @Test public void delayedTimerRespectsTheExactHoldThreshold() {
+        for (long duration : new long[]{649, 650}) {
+            setup(); executed.clear();
+            assertTrue(engine.down("panel", 85, 0, 100));
+            Runnable delayed = scheduled.get(0);
+            assertTrue(engine.up("panel", 85, false, 100 + duration));
+            delayed.run();
+            assertEquals(List.of(duration < 650 ? shortAction : longAction), executed);
+        }
+    }
+    @Test public void aLongPressWithNoHoldAssignmentRetainsItsTapAction() {
+        engine.configure(List.of(binding("tap", "", shortAction, Action.NONE)), true, 650, 100);
+        assertTrue(engine.down("panel", 85, 0, 100));
+        assertTrue(engine.up("panel", 85, false, 1000));
+        assertEquals(List.of(shortAction), executed);
+        assertTrue(scheduled.isEmpty());
+    }
+    @Test public void aBackwardsClockConsumesTheOwnedReleaseWithoutDispatch() {
+        setup(); assertTrue(engine.down("panel", 85, 0, 1000));
+        Runnable delayed = scheduled.get(0);
+        assertTrue(engine.up("panel", 85, false, 900));
+        delayed.run();
+        assertTrue(executed.isEmpty());
+        assertTrue(scheduled.isEmpty());
+    }
     @Test public void unknownAndUnassignedPassThrough() {
         setup(); assertFalse(engine.down("panel", 86, 0, 0));
         engine.configure(List.of(binding("empty", "", Action.NONE, Action.NONE)), true, 650, 100);
@@ -56,9 +91,22 @@ public class ButtonEngineTest {
         engine.up("panel", 85, false, 100); engine.up("wheel", 85, false, 100);
         assertEquals(List.of(shortAction, longAction), executed);
     }
-    @Test public void longOnlyBindingSwallowsShortPressWithoutAction() {
+    @Test public void longOnlyBindingPreservesTheWholeStockGesture() {
         engine.configure(List.of(binding("hold", "", Action.NONE, longAction)), true, 650, 100);
-        engine.down("panel", 85, 0, 0); assertTrue(engine.up("panel", 85, false, 100)); assertTrue(executed.isEmpty());
+        assertFalse(engine.down("panel", 85, 0, 0)); hold();
+        assertFalse(engine.up("panel", 85, false, 100)); assertTrue(executed.isEmpty());
+    }
+    @Test public void unavailableTargetPreservesDownAndUpWithoutScheduling() {
+        ButtonEngine guarded = new ButtonEngine(new ButtonEngine.Scheduler() {
+            public Object after(long ms, Runnable r) { fail("Unavailable action must not schedule"); return null; }
+            public void cancel(Object token) { }
+        }, new ButtonEngine.Sink() {
+            public void execute(Action action) { fail("Unavailable action must not execute"); }
+            public boolean canExecute(Action action) { return action != longAction; }
+        });
+        guarded.configure(List.of(binding("gone", "", shortAction, longAction)), true, 650, 100);
+        assertFalse(guarded.down("panel", 85, 0, 0));
+        assertFalse(guarded.up("panel", 85, false, 900));
     }
     @Test public void closeCancelsTimers() { setup(); engine.down("panel", 85, 0, 0); engine.close(); hold(); assertTrue(executed.isEmpty()); }
 }

@@ -1,0 +1,618 @@
+{
+  "version": "0.19.0",
+  "version_code": 21,
+  "installer_version": "0.6.1",
+  "date": "2026-11-16",
+  "vehicle_tested": false,
+  "production_ready": false,
+  "signing": "local-release",
+  "android_certificate_sha256": "2ee3c67da07678052b8031a8cfcebea0cca71ca99a8cc6e6ac7a86ee50e484e9",
+  "windows_certificate_sha256": "821caf9af11a280aec7905b1683b6302d6d19ec26d1eb2aa1766cdf2eecef5bf",
+  "windows_trust": "Self-signed; CMS signature and PE digest verified. System trust unchanged.",
+  "windows_signature_verification": {
+    "sha256": "d06177f157ea26f4d1546cfb86a1a960df072a85dc6932f6d7359327f4e6ef25",
+    "certificate_sha256": "821caf9af11a280aec7905b1683b6302d6d19ec26d1eb2aa1766cdf2eecef5bf",
+    "message": "Verified local Authenticode signature and PE digest: 821caf9af11a280aec7905b1683b6302d6d19ec26d1eb2aa1766cdf2eecef5bf",
+    "system_trust": "unchanged"
+  },
+  "artifacts": {
+    "OpenVoyahControls-v0.19.0.apk": {
+      "size": 150143579,
+      "sha256": "abb9f84942599ad3345530510c4edade536c3c25bbcadcccbbd7eb093caa57e6"
+    },
+    "OpenVoyahControlsInstaller-v0.6.1.exe": {
+      "size": 3832136,
+      "sha256": "d06177f157ea26f4d1546cfb86a1a960df072a85dc6932f6d7359327f4e6ef25"
+    },
+    "OpenVoyahControls-v0.19.0-first-run-local-signed.zip": {
+      "size": 172312864,
+      "sha256": "45f0309c15c57f60b7c5418b5cadffadeaa7522be64818a38de2fcd29bbc3202"
+    }
+  },
+  "runtime": {
+    "version": "17.26.2",
+    "url": "https://github.com/frida/frida/releases/download/17.26.2/frida-inject-17.26.2-android-arm64.xz",
+    "archive_sha256": "97aac7e5bbf4a90156b9c89bb3bc9cefb7e837676f1047270cce34d9e4c97b0f",
+    "file": "open-voyah-controls-frida-17.26.2",
+    "binary_sha256": "b58f44918fc27843484fc62502b3d2c90ea686a85ed484bed062b23482cd1733",
+    "size": 84634560
+  },
+  "jvm": {
+    "app": 37,
+    "core": 52
+  },
+  "tests": {
+    "cohort_note": "Separate recorded runs; counts overlap and must not be added as one combined final suite.",
+    "android9_original_instrumentation": {
+      "evidence": "cycle4-api28-all.txt",
+      "run": 146,
+      "passed_in_original_run": 142,
+      "errors_in_original_run": 4,
+      "failed": 0,
+      "fixture_reprovisioned_rerun_evidence": "root-channel-api28.txt",
+      "same_four_cases_passed_after_required_authenticated_listener_and_key_fixture": true
+    },
+    "android9_latest_visual_and_stop_guard": {
+      "evidence": "visual-guard-api28.txt",
+      "passed": 31,
+      "scope": "entire recorded run",
+      "other_cases_in_recorded_run": 0,
+      "other_failed_cases_in_recorded_run": 0
+    },
+    "latest_local_apk_native_cases_per_sdk": {
+      "28": {
+        "evidence": "local-apk-api28-final.txt",
+        "passed": 20,
+        "scope": "entire recorded run",
+        "other_cases_in_recorded_run": 0,
+        "other_failed_cases_in_recorded_run": 0
+      },
+      "30": {
+        "evidence": "cycle4-api30-retest.txt",
+        "passed": 20,
+        "scope": "org.openvoyah.controls.platform.apps.LocalApkInstallerTest",
+        "other_cases_in_recorded_run": 5,
+        "other_failed_cases_in_recorded_run": 1
+      }
+    },
+    "latest_compose_cases_per_sdk": {
+      "28": {
+        "evidence": "ui-api28-passed.txt",
+        "passed": 5,
+        "scope": "entire recorded run",
+        "other_cases_in_recorded_run": 0,
+        "other_failed_cases_in_recorded_run": 0
+      },
+      "30": {
+        "evidence": "ui-api30-passed.txt",
+        "passed": 5,
+        "scope": "entire recorded run",
+        "other_cases_in_recorded_run": 0,
+        "other_failed_cases_in_recorded_run": 0
+      }
+    },
+    "local_apk_android11_note": "The twenty local-APK cases passed within a twenty-five-case run containing one Home traversal harness failure. All five Compose cases subsequently passed in the separate recorded UI run.",
+    "ui_harness_note": "Accessibility nodes are refreshed before reading cached children; no production fixture route or coordinate actions were added.",
+    "android9_test_environment_note": "Repeated uninstall/install testing left a DEAD Accessibility binding. Current PackageManager and AccessibilityManager service UID/APK path matched; the cause was not established. The signed app correctly reported buttons unavailable. After rebooting only the owned emulator, Android bound the same installed service without APK/settings changes and the final first-run check passed. Local root access was reprovisioned/restarted from ADB afterward. This is not a demonstrated app fix or qualification of OEM cold boot.",
+    "javascript": {
+      "evidence": "javascript-final.txt",
+      "passed": 154,
+      "failed": 0,
+      "skipped": 0
+    },
+    "windows_rust": {
+      "evidence": "windows-signed-build.txt",
+      "passed": 48,
+      "failed": 0,
+      "ignored": 1,
+      "init_service_passed": 28,
+      "init_service_ignored": [
+        "owned_emulator_init_snapshot_is_read_only"
+      ],
+      "ignored_test_note": "Owned-emulator init snapshot check requires explicit selection and is recorded separately when run."
+    },
+    "init_read_only_snapshots_per_sdk": {
+      "28": {
+        "evidence": "init-snapshot-api28.txt",
+        "passed": 1,
+        "observed_service_definitions": 84,
+        "in_memory_service_fixture": true,
+        "scope": "Read actual emulator init files/imports; if the target service is absent, add only an in-memory authored root service before validating. No device configuration or boot activation changed."
+      },
+      "30": {
+        "evidence": "init-snapshot-api30.txt",
+        "passed": 1,
+        "observed_service_definitions": 126,
+        "in_memory_service_fixture": true,
+        "scope": "Read actual emulator init files/imports; if the target service is absent, add only an in-memory authored root service before validating. No device configuration or boot activation changed."
+      }
+    },
+    "init_snapshot_note": "Stock emulator in-memory service fixtures do not prove an OEM target service exists or boots with a permitted SELinux domain.",
+    "platform_tools_packaging_host": {
+      "evidence": "platform-tools-packaging-host.txt",
+      "run": 13,
+      "passed": 13,
+      "skipped": 0,
+      "seconds": 8.201
+    },
+    "platform_tools_packaging_windows_powershell51_host": {
+      "evidence": "platform-tools-packaging-host-ps51.txt",
+      "run": 13,
+      "passed": 13,
+      "skipped": 0,
+      "seconds": 5.591
+    },
+    "platform_tools_packaging_host_scope": "The same thirteen synthetic metadata/version/help/copy/timeout cases passed under each host; these are not twenty-six distinct cases. Real version/help checks are separately recorded in platform-tools-gates.json.",
+    "supervisor_host_baseline": {
+      "evidence": "supervisor-final-host.txt",
+      "run": 22,
+      "passed": 21,
+      "skipped": 1,
+      "seconds": 74.33,
+      "recorded_supervisor_sha256": "786ad742f1dd0f83d59c23b25fcc291c5e137cea999e19da7ea4566649b195fb"
+    },
+    "visual_session_host_baseline": {
+      "evidence": "visual-session-host.txt",
+      "run": 11,
+      "passed": 11,
+      "skipped": 0,
+      "seconds": 63.648,
+      "recorded_supervisor_sha256": "786ad742f1dd0f83d59c23b25fcc291c5e137cea999e19da7ea4566649b195fb"
+    },
+    "visual_session_host_latest_pid": {
+      "evidence": "visual-session-pid-host.txt",
+      "run": 13,
+      "passed": 13,
+      "skipped": 0,
+      "seconds": 64.954
+    },
+    "host_source_note": "Baseline host logs retain their recorded earlier source hash. The later thirteen-case host run supersedes the eleven-case visual baseline; these are not twenty-four distinct cases. Exact final script hashes are bound by the native journal matrix.",
+    "boot_recovery_reported_baseline": {
+      "evidence_kind": "Completed agent tool output; no standalone saved log available.",
+      "reported_by": "installer_audit_c1",
+      "runs": [
+        {
+          "scope": "full boot/recovery host suite",
+          "passed": 28,
+          "seconds": 448.279
+        },
+        {
+          "scope": "owner-user0 focused follow-up",
+          "passed": 1,
+          "seconds": 18.013
+        }
+      ],
+      "note": "Twenty-nine passes across two separately reported runs; no single twenty-nine-case saved run."
+    },
+    "boot_recovery_latest_pid_focused": {
+      "evidence": "boot-visual-pid-host.txt",
+      "run": 3,
+      "passed": 3,
+      "skipped": 0,
+      "seconds": 35.491
+    },
+    "boot_recovery_pid_note": "Three additional focused cases; no combined thirty-two-case run was performed.",
+    "native_visual_journal_matrix": {
+      "evidence": "visual-sessions-native.json",
+      "mode": "executed",
+      "scope": "Extracted native parser/descriptor/clear functions only; synthetic proc and journal files. No production state, service, settings, signals, hooks, app operations, or instrumentation.",
+      "sources": {
+        "supervisor": {
+          "path": "android/app/src/main/assets/hooks/supervise.sh",
+          "sha256": "f5605a3f4c096b8822f0c29c05e6ffaada654c000851d44568aaed5dd73141a9",
+          "helper_sha256": "de710d75ec3a4fce54d039bff007a8fe8a57703a718c30168bd45c2ab6b9453f",
+          "helper_bytes": 6446
+        },
+        "installer": {
+          "path": "android/tools/configure-boot.sh",
+          "sha256": "8cd68dd3b1b06b7a235c6dea6de99c3f380f44982a28c402a5feee54c987afd1",
+          "helper_sha256": "618e029202c9346173aad7baf3dca65c758ac66d56f6055f099173e908bf2033",
+          "helper_bytes": 5785
+        }
+      },
+      "per_sdk": {
+        "28": {
+          "passed": 386,
+          "run": 386,
+          "cleanup_confirmed": true
+        },
+        "30": {
+          "passed": 386,
+          "run": 386,
+          "cleanup_confirmed": true
+        }
+      }
+    },
+    "actual_frida_can_edge_cases_android9": 8,
+    "actual_frida_oversea_signature_probe_zero_writes": true,
+    "actual_frida_account_read_cases_android9": 6,
+    "fixture_limits": "CAN/OEM APIs are independent local stubs. Account reads redirect the fixed path to private synthetic data. These checks do not qualify OEM firmware or account restoration."
+  },
+  "lint": {
+    "debug": {
+      "errors": 0,
+      "warnings": 56
+    },
+    "release": {
+      "errors": 0,
+      "warnings": 56
+    }
+  },
+  "root_chain_emulator": {
+    "sdk": 28,
+    "architecture": "x86_64",
+    "apk_uid": 10092,
+    "telnet_shell_uid": 0,
+    "frida_injector_uid": 0,
+    "injected_agent_uid": 10067,
+    "same_as_target_before_injection": true,
+    "selinux": "Enforcing",
+    "su_invoked": false,
+    "source": "Actual AuthorizedRootChannel inside the signed APK; independent target app. A private controller script invokes the app adapter as a test driver. No OEM boot or ARM64 claim.",
+    "injector_sha256": "bdd8d1e5c7f4e199982f7bc770a0c70f38dfe06b726baf9dc5ce547975e10ffc"
+  },
+  "motion_emulators": {
+    "28": {
+      "sdk": 28,
+      "serial": "emulator-5582",
+      "dimensions": "1920x720",
+      "apk": "0.19.0",
+      "samples": {
+        "home_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.049
+        },
+        "animated_tabs": {
+          "additional_frames": 93,
+          "page_switches": 6
+        },
+        "after_animation_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.056
+        },
+        "display_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.057
+        },
+        "hidden_after_display": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.056
+        },
+        "restored_home_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 1,
+          "seconds": 3.053
+        },
+        "updates_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.053
+        },
+        "updates_hidden": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.053
+        },
+        "disabled_tabs": {
+          "additional_frames": 30,
+          "page_switches": 6
+        },
+        "disabled_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.056
+        }
+      },
+      "virtual_display_released_on_stop": true,
+      "animation_scale_zero_reduces_frames": true,
+      "selinux": "Enforcing",
+      "limits": "Aggregate app HWUI counters and CPU ticks on an x86_64 emulator. No ARM64, compositor-wide GPU or vehicle frame-rate claim."
+    },
+    "30": {
+      "sdk": 30,
+      "serial": "emulator-5580",
+      "dimensions": "1920x720",
+      "apk": "0.19.0",
+      "samples": {
+        "home_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 1,
+          "seconds": 3.077
+        },
+        "animated_tabs": {
+          "additional_frames": 124,
+          "page_switches": 6
+        },
+        "after_animation_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.062
+        },
+        "display_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.058
+        },
+        "hidden_after_display": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.057
+        },
+        "restored_home_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.055
+        },
+        "updates_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.056
+        },
+        "updates_hidden": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.057
+        },
+        "disabled_tabs": {
+          "additional_frames": 10,
+          "page_switches": 6
+        },
+        "disabled_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.065
+        }
+      },
+      "virtual_display_released_on_stop": true,
+      "animation_scale_zero_reduces_frames": true,
+      "selinux": "Enforcing",
+      "limits": "Aggregate app HWUI counters and CPU ticks on an x86_64 emulator. No ARM64, compositor-wide GPU or vehicle frame-rate claim."
+    }
+  },
+  "evidence_files": {
+    "android30-update.txt": {
+      "size": 58,
+      "sha256": "cfc28d897680607543d3aba846109ba7077b95a92c33094d2d61da071b0b64ba"
+    },
+    "apk-signature.txt": {
+      "size": 982,
+      "sha256": "6e401cefd1f50b596b99faed994f177b87d9a1b337c13cb9222ecb8ae002c19d"
+    },
+    "portable-apk-signature.txt": {
+      "size": 1517,
+      "sha256": "d37115726cfcd6e5e9255f26dc861636d7df18e7fba4fd538c9a6bc296b302e7"
+    },
+    "portable-apk-badging.txt": {
+      "size": 5927,
+      "sha256": "061d984c1817a0186b466a29c52a8308c6e3c9cad6ea22bae51320aaf54e56ca"
+    },
+    "frida-api-fixtures.txt": {
+      "size": 420,
+      "sha256": "3d025e4821f1ba84f69b7a559740fc93f7f54aa7490a1814650a80643bbd1efa"
+    },
+    "signed-api28.txt": {
+      "size": 253,
+      "sha256": "185c1a784f3cedc9a2721bee504c45857a63d05aae9067d70984abf7dc6f253f"
+    },
+    "access-signed-api28.txt": {
+      "size": 334,
+      "sha256": "a7e9c62721b650039d68c884bc0346e13794090d43ba889be9d2a27080b1c0a4"
+    },
+    "release-retries-api28.txt": {
+      "size": 233,
+      "sha256": "75ae84910c0aaa6eb8391903c60cc5ebcdab1a954ffdb7e7ad9e161ad8be4462"
+    },
+    "signed-api30.txt": {
+      "size": 255,
+      "sha256": "ac5e28b5f409fd69530fbdad56e962bc442a1d413751eb541369e755c56705b7"
+    },
+    "access-signed-api30.txt": {
+      "size": 334,
+      "sha256": "a7e9c62721b650039d68c884bc0346e13794090d43ba889be9d2a27080b1c0a4"
+    },
+    "release-retries-api30.txt": {
+      "size": 186,
+      "sha256": "e072aab65e784bf2ec549721ae760ca85b581fb092e2913819fba8b30d862a77"
+    },
+    "root-frida-chain.json": {
+      "size": 530,
+      "sha256": "0b8637ae2393b9bbb8444047dcef08379cf01978d689ee33bd59d6ded725dec6"
+    },
+    "motion-api28.json": {
+      "size": 1453,
+      "sha256": "b9dde0690ca39d743fa7d41bd7c84ccd26e267a8e4957dae5877076a34791c83"
+    },
+    "motion-api30.json": {
+      "size": 1454,
+      "sha256": "0a33591528c360f35f39332d2edcc280632b459255aa562c9c17e99e6ce5e3c1"
+    },
+    "cycle4-api28-all.txt": {
+      "size": 114882,
+      "sha256": "f78b3b2e7ab9f7850e893f174c3b9bbef53da92b79442785192bdae4934806c6"
+    },
+    "root-channel-api28.txt": {
+      "size": 3006,
+      "sha256": "ec61eda4aa42d7d2bbdc97a7055e0d21de37f74540f23c1c42c3248c66ed06bb"
+    },
+    "visual-guard-api28.txt": {
+      "size": 22090,
+      "sha256": "115f208a4b5880976514be46da2804eb71cd7060280bc6b3928cc11bb7c276ac"
+    },
+    "local-apk-api28-final.txt": {
+      "size": 15197,
+      "sha256": "60ee7f6ae731ec5db0e0f94d71fbc2e2f3613b33608ab75614d01a19eed5fa74"
+    },
+    "cycle4-api30-retest.txt": {
+      "size": 21672,
+      "sha256": "aeeda4f569536780bc5ed841809128b35aa6633978935a9e75b2492ceb5f3612"
+    },
+    "ui-api28-passed.txt": {
+      "size": 3828,
+      "sha256": "426d4288494213ea1f2476f1a56d03de084e60c89cb6b77480dbe881b0b0f6ad"
+    },
+    "ui-api30-passed.txt": {
+      "size": 3827,
+      "sha256": "42c85db6287d46a4ac92a56c6a679d7a992a946dbbf706f80c3b437d7ce1afae"
+    },
+    "javascript-final.txt": {
+      "size": 13740,
+      "sha256": "0ca51deafc8c5eb0f3f076b26183fe0d558c882f882296f1a902562f9dfe625c"
+    },
+    "supervisor-final-host.txt": {
+      "size": 397,
+      "sha256": "e7fb61e2434c4b4b61258f93e1f95ba6d0662c9eb65ac2ed63bb4a18e2fd396a"
+    },
+    "visual-session-host.txt": {
+      "size": 379,
+      "sha256": "0efacd4f2e43adfc797cc4d8c73fbf732c020a181f148895de91640b36bf08d4"
+    },
+    "visual-session-pid-host.txt": {
+      "size": 118,
+      "sha256": "6de17be9bbd94c64c07e071cd4f4a12ed5e947b62185b78d3dfe48e24b9b5ca5"
+    },
+    "boot-visual-pid-host.txt": {
+      "size": 590,
+      "sha256": "65d544b1630cc0ea217af2d807d6fe04f42b595d8770dafe64a1cbb76b8dceff"
+    },
+    "visual-sessions-native.json": {
+      "size": 666891,
+      "sha256": "a55aa28982eeb952cd999bb9c256723c35b5702f072ffff424947c3bc1290603"
+    },
+    "windows-signed-build.txt": {
+      "size": 5194,
+      "sha256": "60f253537d9580729ea2feeb76082f153f670bb856e98be165e4aae3b02ba895"
+    },
+    "windows-final-signature.json": {
+      "size": 346,
+      "sha256": "e9d30794bd4999f41b8966ce331b89e53429a8a2763b28aa1883becf74eeaf4e"
+    },
+    "init-snapshot-api28.txt": {
+      "size": 972,
+      "sha256": "fdb76d81e844a306bf2afd3c191bc37f36008eea7674681eaaed8a2bd67f73f4"
+    },
+    "init-snapshot-api30.txt": {
+      "size": 973,
+      "sha256": "1630dd7a6b57482c61d9b604569d2aa4b60d1ef325e60445b294d8ec55ae9898"
+    },
+    "platform-tools-packaging-host.txt": {
+      "size": 2406,
+      "sha256": "854c24d3052bbdb5e9c9b143181ee36d43a9265c101a73a1a6d7f3478725094c"
+    },
+    "platform-tools-packaging-host-ps51.txt": {
+      "size": 2406,
+      "sha256": "ca184b65ee585e1c1a1fadafdd7e93999549c4529e27c81ff748a255725da137"
+    },
+    "platform-tools-gates.json": {
+      "size": 3117,
+      "sha256": "a6bb9b7fd2163ff4aab73aa9ac9cc78533715ea43b368d1f1e4661fc423d110c"
+    },
+    "platform-tools-pe-imports.json": {
+      "size": 2418,
+      "sha256": "1fd0af7c873b013777458f2ce3740651b6f7d8d1ead2d0a604e3a00ba71f230c"
+    },
+    "windows-signed-qa/run-20261116T005313480Z/qa-summary.json": {
+      "size": 7869,
+      "sha256": "f6e10e1b969a28916dd351a6f5aeb2d0f4000124db21bf170bb28ca229a778cd"
+    }
+  },
+  "platform_tools": {
+    "stable_version": "37.0.1",
+    "adb_protocol_version": "1.0.41",
+    "version_help_evidence": "platform-tools-gates.json",
+    "source_and_isolated_copy_execution_passed": true,
+    "isolated_copy_removed": true,
+    "execution_scope": "Only version and help were executed from the verified source and an isolated exact five-file copy, which was removed. The final portable folder is checked for identical five-file hashes; this does not claim a version/help process ran from the final folder.",
+    "transport_id_help_line": "-t ID                    use device with given transport id",
+    "static_pe_evidence": {
+      "evidence": "platform-tools-pe-imports.json",
+      "binary_sha256": {
+        "adb.exe": "b4a6b455702684652cccf7b46258b29e653538904359a58fd4931cf3ef286b3f",
+        "AdbWinApi.dll": "c1d653030b4bde65d3e07e4d0b0979e17be56df1436cdd15528630f27808050d",
+        "AdbWinUsbApi.dll": "0710e894d9b40f71a670c13c694079d564c92c1279da382cfe4850983aaebe1b"
+      },
+      "package_libraries": [
+        "AdbWinApi.dll",
+        "AdbWinUsbApi.dll"
+      ],
+      "limit": "Static PE and DLL-name evidence; no device/runtime-path qualification."
+    },
+    "helper_sha256": "546bda09e0fbb066fbe8b563e021f3deb69f0bc8b3bacdfd45ff5cc2a199d10a",
+    "packaging_script_sha256": "a7ce1b31d83c7997de57e85f50c4d4a728844d987e162313d7668cd1558fe33d",
+    "official_url": "https://dl.google.com/android/repository/platform-tools_r37.0.1-win.zip",
+    "official_metadata_url": "https://dl.google.com/android/repository/repository2-1.xml",
+    "archive_sha256": "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
+    "repository_sha1": "e03e78b1d80b396f1c3358e31251cb31740e1110",
+    "archive_bytes": 8044989,
+    "portable_files": {
+      "AdbWinApi.dll": "c1d653030b4bde65d3e07e4d0b0979e17be56df1436cdd15528630f27808050d",
+      "AdbWinUsbApi.dll": "0710e894d9b40f71a670c13c694079d564c92c1279da382cfe4850983aaebe1b",
+      "NOTICE.txt": "38ec8c6f5b7799c223ffeab1f9e81c2d5fc67b5e56d6424f649630ca1ee1a811",
+      "adb.exe": "b4a6b455702684652cccf7b46258b29e653538904359a58fd4931cf3ef286b3f",
+      "source.properties": "2dccd788c0234d8cf7f7457377e57f57527a86a629c6ed54feb8af0f549dac38"
+    },
+    "source_metadata": {
+      "path": "installer/dist/.sdk-verified-37.0.1/source-verification.json",
+      "size": 1670,
+      "sha256": "a13737c5865d84b7ca822c1938ca00bdd1b3c44f7ae61cdddaa30f51a8b05def"
+    }
+  },
+  "windows_qa_evidence": "windows-signed-qa/run-20261116T005313480Z/qa-summary.json",
+  "windows_rendering": {
+    "ExecutableSha256": "d06177f157ea26f4d1546cfb86a1a960df072a85dc6932f6d7359327f4e6ef25",
+    "RendererEvidence": "Native Win32 controls/GDI and blocking GetMessage source, application paint diagnostics, and three runtime GDI32/USER32/COMCTL32/uxtheme module snapshots. No D3D/DXGI/OpenGL/Vulkan modules observed in those snapshots; this does not measure the OS compositor or GPU load.",
+    "ProbeElapsedSeconds": 24.309,
+    "ProbeExitCode": 0,
+    "SettledVisibleWindowAndControlPaints": 0,
+    "HiddenWindowAndControlPaints": 0,
+    "RestoredSettledWindowAndControlPaints": 0,
+    "RecordedSettledCpuOneCorePercent": 0.0,
+    "AllOwnedProcessesExited": true,
+    "Limitations": [
+      "GPU Engine performance counters were unavailable; GPU load and presentation latency are not measured.",
+      "The existing probe provides four-second settled intervals per visible page and after restore, plus six seconds hidden; it is not an extended interaction test.",
+      "Captures show client areas with sample fixtures, not native title bars, OS dialogs, keyboard navigation or real device state.",
+      "Normal startup networking and actual installation/recovery are intentionally not exercised.",
+      "Minimized state, interactive input, OS-native title bars/dialogs, keyboard traversal and actual per-monitor DPI transitions remain untested.",
+      "Zero settled paint/CPU samples cover only this short isolated workload; they do not certify long-running, real-device or whole-system GPU performance."
+    ]
+  },
+  "signed_release_checks": {
+    "apk_sha256_per_sdk": {
+      "28": "abb9f84942599ad3345530510c4edade536c3c25bbcadcccbbd7eb093caa57e6",
+      "30": "abb9f84942599ad3345530510c4edade536c3c25bbcadcccbbd7eb093caa57e6"
+    },
+    "android9": true,
+    "android11": true,
+    "microphone_grant_revoke": true,
+    "portable_java_apksigner_v2_pin": true,
+    "portable_aapt2_package_version_min_sdk": true,
+    "fresh_and_superseded_requests": true,
+    "android11_update_settings_and_channel_key_preserved": "0.18.0 -> 0.19.0",
+    "installer_access_template_repeat_foreign_listener_crash_lock_restart": [
+      28,
+      30
+    ]
+  },
+  "ui": {
+    "app_owned_activity_routes_rendered": 10,
+    "all_app_owned_content": "Jetpack Compose",
+    "native_boundaries": [
+      "OS dialogs, file picker, settings, keyboard and toasts",
+      "SurfaceView for the virtual display",
+      "Presentation and ComponentDialog window hosts"
+    ]
+  },
+  "limits": [
+    "The actual init definition is checked for an unambiguous supported root-user service; OEM cold-boot activation, SELinux-domain permission and ARM64 vehicle injection are not qualified.",
+    "Firmware and operation catalogs remain empty; unreviewed OEM activation stays closed.",
+    "CAN and OEM API timing, physical effects, cold boot and sleep/wake remain unqualified.",
+    "Oversea account writes remain unavailable; numeric Driver 1/2/3 commands are seat memory.",
+    "Actual production self-update acceptance requires ARM64; x86 emulator checks do not bypass that gate.",
+    "Emulator frame counters are not vehicle performance or whole-system GPU measurements."
+  ],
+  "publication": "None. Unrelated user policy changes retained. Private signing keys excluded."
+}

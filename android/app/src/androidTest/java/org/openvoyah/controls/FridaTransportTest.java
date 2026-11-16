@@ -36,7 +36,7 @@ public class FridaTransportTest extends AndroidTestCase {
                         if (line.contains("_END:%s")) break;
                         actual.append(line).append('\n');
                     }
-                    assertEquals("( " + script, actual.toString());
+                    assertEquals("(\n" + script + "\n", actual.toString());
                     socket.getOutputStream().write(("uploaded\r\n" + marker + "_END:0\r\n").getBytes(StandardCharsets.UTF_8));
                     socket.getOutputStream().flush();
                 } catch (Throwable ex) { failure.set(ex); }

@@ -6,8 +6,8 @@ use std::{
     fs::{self, File},
     io::{Read, Write},
     path::{Path, PathBuf},
-    sync::atomic::{AtomicBool, Ordering},
-    time::{Duration, Instant},
+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 const API: &str =
@@ -107,35 +107,100 @@ pub fn check() -> Result<Catalog> {
     Ok(catalog)
 }
 
+static DOWNLOAD_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+struct DownloadStage {
+    path: PathBuf,
+    file: Option<File>,
+    published: bool,
+}
+
+impl DownloadStage {
+    fn create(folder: &Path) -> Result<Self> {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(message)?
+            .as_nanos();
+        for _ in 0..64 {
+            let sequence = DOWNLOAD_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let path = folder.join(format!(
+                ".ovc-download-{}-{stamp}-{sequence}.part",
+                std::process::id()
+            ));
+            match File::options().write(true).create_new(true).open(&path) {
+                Ok(file) => {
+                    return Ok(Self {
+                        path,
+                        file: Some(file),
+                        published: false,
+                    });
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => return Err(message(error)),
+            }
+        }
+        Err("Could not reserve a unique download staging file.".into())
+    }
+
+    fn publish(mut self, destination: &Path) -> Result<()> {
+        drop(self.file.take());
+        fs::rename(&self.path, destination).map_err(message)?;
+        self.published = true;
+        Ok(())
+    }
+}
+
+impl Drop for DownloadStage {
+    fn drop(&mut self) {
+        drop(self.file.take());
+        if !self.published {
+            let _ = fs::remove_file(&self.path);
+        }
+    }
+}
+
 pub fn download(
     asset: &Asset,
     folder: &Path,
     stop: &AtomicBool,
     progress: impl Fn(String),
 ) -> Result<PathBuf> {
+    download_from(asset, folder, stop, progress, || {
+        let response = agent(300)
+            .get(&asset.browser_download_url)
+            .header("User-Agent", "OpenVoyahControlsInstaller")
+            .call()
+            .map_err(message)?;
+        Ok(response
+            .into_body()
+            .into_with_config()
+            .limit(asset.size + 1)
+            .reader())
+    })
+}
+
+fn download_from<R: Read>(
+    asset: &Asset,
+    folder: &Path,
+    stop: &AtomicBool,
+    progress: impl Fn(String),
+    fetch: impl FnOnce() -> Result<R>,
+) -> Result<PathBuf> {
+    if stop.load(Ordering::Relaxed) {
+        return Err("Download canceled.".into());
+    }
     fs::create_dir_all(folder).map_err(message)?;
     let path = folder.join(&asset.name);
     let expected = checksum(asset).ok_or("The release has no verified SHA-256.")?;
     if path.is_file() && crate::device::digest(&path, stop)?.eq_ignore_ascii_case(expected) {
         return Ok(path);
     }
-    let staged = path.with_extension("part");
-    let mut output = File::options()
-        .write(true)
-        .create_new(true)
-        .open(&staged)
-        .map_err(message)?;
+    let mut staged = DownloadStage::create(folder)?;
     let result = (|| {
-        let mut response = agent(300)
-            .get(&asset.browser_download_url)
-            .header("User-Agent", "OpenVoyahControlsInstaller")
-            .call()
-            .map_err(message)?;
-        let mut source = response
-            .body_mut()
-            .with_config()
-            .limit(asset.size + 1)
-            .reader();
+        if stop.load(Ordering::Relaxed) {
+            return Err("Download canceled.".into());
+        }
+        let mut source = fetch()?;
         let mut buffer = [0u8; 64 * 1024];
         let mut hasher = Sha256::new();
         let mut written = 0;
@@ -153,7 +218,12 @@ pub fn download(
                 return Err("The download is larger than the release asset.".into());
             }
             hasher.update(&buffer[..count]);
-            output.write_all(&buffer[..count]).map_err(message)?;
+            staged
+                .file
+                .as_mut()
+                .expect("owned download staging file")
+                .write_all(&buffer[..count])
+                .map_err(message)?;
             if last.elapsed() >= Duration::from_millis(300) {
                 progress(format!(
                     "Downloading {} • {}%",
@@ -168,23 +238,181 @@ pub fn download(
         {
             return Err("The downloaded file did not match the release size or SHA-256.".into());
         }
-        output.sync_all().map_err(message)
+        staged
+            .file
+            .as_ref()
+            .expect("owned download staging file")
+            .sync_all()
+            .map_err(message)
     })();
-    drop(output);
-    if let Err(error) = result {
-        let _ = fs::remove_file(&staged);
-        return Err(error);
-    }
-    if let Err(error) = fs::rename(&staged, &path) {
-        let _ = fs::remove_file(&staged);
-        return Err(message(error));
-    }
+    result?;
+    staged.publish(&path)?;
     Ok(path)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{cell::Cell, io::Cursor, sync::mpsc, thread};
+
+    fn cache() -> PathBuf {
+        crate::device::new_folder(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("target"),
+            "download-fixture",
+        )
+        .unwrap()
+    }
+
+    fn fixture_asset(bytes: &[u8]) -> Asset {
+        Asset {
+            name: "OpenVoyahControlsInstaller-v99.0.0.exe".into(),
+            browser_download_url: "file:///no-network-in-download-fixtures".into(),
+            size: bytes.len() as u64,
+            digest: Some(format!("sha256:{:x}", Sha256::digest(bytes))),
+        }
+    }
+
+    fn contents(folder: &Path) -> Vec<PathBuf> {
+        let mut paths: Vec<_> = fs::read_dir(folder)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect();
+        paths.sort();
+        paths
+    }
+
+    #[test]
+    fn abandoned_partial_does_not_block_verified_retry_or_cache_reuse() {
+        let folder = cache();
+        let bytes = b"verified installer fixture";
+        let asset = fixture_asset(bytes);
+        let abandoned = folder.join(&asset.name).with_extension("part");
+        fs::write(&abandoned, b"unknown interrupted download").unwrap();
+        let fetches = Cell::new(0);
+        for _ in 0..2 {
+            let path = download_from(
+                &asset,
+                &folder,
+                &AtomicBool::new(false),
+                |_| {},
+                || {
+                    fetches.set(fetches.get() + 1);
+                    Ok(Cursor::new(bytes))
+                },
+            )
+            .unwrap();
+            assert_eq!(fs::read(path).unwrap(), bytes);
+        }
+        assert_eq!(fetches.get(), 1);
+        assert_eq!(
+            fs::read(&abandoned).unwrap(),
+            b"unknown interrupted download"
+        );
+        assert_eq!(contents(&folder).len(), 2);
+    }
+
+    #[test]
+    fn concurrent_attempts_preserve_live_and_unknown_partials() {
+        let folder = cache();
+        let unknown = folder.join("someone-else.part");
+        fs::write(&unknown, b"leave this file alone").unwrap();
+        let bytes = b"verified concurrent installer";
+        let asset = fixture_asset(bytes);
+        let (started_tx, started_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let first_asset = asset.clone();
+        let first_folder = folder.clone();
+        let first = thread::spawn(move || {
+            download_from(
+                &first_asset,
+                &first_folder,
+                &AtomicBool::new(false),
+                |_| {},
+                || {
+                    started_tx.send(contents(&first_folder)).map_err(message)?;
+                    release_rx
+                        .recv_timeout(Duration::from_secs(5))
+                        .map_err(message)?;
+                    Ok(Cursor::new(bytes))
+                },
+            )
+        });
+        let first_files = started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let first_partial = first_files.iter().find(|path| **path != unknown).unwrap();
+        let mut second_files = Vec::new();
+        let failed = download_from(
+            &asset,
+            &folder,
+            &AtomicBool::new(false),
+            |_| {},
+            || {
+                second_files = contents(&folder);
+                Err::<Cursor<&[u8]>, _>("Fixture response timeout".into())
+            },
+        );
+        let after_failure = contents(&folder);
+        let completed = download_from(
+            &asset,
+            &folder,
+            &AtomicBool::new(false),
+            |_| {},
+            || Ok(Cursor::new(bytes)),
+        );
+        let first_survived = first_partial.is_file();
+        let _ = release_tx.send(());
+        let first_completed = first.join().unwrap();
+
+        assert!(matches!(failed, Err(error) if error == "Fixture response timeout"));
+        assert_eq!(first_files.len(), 2);
+        assert_eq!(second_files.len(), 3);
+        assert_eq!(after_failure, first_files);
+        assert!(first_survived);
+        assert_eq!(fs::read(completed.unwrap()).unwrap(), bytes);
+        assert_eq!(fs::read(first_completed.unwrap()).unwrap(), bytes);
+        assert_eq!(fs::read(&unknown).unwrap(), b"leave this file alone");
+        assert_eq!(contents(&folder).len(), 2);
+    }
+
+    #[test]
+    fn canceled_download_does_not_open_the_transport() {
+        let folder = cache();
+        let unknown = folder.join("someone-else.part");
+        fs::write(&unknown, b"preserved").unwrap();
+        let bytes = b"unused fixture";
+        let fetches = Cell::new(0);
+        let result = download_from(
+            &fixture_asset(bytes),
+            &folder,
+            &AtomicBool::new(true),
+            |_| {},
+            || {
+                fetches.set(fetches.get() + 1);
+                Ok(Cursor::new(bytes))
+            },
+        );
+        assert!(matches!(result, Err(error) if error.contains("canceled")));
+        assert_eq!(fetches.get(), 0);
+        assert_eq!(contents(&folder), [unknown]);
+    }
+
+    #[test]
+    fn midstream_cancellation_cleans_only_its_owned_partial() {
+        let folder = cache();
+        let unknown = folder.join("someone-else.part");
+        fs::write(&unknown, b"preserved").unwrap();
+        let bytes = vec![0x35; 128 * 1024];
+        let stop = AtomicBool::new(false);
+        let result = download_from(
+            &fixture_asset(&bytes),
+            &folder,
+            &stop,
+            |_| stop.store(true, Ordering::Relaxed),
+            || Ok(Cursor::new(&bytes)),
+        );
+        assert!(matches!(result, Err(error) if error.contains("canceled")));
+        assert_eq!(contents(&folder), [unknown.clone()]);
+        assert_eq!(fs::read(unknown).unwrap(), b"preserved");
+    }
 
     #[test]
     fn selects_only_exact_stable_asset_names() {

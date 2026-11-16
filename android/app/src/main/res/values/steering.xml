@@ -1,3 +1,9 @@
 <resources>
-    <string name="oem_steering_scope">Voice and custom keys use the compatible steering adapter. Surround camera keeps its factory action.</string>
+    <string name="oem_steering_scope">Voice, custom and camera assignments require a compatible vehicle profile. On profiles that read button down/up events, assign both tap and hold; otherwise the entire press stays with the vehicle. A failed action after capture is not repeated.</string>
+    <string name="oem_camera">Camera</string>
+    <string name="panel_main_home">Home · center display</string>
+    <string name="panel_main_apps">All apps · center display</string>
+    <string name="panel_passenger_home">Home · passenger</string>
+    <string name="panel_passenger_apps">All apps · passenger</string>
+    <string name="panel_passenger_seat">Seat · passenger</string>
 </resources>

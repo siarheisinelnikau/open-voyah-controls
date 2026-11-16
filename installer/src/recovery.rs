@@ -10,13 +10,54 @@ use std::{
     ffi::OsStr,
     fs::{self, File, OpenOptions},
     io::{Read, Write},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 const BOOT_TOOL: &str = include_str!("../../android/tools/configure-boot.sh");
 const RUNTIME: &str = include_str!("../../android/dist/FRIDA_RUNTIME.json");
 const MAX_BOOT: usize = 262_144;
 const MAX_SETTINGS_EXPORT: usize = 2_097_152;
+
+const DETACH_BUTTONS: &str = r#"set -e
+[ "$(getprop ro.build.fingerprint)" = "$1" ]
+[ "$(getprop ro.serialno)" = "$2" ]
+[ "$(am get-current-user)" = 0 ]
+services=$(settings --user 0 get secure enabled_accessibility_services)
+[ "$services" != null ] || services=
+others=
+saved_ifs=$IFS
+IFS=:
+for service in $services; do
+    case "$service" in
+        org.openvoyah.controls/org.openvoyah.controls.ButtonAccessibilityService|org.openvoyah.controls/.ButtonAccessibilityService|'') ;;
+        *) others="${others:+$others:}$service";;
+    esac
+done
+IFS=$saved_ifs
+if [ "$others" != "$services" ]; then
+    settings --user 0 put secure enabled_accessibility_services "$others"
+    # Let the framework unbind the old UID before removing its package.
+    sleep 1
+fi
+actual=$(settings --user 0 get secure enabled_accessibility_services)
+[ "$actual" != null ] || actual=
+[ "$actual" = "$others" ]
+printf 'OVC_BUTTONS_DETACHED\n'
+"#;
+
+fn detach_buttons(target: &Target<'_>, identity: &Identity) -> Result<()> {
+    let result = target.script(
+        DETACH_BUTTONS,
+        &[&identity.fingerprint, &identity.serial],
+        15,
+    )?;
+    if result != "OVC_BUTTONS_DETACHED" {
+        return Err(
+            "The button service did not confirm detachment. The APK was not removed.".into(),
+        );
+    }
+    identity.recheck(target)
+}
 
 fn boot(target: &Target<'_>, identity: &Identity, mode: &str, sha: Option<&str>) -> Result<String> {
     production::require_root(target)?;
@@ -45,9 +86,10 @@ pub fn device_status(target: &Target<'_>) -> Result<String> {
             let blocked = field(&status, "OVC_RECOVERY_BLOCKED")?;
             let legacy = field(&status, "OVC_LEGACY_STATE")?;
             let ready = field(&status, "OVC_READY_CHANNELS").unwrap_or("Unverified");
+            let access = field(&status, "OVC_ACCESS").unwrap_or("Unverified");
             let inactive = field(&status, "OVC_ROLLBACK_INERT")? == "yes";
             format!(
-                "Ready channels: {}\r\nInactive setup: {}\r\nOptional boot entry: {marker}\r\nRecovery block: {blocked}\r\nLegacy setup: {legacy}",
+                "Local root channel: {access}\r\nReady channels: {}\r\nInactive setup: {}\r\nBoot entry: {marker}\r\nRecovery block: {blocked}\r\nLegacy setup: {legacy}",
                 if ready.is_empty() { "None reported" } else { ready },
                 if inactive { "Verified" } else { "Active or recovery incomplete" },
             )
@@ -83,6 +125,7 @@ pub fn uninstall(target: &Target<'_>) -> Result<String> {
     let identity = Identity::read(target)?;
     require_inactive(target, &identity, true)?;
     identity.recheck(target)?;
+    detach_buttons(target, &identity)?;
     require_success(&target.text(["uninstall", "-k", PACKAGE], 30)?)?;
     Ok("Controls was removed after checking device state. Android retained the app data.".into())
 }
@@ -142,6 +185,7 @@ pub fn remove_for_migration(
     )?;
     identity.recheck(target)?;
     require_inactive(target, &identity, true)?;
+    detach_buttons(target, &identity)?;
     target
         .text(["uninstall", PACKAGE], 30)
         .and_then(|result| require_success(&result))
@@ -230,6 +274,18 @@ pub fn export_boot_backup(
     fingerprint: &str,
     storage: &Path,
 ) -> Result<String> {
+    let folder = export_boot_backup_folder(target, fingerprint, storage)?;
+    Ok(format!(
+        "Verified original boot script and recovery metadata saved to {}.",
+        folder.display()
+    ))
+}
+
+pub fn export_boot_backup_folder(
+    target: &Target<'_>,
+    fingerprint: &str,
+    storage: &Path,
+) -> Result<PathBuf> {
     let identity = Identity::confirmed(target, fingerprint)?;
     let output = boot(target, &identity, "backup", None)?;
     let remote = field(&output, "OVC_BACKUP_DIR")?;
@@ -252,10 +308,20 @@ pub fn export_boot_backup(
         &folder.join("boot-backup.json"),
         &serde_json::to_vec_pretty(&backup).map_err(message)?,
     )?;
-    Ok(format!(
-        "Verified original boot script and recovery metadata saved to {}.",
-        folder.display()
-    ))
+    Ok(folder)
+}
+
+pub fn install_access_boot(
+    target: &Target<'_>,
+    identity: &Identity,
+    backup_folder: &Path,
+    storage: &Path,
+) -> Result<String> {
+    let (backup, _) = load_pc_backup(backup_folder, identity)?;
+    production::verify_preparation(target, identity, storage)?;
+    let result = boot(target, identity, "install-access", Some(&backup.sha256))?;
+    identity.recheck(target)?;
+    Ok(result)
 }
 
 fn read_limited(path: &Path, limit: usize) -> Result<Vec<u8>> {
@@ -388,6 +454,25 @@ pub fn install_runtime(
     storage: &Path,
     progress: impl Fn(String),
 ) -> Result<String> {
+    stage_runtime(target, source, storage, true, progress)
+}
+
+pub fn stage_setup_runtime(
+    target: &Target<'_>,
+    source: &Path,
+    storage: &Path,
+    progress: impl Fn(String),
+) -> Result<String> {
+    stage_runtime(target, source, storage, false, progress)
+}
+
+fn stage_runtime(
+    target: &Target<'_>,
+    source: &Path,
+    storage: &Path,
+    reviewed: bool,
+    progress: impl Fn(String),
+) -> Result<String> {
     #[derive(Deserialize)]
     struct Runtime {
         version: String,
@@ -409,7 +494,23 @@ pub fn install_runtime(
     }
     let identity = Identity::read(target)?;
     progress("Checking the reviewed firmware and installed Controls release…".into());
-    production::verify_activation(target, &identity, storage)?;
+    if reviewed {
+        production::verify_activation(target, &identity, storage)?;
+    } else {
+        production::verify_preparation(target, &identity, storage)?;
+    }
+    let existing = target.script(&format!("{RUNTIME_GUARD}\nif [ -f \"$base/$3\" ] && [ ! -L \"$base/$3\" ] && [ \"$(stat -c %u:%a:%h \"$base/$3\")\" = 0:500:1 ] && [ \"$(sha256sum \"$base/$3\" | awk '{{print $1}}')\" = \"$4\" ]; then echo OVC_RUNTIME_PRESENT; else echo OVC_RUNTIME_MISSING; fi\n"),
+        &[&identity.fingerprint, &identity.serial, &runtime.file, &runtime.binary_sha256], 30)?;
+    if existing == "OVC_RUNTIME_PRESENT" {
+        identity.recheck(target)?;
+        return Ok(format!(
+            "Verified injector {} is already staged.",
+            runtime.version
+        ));
+    }
+    if existing != "OVC_RUNTIME_MISSING" {
+        return Err("The runtime state could not be verified.".into());
+    }
     require_inactive(target, &identity, false)?;
     let prepare = format!(
         "{RUNTIME_GUARD}{}",

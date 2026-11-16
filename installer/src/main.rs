@@ -5,11 +5,15 @@ mod adb;
 #[cfg(any(windows, test))]
 mod device;
 #[cfg(any(windows, test))]
+mod init_service;
+#[cfg(any(windows, test))]
 mod production;
 #[cfg(any(windows, test))]
 mod recovery;
 #[cfg(any(windows, test))]
 mod releases;
+#[cfg(any(windows, test))]
+mod setup;
 #[cfg(windows)]
 mod windows;
 

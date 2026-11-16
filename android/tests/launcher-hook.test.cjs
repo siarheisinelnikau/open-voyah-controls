@@ -92,11 +92,13 @@ function harness(config, options = {}) {
         }};
         for (const [field, resource] of [
             ['mScreenUpHomeView', 'screen_up_home_icon'],
+            ['mScreenUpAllAppView', 'screen_up_all_app_icon'],
             ['mScreenUpItemView1', 'screen_up_icon_1'],
             ['mScreenUpItemView2', 'screen_up_icon_2'],
             ['mScreenUpItemView3', 'screen_up_icon_3'],
             ['mScreenUpItemView4', 'screen_up_icon_4']
         ]) {
+            if (options.missingFields?.includes(field)) continue;
             const view = makeView(nav, resource);
             nav[field] = {value:view};
             nav.views[resource] = view;
@@ -167,6 +169,7 @@ function harness(config, options = {}) {
             init.implementation.call(nav);
         },
         tap(nav, name) { return dispatchClick(nav, nav.views[name]); },
+        tapView(nav, view) { return dispatchClick(nav, view); },
         holdAndRelease(nav, name, ...coordinates) {
             const view = nav.views[name];
             if (!view.isLongClickable() || !performHold(view, coordinates)) dispatchClick(nav, view);
@@ -207,6 +210,108 @@ test('navigation launches chosen activity on central display and suppresses OEM 
 test('music has an independent mapping', () => {
     const h = harness(config({ navbar02: action })); h.click(0, 'screen_up_icon_1'); h.click(0, 'screen_up_icon_2');
     assert.equal(h.originalCalls, 1); assert.equal(h.launched.length, 1);
+});
+
+test('explicit center Home and All apps assignments use their own fields and display', () => {
+    const home = {kind:'LAUNCH_APP', component:'org.example.home/.Main'};
+    const apps = {kind:'LAUNCH_APP', component:'org.example.apps/.Main'};
+    const h = harness(config({mainHome:home, mainApps:apps, navbar11:action}));
+    const center = h.bar(0), passenger = h.bar(1);
+    for (const [resource, assigned] of [['screen_up_home_icon', home], ['screen_up_all_app_icon', apps]]) {
+        const view = center.views[resource];
+        assert.equal(view.background.layer.icon.component, assigned.component);
+        assert.equal(view.isLongClickable(), true);
+        h.tap(center, resource);
+        assert.equal(h.launched.at(-1).intent.component, assigned.component);
+        assert.equal(h.launched.at(-1).display, 0);
+    }
+    h.tap(passenger, 'screen_up_home_icon');
+    assert.equal(h.launched.at(-1).intent.component, action.component);
+    assert.equal(h.launched.at(-1).display, 1);
+    assert.equal(h.tap(passenger, 'screen_up_all_app_icon'), 'oem');
+    assert.equal(h.originalCalls, 1);
+    assert.equal(h.launched.length, 3);
+});
+
+test('assigned center Home and All apps holds invoke the native click once and consume release', () => {
+    for (const [slot, resource] of [['mainHome', 'screen_up_home_icon'], ['mainApps', 'screen_up_all_app_icon']]) {
+        for (const coordinates of [[], [18, 24]]) {
+            const h = harness(config({[slot]:action}));
+            h.holdAndRelease(h.bar(0), resource, ...coordinates);
+            assert.equal(h.originalCalls, 1);
+            assert.equal(h.originalHolds, 0);
+            assert.equal(h.launched.length, 0);
+        }
+    }
+});
+
+test('cleared and disabled center assignments restore the native icon, hold flag and click', () => {
+    for (const [slot, resource] of [['mainHome', 'screen_up_home_icon'], ['mainApps', 'screen_up_all_app_icon']]) {
+        for (const next of [config({}), {schema:1, enabled:false, actions:{[slot]:action}}]) {
+            const h = harness(config({[slot]:action})), bar = h.bar(0), view = bar.views[resource];
+            assert.notEqual(view.background, view.stock);
+            h.setConfig(next); h.tick();
+            assert.equal(view.background, view.stock);
+            assert.equal(view.isLongClickable(), false);
+            assert.equal(h.tap(bar, resource), 'oem');
+            assert.equal(h.originalCalls, 1);
+            assert.equal(h.launched.length, 0);
+        }
+    }
+});
+
+test('unavailable and failed center assignments preserve native behavior without losing music', () => {
+    const music = {kind:'LAUNCH_APP', component:'org.example.music/.Main'};
+    for (const [slot, resource] of [['mainHome', 'screen_up_home_icon'], ['mainApps', 'screen_up_all_app_icon']]) {
+        for (const options of [{missing:action.component}, {failLaunch:true}]) {
+            const h = harness(config({[slot]:action, navbar02:music}), options);
+            const bar = h.bar(0), view = bar.views[resource];
+            assert.equal(h.tap(bar, resource), 'oem');
+            assert.equal(h.originalCalls, 1);
+            assert.equal(h.launched.length, 0);
+            assert.equal(view.background, view.stock);
+            assert.equal(view.isLongClickable(), false);
+            options.failLaunch = false;
+            options.missing = null;
+            // A failed button retains native fallback; an independent assignment stays usable.
+            h.tap(bar, 'screen_up_icon_2');
+            assert.equal(h.launched.at(-1).intent.component, music.component);
+        }
+    }
+});
+
+test('missing optional fields keep center navigation, music and their foreground selection usable', () => {
+    for (const missingFields of [['mScreenUpHomeView'], ['mScreenUpAllAppView'], ['mScreenUpHomeView', 'mScreenUpAllAppView']]) {
+        const h = harness(config({navbar01:action, navbar02:action, mainHome:action, mainApps:action}), {missingFields});
+        const bar = h.bar(0);
+        for (const resource of ['screen_up_icon_1', 'screen_up_icon_2']) {
+            h.tap(bar, resource);
+            assert.equal(h.launched.at(-1).display, 0);
+            assert.equal(h.launched.at(-1).intent.component, action.component);
+        }
+        h.select(bar, 'com.example.player', '.Main');
+        assert.equal(bar.checked, bar.views.screen_up_icon_1.getId());
+        for (const [field, resource] of [['mScreenUpHomeView', 'screen_up_home_icon'], ['mScreenUpAllAppView', 'screen_up_all_app_icon']]) {
+            if (!missingFields.includes(field)) {
+                h.tap(bar, resource);
+                assert.equal(h.launched.at(-1).intent.component, action.component);
+            }
+        }
+        assert.equal(h.originalCalls, 0);
+        assert.ok(h.logs.some(line => line.startsWith('OVC_READY NavigationBar')));
+    }
+});
+
+test('center Home and All apps require both the observed resource and owned view field', () => {
+    for (const [slot, resource] of [['mainHome', 'screen_up_home_icon'], ['mainApps', 'screen_up_all_app_icon']]) {
+        const h = harness(config({[slot]:action})), bar = h.bar(0), owned = bar.views[resource];
+        const impostor = {...owned};
+        assert.equal(h.tapView(bar, impostor), 'oem');
+        owned.getResources = () => ({getResourceEntryName: () => 'screen_up_icon_3'});
+        assert.equal(h.tap(bar, resource), 'oem');
+        assert.equal(h.originalCalls, 2);
+        assert.equal(h.launched.length, 0);
+    }
 });
 test('five passenger positions route to display one', () => {
     const views = ['screen_up_home_icon', 'screen_up_icon_1', 'screen_up_icon_2', 'screen_up_icon_3', 'screen_up_icon_4'];

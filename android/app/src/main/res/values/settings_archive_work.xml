@@ -1,0 +1,7 @@
+<resources>
+    <string name="settings_archive_exporting">Saving the complete settings backup…</string>
+    <string name="settings_archive_reading">Reading and checking the settings file…</string>
+    <string name="settings_archive_applying">Restoring settings and refreshing active controls. Please wait…</string>
+    <string name="settings_archive_restored">Settings restored.</string>
+    <string name="settings_archive_runtime_failed">Settings were saved, but active controls could not be refreshed. Use Connect to retry.\n</string>
+</resources>

@@ -7,30 +7,51 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.function.BooleanSupplier;
+import java.util.function.ToLongFunction;
 import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
 import org.vosk.Model;
 
 /** One bounded native model cache, accessed only by the serialized speech worker. */
 public final class VoskModels {
+    private static final Object PREPARATION_LOCK = new Object();
+    // Both pinned models are below 96 MiB unpacked; leave room for files and native setup.
+    private static final long PREPARATION_SPACE = 128L * 1024 * 1024;
+    private final ToLongFunction<File> usableSpace;
     private Model cached;
     private File cachedPath;
 
+    public VoskModels() { this(File::getUsableSpace); }
+
+    public VoskModels(ToLongFunction<File> usableSpace) { this.usableSpace = usableSpace; }
+
+    public static final class StorageUnavailable extends IOException {
+        public StorageUnavailable() { super(UiText.get(R.string.setup_space_failed)); }
+    }
+
     public Model load(Context context, String language, BooleanSupplier current) throws IOException {
+        synchronized (PREPARATION_LOCK) {
         File path = modelPath(context, language);
         File marker = new File(path, "ready");
         if (!path.equals(cachedPath) || !marker.isFile()) release();
         if (!marker.isFile()) {
+            checkCurrent(current);
+            if (usableSpace.applyAsLong(context.getFilesDir()) < PREPARATION_SPACE) throw new StorageUnavailable();
             copyAssets(context, "speech-model-" + language, path, current);
             checkCurrent(current);
-            try (FileOutputStream ready = new FileOutputStream(marker)) { ready.write(1); }
         }
         checkCurrent(current);
         if (cached == null) {
             cached = new Model(path.getAbsolutePath());
             cachedPath = path;
         }
+        if (!current.getAsBoolean()) { release(); checkCurrent(current); }
+        // Only a successfully opened native model is marked ready after a cold copy or repair.
+        if (!marker.isFile()) {
+            try (FileOutputStream ready = new FileOutputStream(marker)) { ready.write(1); ready.getFD().sync(); }
+        }
         return cached;
+        }
     }
 
     public void invalidate(Context context, String language) throws IOException {

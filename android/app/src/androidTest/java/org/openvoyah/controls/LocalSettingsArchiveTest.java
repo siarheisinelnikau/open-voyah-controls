@@ -1,6 +1,7 @@
 package org.openvoyah.controls;
 
 import android.content.Context;
+import android.net.Uri;
 import android.test.AndroidTestCase;
 import android.util.AtomicFile;
 import java.io.File;
@@ -9,12 +10,35 @@ import org.json.JSONObject;
 import org.openvoyah.controls.data.display.AppWindowPreferences;
 import org.openvoyah.controls.data.display.DisplayPreferences;
 import org.openvoyah.controls.data.settings.LocalSettingsArchive;
+import org.openvoyah.controls.data.settings.LocalSettingsArchiveDocuments;
 import org.openvoyah.controls.data.settings.LocalizationSettings;
 import org.openvoyah.controls.data.settings.SettingsStore;
 import org.openvoyah.controls.data.settings.VoiceSettings;
 import org.openvoyah.controls.domain.display.AppDisplayDefaults;
 
 public final class LocalSettingsArchiveTest extends AndroidTestCase {
+    public void testBrokenFullExportDoesNotTruncateDocumentOrDowngradeToButtons() throws Exception {
+        Context context = getContext();
+        var preferences = context.getSharedPreferences("localization", Context.MODE_PRIVATE);
+        String dictionary = preferences.getString("dictionary", null);
+        File destination = File.createTempFile("archive-export-", ".json", context.getCacheDir());
+        byte[] previous = "existing complete backup".getBytes(StandardCharsets.UTF_8);
+        try {
+            java.nio.file.Files.write(destination.toPath(), previous);
+            assertTrue(preferences.edit().putString("dictionary", "invalid dictionary").commit());
+            try {
+                new LocalSettingsArchiveDocuments(context).export(Uri.fromFile(destination).toString());
+                fail("A broken archive section must report export failure");
+            } catch (Exception expected) { assertTrue(expected instanceof org.json.JSONException); }
+            assertTrue(java.util.Arrays.equals(previous, java.nio.file.Files.readAllBytes(destination.toPath())));
+        } finally {
+            var editor = preferences.edit();
+            if (dictionary == null) editor.remove("dictionary"); else editor.putString("dictionary", dictionary);
+            assertTrue(editor.commit());
+            destination.delete();
+        }
+    }
+
     public void testCombinedBackupAndLegacyButtonImport() throws Exception {
         Context context = getContext();
         var archive = new LocalSettingsArchive(context);

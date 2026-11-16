@@ -11,7 +11,7 @@ import org.openvoyah.controls.platform.ui.ActionExecutor;
 
 /** Retains the service ID used by Android's accessibility grant. */
 public final class ButtonAccessibilityService extends AccessibilityService {
-    private static ButtonAccessibilityService connected;
+    private static volatile ButtonAccessibilityService connected;
     private ButtonInputAdapter input;
     private SettingsStore store;
     private final SharedPreferences.OnSharedPreferenceChangeListener listener = (prefs, key) -> {
@@ -19,11 +19,12 @@ public final class ButtonAccessibilityService extends AccessibilityService {
     };
 
     static ButtonAccessibilityService connected() { return connected; }
+    public static boolean isConnected() { return connected != null; }
 
     @Override protected void onServiceConnected() {
         if (input != null) return;
         store = new SettingsStore(this);
-        input = new ButtonInputAdapter(new ActionExecutor(this)::execute);
+        input = new ButtonInputAdapter(new ActionExecutor(this));
         store.preferences().registerOnSharedPreferenceChangeListener(listener);
         reload();
         connected = this;

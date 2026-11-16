@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -28,6 +29,7 @@ import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.domain.voice.VoiceResult
 import org.openvoyah.controls.platform.voice.OfflineVoiceFeedback
+import org.openvoyah.controls.platform.voice.MicrophonePermission
 import org.openvoyah.controls.presentation.theme.ControlsTheme
 import org.openvoyah.controls.presentation.voice.QuickVoicePopup
 import org.openvoyah.controls.presentation.voice.VoiceViewModel
@@ -41,11 +43,15 @@ class QuickVoiceActivity : ComponentActivity() {
     private var foreground = false
     private var startPending = true
     private var permissionPending = false
+    private var microphoneRecovery by mutableStateOf(false)
+    private val microphonePermission by lazy { MicrophonePermission(applicationContext) }
+    private val openedAt = SystemClock.uptimeMillis()
     private val permission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionPending = false
         if (granted) startIfReady()
         else {
             startPending = false
+            microphoneRecovery = true
             showFailure(UiText.get(R.string.quick_mic_denied))
         }
     }
@@ -59,10 +65,11 @@ class QuickVoiceActivity : ComponentActivity() {
         setContent {
             ControlsTheme {
                 val viewModel = model
-                if (viewModel == null) QuickVoicePopup(startup)
+                val recover = if (microphoneRecovery) ::openMicrophoneSettings else null
+                if (viewModel == null) QuickVoicePopup(startup, recover)
                 else {
                     val state by viewModel.state.collectAsStateWithLifecycle()
-                    QuickVoicePopup(state)
+                    QuickVoicePopup(state, recover)
                 }
             }
         }
@@ -97,8 +104,10 @@ class QuickVoiceActivity : ComponentActivity() {
             model = viewModel
             lifecycleScope.launch {
                 viewModel.state.first { it.phase == Phase.DONE }
-                delay(RESULT_MS)
-                finish()
+                if (!microphoneRecovery) {
+                    delay(RESULT_MS)
+                    finish()
+                }
             }
             startIfReady()
         } catch (cancelled: CancellationException) {
@@ -112,12 +121,25 @@ class QuickVoiceActivity : ComponentActivity() {
         val viewModel = model ?: return
         if (!startPending || !foreground || !hasWindowFocus() || permissionPending) return
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            if (microphonePermission.requested() && !shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)) {
+                startPending = false
+                microphoneRecovery = true
+                showFailure(UiText.get(R.string.quick_mic_denied))
+                return
+            }
             permissionPending = true
+            microphonePermission.recordRequest()
             permission.launch(Manifest.permission.RECORD_AUDIO)
             return
         }
         startPending = false
         viewModel.listen()
+    }
+
+    private fun openMicrophoneSettings() {
+        startActivity(Intent(this, VoiceActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED))
+        finish()
     }
 
     private fun showFailure(message: String) {
@@ -145,7 +167,8 @@ class QuickVoiceActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        finish()
+        // Some head units deliver the same physical press through two callbacks.
+        if (!permissionPending && SystemClock.uptimeMillis() - openedAt >= 700) finish()
     }
 
     override fun onPause() {

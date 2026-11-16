@@ -44,5 +44,9 @@
     <string name="apps_install_discard">Cancel earlier installation</string>
     <string name="apps_install_discard_failed">Android could not cancel the earlier installation. Check again before trying another APK.</string>
     <string name="apps_install_failed">Android could not install this APK. Check the file, available space, and Android’s installation rules.</string>
+    <string name="apps_install_self_update">Use Updates to update Controls.</string>
+    <string name="apps_install_invalid_apk">The selected file is not a readable Android APK. Choose an APK file.</string>
+    <string name="apps_install_changed_apk">The APK changed during preparation. Choose the file again.</string>
+    <string name="apps_install_cleanup_failed">A prepared APK could not be removed. Check app storage and try again.</string>
     <string name="apps_install_unverified">APK installed. Use Android app info because Controls could not verify the install source.</string>
 </resources>

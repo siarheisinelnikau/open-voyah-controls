@@ -1,0 +1,10 @@
+<resources>
+    <string name="voice_microphone_ready">Доступ к микрофону разрешён.</string>
+    <string name="voice_microphone_needed">Разрешите доступ к микрофону для голосовых команд.</string>
+    <string name="voice_microphone_settings_needed">Доступ к микрофону заблокирован. Разрешите его в настройках Android для приложения.</string>
+    <string name="voice_microphone_allow">Разрешить микрофон</string>
+    <string name="voice_microphone_open_settings">Настройки приложения</string>
+    <string name="voice_microphone_waiting">Ожидание разрешения Android…</string>
+    <string name="voice_microphone_unavailable">Не удалось открыть запрос разрешения на доступ к микрофону в Android.</string>
+    <string name="quick_voice_microphone_settings">Настройки микрофона</string>
+</resources>

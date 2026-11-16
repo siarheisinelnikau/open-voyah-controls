@@ -1,0 +1,220 @@
+{
+  "version": "0.18.0",
+  "version_code": 20,
+  "installer_version": "0.6.0",
+  "installer_bytes_unchanged": true,
+  "date": "2026-11-15",
+  "vehicle_tested": false,
+  "production_ready": false,
+  "signing": "local-release",
+  "android_certificate_sha256": "2ee3c67da07678052b8031a8cfcebea0cca71ca99a8cc6e6ac7a86ee50e484e9",
+  "windows_certificate_sha256": "821caf9af11a280aec7905b1683b6302d6d19ec26d1eb2aa1766cdf2eecef5bf",
+  "windows_trust": "Self-signed; CMS signature and PE digest verified. System trust unchanged.",
+  "artifacts": {
+    "OpenVoyahControls-v0.18.0.apk": {
+      "size": 149802867,
+      "sha256": "424b579aed8633a4cb46201eba1e81aa787709dd5146e5ad1bdbd95eb06248e4"
+    },
+    "OpenVoyahControlsInstaller-v0.6.0.exe": {
+      "size": 3733832,
+      "sha256": "aa5999ebfd517859a458d9eba30c7c7acf98fee39c72b01337e6500d6bb1a478"
+    },
+    "OpenVoyahControls-v0.18.0-first-run-local-signed.zip": {
+      "size": 173162945,
+      "sha256": "5254e5c24e3efc1e55704d8cee368509c83326ab32de7f9df04c1254ccaf6d39"
+    }
+  },
+  "runtime": {
+    "version": "17.26.2",
+    "url": "https://github.com/frida/frida/releases/download/17.26.2/frida-inject-17.26.2-android-arm64.xz",
+    "archive_sha256": "97aac7e5bbf4a90156b9c89bb3bc9cefb7e837676f1047270cce34d9e4c97b0f",
+    "file": "open-voyah-controls-frida-17.26.2",
+    "binary_sha256": "b58f44918fc27843484fc62502b3d2c90ea686a85ed484bed062b23482cd1733",
+    "size": 84634560
+  },
+  "tests": {
+    "android9_distinct_instrumentation_cases": 81,
+    "android9_full_run_other_cases_passed": 79,
+    "android9_compose_screen_tests_final_passed": 2,
+    "app_owned_activity_routes_rendered": 9,
+    "jvm": 28,
+    "boot_pc_recovery_shell": 15,
+    "access_login_shell": 4,
+    "supervisor_shell": 7
+  },
+  "instrumentation_note": "Initial full run had two screen-harness failures. Android 9 virtual-node traversal and interactive-window enumeration fixed the test; both screen tests then passed. Other 79 cases were already green.",
+  "lint": {
+    "debug": {
+      "errors": 0,
+      "warnings": 48
+    },
+    "release": {
+      "errors": 0,
+      "warnings": 48
+    }
+  },
+  "root_chain_emulator": {
+    "sdk": 28,
+    "architecture": "x86_64",
+    "apk_uid": 10086,
+    "telnet_shell_uid": 0,
+    "frida_injector_uid": 0,
+    "injected_agent_uid": 10088,
+    "same_as_target_before_injection": true,
+    "selinux": "Enforcing",
+    "su_invoked": false,
+    "source": "Actual AuthorizedRootChannel inside the signed APK; independent target app. A private controller script invokes the app adapter as a test driver. No OEM boot or ARM64 claim.",
+    "injector_sha256": "bdd8d1e5c7f4e199982f7bc770a0c70f38dfe06b726baf9dc5ce547975e10ffc"
+  },
+  "motion_emulators": {
+    "28": {
+      "sdk": 28,
+      "serial": "emulator-5582",
+      "dimensions": "1920x720",
+      "apk": "0.18.0",
+      "samples": {
+        "home_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 1,
+          "seconds": 3.058
+        },
+        "animated_tabs": {
+          "additional_frames": 93,
+          "page_switches": 6
+        },
+        "after_animation_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.059
+        },
+        "display_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.056
+        },
+        "hidden_after_display": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.059
+        },
+        "restored_home_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.058
+        },
+        "disabled_tabs": {
+          "additional_frames": 14,
+          "page_switches": 6
+        },
+        "disabled_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.064
+        }
+      },
+      "virtual_display_released_on_stop": true,
+      "animation_scale_zero_reduces_frames": true,
+      "selinux": "Enforcing",
+      "limits": "Aggregate app HWUI counters and CPU ticks on an x86_64 emulator. No ARM64, compositor-wide GPU or vehicle frame-rate claim."
+    },
+    "30": {
+      "sdk": 30,
+      "serial": "emulator-5580",
+      "dimensions": "1920x720",
+      "apk": "0.18.0",
+      "samples": {
+        "home_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 1,
+          "seconds": 3.065
+        },
+        "animated_tabs": {
+          "additional_frames": 129,
+          "page_switches": 6
+        },
+        "after_animation_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.064
+        },
+        "display_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.058
+        },
+        "hidden_after_display": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.063
+        },
+        "restored_home_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.059
+        },
+        "disabled_tabs": {
+          "additional_frames": 6,
+          "page_switches": 6
+        },
+        "disabled_idle": {
+          "additional_frames": 0,
+          "cpu_ticks": 0,
+          "seconds": 3.066
+        }
+      },
+      "virtual_display_released_on_stop": true,
+      "animation_scale_zero_reduces_frames": true,
+      "selinux": "Enforcing",
+      "limits": "Aggregate app HWUI counters and CPU ticks on an x86_64 emulator. No ARM64, compositor-wide GPU or vehicle frame-rate claim."
+    }
+  },
+  "signed_release_checks": {
+    "android9": true,
+    "android11": true,
+    "first_run_microphone_grant_revoke": true,
+    "fresh_and_superseded_requests": true,
+    "disconnected_accessibility_detected": true,
+    "accessibility_reenabled": true,
+    "android11_update_settings_and_channel_key_preserved": "0.17.0 -> 0.18.0",
+    "installer_access_template_repeat_foreign_listener_crash_lock_restart": [
+      28,
+      30
+    ]
+  },
+  "prior_evidence": {
+    "record": "VALIDATION_0.17.0.json",
+    "unchanged_apk_hook_assets_verified": true,
+    "not_rerun": [
+      "122 JavaScript tests",
+      "10 Windows Rust tests",
+      "Windows rendering/load gate",
+      "8 real-Frida CAN edge scenarios",
+      "6 account backing-file fixtures"
+    ]
+  },
+  "ui": {
+    "all_app_owned_content": "Jetpack Compose",
+    "native_boundaries": [
+      "OS dialogs, file picker, settings, keyboard and toasts",
+      "SurfaceView backing the virtual display",
+      "Presentation and ComponentDialog window hosts"
+    ],
+    "documentation": [
+      "docs/COMPOSE_UI.md",
+      "docs/INJECTION_MAP.md",
+      "docs/FRIDA_AGENTS.md"
+    ]
+  },
+  "limits": [
+    "Exact OEM root boot service and ARM64 vehicle injection not tested.",
+    "Firmware and operation catalogs remain empty; unreviewed OEM activation stays closed.",
+    "CAN and OEM API device timing, physical results, cold boot and sleep/wake remain unqualified.",
+    "Overseas account writes remain unavailable; numeric Driver 1/2/3 commands are seat memory.",
+    "Emulator frame counters are not vehicle performance or whole-system GPU measurements."
+  ],
+  "publication": "None. Existing dirty work retained. Private signing keys excluded.",
+  "public_source_scan": {
+    "checked_text_files": 316,
+    "unexpected_private_references_or_keys": []
+  }
+}

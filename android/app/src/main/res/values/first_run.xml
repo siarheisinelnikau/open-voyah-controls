@@ -1,0 +1,20 @@
+<resources>
+    <string name="setup_title">Checking the first launch</string>
+    <string name="setup_result">Setup result</string>
+    <string name="setup_open">Open Controls</string>
+    <string name="setup_check_root">Checking the local connection prepared by the installer…</string>
+    <string name="setup_check_voice">Preparing offline speech. Keep this window open…</string>
+    <string name="setup_check_handlers">Connecting the supported controls and waiting for their responses…</string>
+    <string name="setup_ready">The local connection, speech model, microphone permission, button service and enabled handlers are ready. Try the microphone when parked. Physical actions and the next cold boot still require a device check.</string>
+    <string name="setup_unreviewed">The app connection and offline speech model are ready. This exact firmware has no verified vehicle profile, so vehicle controls remain unavailable. Check the microphone and Accessibility settings in Controls.</string>
+    <string name="setup_permissions">The supported handlers responded. Allow microphone access and enable Controls in Accessibility settings before using voice and assigned buttons.</string>
+    <string name="setup_failed">Setup did not finish. Resume from the Windows installer.</string>
+    <string name="setup_root_failed">The app could not confirm local root access. Resume Prepare and install in the Windows installer; check its connection and startup diagnostics.</string>
+    <string name="setup_voice_failed">The offline speech model could not be prepared. Check free space, then reinstall a complete APK without clearing app data.</string>
+    <string name="setup_space_failed">Free at least 128 MiB of internal storage before preparing offline speech, then retry setup. Existing settings and speech models are kept.</string>
+    <string name="setup_handlers_failed">The vehicle handlers did not confirm readiness. Open Controls to inspect connection status; keep the PC backup for recovery.</string>
+    <string name="quick_voice_start_description">Press and say one command</string>
+    <string name="quick_voice_try">Try the microphone</string>
+    <string name="button_tap_required">Assign a tap action before saving a hold action.</string>
+    <string name="button_fallback_scope">Assign a tap action before adding a hold action. If a target is unavailable, the key keeps its stock behavior. Hold-only mappings use the stock action here; use the supported OEM controls for separate gestures.</string>
+</resources>

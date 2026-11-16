@@ -1,0 +1,159 @@
+{
+  "version": "0.19.1",
+  "version_code": 22,
+  "installer_version": "0.6.2",
+  "date": "2026-11-16",
+  "source_commit": "9041b1ea1083a0ef3202d222d4e1cca1db7bc58e",
+  "vehicle_tested": false,
+  "production_ready": false,
+  "published": false,
+  "signing": "local-release",
+  "android_certificate_sha256": "2ee3c67da07678052b8031a8cfcebea0cca71ca99a8cc6e6ac7a86ee50e484e9",
+  "windows_certificate_sha256": "821caf9af11a280aec7905b1683b6302d6d19ec26d1eb2aa1766cdf2eecef5bf",
+  "windows_trust": "unchanged; local self-signed certificate",
+  "artifacts": {
+    "OpenVoyahControls-v0.19.1.apk": {
+      "size": 150160159,
+      "sha256": "f6bab6e99b3de633e61dfe56b738b7308bfc130abc8e09764d39f0a2b915f3fe"
+    },
+    "OpenVoyahControlsInstaller-v0.6.2.exe": {
+      "size": 3832136,
+      "sha256": "d6c6d9324d9a8352c3d074cfc3fea1650ada4ca54c3c5beb85cc9ccef8e1da89"
+    },
+    "OpenVoyahControls-v0.19.1-first-run-local-signed.zip": {
+      "size": 172321406,
+      "sha256": "00617febf8f8c5a5f4025249abc92e724717e12e2a61c6c50793d010e1861228"
+    }
+  },
+  "account_recovery": {
+    "scope": "Observed guest account record and four property values only. getprop cannot distinguish absent from empty.",
+    "helper_sha256": "b470852355de3df00f1cf434c9bc34dce4a58691451d40736ad89eb98088825b",
+    "complete_oem_account_backup": false,
+    "oversea_account_writes_enabled": false,
+    "excluded": [
+      "seat-provider rows",
+      "other OEM app data",
+      "cloud state",
+      "active-profile and physical telemetry"
+    ]
+  },
+  "tests": {
+    "native_account_scope": {
+      "28": {
+        "instrumentation": {
+          "sdk": 28,
+          "passed": 22,
+          "classes": [
+            "org.openvoyah.controls.data.frida.GuestAccountStateTest",
+            "org.openvoyah.controls.OemParityTest",
+            "org.openvoyah.controls.data.frida.OverseaProfilesTest"
+          ],
+          "seconds": 11.77,
+          "vehicle_tested": false,
+          "helper_sha256": "b470852355de3df00f1cf434c9bc34dce4a58691451d40736ad89eb98088825b"
+        },
+        "full_wrapper": {
+          "evidence": "wrapper-5582.txt",
+          "scenarios_passed": 3,
+          "scope": "Root emulator wrapper; all account paths, properties and broadcasts are synthetic."
+        }
+      },
+      "30": {
+        "instrumentation": {
+          "sdk": 30,
+          "passed": 22,
+          "classes": [
+            "org.openvoyah.controls.data.frida.GuestAccountStateTest",
+            "org.openvoyah.controls.OemParityTest",
+            "org.openvoyah.controls.data.frida.OverseaProfilesTest"
+          ],
+          "seconds": 18.275,
+          "vehicle_tested": false,
+          "helper_sha256": "b470852355de3df00f1cf434c9bc34dce4a58691451d40736ad89eb98088825b"
+        },
+        "full_wrapper": {
+          "evidence": "wrapper-5580.txt",
+          "scenarios_passed": 3,
+          "scope": "Root emulator wrapper; all account paths, properties and broadcasts are synthetic."
+        }
+      }
+    },
+    "firmware_evidence_core": {
+      "evidence": "evidence-core.txt",
+      "passed": 12
+    },
+    "firmware_evidence_windows_powershell51": {
+      "evidence": "evidence-powershell51-native.txt",
+      "passed": 12
+    },
+    "diagnostic_properties": {
+      "evidence": "diagnostic-properties.txt",
+      "passed": 3
+    },
+    "javascript": {
+      "passed": 154
+    },
+    "rust": {
+      "passed": 48,
+      "ignored": 1
+    },
+    "jvm": {
+      "app": 37,
+      "core": 52
+    },
+    "lint": {
+      "debug_errors": 0,
+      "release_errors": 0
+    },
+    "signed_upgrade": [
+      {
+        "sdk": 28,
+        "apk_sha256": "f6bab6e99b3de633e61dfe56b738b7308bfc130abc8e09764d39f0a2b915f3fe",
+        "upgrade": "0.19.0 to final 0.19.1",
+        "preserved_files": [
+          "files/root-channel.key",
+          "shared_prefs/controls.xml",
+          "shared_prefs/ui.xml",
+          "shared_prefs/updates.xml"
+        ],
+        "fixture": "synthetic valid app preferences and per-installation key; no broker connection claimed",
+        "selinux": "Enforcing",
+        "screen": "final-recovery-api28.png"
+      },
+      {
+        "sdk": 30,
+        "apk_sha256": "f6bab6e99b3de633e61dfe56b738b7308bfc130abc8e09764d39f0a2b915f3fe",
+        "upgrade": "0.19.0 to final 0.19.1",
+        "preserved_files": [
+          "files/root-channel.key",
+          "shared_prefs/controls.xml",
+          "shared_prefs/ui.xml",
+          "shared_prefs/updates.xml"
+        ],
+        "fixture": "synthetic valid app preferences and per-installation key; no broker connection claimed",
+        "selinux": "Enforcing",
+        "screen": "final-recovery-api30.png"
+      }
+    ]
+  },
+  "windows_rendering": {
+    "sha256": "d6c6d9324d9a8352c3d074cfc3fea1650ada4ca54c3c5beb85cc9ccef8e1da89",
+    "renderer": "Native Win32 controls and GDI; blocking GetMessage loop; application paint counters sampled by --diagnose.",
+    "probe_seconds": 24.3025,
+    "settled_paint_screening_passed": true,
+    "captures_reviewed": 6,
+    "owned_processes_exited": 7,
+    "limitations": [
+      "GPU Engine performance counters were unavailable; GPU load and presentation latency are not measured.",
+      "The existing probe provides four-second settled intervals per visible page and after restore, plus six seconds hidden; it is not an extended interaction test.",
+      "Captures show client areas with sample fixtures, not native title bars, OS dialogs, keyboard navigation or real device state.",
+      "Normal startup networking and actual installation/recovery are intentionally not exercised."
+    ]
+  },
+  "previous_broader_validation": "VALIDATION_0.19.0.json",
+  "remaining": [
+    "Complete overseas OEM login state/restore contract",
+    "Exact OEM boot and SELinux domain qualification",
+    "ARM64 injection and physical CAN/microphone/button/display/sleep-wake qualification"
+  ]
+}

@@ -25,6 +25,8 @@ const OEM_PACKAGES: &[&str] = &[
     "com.qinggan.app.vehicle",
     "com.qinggan.bluetoothphone",
     "com.qinggan.cluster",
+    "com.qinggan.canbus.service",
+    "com.qinggan.app.login",
 ];
 
 #[derive(Clone)]
@@ -262,7 +264,7 @@ fn pull_apk(target: &Target<'_>, remote: &str, storage: &Path) -> Result<Scratch
     Ok(staged)
 }
 
-fn verify_installed_controls(
+pub(crate) fn verify_installed_controls(
     target: &Target<'_>,
     sdk: u32,
     remote: &str,
@@ -359,6 +361,30 @@ pub fn install_controls(
     ))
 }
 
+pub fn check_candidate(
+    target: &Target<'_>,
+    source: &Path,
+    expected: Option<&ReleaseApk>,
+    storage: &Path,
+) -> Result<()> {
+    let identity = Identity::read(target)?;
+    let staged = ScratchFile::copy_from(storage, source, target)?;
+    let _locked = staged.lock()?;
+    let metadata = target.adb.apk_info(&staged.path, target.stop)?;
+    let (_, version) = release_metadata(&metadata, identity.sdk)?;
+    let sha = digest(&staged.path, target.stop)?;
+    if expected.is_some_and(|release| {
+        !release.sha256.eq_ignore_ascii_case(&sha) || release.version != version
+    }) || !target
+        .adb
+        .apk_signer(&staged.path, identity.sdk, target.stop)?
+        .eq_ignore_ascii_case(release_signer()?)
+    {
+        return Err("The selected APK does not match the verified release and certificate.".into());
+    }
+    Ok(())
+}
+
 struct FirmwareRow<'a> {
     package: &'a str,
     signer: &'a str,
@@ -440,11 +466,29 @@ fn firmware_rows<'a>(
         let key = review_key(&fields)?;
         if !matches!(
             *name,
-            "window-service" | "oem-profiles" | "tbox-reboot" | "cluster-write"
+            "window-service"
+                | "passenger-window-dpi"
+                | "oem-profiles"
+                | "tbox-reboot"
+                | "cluster-write"
+                | "can-steering-terminal"
+                | "can-steering-edges"
         ) || !profiles.contains_key(&key)
             || !reviewed_operations.insert((key, *name))
         {
             return Err("A reviewed operation has an invalid or repeated device profile.".into());
+        }
+        if matches!(*name, "can-steering-terminal" | "can-steering-edges")
+            && !profiles[&key]
+                .iter()
+                .any(|row| row.package == "com.qinggan.canbus.service")
+        {
+            return Err("CAN steering requires an exact CAN service package review.".into());
+        }
+        if reviewed_operations.contains(&(key, "can-steering-terminal"))
+            && reviewed_operations.contains(&(key, "can-steering-edges"))
+        {
+            return Err("Choose one reviewed CAN event protocol for each firmware.".into());
         }
     }
     let sdk = identity.sdk.to_string();
@@ -501,14 +545,29 @@ fn require_owner_user(target: &Target<'_>) -> Result<()> {
 }
 
 pub fn verify_activation(target: &Target<'_>, identity: &Identity, storage: &Path) -> Result<()> {
-    require_owner_user(target)?;
+    verify_preparation(target, identity, storage)?;
+    check_reviewed(target, identity, storage)?;
+    identity.recheck(target)
+}
+
+/// Provisioning may stage an inert runtime; OEM operations still need verify_activation.
+pub fn verify_preparation(target: &Target<'_>, identity: &Identity, storage: &Path) -> Result<()> {
+    check_setup_device(target, identity)?;
     require_root(target)?;
+    let remote = apk_path(target, PACKAGE)?.ok_or("Install the verified Controls APK first.")?;
+    verify_installed_controls(target, identity.sdk, &remote, storage)?;
+    identity.recheck(target)
+}
+
+/// Read-only prerequisites are checked before requesting root or changing startup.
+pub fn check_setup_device(target: &Target<'_>, identity: &Identity) -> Result<()> {
+    require_owner_user(target)?;
+    if !matches!(identity.sdk, 28 | 30) || identity.abi != "arm64-v8a" {
+        return Err("Device setup supports Android 9 or 11 on ARM64.".into());
+    }
     if target.text(["shell", "getenforce"], 10)? != "Enforcing" {
         return Err("Production activation requires SELinux Enforcing.".into());
     }
-    check_reviewed(target, identity, storage)?;
-    let remote = apk_path(target, PACKAGE)?.ok_or("Install the verified Controls APK first.")?;
-    verify_installed_controls(target, identity.sdk, &remote, storage)?;
     identity.recheck(target)
 }
 
@@ -532,6 +591,35 @@ mod tests {
             "2".repeat(64)
         );
         assert_eq!(firmware_rows(&row, "", &identity).unwrap().len(), 1);
+        let operations = format!(
+            "{}\t30\tarm64-v8a\tf0506h\tpassenger-window-dpi\n",
+            identity.fingerprint
+        );
+        assert!(firmware_rows(&row, &operations, &identity).is_ok());
+        let can = operations.replace("passenger-window-dpi", "can-steering-terminal");
+        assert!(firmware_rows(&row, &can, &identity).is_err());
+        let with_can = format!(
+            "{}{}",
+            row,
+            row.replace("com.qinggan.app.launcher", "com.qinggan.canbus.service")
+        );
+        assert_eq!(firmware_rows(&with_can, &can, &identity).unwrap().len(), 2);
+        let edges = can.replace("can-steering-terminal", "can-steering-edges");
+        assert!(firmware_rows(&row, &edges, &identity).is_err());
+        assert_eq!(
+            firmware_rows(&with_can, &edges, &identity).unwrap().len(),
+            2
+        );
+        assert!(firmware_rows(&with_can, &format!("{can}{edges}"), &identity).is_err());
+        assert!(firmware_rows(&row, &operations.repeat(2), &identity).is_err());
+        assert!(
+            firmware_rows(
+                &row,
+                &operations.replace("passenger-window-dpi", "unknown"),
+                &identity
+            )
+            .is_err()
+        );
         assert!(firmware_rows(&row.repeat(2), "", &identity).is_err());
         assert!(firmware_rows(&row.replace("f0506h", "other"), "", &identity).is_err());
         assert!(firmware_rows("", "", &identity).is_err());

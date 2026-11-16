@@ -1,6 +1,7 @@
 package org.openvoyah.controls.presentation.theme
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -82,7 +83,7 @@ internal fun CockpitSection(
 ) {
     val colors = MaterialTheme.colorScheme
     Surface(
-        Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = colors.surface,
+        Modifier.fillMaxWidth().animateContentSize(tween(CockpitMotion.CHANGE)), shape = MaterialTheme.shapes.large, color = colors.surface,
         border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
@@ -108,9 +109,10 @@ internal fun CockpitAction(
     enabled: Boolean = true,
     primary: Boolean = false,
 ) {
-    val target = modifier.heightIn(min = 50.dp)
-    if (primary) Button(onClick, target, enabled, shape = MaterialTheme.shapes.medium) { Text(title) }
-    else OutlinedButton(onClick, target, enabled, shape = MaterialTheme.shapes.medium) { Text(title) }
+    val press = rememberPressMotion(enabled)
+    val target = modifier.then(press.modifier).heightIn(min = 50.dp)
+    if (primary) Button(onClick, target, enabled, shape = MaterialTheme.shapes.medium, interactionSource = press.source) { Text(title) }
+    else OutlinedButton(onClick, target, enabled, shape = MaterialTheme.shapes.medium, interactionSource = press.source) { Text(title) }
 }
 
 @Composable

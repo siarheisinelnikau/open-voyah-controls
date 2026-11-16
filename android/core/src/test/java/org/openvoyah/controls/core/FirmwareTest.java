@@ -22,6 +22,17 @@ public class FirmwareTest {
         assertEquals("VolumeUp", ru.match("сделай громче").id());
         assertEquals("RestartNavigator", ru.match("перезапусти навигатор").id());
         assertEquals("DriverB",en.match("driver b").id());
+        String[] memoryIds = {"GetFromMemoryCellOne", "GetFromMemoryCellTwo", "GetFromMemoryCellThree"};
+        String[] ruNumbers = {"один", "два", "три"};
+        String[] enNumbers = {"one", "two", "three"};
+        String[] ruSlots = {"а", "б", "ц"};
+        String[] enSlots = {"a", "b", "c"};
+        for (int i = 0; i < memoryIds.length; i++) {
+            assertEquals(memoryIds[i], ru.match("водитель " + ruNumbers[i]).id());
+            assertEquals(memoryIds[i], en.match("driver " + enNumbers[i]).id());
+            assertEquals("Driver" + (char) ('A' + i), ru.match("водитель " + ruSlots[i]).id());
+            assertEquals("Driver" + (char) ('A' + i), en.match("driver " + enSlots[i]).id());
+        }
     }
     @Test public void englishStopNeverExecutes() throws Exception {
         VoiceCatalog en = new VoiceCatalog(getClass().getResourceAsStream("/voice-catalog-en.tsv"));
