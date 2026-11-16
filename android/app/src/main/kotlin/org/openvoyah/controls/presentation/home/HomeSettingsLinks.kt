@@ -19,23 +19,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.rememberPressMotion
 
-internal enum class HomeDestination { APPS, LISTEN, VOICE, DISPLAY, VEHICLE, FIRMWARE, SYSTEM, UPDATES, BUTTONS }
-private data class SettingsLink(val icon: CockpitIcon, val title: Int, val description: Int, val destination: HomeDestination)
+private data class SettingsLink(val icon: CockpitIcon, val title: Int, val description: Int, val open: () -> Unit)
 
 @Composable
-internal fun HomeSettingsLinks(open: (HomeDestination) -> Unit, language: () -> Unit) {
+internal fun HomeSettingsLinks(open: (ControlsRoute) -> Unit, language: () -> Unit, systemSettings: () -> Unit) {
     val links = listOf(
-        SettingsLink(CockpitIcon.BUTTONS, R.string.cockpit_buttons, R.string.cockpit_panel_description, HomeDestination.BUTTONS),
-        SettingsLink(CockpitIcon.VOICE, R.string.voice_options_title, R.string.cockpit_voice_description, HomeDestination.VOICE),
-        SettingsLink(CockpitIcon.DISPLAY, R.string.virtual_display, R.string.cockpit_display_description, HomeDestination.DISPLAY),
-        SettingsLink(CockpitIcon.CAR, R.string.vehicle_settings_title, R.string.vehicle_settings_tile_summary, HomeDestination.VEHICLE),
-        SettingsLink(CockpitIcon.SETTINGS, R.string.firmware_settings, R.string.cockpit_firmware_description, HomeDestination.FIRMWARE),
-        SettingsLink(CockpitIcon.SETTINGS, R.string.ui_61, R.string.cockpit_system_description, HomeDestination.SYSTEM),
-        SettingsLink(CockpitIcon.DOWNLOAD, R.string.updates_title, R.string.updates_settings_summary, HomeDestination.UPDATES),
+        SettingsLink(CockpitIcon.BUTTONS, R.string.cockpit_buttons, R.string.cockpit_panel_description) { open(ControlsRoute.BUTTONS) },
+        SettingsLink(CockpitIcon.VOICE, R.string.voice_options_title, R.string.cockpit_voice_description) { open(ControlsRoute.VOICE) },
+        SettingsLink(CockpitIcon.DISPLAY, R.string.virtual_display, R.string.cockpit_display_description) { open(ControlsRoute.DISPLAY) },
+        SettingsLink(CockpitIcon.CAR, R.string.vehicle_settings_title, R.string.vehicle_settings_tile_summary) { open(ControlsRoute.VEHICLE) },
+        SettingsLink(CockpitIcon.SETTINGS, R.string.firmware_settings, R.string.cockpit_firmware_description) { open(ControlsRoute.FIRMWARE) },
+        SettingsLink(CockpitIcon.SETTINGS, R.string.ui_61, R.string.cockpit_system_description, systemSettings),
+        SettingsLink(CockpitIcon.DOWNLOAD, R.string.updates_title, R.string.updates_settings_summary) { open(ControlsRoute.UPDATES) },
     )
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val columns = if (maxWidth >= 740.dp) 2 else 1
@@ -43,7 +43,7 @@ internal fun HomeSettingsLinks(open: (HomeDestination) -> Unit, language: () -> 
             links.chunked(columns).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { link -> HomeActionRow(UiText.get(link.title), UiText.get(link.description), link.icon,
-                        { open(link.destination) }, Modifier.weight(1f)) }
+                        link.open, Modifier.weight(1f)) }
                     if (columns == 2 && row.size == 1) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
                 }
             }

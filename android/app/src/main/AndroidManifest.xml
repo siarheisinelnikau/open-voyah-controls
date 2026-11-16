@@ -33,16 +33,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity-alias android:name=".VoiceActivity" android:targetActivity=".MainActivity" android:exported="true" android:label="@string/ui_34" />
-        <activity android:name=".QuickVoiceActivity" android:exported="false" android:label="@string/quick_voice_title"
+        <activity android:name=".QuickVoiceActivity" android:exported="true" android:label="@string/quick_voice_title"
+            android:permission="android.permission.WRITE_SECURE_SETTINGS"
             android:theme="@style/QuickVoiceTheme" android:launchMode="singleTop" android:excludeFromRecents="true"
             android:taskAffinity="org.openvoyah.controls.voice" />
-        <activity-alias android:name=".PanelVoiceActivity" android:targetActivity=".QuickVoiceActivity"
-            android:exported="true" android:permission="android.permission.WRITE_SECURE_SETTINGS" />
-        <activity-alias android:name=".FirmwareActivity" android:targetActivity=".MainActivity" android:exported="false" android:label="@string/firmware_settings" />
-        <activity-alias android:name=".VehicleSettingsActivity" android:targetActivity=".MainActivity" android:exported="false" android:label="@string/vehicle_settings_title" />
-        <activity-alias android:name=".AppsActivity" android:targetActivity=".MainActivity" android:exported="false" android:label="@string/installed_apps" />
-        <activity-alias android:name=".UpdatesActivity" android:targetActivity=".MainActivity" android:exported="false" android:label="@string/updates_title" />
         <receiver android:name=".platform.updates.UpdateInstallResultReceiver" android:exported="false" />
         <receiver android:name=".platform.updates.UpdatePackageReplacedReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter>
@@ -52,8 +46,6 @@
         <receiver android:name=".platform.apps.ApkInstallResultReceiver" android:exported="false" />
         <activity android:name=".SetupActivity" android:exported="true" android:excludeFromRecents="true" android:launchMode="singleTop"
             android:permission="android.permission.WRITE_SECURE_SETTINGS" />
-        <activity-alias android:name=".DisplayActivity" android:targetActivity=".MainActivity" android:exported="false" android:label="@string/virtual_display" />
-        <activity-alias android:name=".ClusterActivity" android:targetActivity=".MainActivity" android:exported="false" android:label="@string/cluster_title" />
         <receiver android:name=".BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

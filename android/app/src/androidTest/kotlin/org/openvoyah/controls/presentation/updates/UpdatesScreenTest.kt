@@ -1,7 +1,5 @@
 package org.openvoyah.controls.presentation.updates
 
-import android.content.ComponentName
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Build
@@ -24,6 +22,8 @@ import org.openvoyah.controls.data.updates.UpdateCheckPhase
 import org.openvoyah.controls.data.updates.UpdateProblem
 import org.openvoyah.controls.platform.updates.UpdateInstallPhase
 import org.openvoyah.controls.platform.updates.UpdateInstallState
+import org.openvoyah.controls.presentation.navigation.ControlsNavigation
+import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.ControlsTheme
 import java.io.File
 import java.util.ArrayDeque
@@ -48,9 +48,7 @@ class UpdatesScreenTest : InstrumentationTestCase() {
         check(updates.edit().putBoolean("check_on_startup", false).commit())
         UiText.language("en")
         fixture = Fixture()
-        val launched = instrumentation.startActivitySync(Intent()
-            .setComponent(ComponentName(app.packageName, "${app.packageName}.UpdatesActivity"))
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as MainActivity
+        val launched = instrumentation.startActivitySync(ControlsNavigation.intent(app, ControlsRoute.UPDATES)) as MainActivity
         activity = launched
         instrumentation.runOnMainSync {
             // Replace only this test activity's content. No real repository, installer or settings callback is invoked.

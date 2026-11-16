@@ -27,11 +27,12 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.frida.FridaPanelControls
 import org.openvoyah.controls.data.settings.SettingsStore
+import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 
 @Composable
-internal fun ControlsSettingsDestination(buttons: Boolean, back: () -> Unit, open: (HomeDestination) -> Unit) {
+internal fun ControlsSettingsDestination(buttons: Boolean, back: () -> Unit, open: (ControlsRoute) -> Unit) {
     val context = LocalContext.current
     val activity = remember(context) { context.controlsSettingsActivity() }
     val model = remember(activity) {
@@ -75,11 +76,11 @@ internal fun ControlsSettingsDestination(buttons: Boolean, back: () -> Unit, ope
         update.candidate?.let { candidate ->
             HomeActionRow(UiText.get(R.string.updates_available_version).format(candidate.version),
                 UiText.get(R.string.updates_settings_summary), CockpitIcon.DOWNLOAD,
-                { coordinator.open(HomeDestination.UPDATES, open) })
+                { coordinator.open(ControlsRoute.UPDATES, open) })
         }
         if (buttons) HomeButtons(state, coordinator)
         else {
-            HomeSettingsLinks({ coordinator.open(it, open) }, coordinator::language)
+            HomeSettingsLinks({ coordinator.open(it, open) }, coordinator::language, coordinator::systemSettings)
             HomeSettings(state, coordinator)
         }
     }
