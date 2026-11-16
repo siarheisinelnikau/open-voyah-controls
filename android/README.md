@@ -6,9 +6,9 @@ The APK requires Android 9 (API 28) or newer. The firmware adapters require a re
 
 ## Screenshots
 
-![Compose quick access on an Android 9 emulator](docs/screenshots/cockpit-0.19.0-en.png)
+![Compose quick access on an Android 9 emulator](docs/screenshots/home.png)
 
-![Compose settings on an Android 9 emulator](docs/screenshots/cockpit-settings-0.19.0-en.png)
+![Compose settings on an Android 9 emulator](docs/screenshots/settings.png)
 
 ## Build
 
@@ -33,9 +33,9 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. On Linux or m
 
 The worker waits for Android and a stable system process before attaching. It reattaches when the target changes and can be stopped from the app. Connection status shows panel, voice, and optional hook readiness separately. The [boot and firmware guide](docs/FIRMWARE.md) covers the optional init entry and rollback.
 
-![First-run result on an Android 9 test emulator: local access is ready, vehicle firmware remains unreviewed](docs/screenshots/first-run-0.19.0-en.png)
+![First-run result on an Android 9 test emulator: local access is ready, vehicle firmware remains unreviewed](docs/screenshots/first-run.png)
 
-![Compose panel assignments on Android 9](docs/screenshots/buttons-0.19.0-en.png)
+![Compose panel assignments on Android 9](docs/screenshots/buttons.png)
 
 ## Apps and displays
 
@@ -44,17 +44,17 @@ The worker waits for Android and a stable system process before attaching. It re
 - The **Permissions** section shows supported runtime permissions for installations verified by Controls. The authorized local channel can apply and verify an individual grant or revocation. Android stores effective permissions across normal reboots. Installations from Windows or another app use **Android app info**. Supported special accesses open their Android settings screens.
 - **Virtual display** creates a private display with its own DPI. Grant media access to show the current track. Instrument cluster media sharing and the navigation feed are separate opt-in features. The firmware needs the matching OEM cluster service.
 
-![Installed apps with per-app settings shortcuts on Android 9](docs/screenshots/apps-grid-0.19.0-en.png)
+![Installed apps with per-app settings shortcuts on Android 9](docs/screenshots/installed-apps.png)
 
-![Display settings and Compose content inside the private preview on Android 9](docs/screenshots/cockpit-display-0.19.0-en.png)
+![Display settings and Compose content inside the private preview on Android 9](docs/screenshots/displays.png)
 
-![Offline voice settings in the signed Android 9 app](docs/screenshots/voice-0.19.0-en.png)
+![Offline voice settings in the signed Android 9 app](docs/screenshots/voice.png)
 
 ## App updates
 
 Open **Settings → Updates** to check official releases, see the installed version, or disable the default startup check. Downloads and installation require **Download and install**. Controls verifies the APK and positively checks that its runtime is paused before Android asks for installation approval. Interrupted attempts remain recoverable without automatic resubmission. See [App updates](docs/UPDATES.md) for the verification and recovery behavior.
 
-![Updates settings in the signed Android 9 app](docs/screenshots/updates-0.19.0-en.png)
+![Updates settings in the signed Android 9 app](docs/screenshots/updates.png)
 
 ## Vehicle settings and maintenance
 
@@ -62,9 +62,9 @@ Open **Settings → Vehicle settings** for the original driving, cabin and infot
 
 **Firmware and OEM profiles** groups compatibility, translation and recovery. The cluster screen separates package inspection, backup, and confirmed installation or restoration. See [Instrument cluster localization](docs/CLUSTER.md).
 
-![Vehicle settings with the factory-panel fallback on an Android 9 emulator](docs/screenshots/cockpit-vehicle-0.19.0-en.png)
+![Vehicle settings with the factory-panel fallback on an Android 9 emulator](docs/screenshots/vehicle-settings.png)
 
-![Saved account-record recovery in the signed Android 9 app](docs/screenshots/account-record-recovery-0.19.1-en.png)
+![Saved account-record recovery in the signed Android 9 app](docs/screenshots/account-recovery.png)
 
 The [0.19.1 validation record](dist/VALIDATION_0.19.1.json) covers account-record recovery, native Android 9/11 failure cases, portable account evidence and Windows installer 0.6.2. See the [local change notes](docs/releases/0.19.1.md) and [account recovery boundaries](docs/ACCOUNT_RECOVERY.md). The previous [0.19.0 record](dist/VALIDATION_0.19.0.json) retains the broader Compose, motion, startup and root-channel checks. Injected JavaScript retains its target process UID. Exact OEM boot permissions, ARM64 injection, physical CAN behavior and complete Oversea account restoration remain unqualified; no vehicle was used.
 

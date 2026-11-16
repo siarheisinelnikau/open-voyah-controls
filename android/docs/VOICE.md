@@ -7,6 +7,8 @@ The app recognizes 138 command IDs in English and Russian. The recognition langu
 - [English catalog](../core/src/main/resources/voice-catalog-en.tsv)
 - [Russian catalog](../core/src/main/resources/voice-catalog.tsv)
 
+![Voice settings and command catalog on Android 9](screenshots/voice.png)
+
 Android asks for microphone permission on the first request. Once the microphone starts, Vosk listens for up to four seconds. Offline actions need a final catalog match that passes the decoder confidence check. Silence and unfinished phrases end the capture. The app keeps the last model warm for 90 seconds between requests.
 
 Voice settings shows whether physical vehicle commands have been reviewed for the current build. The shipped approval catalog starts empty. App, media, and dialer commands are available independently. Each physical command requires approval for the exact build, a fresh Park and standstill check, and the current request protocol at both ends.
@@ -14,8 +16,6 @@ Voice settings shows whether physical vehicle commands have been reviewed for th
 The result distinguishes a vehicle service acknowledgment from a change confirmed by fresh telemetry. If feedback is partial or the outcome is unknown, the app ends the request and shows that result. Vehicle qualification also checks who can submit requests on the reviewed firmware and what happens when feedback or power is lost during motion.
 
 “Driver one/two/three” (Russian: “водитель один/два/три”) selects seat memory positions and requires the physical-command review and Park checks. “Driver A/B/C” selects account profiles through a separate adapter. On Oversea, the app can probe the login API without invoking it; account switching remains unavailable until complete backup and recovery are supported.
-
-![Voice button popup over Android Settings on the Android 9 emulator](screenshots/quick-voice-0.9.0-en.png)
 
 ## Apps and media
 
@@ -31,17 +31,11 @@ Open **Voice settings → Online interpretation** to enable OpenRouter with your
 
 The free router can return one of four actions: raise volume, lower volume, restart the assigned music app, or restart the assigned navigation app. Only a validated choice from the list triggers an action. Free model availability and rate limits can vary. Android Keystore protects the API key, and app settings exports omit it.
 
-![Optional online interpretation in Voice settings](screenshots/cockpit-voice-online-0.9.0-en.png)
-
 ## Voice audio and climate
 
 In **Voice audio**, you can lower media while the microphone is listening. Android releases that audio focus when the request ends. You can also have the app read back the command using an installed offline Android voice in the recognition language.
 
 On the inspected H97 branch with front climate on, use **driver temperature**, **passenger temperature**, or **fan speed** with a value. Temperature accepts 16–30 °C, and the fan accepts 1–8. The popup shows the recognized phrase and the result. Other branches need separate verification.
-
-![Voice settings and vehicle review status on Android 11](screenshots/voice-review-0.12.0-en.png)
-
-![Voice audio settings on an Android 9 emulator](screenshots/cockpit-voice-audio-0.9.0-en.png)
 
 ## Contacts, backup, and recovery
 
