@@ -25,6 +25,7 @@ internal enum class AppGridShortcut(val storedValue: String) {
     BUTTONS("buttons"),
     DISPLAY("display"),
     VEHICLE("vehicle"),
+    AUTOMATION("automation"),
     VOICE_SETTINGS("voiceSettings"),
     UPDATES("updates"),
     INSTALL_APK("installApk");

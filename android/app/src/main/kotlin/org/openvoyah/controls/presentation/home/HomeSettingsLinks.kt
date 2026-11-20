@@ -39,6 +39,9 @@ internal fun HomeSettingsLinks(open: (ControlsRoute) -> Unit, language: () -> Un
         SettingsLink(CockpitIcon.VOICE, R.string.voice_options_title, R.string.cockpit_voice_description) { open(ControlsRoute.VOICE) },
         SettingsLink(CockpitIcon.DISPLAY, R.string.virtual_display, R.string.cockpit_display_description) { open(ControlsRoute.DISPLAY) },
         SettingsLink(CockpitIcon.CAR, R.string.vehicle_settings_title, R.string.vehicle_settings_tile_summary) { open(ControlsRoute.VEHICLE) },
+        SettingsLink(CockpitIcon.ENERGY, R.string.vehicle_automation_entry, R.string.vehicle_automation_entry_summary) {
+            open(ControlsRoute.VEHICLE_AUTOMATION)
+        },
         SettingsLink(CockpitIcon.APPS, R.string.quick_actions_title, R.string.quick_actions_summary) { open(ControlsRoute.QUICK_ACTIONS) },
         SettingsLink(CockpitIcon.ENERGY, R.string.routines_title, R.string.routines_summary) { open(ControlsRoute.ROUTINES) },
         SettingsLink(CockpitIcon.SETTINGS, R.string.firmware_settings, R.string.cockpit_firmware_description) { open(ControlsRoute.FIRMWARE) },

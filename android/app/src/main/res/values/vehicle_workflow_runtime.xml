@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vehicle_runtime_background_ready">Controls Accessibility is connected. Saved automatic routines can run while Controls is closed; current signals and individual action approvals are still required.</string>
+    <string name="vehicle_runtime_foreground_only">Keep Controls open, or enable Controls Accessibility in app setup for background routines.</string>
+</resources>

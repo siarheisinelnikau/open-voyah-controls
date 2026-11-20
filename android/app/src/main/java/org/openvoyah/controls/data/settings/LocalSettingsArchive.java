@@ -21,14 +21,17 @@ import org.openvoyah.controls.data.apps.DesktopLayoutRevision;
 import org.openvoyah.controls.data.apps.DesktopLayoutStores;
 import org.openvoyah.controls.data.apps.DesktopLayoutsPreferences;
 import org.openvoyah.controls.data.apps.DesktopWallpaperPreferences;
+import org.openvoyah.controls.data.climate.LocalSeasonalClimatePreferences;
 import org.openvoyah.controls.data.display.AppWindowPreferences;
 import org.openvoyah.controls.data.display.DisplayPreferences;
 import org.openvoyah.controls.data.display.DisplayPreviewPreferences;
 import org.openvoyah.controls.data.dock.QuickActionPreferences;
 import org.openvoyah.controls.data.routines.RoutinePreferences;
+import org.openvoyah.controls.data.rules.ConditionalRulesPreferences;
 import org.openvoyah.controls.data.updates.UpdatePreferences;
 import org.openvoyah.controls.data.vehicle.HeadlightMonitoringPreferences;
 import org.openvoyah.controls.data.vehicle.ServiceReminderPreferences;
+import org.openvoyah.controls.data.vehicle.automation.LocalVehicleAutomationPreferences;
 import org.openvoyah.controls.domain.display.AppDisplayDefaults;
 
 /** File format and recoverable restore for the independent local settings stores. */
@@ -46,7 +49,8 @@ public final class LocalSettingsArchive {
         "app_windows", "updates", AppGridPreferences.STORE, AppearancePreferences.STORE,
         DisplayPreviewPreferences.STORE, DesktopWallpaperPreferences.STORE, DesktopInfoPreferences.STORE, ServiceReminderPreferences.STORE,
         QuickActionPreferences.STORE, RoutinePreferences.STORE, SeatMemoryPreferences.STORE, DesktopLayoutsPreferences.STORE,
-        HeadlightMonitoringPreferences.STORE
+        HeadlightMonitoringPreferences.STORE, LocalVehicleAutomationPreferences.STORE,
+        LocalSeasonalClimatePreferences.STORE, ConditionalRulesPreferences.STORE
     };
     private final Context context;
     private final SettingsStore buttons;
@@ -66,6 +70,9 @@ public final class LocalSettingsArchive {
     private final RoutinePreferences routines;
     private final SeatMemoryPreferences seats;
     private final HeadlightMonitoringPreferences headlights;
+    private final LocalVehicleAutomationPreferences vehicleAutomation;
+    private final LocalSeasonalClimatePreferences seasonalClimate;
+    private final ConditionalRulesPreferences conditionalRules;
     private final AtomicFile rollback;
 
     public LocalSettingsArchive(Context context) {
@@ -87,6 +94,9 @@ public final class LocalSettingsArchive {
         routines = new RoutinePreferences(context);
         seats = new SeatMemoryPreferences(context);
         headlights = new HeadlightMonitoringPreferences(context);
+        vehicleAutomation = new LocalVehicleAutomationPreferences(context);
+        seasonalClimate = new LocalSeasonalClimatePreferences(context);
+        conditionalRules = new ConditionalRulesPreferences(context);
         rollback = new AtomicFile(new File(context.getFilesDir(), "settings-restore-rollback.json"));
     }
 
@@ -113,6 +123,9 @@ public final class LocalSettingsArchive {
                 .put("routines", routines.exportSettings())
                 .put("seatMemory", seats.exportSettings())
                 .put("headlightMonitoring", headlights.exportSettings())
+                .put("vehicleAutomation", vehicleAutomation.exportSettings())
+                .put("seasonalClimate", seasonalClimate.exportSettings())
+                .put("conditionalRules", conditionalRules.exportSettings())
                 .toString(2);
         }
     }
@@ -120,7 +133,8 @@ public final class LocalSettingsArchive {
     private record OptionalPreferences(JSONArray windowProfiles, AppDisplayDefaults appDisplayDefaults,
             Boolean checkOnStartup, JSONObject appGrid, JSONObject desktopWallpapers, JSONObject desktopInfoCards,
             JSONObject desktopLayouts, JSONObject appearance, JSONObject displayPreview, JSONObject serviceReminder,
-            JSONObject quickActions, JSONObject routines, JSONObject seatMemory, JSONObject headlightMonitoring) { }
+            JSONObject quickActions, JSONObject routines, JSONObject seatMemory, JSONObject headlightMonitoring,
+            JSONObject vehicleAutomation, JSONObject seasonalClimate, JSONObject conditionalRules) { }
 
     public JSONObject captureDesktopLayout() throws Exception {
         synchronized (ARCHIVE_LOCK) {
@@ -271,9 +285,15 @@ public final class LocalSettingsArchive {
             ? SeatMemoryPreferences.validateSettings(root.getJSONObject("seatMemory")) : null;
         JSONObject headlightMonitoring = root.has("headlightMonitoring")
             ? HeadlightMonitoringPreferences.validateSettings(root.getJSONObject("headlightMonitoring")) : null;
+        JSONObject vehicleAutomation = root.has("vehicleAutomation")
+            ? LocalVehicleAutomationPreferences.validateSettings(root.getJSONObject("vehicleAutomation")) : null;
+        JSONObject seasonalClimate = root.has("seasonalClimate")
+            ? LocalSeasonalClimatePreferences.validateSettings(root.getJSONObject("seasonalClimate")) : null;
+        JSONObject conditionalRules = root.has("conditionalRules")
+            ? ConditionalRulesPreferences.validateSettings(root.getJSONObject("conditionalRules")) : null;
         var optional = new OptionalPreferences(windowProfiles, appDisplayDefaults, checkOnStartup,
             appGrid, desktopWallpapers, desktopInfoCards, desktopLayouts, appearance, displayPreview, serviceReminder,
-            quickActions, routines, seatMemory, headlightMonitoring);
+            quickActions, routines, seatMemory, headlightMonitoring, vehicleAutomation, seasonalClimate, conditionalRules);
         return new Restore(SettingsStore.encode(state), voiceJson, localizationJson, language,
             (int) density, (boolean) clusterMedia, optional, state.bindings.size(), true);
     }
@@ -307,6 +327,9 @@ public final class LocalSettingsArchive {
         if (optional.routines() != null) snapshot(previous, RoutinePreferences.STORE);
         if (optional.seatMemory() != null) snapshot(previous, SeatMemoryPreferences.STORE);
         if (optional.headlightMonitoring() != null) snapshot(previous, HeadlightMonitoringPreferences.STORE);
+        if (optional.vehicleAutomation() != null) snapshot(previous, LocalVehicleAutomationPreferences.STORE);
+        if (optional.seasonalClimate() != null) snapshot(previous, LocalSeasonalClimatePreferences.STORE);
+        if (optional.conditionalRules() != null) snapshot(previous, ConditionalRulesPreferences.STORE);
         applyWithRollback(previous, () -> {
             buttons.importJson(restore.buttons);
             voice.importJson(restore.voice);
@@ -327,6 +350,9 @@ public final class LocalSettingsArchive {
             if (optional.routines() != null) routines.restoreSettings(optional.routines());
             if (optional.headlightMonitoring() != null) headlights.restoreSettings(optional.headlightMonitoring());
             if (optional.seatMemory() != null) seats.restoreSettings(optional.seatMemory());
+            if (optional.vehicleAutomation() != null) vehicleAutomation.restoreSettings(optional.vehicleAutomation());
+            if (optional.seasonalClimate() != null) seasonalClimate.restoreSettings(optional.seasonalClimate());
+            if (optional.conditionalRules() != null) conditionalRules.restoreSettings(optional.conditionalRules());
         });
     }
 

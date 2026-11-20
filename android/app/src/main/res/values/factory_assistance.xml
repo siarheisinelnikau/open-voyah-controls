@@ -1,0 +1,23 @@
+<resources>
+    <string name="factory_assistance_title">Factory driving assistance</string>
+    <string name="factory_assistance_description">Apollo on a compatible FREE 318 · setup stays in the factory controls.</string>
+    <string name="factory_assistance_setup">Set up in the vehicle</string>
+    <string name="factory_assistance_sequence">In Vehicle → Driving assistance, complete the setup shown for your equipment. Enable TLC before NOA and select a supported navigation route. Gray means standby. Blue means active.</string>
+    <string name="factory_assistance_qualification">Check this head unit</string>
+    <string name="factory_assistance_unqualified">Read the installed software identities and the factory request cache. Vehicle activation still needs verified equipment, controller feedback and independent recovery.</string>
+    <string name="factory_assistance_manual">FREE 318 owner manual</string>
+    <string name="factory_assistance_requested">Factory settings requested. Check assistance status in the vehicle.</string>
+    <string name="factory_assistance_check">Read Apollo diagnostics</string>
+    <string name="factory_assistance_reading">Reading factory software and cached values…</string>
+    <string name="factory_assistance_sampled">The factory cache supplied %1$d of %2$d fields. Controller confirmation is still required.</string>
+    <string name="factory_assistance_no_provider">The factory settings provider is unavailable. The report records which packages and menus are visible.</string>
+    <string name="factory_assistance_no_access">This software does not offer a trusted, readable factory cache. The report contains the available package details.</string>
+    <string name="factory_assistance_incomplete">The factory cache check could not finish. The report contains the reason.</string>
+    <string name="factory_assistance_export">Save Apollo report</string>
+    <string name="factory_assistance_saving">Saving report…</string>
+    <string name="factory_assistance_saved">Apollo report saved.</string>
+    <string name="factory_assistance_report_failed">The report could not be prepared or saved. Try again.</string>
+    <string name="factory_assistance_manual_unavailable">A browser is needed to open the owner manual.</string>
+    <string name="factory_assistance_open_vehicle_menu">Open vehicle menu</string>
+    <string name="factory_assistance_fallback">Choose Driving assistance in the general vehicle menu.</string>
+</resources>

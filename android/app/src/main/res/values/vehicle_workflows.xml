@@ -1,0 +1,19 @@
+<resources>
+    <string name="vehicle_automation_entry">Vehicle routines</string>
+    <string name="vehicle_automation_entry_summary">Lights, climate, driving mode and If–then rules</string>
+    <string name="vehicle_diagnostics_title">Vehicle signal report</string>
+    <string name="vehicle_diagnostics_description">Read-only checks for this head unit. Saved history never triggers an action.</string>
+    <string name="vehicle_diagnostics_copy">Copy read-only report</string>
+    <string name="vehicle_diagnostics_preparing">Preparing the local report…</string>
+    <string name="vehicle_diagnostics_copied">Report copied. Save it with your observations on the parked vehicle.</string>
+    <string name="vehicle_diagnostics_failed">Could not prepare the report. Try again.</string>
+    <string name="vehicle_diagnostics_waiting">Waiting for the read-only observer.</string>
+    <string name="vehicle_diagnostics_closed">Physical actions need exact firmware and individual signal verification.</string>
+    <string name="vehicle_rules_unavailable">Gear and door feedback need verification on your H97D firmware. Rules stay saved and wait for fresh signals.</string>
+    <string name="vehicle_diagnostics_missing">Still needed: %1$s</string>
+    <string name="vehicle_signal_gear">gear</string>
+    <string name="vehicle_signal_speed">speed</string>
+    <string name="vehicle_signal_doors">doors</string>
+    <string name="vehicle_signal_outside">outside temperature</string>
+    <string name="vehicle_signal_drive_mode">actual driving mode</string>
+</resources>

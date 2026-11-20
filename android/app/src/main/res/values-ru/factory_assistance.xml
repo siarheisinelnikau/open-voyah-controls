@@ -1,0 +1,23 @@
+<resources>
+    <string name="factory_assistance_title">Штатные ассистенты</string>
+    <string name="factory_assistance_description">Apollo на совместимом FREE 318 · настройка в штатном меню.</string>
+    <string name="factory_assistance_setup">Настроить в автомобиле</string>
+    <string name="factory_assistance_sequence">В разделе «Автомобиль → Ассистенты» пройдите настройку для вашей комплектации. Включите TLC перед NOA и выберите поддерживаемый маршрут. Серый индикатор означает ожидание, синий — активную помощь.</string>
+    <string name="factory_assistance_qualification">Проверить магнитолу</string>
+    <string name="factory_assistance_unqualified">Считайте сведения об установленном ПО и сохранённых запросах штатной системы. Для активации нужны подтверждённая комплектация, обратная связь от контроллера и проверенное независимое восстановление.</string>
+    <string name="factory_assistance_manual">Руководство FREE 318</string>
+    <string name="factory_assistance_requested">Запрошено штатное меню. Проверьте состояние ассистентов в автомобиле.</string>
+    <string name="factory_assistance_check">Считать диагностику Apollo</string>
+    <string name="factory_assistance_reading">Считываем сведения о ПО и сохранённых запросах…</string>
+    <string name="factory_assistance_sampled">Из штатного кэша получено полей: %1$d из %2$d. Состояние контроллера ещё нужно подтвердить.</string>
+    <string name="factory_assistance_no_provider">Штатный источник данных недоступен. В отчёте указаны видимые пакеты и меню.</string>
+    <string name="factory_assistance_no_access">Доступ к проверенному штатному кэшу закрыт. В отчёте сохранены сведения о доступных пакетах.</string>
+    <string name="factory_assistance_incomplete">Чтение штатного кэша не завершилось. Причина указана в отчёте.</string>
+    <string name="factory_assistance_export">Сохранить отчёт Apollo</string>
+    <string name="factory_assistance_saving">Сохраняем отчёт…</string>
+    <string name="factory_assistance_saved">Отчёт Apollo сохранён.</string>
+    <string name="factory_assistance_report_failed">Не удалось подготовить или сохранить отчёт. Повторите попытку.</string>
+    <string name="factory_assistance_manual_unavailable">Для открытия руководства нужен браузер.</string>
+    <string name="factory_assistance_open_vehicle_menu">Открыть меню автомобиля</string>
+    <string name="factory_assistance_fallback">В общем меню автомобиля выберите «Ассистенты».</string>
+</resources>

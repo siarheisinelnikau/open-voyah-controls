@@ -29,6 +29,7 @@ class LauncherMediaVolumeEntryTest : InstrumentationTestCase() {
         val updates = app.getSharedPreferences("updates", 0)
         val originalUpdateCheck = updates.all["check_on_startup"] as? Boolean
         var activity: MainActivity? = null
+        val monitor = instrumentation.addMonitor(MainActivity::class.java.name, null, false)
 
         try {
             check(updates.edit().putBoolean("check_on_startup", false).commit())
@@ -56,21 +57,31 @@ class LauncherMediaVolumeEntryTest : InstrumentationTestCase() {
                 host.startActivity(shortcut.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
             }
             await("launch from the Open Controls shortcut limits media volume") { manager.getStreamVolume(media) == target }
+            // Android adds CLEAR_TASK to a manifest shortcut; it can replace the first host.
+            val currentHost = monitor.lastActivity as? MainActivity ?: host
+            activity = currentHost
 
             manager.setStreamVolume(media, maximum, 0)
             await("manually raised volume") { manager.getStreamVolume(media) == maximum }
-            instrumentation.runOnMainSync { host.startActivity(MainActivity.settingsIntent(app)) }
+            instrumentation.runOnMainSync { currentHost.startActivity(MainActivity.settingsIntent(app)) }
             instrumentation.waitForIdleSync()
             assertEquals(maximum, manager.getStreamVolume(media))
         } finally {
-            instrumentation.runOnMainSync { activity?.finish() }
-            manager.setStreamVolume(media, originalVolume, 0)
-            appearance.restoreSettings(originalAppearance)
-            routines.restoreSettings(originalRoutines)
-            check(updates.edit().apply {
-                if (originalUpdateCheck == null) remove("check_on_startup")
-                else putBoolean("check_on_startup", originalUpdateCheck)
-            }.commit())
+            try {
+                (monitor.lastActivity as? MainActivity ?: activity)?.let { screen ->
+                    instrumentation.runOnMainSync { screen.finish() }
+                    await("launcher test host destroyed before another singleTop launch") { screen.isDestroyed }
+                }
+            } finally {
+                instrumentation.removeMonitor(monitor)
+                manager.setStreamVolume(media, originalVolume, 0)
+                appearance.restoreSettings(originalAppearance)
+                routines.restoreSettings(originalRoutines)
+                check(updates.edit().apply {
+                    if (originalUpdateCheck == null) remove("check_on_startup")
+                    else putBoolean("check_on_startup", originalUpdateCheck)
+                }.commit())
+            }
         }
     }
 

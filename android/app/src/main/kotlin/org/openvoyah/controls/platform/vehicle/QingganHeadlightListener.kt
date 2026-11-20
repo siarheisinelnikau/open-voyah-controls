@@ -9,7 +9,10 @@ import org.openvoyah.controls.domain.vehicle.HeadlightMode
 internal class QingganHeadlightListener(
     private val serviceUid: Int,
     private val onMode: (HeadlightMode) -> Unit,
+    private val additional: QingganReadOnlyCallbacks?,
 ) : Binder() {
+    constructor(serviceUid: Int, onMode: (HeadlightMode) -> Unit) : this(serviceUid, onMode, null)
+
     init {
         attachInterface(null, LISTENER)
     }
@@ -19,6 +22,18 @@ internal class QingganHeadlightListener(
         if (code !in IBinder.FIRST_CALL_TRANSACTION..IBinder.LAST_CALL_TRANSACTION || Binder.getCallingUid() != serviceUid ||
             flags and IBinder.FLAG_ONEWAY == 0
         ) return false
+        // A diagnostic observer shares the same admitted Binder identity and cannot dispatch writes.
+        // Preserve the Parcel cursor for the established lighting decoder.
+        if (additional != null) {
+            val position = data.dataPosition()
+            try {
+                additional.onCallback(code, data)
+            } catch (_: RuntimeException) {
+                // A diagnostic decoder must never suppress the established lighting confirmation.
+            } finally {
+                data.setDataPosition(position)
+            }
+        }
         if (code != VEHICLE_STATE_CHANGED) return true
 
         // This callback is distinct from write acknowledgments. The pinned enum parcel carries both IDs.
@@ -69,4 +84,11 @@ internal class QingganHeadlightListener(
         const val LAMP_SWITCH_POSITION_FB_ORDINAL = 897
         const val LAMP_SWITCH_POSITION_FB_VALUE = 1114
     }
+}
+
+/** Optional bounded readers on an already admitted factory connection. */
+internal interface QingganReadOnlyCallbacks {
+    fun onConnected(service: IBinder)
+    fun onCallback(code: Int, data: Parcel): Boolean
+    fun close()
 }

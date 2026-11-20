@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,13 +39,14 @@ internal class VehicleSettingsViewModel(
     headlightMonitor: HeadlightMonitor,
     scope: CoroutineScope? = null,
     private val monitoringStore: HeadlightMonitoringStore? = null,
+    sharedHeadlightStatus: StateFlow<HeadlightStatus>? = null,
 ) : ViewModel() {
     private val tasks = scope ?: viewModelScope
     private val mutable = MutableStateFlow(VehicleSettingsState())
     private val monitoringSave = MutableStateFlow(MonitoringSave.IDLE)
     private var factoryLightingVisit: Job? = null
     val state = mutable.asStateFlow()
-    val headlightStatus = headlightMonitor.observe().stateIn(
+    val headlightStatus = sharedHeadlightStatus ?: headlightMonitor.observe().stateIn(
         tasks, SharingStarted.WhileSubscribed(stopTimeoutMillis = 250, replayExpirationMillis = 0),
         HeadlightStatus(),
     )

@@ -79,17 +79,31 @@ internal object QingganHeadlightReader {
 
     private class BindingLost(val outcome: Outcome) : IOException(outcome.key)
     private class SubscriptionStopped(val outcome: Outcome) : IOException(outcome.key)
-    private class Subscription(private val binder: IBinder, private val listener: QingganHeadlightListener) {
-        fun release() { runCatching { listener.unregister(binder) } }
+    private class Subscription(
+        private val binder: IBinder,
+        private val listener: QingganHeadlightListener,
+        private val additional: QingganReadOnlyCallbacks? = null,
+    ) {
+        fun release() {
+            additional?.close()
+            runCatching { listener.unregister(binder) }
+        }
     }
 
     /** Completes when this stock interface is absent or rejects an ordinary read subscription. */
-    fun observe(app: Context, reportState: (HeadlightInputState) -> Unit): Flow<HeadlightFeedback> = flow {
+    fun observe(app: Context, reportState: (HeadlightInputState) -> Unit): Flow<HeadlightFeedback> =
+        observeReadOnly(app, null, reportState)
+
+    fun observeReadOnly(
+        app: Context,
+        additionalObserver: (() -> QingganReadOnlyCallbacks)?,
+        reportState: (HeadlightInputState) -> Unit,
+    ): Flow<HeadlightFeedback> = flow {
         if (Build.PRODUCT !in products) {
             report(Outcome.UNSUPPORTED_PRODUCT, reportState)
             return@flow
         }
-        emitAll(subscribe(app, Intent(SERVICE_ACTION).setComponent(component), reportState) { resolve(app, reportState) })
+        emitAll(subscribe(app, Intent(SERVICE_ACTION).setComponent(component), reportState, additionalObserver) { resolve(app, reportState) })
     }.catch { failure ->
         val outcome = when (failure) {
             is PackageManager.NameNotFoundException -> Outcome.PACKAGE_CHANGED
@@ -146,6 +160,7 @@ internal object QingganHeadlightReader {
         app: Context,
         request: Intent,
         reportState: (HeadlightInputState) -> Unit = {},
+        additionalObserver: (() -> QingganReadOnlyCallbacks)? = null,
         verifyPackage: () -> PackageInfo?,
     ): Flow<HeadlightFeedback> {
         val intent = Intent(request)
@@ -157,7 +172,7 @@ internal object QingganHeadlightReader {
         }
         return flow {
             val installation = verifiedInstallation() ?: return@flow
-            emitAll(readBinding(app, intent, target, installation, ::verifiedInstallation, reportState))
+            emitAll(readBinding(app, intent, target, installation, ::verifiedInstallation, reportState, additionalObserver))
         }.retryWhen { failure, attempt ->
             if (failure !is BindingLost && failure !is DeadObjectException) return@retryWhen false
             report(if (failure is BindingLost) failure.outcome else Outcome.TRANSPORT_LOST, reportState)
@@ -176,16 +191,20 @@ internal object QingganHeadlightReader {
         installation: Installation,
         verifyInstallation: () -> Installation?,
         reportState: (HeadlightInputState) -> Unit,
+        additionalObserver: (() -> QingganReadOnlyCallbacks)?,
     ): Flow<HeadlightFeedback> = channelFlow {
         val links = Channel<Link>(Channel.CONFLATED)
         val gate = Any()
         var currentLink: Link? = null
+        var activeAdditional: QingganReadOnlyCallbacks? = null
 
         fun changed(link: Link, outcome: Outcome? = null) {
             synchronized(gate) {
                 if (currentLink == Link.Died || currentLink == Link.Rejected || currentLink === link) return
                 // Revoke the old listener before a slow unregister or an already queued callback can publish.
                 val wasConnected = currentLink is Link.Connected
+                activeAdditional?.close()
+                activeAdditional = null
                 currentLink = link
                 outcome?.let { report(it, reportState) }
                 if (wasConnected || link !is Link.Connected) trySend(HeadlightFeedback.Unavailable)
@@ -238,15 +257,20 @@ internal object QingganHeadlightReader {
                         currentCoroutineContext().ensureActive()
                         if (!synchronized(gate) { currentLink === link }) continue
                         publish(link, HeadlightFeedback.AwaitingController)
-                        val listener = QingganHeadlightListener(installation.uid) { mode ->
+                        val additional = additionalObserver?.invoke()
+                        synchronized(gate) {
+                            if (currentLink === link) activeAdditional = additional else additional?.close()
+                        }
+                        val listener = QingganHeadlightListener(installation.uid, { mode ->
                             val elapsed = SystemClock.elapsedRealtimeNanos()
                             val received = System.currentTimeMillis()
                             if (elapsed > 0 && received > 0) {
                                 publish(link, HeadlightFeedback.Confirmed(HeadlightObservation(mode, received), elapsed))
                             }
-                        }
+                        }, additional)
                         // Release this same observer even if the registration reply is lost.
-                        subscription = Subscription(link.binder, listener)
+                        subscription = Subscription(link.binder, listener, additional)
+                        additional?.onConnected(link.binder)
                         if (!listener.register(link.binder)) throw SubscriptionStopped(Outcome.REGISTRATION_REJECTED)
                         previouslyConnected = true
                         synchronized(gate) {
@@ -256,7 +280,11 @@ internal object QingganHeadlightReader {
                 }
             }
         } finally {
-            synchronized(gate) { currentLink = Link.Rejected }
+            synchronized(gate) {
+                currentLink = Link.Rejected
+                activeAdditional?.close()
+                activeAdditional = null
+            }
             links.close()
             subscription?.release()
             runCatching { app.unbindService(connection) }

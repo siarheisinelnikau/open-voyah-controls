@@ -8,6 +8,7 @@ import java.util.Collections;
 import org.openvoyah.controls.data.settings.SettingsStore;
 import org.openvoyah.controls.platform.input.ButtonInputAdapter;
 import org.openvoyah.controls.platform.ui.ActionExecutor;
+import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime;
 
 /** Retains the service ID used by Android's accessibility grant. */
 public final class ButtonAccessibilityService extends AccessibilityService {
@@ -28,6 +29,7 @@ public final class ButtonAccessibilityService extends AccessibilityService {
         store.preferences().registerOnSharedPreferenceChangeListener(listener);
         reload();
         connected = this;
+        VehicleWorkflowRuntime.serviceConnected(this, this);
     }
 
     private void reload() {
@@ -45,6 +47,7 @@ public final class ButtonAccessibilityService extends AccessibilityService {
     @Override public void onInterrupt() { if (input != null) input.interrupt(); }
 
     @Override public void onDestroy() {
+        VehicleWorkflowRuntime.serviceDisconnected(this, this);
         if (connected == this) connected = null;
         if (store != null) store.preferences().unregisterOnSharedPreferenceChangeListener(listener);
         if (input != null) { input.close(); input = null; }

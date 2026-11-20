@@ -465,6 +465,45 @@ function Read-ControlsProcess([string]$UserId) {
 }
 
 function Convert-CockpitEvent([string]$Message) {
+    if ($Message -cmatch '^event=vehicle_signal signal=(gear|driving_mode|outside_temperature|door_driver|door_passenger|door_rear_left|door_rear_right) value=(unknown|park|reverse|neutral|drive|eco|comfort|sport|offroad|individual|snow|open|closed|-?(?:0|[1-9][0-9]{0,3})(?:\.[0-9])?) outcome=(observed|unavailable) elapsed_ns=([1-9][0-9]{0,18}) session=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$') {
+        $signal = $Matches[1]; $value = $Matches[2]; $outcome = $Matches[3]; $session = $Matches[5]
+        $elapsedNanos = 0L
+        if (![long]::TryParse($Matches[4], [ref]$elapsedNanos)) { return }
+        $validValue = switch -Regex ($signal) {
+            '^gear$' { $value -cin @('unknown', 'park', 'reverse', 'neutral', 'drive') }
+            '^driving_mode$' { $value -cin @('unknown', 'eco', 'comfort', 'sport', 'offroad', 'individual', 'snow') }
+            '^door_' { $value -cin @('unknown', 'open', 'closed') }
+            '^outside_temperature$' { $value -ceq 'unknown' -or $value -cmatch '^-?(?:0|[1-9][0-9]{0,3})(?:\.[0-9])?$' }
+        }
+        if (!$validValue -or ($outcome -ceq 'observed' -and $value -ceq 'unknown')) { return }
+        return [ordered]@{ event = 'vehicle_signal'; signal = $signal; value = $value; outcome = $outcome; elapsed_ns = $elapsedNanos; session = $session }
+    }
+    if ($Message -cmatch '^event=vehicle_observer state=(model_unreviewed|service_absent|service_unreviewed|platform_unavailable|permission_denied|disconnected|property_unavailable|incompatible_property|subscription_rejected|subscribed|read_failed) product=([A-Za-z0-9_.-]{1,64})$') {
+        return [ordered]@{ event = 'vehicle_observer'; state = $Matches[1]; product = $Matches[2] }
+    }
+    if ($Message -cmatch '^event=vehicle_observer outcome=read_failed failure=([A-Za-z][A-Za-z0-9]{0,63})$') {
+        return [ordered]@{ event = 'vehicle_observer'; outcome = 'read_failed'; failure = $Matches[1] }
+    }
+    if ($Message -cmatch '^event=vehicle_automation_monitor outcome=(started|stopped)$') {
+        return [ordered]@{ event = 'vehicle_automation_monitor'; outcome = $Matches[1] }
+    }
+    if ($Message -cmatch '^event=vehicle_workflow_runtime outcome=started background=(true|false)$') {
+        return [ordered]@{ event = 'vehicle_workflow_runtime'; outcome = 'started'; background = $Matches[1] -ceq 'true' }
+    }
+    if ($Message -ceq 'event=vehicle_workflow_runtime outcome=stopped') {
+        return [ordered]@{ event = 'vehicle_workflow_runtime'; outcome = 'stopped' }
+    }
+    if ($Message -cmatch '^event=conditional_rule_(attempt|handoff) rule=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}) outcome=(completed|failed|cancelled|unconfirmed)$') {
+        return [ordered]@{ event = "conditional_rule_$($Matches[1])"; rule = $Matches[2]; outcome = $Matches[3] }
+    }
+    if ($Message -cmatch '^event=vehicle_automation_dispatch kind=(headlight|driving_mode) command=(AutoMode|LowBeam|PositionLamp|LampOff|EcoMode|ComfortMode|SportMode|OffroadMode|IndividualMode|SnowMode) outcome=(blocked|requested|confirmed|unconfirmed)$') {
+        $kind = $Matches[1]; $command = $Matches[2]; $outcome = $Matches[3]
+        if (($kind -ceq 'headlight') -ne ($command -cin @('AutoMode', 'LowBeam', 'PositionLamp', 'LampOff'))) { return }
+        return [ordered]@{ event = 'vehicle_automation_dispatch'; kind = $kind; command = $command; outcome = $outcome }
+    }
+    if ($Message -cmatch '^event=seasonal_climate_automatic season=(summer|winter) outcome=(blocked|accepted|verified|partial|unconfirmed|busy|recent) completed=([0-5])$') {
+        return [ordered]@{ event = 'seasonal_climate_automatic'; season = $Matches[1]; outcome = $Matches[2]; completed = [int]$Matches[3] }
+    }
     if ($Message -cmatch '^event=headlight_power trigger=(initial|screen_on|screen_off) interactive=(true|false) elapsed_ms=([0-9]{1,18})$') {
         if ($Matches[1] -ceq 'screen_off' -and $Matches[2] -ceq 'true') { return }
         return [ordered]@{ event = 'headlight_power'; trigger = $Matches[1]; interactive = $Matches[2] -ceq 'true'; elapsed_ms = [long]$Matches[3] }
@@ -541,7 +580,7 @@ function Read-CockpitEvents([string]$AppPath, [string]$AppHash, [string]$UserId)
         $report.status = 'log_unavailable'
         # Keep the fixed regex quoted for the Android shell. The structured parser discards unrecognized payloads.
         $lines = @(Read-Target @('shell', 'logcat', '-b', 'main', "--pid=$($before.id)", '-d', '-T', "$firstSecond.000", '-m', '257', '-v', 'threadtime',
-            '-v', 'epoch', '-s', '-e', "'^event=(headlight_(power|feedback|activity|reader|source)|driver_memory_(guidance|handoff)) '", 'OpenVoyahControls:I'))
+            '-v', 'epoch', '-s', '-e', "'^event=(headlight_(power|feedback|activity|reader|source)|driver_memory_(guidance|handoff)|vehicle_(observer|gear|signal|automation_monitor|automation_dispatch|workflow_runtime)|seasonal_climate_automatic|conditional_rule_(attempt|handoff)) '", 'OpenVoyahControls:I'))
         $report.status = 'identity_changed'
         $after = Read-ControlsProcess $UserId
         if ($before.id -cne $after.id -or $before.owner -cne $after.owner -or $before.start -cne $after.start -or
