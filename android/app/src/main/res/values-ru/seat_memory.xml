@@ -1,0 +1,29 @@
+<resources>
+    <string name="seat_memory_title">Память сиденья</string>
+    <string name="seat_memory_description">Сиденье и зеркала</string>
+    <string name="seat_memory_driver_seat">Сиденье «%1$s»</string>
+    <string name="seat_memory_slot">Водитель\u00a0%1$d</string>
+    <string name="seat_memory_save_position">Сохранить</string>
+    <string name="seat_memory_save_driver">Сохранить «%1$s»</string>
+    <string name="seat_memory_restore_driver">Восстановить «%1$s»</string>
+    <string name="seat_memory_recall">Восстановить</string>
+    <string name="seat_memory_recall_title">Восстановить «%1$s»?</string>
+    <string name="seat_memory_confirm">Убедитесь, что включён режим P и движению сиденья водителя и зеркал ничто не мешает.</string>
+    <string name="seat_memory_cancel">Отмена</string>
+    <string name="seat_memory_close">Закрыть</string>
+    <string name="seat_memory_retry">Повторить</string>
+    <string name="seat_memory_working">Подождите…</string>
+    <string name="seat_memory_load_failed">Не удалось прочитать настройки памяти сиденья.</string>
+    <string name="seat_memory_save_failed">Не удалось запомнить выбранный номер водителя в Controls.</string>
+    <string name="seat_memory_open_factory_on_tap">Сразу открывать штатные «Сиденья»</string>
+    <string name="seat_memory_open_factory_on_tap_hint">Если штатный экран доступен, выберите на нём номер водителя.</string>
+    <string name="seat_memory_open_factory_on_tap_save_failed">Не удалось сохранить настройку открытия штатного экрана.</string>
+    <string name="seat_memory_factory_path">Штатный экран → Все приложения → Сиденья</string>
+    <string name="seat_memory_factory_save">На стоянке в «Сиденьях» откройте «Память и восстановление» или нажмите значок водителя. Для позиции\u00a0%1$d нажмите Memory (记忆). Дождитесь подтверждения (记忆成功).</string>
+    <string name="seat_memory_factory_restore">На стоянке в «Сиденьях» откройте «Память и восстановление» или нажмите значок водителя. Для позиции\u00a0%1$d нажмите Restore (恢复). Дождитесь подтверждения (恢复成功).</string>
+    <string name="seat_memory_seats_open">Открыть «Сиденья»</string>
+    <string name="seat_memory_factory_open">Открыть штатное меню автомобиля</string>
+    <string name="seat_memory_voice_opening">Открываю инструкцию по восстановлению позиции\u00a0%1$d.</string>
+    <string name="seat_memory_voice_open_failed">Не удалось открыть память сиденья водителя.</string>
+    <string name="seat_memory_open_failed">Не удалось открыть штатные настройки.</string>
+</resources>

@@ -17,7 +17,6 @@ import java.util.concurrent.Executors;
 import org.openvoyah.controls.core.display.DisplayEventBus.Media;
 import org.openvoyah.controls.core.display.DisplayEventBus;
 import org.openvoyah.controls.data.display.DisplayPreferences;
-import org.openvoyah.controls.platform.DisplayEventText;
 
 /** Translates Android media callbacks into display events. Runs on the main thread. */
 public final class MediaSessionMonitor implements AutoCloseable {
@@ -35,6 +34,8 @@ public final class MediaSessionMonitor implements AutoCloseable {
     private final ComponentName component;
     private boolean connected;
     private MediaController current;
+    private MediaController.Callback callback;
+    private MediaSessionReading reading = new MediaSessionReading();
     private Runnable unsubscribe;
     private volatile long revision;
     private Media lastRequested = Media.EMPTY;
@@ -51,13 +52,25 @@ public final class MediaSessionMonitor implements AutoCloseable {
     private final MediaSessionManager.OnActiveSessionsChangedListener sessionListener = controllers -> {
         if (connected) select(controllers);
     };
-    private final MediaController.Callback mediaListener = new MediaController.Callback() {
-        @Override public void onMetadataChanged(MediaMetadata metadata) { if (connected) update(); }
-        @Override public void onPlaybackStateChanged(PlaybackState state) { if (connected) update(); }
-        @Override public void onSessionDestroyed() {
-            if (connected) select(manager.getActiveSessions(component));
-        }
-    };
+    private MediaController.Callback listenTo(MediaController selected) {
+        return new MediaController.Callback() {
+            private boolean active() { return connected && current == selected; }
+
+            @Override public void onMetadataChanged(MediaMetadata metadata) {
+                if (active()) update(null, false);
+            }
+
+            @Override public void onPlaybackStateChanged(PlaybackState state) {
+                if (!active()) return;
+                if (state == null) reading.clearPlayback();
+                update(state, false);
+            }
+
+            @Override public void onSessionDestroyed() {
+                if (active()) select(manager.getActiveSessions(component));
+            }
+        };
+    }
 
     public void connect() {
         if (connected || manager == null) return;
@@ -70,30 +83,32 @@ public final class MediaSessionMonitor implements AutoCloseable {
     }
 
     private void select(List<MediaController> controllers) {
-        List<MediaController> available = controllers == null ? Collections.emptyList() : controllers;
-        MediaController preferred = available.isEmpty() ? null : available.get(0);
-        for (MediaController controller : available) {
-            if (isPlaying(controller.getPlaybackState())) { preferred = controller; break; }
-        }
+        MediaController preferred = selectPlaying(controllers == null ? Collections.emptyList() : controllers);
         if (current != null && preferred != null && current.getSessionToken().equals(preferred.getSessionToken())) {
-            update();
+            update(null, false);
             return;
         }
-        if (current != null) current.unregisterCallback(mediaListener);
+        if (current != null) current.unregisterCallback(callback);
         current = preferred;
-        if (current != null) current.registerCallback(mediaListener, handler);
-        update();
+        reading = new MediaSessionReading();
+        callback = current == null ? null : listenTo(current);
+        if (current != null) current.registerCallback(callback, handler);
+        update(null, true);
     }
 
-    private void update() {
+    static MediaController selectPlaying(List<MediaController> available) {
+        for (MediaController controller : available) {
+            if (MediaSessionReading.isPlaying(controller.getPlaybackState())) return controller;
+        }
+        return available.isEmpty() ? null : available.get(0);
+    }
+
+    private void update(PlaybackState reported, boolean selectedSession) {
         MediaMetadata metadata = current == null ? null : current.getMetadata();
-        Media snapshot = metadata == null ? Media.EMPTY : new Media(
-            DisplayEventText.sanitize(metadata.getText(MediaMetadata.METADATA_KEY_TITLE)),
-            DisplayEventText.sanitize(metadata.getText(MediaMetadata.METADATA_KEY_ARTIST)),
-            DisplayEventText.sanitize(metadata.getText(MediaMetadata.METADATA_KEY_ALBUM)),
-            isPlaying(current.getPlaybackState()));
-        events.publishMedia(snapshot);
-        publish(snapshot);
+        PlaybackState playback = current == null ? null : current.getPlaybackState();
+        var snapshot = reading.read(metadata, playback, selectedSession ? playback : reported);
+        events.publishMedia(snapshot.media(), snapshot.progress());
+        publish(snapshot.media());
     }
 
     private void publish(Media snapshot) {
@@ -109,10 +124,6 @@ public final class MediaSessionMonitor implements AutoCloseable {
                 handler.post(() -> { if (token == revision) lastRequested = null; });
             }
         });
-    }
-
-    private static boolean isPlaying(PlaybackState state) {
-        return state != null && state.getState() == PlaybackState.STATE_PLAYING;
     }
 
     public void disconnect() {

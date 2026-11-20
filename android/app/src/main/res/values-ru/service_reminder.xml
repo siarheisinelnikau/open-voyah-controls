@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_reminder_title">Напоминание о ТО</string>
+    <string name="service_reminder_summary">Планируйте ТО по пробегу, дате или по обоим условиям.</string>
+    <string name="service_reminder_next">Следующее ТО</string>
+    <string name="service_reminder_distance">%1$s км</string>
+    <string name="service_reminder_remaining">До ТО %1$s км</string>
+    <string name="service_reminder_due">Пора пройти ТО</string>
+    <string name="service_reminder_overdue">ТО просрочено на %1$s км</string>
+    <string name="service_reminder_missing_readings">Укажите интервал по пробегу и показания одометра или интервал в месяцах и дату последнего ТО.</string>
+    <string name="service_reminder_show_on_vehicle">Напоминать о ТО на экране «Автомобиль»</string>
+    <string name="service_reminder_lead_title">Когда напоминать о ТО</string>
+    <string name="service_reminder_lead_auto">Автоматически</string>
+    <string name="service_reminder_lead_auto_distance">Автоматически · %1$s км</string>
+    <string name="service_reminder_lead_limited">Выбрано %1$s · действует %2$s</string>
+    <string name="service_reminder_readings_title">Интервал ТО и пробег</string>
+    <string name="service_reminder_interval">Интервал ТО (км)</string>
+    <string name="service_reminder_current">Текущий пробег (км)</string>
+    <string name="service_reminder_last">Пробег на последнем ТО (км)</string>
+    <string name="service_reminder_invalid">Укажите интервал больше нуля и текущий пробег не меньше пробега на последнем ТО.</string>
+    <string name="service_reminder_save">Сохранить пробег и интервал</string>
+    <string name="service_reminder_save_failed">Не удалось сохранить данные ТО. Попробуйте ещё раз.</string>
+    <string name="service_reminder_calendar_title">ТО по дате</string>
+    <string name="service_reminder_calendar_summary">ТО пора пройти, когда наступит срок или будет достигнут предельный пробег.</string>
+    <string name="service_reminder_calendar_interval">Интервал ТО (месяцев, необязательно)</string>
+    <string name="service_reminder_calendar_last_date">Дата последнего ТО</string>
+    <string name="service_reminder_calendar_date_format">ГГГГ-ММ-ДД</string>
+    <string name="service_reminder_calendar_invalid">Укажите интервал от 1 до 120 месяцев и корректную дату не позже сегодняшней.</string>
+    <string name="service_reminder_calendar_save">Сохранить календарный план</string>
+    <string name="service_reminder_calendar_lead_title">За сколько дней напоминать о ТО</string>
+    <string name="service_reminder_calendar_lead_due">В день ТО</string>
+    <string name="service_reminder_calendar_lead_days">%1$d дней</string>
+    <string name="service_reminder_calendar_due_date">Пройти ТО до %1$s</string>
+    <string name="service_reminder_calendar_due_today">ТО сегодня</string>
+    <string name="service_reminder_calendar_overdue">ТО просрочено с %1$s</string>
+</resources>

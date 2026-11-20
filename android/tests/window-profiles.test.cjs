@@ -18,7 +18,22 @@ test('a reserved left edge uses the larger of the launcher width and configured 
     assert.deepEqual(Array.from(policy.windowBounds(frame, {...profile,width:100,panelPx:180}, 145)), [180,24,1872,720]);
     assert.deepEqual(Array.from(policy.windowBounds({...frame,stable:[200,24,1872,720]}, {...profile,width:100},145)), [200,24,1872,720]);
     assert.deepEqual(Array.from(policy.windowBounds(frame, {...profile,width:100},0)), [145,24,1872,720]);
-    assert.equal(policy.windowBounds(frame, {...profile,width:50},145,900,500), null);
+});
+
+test('a right-aligned window grows to its minimum only within the available workspace', () => {
+    const narrow = {...profile, width:50};
+    assert.deepEqual(Array.from(policy.windowBounds(frame, narrow, 145, 900, 500)), [972,24,1872,720]);
+    assert.deepEqual(Array.from(policy.windowBounds(frame, narrow, 145, 1727, 696)), [145,24,1872,720]);
+    assert.equal(policy.windowBounds(frame, narrow, 145, 1728, 500), null);
+    assert.equal(policy.windowBounds(frame, narrow, 145, 900, 697), null);
+});
+
+test('rotated and offset display frames keep the full strip and clip stable bounds to the display', () => {
+    const rotated = {bounds:[24,40,744,1320], stable:[0,20,768,1360]};
+    const widePanel = {...profile, width:100, panelPx:300};
+    assert.deepEqual(Array.from(policy.windowBounds(rotated, widePanel, 145, 420, 1280)), [324,40,744,1320]);
+    assert.equal(policy.windowBounds(rotated, widePanel, 145, 421, 1000), null);
+    assert.equal(policy.windowBounds({...rotated, stable:[800,40,744,1320]}, widePanel, 145), null);
 });
 
 test('new apps get the panel layout from both launchers without a saved profile', () => {

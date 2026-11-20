@@ -6,24 +6,25 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.openvoyah.controls.domain.display.AppDisplayDefaults
 import org.openvoyah.controls.domain.display.AppWindowProfile
+import org.openvoyah.controls.domain.display.WindowProfileStorage
 
-class AppWindowPreferences(context: Context) {
+internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
     private val preferences = context.applicationContext.getSharedPreferences("app_windows", Context.MODE_PRIVATE)
     val userId: Int get() = Process.myUid() / 100_000
 
-    fun load(component: String): AppWindowProfile {
+    override fun load(component: String): AppWindowProfile {
         val defaults = AppWindowProfile(requireNotNull(AppWindowProfile.key(component)))
         return profiles().firstOrNull { it.packageName == defaults.packageName }
             ?.copy(component = defaults.component) ?: defaults
     }
 
-    fun save(profile: AppWindowProfile) = synchronized(lock) {
+    override fun save(profile: AppWindowProfile) = synchronized(lock) {
         val canonical = profile.copy(component = requireNotNull(AppWindowProfile.key(profile.component)))
         val remaining = profiles().filterNot { it.packageName == canonical.packageName }
         write(if (canonical == AppWindowProfile(canonical.component)) remaining else remaining + canonical)
     }
 
-    fun reset(component: String) = synchronized(lock) {
+    override fun reset(component: String) = synchronized(lock) {
         val packageName = requireNotNull(AppWindowProfile.key(component)).substringBefore('/')
         write(profiles().filterNot { it.packageName == packageName })
     }
@@ -44,12 +45,12 @@ class AppWindowPreferences(context: Context) {
 
     fun restoreProfiles(data: JSONArray) = synchronized(lock) { write(decode(data)) }
 
-    fun loadDefaults(): AppDisplayDefaults {
+    override fun loadDefaults(): AppDisplayDefaults {
         val value = preferences.getString("displayDefaults", null) ?: return AppDisplayDefaults()
         return validateDefaults(JSONObject(value))
     }
 
-    fun saveDefaults(defaults: AppDisplayDefaults) = synchronized(lock) {
+    override fun saveDefaults(defaults: AppDisplayDefaults) = synchronized(lock) {
         check(preferences.edit().putString("displayDefaults", encodeDefaults(defaults).toString()).commit())
     }
 

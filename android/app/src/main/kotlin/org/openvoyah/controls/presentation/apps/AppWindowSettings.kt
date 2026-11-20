@@ -3,6 +3,7 @@ package org.openvoyah.controls.presentation.apps
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -14,63 +15,65 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
-import org.openvoyah.controls.data.frida.FridaWindowControls.Connection
-import org.openvoyah.controls.data.frida.FridaWindowControls.Result
-import org.openvoyah.controls.data.frida.FridaWindowControls.Status
 import org.openvoyah.controls.domain.display.AppWindowProfile
+import org.openvoyah.controls.domain.display.WindowConnection
+import org.openvoyah.controls.domain.display.WindowProfileDelivery
+import org.openvoyah.controls.domain.display.WindowProfileDelivery.Outcome
+import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
 internal fun AppWindowSettings(window: AppSettingsViewModel.Window, model: AppSettingsViewModel) {
     val profile = window.profile
-    val colors = MaterialTheme.colorScheme
-    Text(label(R.string.app_window_explainer), color = colors.onSurfaceVariant)
-    if (profile != null) {
-        val editable = !window.busy
-        WindowDimensions(profile, editable, model::changeWindow)
-        val inset = profile.panelWidthPx
-        StepSlider(label(R.string.app_window_panel_width),
-            if (inset == 0) label(R.string.app_window_panel_auto) else label(R.string.app_window_pixels).format(inset),
-            (inset / 20).coerceIn(0, 30), 30, editable,
-        ) { step -> model.changeWindow { it.copy(panelWidthPx = step * 20) } }
-        if (window.connection == Connection.DISABLED) {
-            TextButton(model::enableWindows, Modifier.heightIn(min = 48.dp), enabled = editable) {
-                Text(label(R.string.app_window_enable))
+    if (profile == null) {
+        CockpitFeedback(label(window.message ?: R.string.ui_80), error = window.message != null)
+        if (window.message != null && !window.busy) {
+            TextButton(model::loadWindow, Modifier.heightIn(min = 48.dp)) {
+                Text(label(R.string.app_window_retry))
             }
         }
-        val message = when {
-            window.busy -> label(R.string.ui_80)
-            window.message != null -> label(window.message)
-            window.result != null -> resultText(window.result)
-            window.connection == Connection.DISCONNECTED -> label(R.string.window_hook_requirement)
-            else -> null
-        }
-        if (message != null) {
-            Text(message, Modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = colors.primary)
-        }
-        Row(
-            Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton({ model.applyWindow(true) }, Modifier.heightIn(min = 48.dp), enabled = editable) {
-                Text(label(R.string.app_window_restore))
-            }
-            Button({ model.applyWindow(false) }, Modifier.heightIn(min = 48.dp), enabled = editable) {
-                Text(label(if (window.connection == Connection.ENABLED) R.string.app_window_apply else R.string.ui_104))
-            }
-        }
-    } else {
-        Text(label(window.message ?: R.string.ui_80), Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            color = colors.onSurfaceVariant)
+        return
     }
+
+    Text(label(R.string.app_window_explainer), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val editable = !window.busy
+    val inset = profile.panelWidthPx
+    StepSlider(
+        label(R.string.app_window_panel_width),
+        if (inset == 0) label(R.string.app_window_panel_auto) else label(R.string.app_window_pixels).format(inset),
+        inset / AppWindowProfile.INSET_STEP_PX,
+        AppWindowProfile.MAX_INSET_PX / AppWindowProfile.INSET_STEP_PX,
+        editable,
+    ) { step -> model.changeWindow { it.copy(panelWidthPx = step * AppWindowProfile.INSET_STEP_PX) } }
+    WindowDimensions(profile, editable, model::changeWindow)
+    if (window.connection == WindowConnection.DISABLED) {
+        TextButton(model::enableWindows, Modifier.heightIn(min = 48.dp), enabled = editable) {
+            Text(label(R.string.app_window_enable))
+        }
+    }
+    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+        TextButton(model::resetWindow, Modifier.heightIn(min = 48.dp), enabled = editable) {
+            Text(label(R.string.app_window_restore))
+        }
+        Button(model::applyWindow, Modifier.heightIn(min = 48.dp), enabled = editable) {
+            Text(label(if (window.connection == WindowConnection.ENABLED) R.string.app_window_apply else R.string.ui_104))
+        }
+    }
+    val message = when {
+        window.busy -> label(R.string.ui_80)
+        window.message != null -> label(window.message)
+        window.result != null -> resultText(window.result)
+        window.connection == WindowConnection.DISCONNECTED -> label(R.string.app_window_offline)
+        else -> null
+    }
+    CockpitFeedback(message, error = window.message == R.string.app_window_save_failed ||
+        window.result == Outcome.FAILED || window.result == Outcome.UNCONFIRMED)
 }
 
 @Composable
@@ -81,7 +84,6 @@ private fun WindowDimensions(profile: AppWindowProfile, editable: Boolean, chang
             change { it.copy(widthPercent = 50 + step * 5) }
         }
     }
-    val densities = listOf(null) + AppWindowProfile.densities
     val density: @Composable (Modifier) -> Unit = { modifier ->
         val dpi = profile.densityDpi.takeUnless { profile.inheritDensity }
         val text = when (dpi) {
@@ -90,8 +92,8 @@ private fun WindowDimensions(profile: AppWindowProfile, editable: Boolean, chang
             else -> "$dpi DPI"
         }
         StepSlider(label(R.string.app_window_dpi), text,
-            densities.indexOf(dpi), densities.lastIndex, editable, modifier) { step ->
-            val selected = densities[step]
+            densityChoices.indexOf(dpi), densityChoices.lastIndex, editable, modifier) { step ->
+            val selected = densityChoices[step]
             change { it.copy(densityDpi = selected ?: 0, inheritDensity = selected == null) }
         }
     }
@@ -121,8 +123,9 @@ private fun StepSlider(
     change: (Int) -> Unit,
 ) {
     Column(modifier) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             Text(value, color = MaterialTheme.colorScheme.primary)
         }
         Slider(step.toFloat(), { change(it.roundToInt()) }, Modifier.fillMaxWidth().semantics { contentDescription = title },
@@ -130,16 +133,19 @@ private fun StepSlider(
     }
 }
 
-private fun resultText(result: Result): String = when (result.status) {
-    Status.APPLIED -> String.format(Locale.ROOT, label(R.string.app_window_applied), result.width, result.dpi, result.left)
-    Status.DENSITY_ONLY -> String.format(Locale.ROOT, label(R.string.app_window_density_only), result.dpi)
-    Status.NO_TASK -> label(R.string.app_window_saved_next)
-    Status.UNSUPPORTED_WINDOW -> label(R.string.app_window_unsupported)
-    Status.UNSUPPORTED_TASK -> label(R.string.app_window_task_unsupported)
-    Status.NO_SPACE -> label(R.string.app_window_no_space)
-    Status.UNAVAILABLE -> label(R.string.window_service_unavailable)
-    Status.FAILED -> label(R.string.app_window_failed)
-    Status.SAVED -> label(R.string.app_window_saved)
+private fun resultText(result: WindowProfileDelivery): String = when (result) {
+    is WindowProfileDelivery.Applied -> String.format(Locale.ROOT, label(R.string.app_window_applied),
+        result.widthPx, result.dpi, result.leftPx)
+    is WindowProfileDelivery.DensityOnly -> String.format(Locale.ROOT, label(R.string.app_window_density_only), result.dpi)
+    Outcome.NEXT_LAUNCH -> label(R.string.app_window_saved_next)
+    Outcome.UNSUPPORTED_WINDOW -> label(R.string.app_window_unsupported)
+    Outcome.UNSUPPORTED_TASK -> label(R.string.app_window_task_unsupported)
+    Outcome.NO_SPACE -> label(R.string.app_window_no_space)
+    Outcome.UNCONFIRMED -> label(R.string.app_window_unconfirmed)
+    Outcome.FAILED -> label(R.string.app_window_failed)
+    Outcome.SAVED -> label(R.string.app_window_saved)
 }
+
+private val densityChoices = listOf(null) + AppWindowProfile.densities
 
 private fun label(id: Int) = UiText.get(id)

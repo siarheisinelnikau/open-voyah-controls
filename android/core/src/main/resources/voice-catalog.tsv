@@ -1,4 +1,4 @@
-# Russian command vocabulary; see docs/VOICE.md
+# Russian command vocabulary. The optional fourth column lists final transcript aliases separated by |.
 Assistant	Basic	открой помощник
 Camera	Basic	камера|камеру
 Music	Basic	музыка|музыку|включи музыку
@@ -20,9 +20,9 @@ OpenFuelPort	Basic	бензобак|заправка|бензин
 CarWashMode	Basic	режим мойки|мойка
 PowerHold	Basic	пауэр холд
 WiperMaintain	Basic	дворники|щётки
-GetFromMemoryCellOne	Basic	водитель один|сиденье водителя один|сидение водителя один|настрой сиденье водителя один|сиденье под водителя один
-GetFromMemoryCellThree	Basic	водитель три|сиденье водителя три|настрой сиденье водителя три
-GetFromMemoryCellTwo	Basic	водитель два|сиденье водителя два|настрой сиденье водителя два
+GetFromMemoryCellOne	Basic	водитель один|сиденье водителя один|сидение водителя один|настрой сиденье водителя один|сиденье под водителя один	водитель 1
+GetFromMemoryCellThree	Basic	водитель три|сиденье водителя три|настрой сиденье водителя три	водитель 3
+GetFromMemoryCellTwo	Basic	водитель два|сиденье водителя два|настрой сиденье водителя два	водитель 2
 SmokeCommand	Basic	давай покурим
 VentilationCommand	Basic	проветривание|свежий воздух|проветрить|проветри|душно
 DisableDriverCondition	DriverSeat	выключи вентиляцию|выключи вентиляцию водителя|выключи вентиляцию сиденья водителя

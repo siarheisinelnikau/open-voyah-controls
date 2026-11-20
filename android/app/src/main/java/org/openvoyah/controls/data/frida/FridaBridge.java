@@ -20,7 +20,11 @@ import org.openvoyah.controls.UiText;
 import org.openvoyah.controls.core.Action;
 import org.openvoyah.controls.core.display.DisplayEventBus.Media;
 import org.openvoyah.controls.data.display.AppWindowPreferences;
+import org.openvoyah.controls.data.frida.WindowDiagnostics.Operation;
+import org.openvoyah.controls.data.frida.WindowDiagnostics.Outcome;
+import org.openvoyah.controls.data.frida.WindowDiagnostics.Stage;
 import org.openvoyah.controls.domain.display.AppWindowProfile;
+import org.openvoyah.controls.domain.display.WindowProfileDelivery;
 import org.openvoyah.controls.data.settings.LocalizationSettings;
 import org.openvoyah.controls.data.settings.SettingsStore;
 import org.openvoyah.controls.platform.boot.RecoveryJobs;
@@ -311,8 +315,15 @@ public final class FridaBridge {
         return context.getSharedPreferences("bridge", Context.MODE_PRIVATE).getBoolean("windowHook", windowHookSupported());
     }
     public void setWindowHook(boolean enabled) throws IOException {
-        if (enabled && !windowHookSupported()) throw new IOException(UiText.get(R.string.window_hook_requirement));
-        setOptionalHook("window", enabled);
+        try (var diagnostic = WindowDiagnostics.start(enabled ? Operation.ENABLE_SERVICE : Operation.DISABLE_SERVICE)) {
+            if (enabled && !windowHookSupported()) {
+                diagnostic.complete(Outcome.ANDROID_UNSUPPORTED);
+                throw new IOException(UiText.get(R.string.window_hook_requirement));
+            }
+            diagnostic.enter(Stage.SERVICE_TRANSITION);
+            setOptionalHook("window", enabled);
+            diagnostic.complete(Outcome.SERVICE_CONFIGURED);
+        }
     }
     public static boolean navigationHookEnabled(Context context) {
         return context.getSharedPreferences("bridge", Context.MODE_PRIVATE).getBoolean("navigationHook", false);
@@ -449,27 +460,62 @@ public final class FridaBridge {
         command(script.append("OVC_WINDOWS\n)\"").toString());
     }
 
-    public String applyWindowProfile(String component, boolean reset) throws IOException {
-        String target = AppWindowProfile.Companion.key(component);
-        if (target == null) throw new IllegalArgumentException("Invalid window target");
-        synchronized (IO_LOCK) {
-            if (!runtimeConfigured() || !windowHookEnabled(context) || !windowHookSupported() || !windowReviewed()) {
-                throw new IOException(UiText.get(R.string.window_hook_requirement));
+    public WindowProfileDelivery applyWindowProfile(String component, boolean reset) throws IOException {
+        try (var diagnostic = WindowDiagnostics.start(reset ? Operation.RESET_PROFILE : Operation.APPLY_PROFILE)) {
+            String target = AppWindowProfile.Companion.key(component);
+            if (target == null) {
+                diagnostic.complete(Outcome.INVALID_TARGET);
+                throw new IllegalArgumentException("Invalid window target");
             }
-            requireRoot();
-            if (!liveWindowReady("3")) throw new IOException(UiText.get(R.string.window_service_unavailable));
-            publishWindowProfiles();
-            return windowRequest(reset ? "reset" : "apply", target);
+            String reply;
+            synchronized (IO_LOCK) {
+                if (!checkWindowPrerequisites(diagnostic)) {
+                    throw new IOException(UiText.get(R.string.window_hook_requirement));
+                }
+                diagnostic.enter(Stage.ACCESS_CHECK);
+                requireRoot();
+                diagnostic.enter(Stage.READINESS_CHECK);
+                if (!liveWindowReady("3")) {
+                    diagnostic.complete(Outcome.AGENT_NOT_READY);
+                    throw new IOException(UiText.get(R.string.window_service_unavailable));
+                }
+                diagnostic.enter(Stage.PUBLISH_PROFILES);
+                publishWindowProfiles();
+                diagnostic.enter(Stage.REQUEST_ROUND_TRIP);
+                reply = windowRequest(reset ? "reset" : "apply", target);
+            }
+            WindowProfileReceipt receipt = WindowProfileReceipt.parse(reply);
+            diagnostic.received(receipt.getDiagnosticOutcome());
+            return receipt.getDelivery();
         }
     }
 
     public boolean syncWindowProfiles() throws IOException {
-        synchronized (IO_LOCK) {
-            if (!runtimeConfigured() || !windowHookEnabled(context) || !windowHookSupported() || !windowReviewed()
-                || !channelReady("/window", "^OVC_WINDOW_READY protocol=3 .*displayDpi=1( |$)")) return false;
-            publishWindowProfiles();
+        try (var diagnostic = WindowDiagnostics.start(Operation.SYNC_DEFAULTS)) {
+            synchronized (IO_LOCK) {
+                if (!checkWindowPrerequisites(diagnostic)) return false;
+                diagnostic.enter(Stage.READINESS_CHECK);
+                if (!channelReady("/window", "^OVC_WINDOW_READY protocol=3 .*displayDpi=1( |$)")) {
+                    diagnostic.complete(Outcome.DISPLAY_DPI_UNAVAILABLE);
+                    return false;
+                }
+                diagnostic.enter(Stage.PUBLISH_PROFILES);
+                publishWindowProfiles();
+            }
+            diagnostic.complete(Outcome.PROFILES_PUBLISHED);
             return true;
         }
+    }
+
+    private boolean checkWindowPrerequisites(WindowDiagnostics.Attempt diagnostic) {
+        Outcome blocked;
+        if (!runtimeConfigured()) blocked = Outcome.RUNTIME_UNAVAILABLE;
+        else if (!windowHookEnabled(context)) blocked = Outcome.SERVICE_DISABLED;
+        else if (!windowHookSupported()) blocked = Outcome.ANDROID_UNSUPPORTED;
+        else if (!windowReviewed()) blocked = Outcome.FIRMWARE_UNREVIEWED;
+        else return true;
+        diagnostic.complete(blocked);
+        return false;
     }
 
     private boolean liveWindowReady(String protocolPattern) throws IOException {

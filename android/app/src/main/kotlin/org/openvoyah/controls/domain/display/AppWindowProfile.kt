@@ -12,7 +12,7 @@ data class AppWindowProfile(
         require(widthPercent in 50..100 && widthPercent % 5 == 0)
         require(densityDpi in densities)
         require(!inheritDensity || densityDpi == 0)
-        require(panelWidthPx in 0..600)
+        require(panelWidthPx in 0..MAX_INSET_PX)
     }
 
     val packageName: String get() = component.substringBefore('/')
@@ -20,6 +20,8 @@ data class AppWindowProfile(
     companion object {
         val densities = listOf(0) + (100..320 step 10)
         const val MAX_PROFILES = 16
+        const val MAX_INSET_PX = 600
+        const val INSET_STEP_PX = 20
         private val flattened = Regex("""([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)+)/(\.?[A-Za-z_$][A-Za-z0-9_.$]*)""")
         private val protected = setOf(
             "org.openvoyah.controls", "com.android.settings", "com.android.systemui", "com.qinggan.app.launcher",

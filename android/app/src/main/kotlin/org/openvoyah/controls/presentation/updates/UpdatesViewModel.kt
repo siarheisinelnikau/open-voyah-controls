@@ -167,6 +167,8 @@ internal class UpdatesViewModel(
     }
 
     fun recover() {
+        val startupCheck = preferences.checkOnStartup()
+        mutable.update { if (it.preferenceSaving) it else it.copy(checkOnStartup = startupCheck) }
         val port = installer ?: return
         if (recoveryJob?.isActive == true) return
         recoveryJob = viewModelScope.launch {

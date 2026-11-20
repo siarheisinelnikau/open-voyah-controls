@@ -12,6 +12,12 @@ import org.openvoyah.controls.core.display.DisplayEventBus.Navigation;
 import org.openvoyah.controls.core.display.DisplayEventBus;
 
 final class LaunchVoiceActions {
+    record Result(String message, boolean requested) { }
+
+    static final class AssignmentRequired extends IllegalStateException {
+        AssignmentRequired() { super(UiText.get(R.string.voice_restart_assignment)); }
+    }
+
     private final Function<String, String> selectedApp;
     private final BooleanSupplier split;
     private final DisplayEventBus events;
@@ -29,43 +35,45 @@ final class LaunchVoiceActions {
             default -> false;
         };
     }
-    String execute(Activity activity, String id) {
-        if (id.equals("RestartMusic")) return restart(activity, "Music");
-        if (id.equals("RestartNavigator")) return restart(activity, "Navigator");
+    Result execute(Activity activity, String id) {
+        if (id.equals("RestartMusic")) return new Result(restart(activity, "Music"), true);
+        if (id.equals("RestartNavigator")) return new Result(restart(activity, "Navigator"), true);
         String component=selectedApp.apply(id);
         if(!component.isEmpty()) {
             ComponentName name=ComponentName.unflattenFromString(component);
             if(name==null)throw new IllegalArgumentException(UiText.get(R.string.ui_26));
             activity.startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(name)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED));
-            if (id.equals("Navigator")) events.publishNavigation(new Navigation(name.getPackageName(), "", -1));
-            return UiText.get(R.string.ui_27);
+            if (id.equals("Navigator")) events.publishNavigation(Navigation.opened(name.getPackageName()));
+            return requested(R.string.ui_27);
         }
         switch(id) {
-            case "ControlsSettings":activity.startActivity(MainActivity.settingsIntent(activity));return UiText.get(R.string.ui_28);
-            case "SystemSettings":activity.startActivity(new Intent(Settings.ACTION_SETTINGS));return UiText.get(R.string.ui_28);
-            case "Assistant":activity.startActivity(new Intent(Intent.ACTION_ASSIST));return UiText.get(R.string.ui_29);
+            case "ControlsSettings":activity.startActivity(MainActivity.settingsIntent(activity));return requested(R.string.ui_28);
+            case "SystemSettings":activity.startActivity(new Intent(Settings.ACTION_SETTINGS));return requested(R.string.ui_28);
+            case "Assistant":activity.startActivity(new Intent(Intent.ACTION_ASSIST));return requested(R.string.ui_29);
             case "Split":
                 if (!split.getAsBoolean())
                     throw new IllegalStateException(UiText.get(R.string.ui_30));
-                return UiText.get(R.string.ui_31);
-            default:return UiText.get(R.string.ui_32);
+                return requested(R.string.ui_31);
+            default:return new Result(UiText.get(R.string.ui_32), false);
         }
     }
 
     String restart(Activity activity, String role) {
         ComponentName name = ComponentName.unflattenFromString(selectedApp.apply(role));
         if (name == null || name.getPackageName().equals(activity.getPackageName())) {
-            throw new IllegalStateException(UiText.get(R.string.voice_restart_assignment));
+            throw new AssignmentRequired();
         }
         Intent intent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(name)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         var target = activity.getPackageManager().resolveActivity(intent, 0);
         if (target == null || !target.activityInfo.exported || !target.activityInfo.enabled) {
-            throw new IllegalStateException(UiText.get(R.string.voice_restart_assignment));
+            throw new AssignmentRequired();
         }
         activity.startActivity(intent);
-        if (role.equals("Navigator")) events.publishNavigation(new Navigation(name.getPackageName(), "", -1));
+        if (role.equals("Navigator")) events.publishNavigation(Navigation.opened(name.getPackageName()));
         return UiText.get(R.string.voice_restarted);
     }
+
+    private static Result requested(int label) { return new Result(UiText.get(label), true); }
 }

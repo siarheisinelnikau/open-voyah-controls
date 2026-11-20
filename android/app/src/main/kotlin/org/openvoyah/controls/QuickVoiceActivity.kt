@@ -25,11 +25,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.openvoyah.controls.core.VoiceCatalog
+import org.openvoyah.controls.core.voice.VoiceAudioOptions
+import org.openvoyah.controls.core.voice.VoiceAudioOptions.FeedbackStyle
+import org.openvoyah.controls.core.voice.VoiceAudioOptions.ReadyCueStyle
 import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.domain.voice.VoiceResult
 import org.openvoyah.controls.platform.voice.OfflineVoiceFeedback
 import org.openvoyah.controls.platform.voice.MicrophonePermission
+import org.openvoyah.controls.platform.voice.forRecognitionLanguage
+import org.openvoyah.controls.platform.voice.playReadyVoiceCue
+import org.openvoyah.controls.platform.voice.playVoiceCue
+import org.openvoyah.controls.platform.voice.speechText
 import org.openvoyah.controls.presentation.theme.ControlsTheme
 import org.openvoyah.controls.presentation.voice.QuickVoicePopup
 import org.openvoyah.controls.presentation.voice.VoiceViewModel
@@ -39,6 +47,7 @@ import org.openvoyah.controls.presentation.voice.VoiceViewModel.Phase
 class QuickVoiceActivity : ComponentActivity() {
     private var model by mutableStateOf<VoiceViewModel?>(null)
     private var startup by mutableStateOf(VoiceViewModel.State(Phase.PREPARING, UiText.get(R.string.ui_139)))
+    private var popupOptions by mutableStateOf(VoiceAudioOptions.DEFAULTS)
     private var feedback: OfflineVoiceFeedback? = null
     private var foreground = false
     private var startPending = true
@@ -66,11 +75,8 @@ class QuickVoiceActivity : ComponentActivity() {
             ControlsTheme {
                 val viewModel = model
                 val recover = if (microphoneRecovery) ::openMicrophoneSettings else null
-                if (viewModel == null) QuickVoicePopup(startup, recover)
-                else {
-                    val state by viewModel.state.collectAsStateWithLifecycle()
-                    QuickVoicePopup(state, recover)
-                }
+                val state = if (viewModel == null) startup else viewModel.state.collectAsStateWithLifecycle().value
+                QuickVoicePopup(state, popupOptions.showRecognizedPhrase(), recover)
             }
         }
         window.setLayout(minOf(px(440), resources.displayMetrics.widthPixels - px(24)).coerceAtLeast(1),
@@ -85,18 +91,33 @@ class QuickVoiceActivity : ComponentActivity() {
     private suspend fun prepareCapture() {
         val settings = VoiceSettings(applicationContext)
         try {
+            val audio = withContext(Dispatchers.IO) { settings.audioOptions() }
+            popupOptions = audio
             val configuration = withContext(Dispatchers.IO) {
-                Configuration(settings.withContacts(), settings.language(), settings.option("duckMedia"),
-                    settings.option("spokenFeedback"))
+                val language = settings.language()
+                Configuration(settings.withContacts(), language, settings.option("duckMedia"),
+                    settings.option("spokenFeedback"), settings.offlineVoice(language), settings.readyPrompt(language))
             }
+            val hasReadyCue = audio.readyCue() && audio.readyCueGain() > 0f
+            val speakReplies = configuration.spokenFeedback && audio.speechGain() > 0f
+            val speech = if (speakReplies || (hasReadyCue && audio.readyCueStyle() == ReadyCueStyle.SPOKEN)) {
+                OfflineVoiceFeedback(this, configuration.language)
+            } else null
+            feedback = speech
+            val readyCue: (suspend () -> Unit)? = if (hasReadyCue) {
+                { playReadyVoiceCue(applicationContext, audio, speech, configuration.offlineVoiceName, configuration.readyPrompt, ::ownsForeground) }
+            } else null
+            val endCue = voiceCue(R.raw.voice_end, audio.endCueGain())
             val viewModel = VoiceScreenFactory.create(this, configuration.catalog, settings,
-                configuration.language, configuration.duckMedia)
-            if (configuration.spokenFeedback) {
-                feedback = OfflineVoiceFeedback(this, configuration.language)
+                configuration.language, configuration.duckMedia, readyCue, endCue, audio.feedbackStyle(), audio.listeningWindow())
+            if (speakReplies && speech != null) {
+                val recognitionContext = applicationContext.forRecognitionLanguage(configuration.language)
                 lifecycleScope.launch {
                     repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                        viewModel.feedback.collect { phrase ->
-                            if (foreground) feedback?.speak(phrase)
+                        viewModel.feedback.collect { line ->
+                            if (ownsForeground()) {
+                                speech.speak(line.speechText(recognitionContext), audio, configuration.offlineVoiceName)
+                            }
                         }
                     }
                 }
@@ -104,10 +125,7 @@ class QuickVoiceActivity : ComponentActivity() {
             model = viewModel
             lifecycleScope.launch {
                 viewModel.state.first { it.phase == Phase.DONE }
-                if (!microphoneRecovery) {
-                    delay(RESULT_MS)
-                    finish()
-                }
+                if (!microphoneRecovery) finishAfterResult(audio)
             }
             startIfReady()
         } catch (cancelled: CancellationException) {
@@ -117,9 +135,18 @@ class QuickVoiceActivity : ComponentActivity() {
         }
     }
 
+    private fun voiceCue(sound: Int, gain: Float): (suspend () -> Unit)? {
+        if (gain <= 0f) return null
+        return {
+            playVoiceCue(applicationContext, sound, gain, ::ownsForeground)
+        }
+    }
+
+    private fun ownsForeground() = foreground && hasWindowFocus() && !isFinishing
+
     private fun startIfReady() {
         val viewModel = model ?: return
-        if (!startPending || !foreground || !hasWindowFocus() || permissionPending) return
+        if (!startPending || !ownsForeground() || permissionPending) return
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             if (microphonePermission.requested() && !shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)) {
                 startPending = false
@@ -147,11 +174,15 @@ class QuickVoiceActivity : ComponentActivity() {
         if (viewModel != null) viewModel.finish(VoiceResult(message, failed = true))
         else {
             startup = VoiceViewModel.State(Phase.DONE, message, failed = true)
-            lifecycleScope.launch {
-                delay(RESULT_MS)
-                finish()
-            }
+            lifecycleScope.launch { finishAfterResult(popupOptions) }
         }
+    }
+
+    private suspend fun finishAfterResult(audio: VoiceAudioOptions) {
+        delay(audio.resultDuration().millis())
+        val grace = if (audio.feedbackStyle() == FeedbackStyle.OUTCOME) OUTCOME_GRACE_MS else SPEECH_GRACE_MS
+        withTimeoutOrNull(grace) { feedback?.awaitIdle() }
+        finish()
     }
 
     override fun onResume() {
@@ -163,6 +194,11 @@ class QuickVoiceActivity : ComponentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) startIfReady()
+        else if (!startPending && !permissionPending && !microphoneRecovery) {
+            model?.close()
+            feedback?.stop()
+            finish()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -194,10 +230,13 @@ class QuickVoiceActivity : ComponentActivity() {
         val language: String,
         val duckMedia: Boolean,
         val spokenFeedback: Boolean,
+        val offlineVoiceName: String,
+        val readyPrompt: String,
     )
 
     companion object {
-        private const val RESULT_MS = 2_000L
+        private const val SPEECH_GRACE_MS = 3_000L
+        private const val OUTCOME_GRACE_MS = 5_000L
 
         @JvmStatic
         fun intent(context: Context): Intent =

@@ -2,5 +2,14 @@
     <application>
         <uses-library android:name="android.test.runner" />
         <uses-library android:name="android.test.base" />
+        <service android:name="org.openvoyah.controls.fixtures.HeadlightFixtureService"
+            android:process=":headlight_fixture" android:exported="true" />
+        <service android:name="org.openvoyah.controls.fixtures.SilentTtsFixture"
+            android:process=":tts_fixture" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.TTS_SERVICE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

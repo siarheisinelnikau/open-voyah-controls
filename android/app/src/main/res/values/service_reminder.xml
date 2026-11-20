@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_reminder_title">Service reminder</string>
+    <string name="service_reminder_summary">Plan maintenance by mileage, date, or both.</string>
+    <string name="service_reminder_next">Next service</string>
+    <string name="service_reminder_distance">%1$s km</string>
+    <string name="service_reminder_remaining">Service in %1$s km</string>
+    <string name="service_reminder_due">Service due</string>
+    <string name="service_reminder_overdue">Service overdue by %1$s km</string>
+    <string name="service_reminder_missing_readings">Enter the mileage interval and odometer readings, or the calendar interval and last service date.</string>
+    <string name="service_reminder_show_on_vehicle">Show upcoming service on the Vehicle screen</string>
+    <string name="service_reminder_lead_title">When to show the reminder</string>
+    <string name="service_reminder_lead_auto">Automatic</string>
+    <string name="service_reminder_lead_auto_distance">Automatic · %1$s km</string>
+    <string name="service_reminder_lead_limited">%1$s selected · %2$s for this interval</string>
+    <string name="service_reminder_readings_title">Service interval and odometer</string>
+    <string name="service_reminder_interval">Service interval (km)</string>
+    <string name="service_reminder_current">Current odometer (km)</string>
+    <string name="service_reminder_last">Odometer at last service (km)</string>
+    <string name="service_reminder_invalid">Use a positive interval and a current reading at least as high as the last service reading.</string>
+    <string name="service_reminder_save">Save service plan</string>
+    <string name="service_reminder_save_failed">The service plan could not be saved. Try again.</string>
+    <string name="service_reminder_calendar_title">Calendar schedule</string>
+    <string name="service_reminder_calendar_summary">Service is due when either the date or mileage limit is reached.</string>
+    <string name="service_reminder_calendar_interval">Calendar interval (months, optional)</string>
+    <string name="service_reminder_calendar_last_date">Last service date</string>
+    <string name="service_reminder_calendar_date_format">YYYY-MM-DD</string>
+    <string name="service_reminder_calendar_invalid">Use 1–120 months and a valid date on or before today.</string>
+    <string name="service_reminder_calendar_save">Save calendar schedule</string>
+    <string name="service_reminder_calendar_lead_title">Remind before the service date</string>
+    <string name="service_reminder_calendar_lead_due">On the due date</string>
+    <string name="service_reminder_calendar_lead_days">%1$d days</string>
+    <string name="service_reminder_calendar_due_date">Service by %1$s</string>
+    <string name="service_reminder_calendar_due_today">Service due today</string>
+    <string name="service_reminder_calendar_overdue">Service overdue since %1$s</string>
+</resources>

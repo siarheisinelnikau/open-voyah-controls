@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
@@ -17,16 +18,17 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.withStarted
 import kotlinx.coroutines.launch
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.appWindowConfiguration
 import org.openvoyah.controls.core.Firmware
-import org.openvoyah.controls.data.frida.FridaBridge
-import org.openvoyah.controls.data.frida.FridaWindowControls
 import org.openvoyah.controls.data.settings.FirmwareMaintenance
+import org.openvoyah.controls.domain.display.WindowConnection
 import org.openvoyah.controls.presentation.maintenance.FirmwareAction
 import org.openvoyah.controls.presentation.maintenance.FirmwareScreen
 import org.openvoyah.controls.presentation.maintenance.MaintenanceViewModel
@@ -41,7 +43,7 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit) {
     val app = context.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
     val adapter = remember(app) { FirmwareMaintenance(app) }
-    val windows = remember(app) { FridaWindowControls(app) }
+    val windows = remember(app) { appWindowConfiguration(app) }
     val model = remember(activity) {
         ViewModelProvider(activity, viewModelFactory {
             initializer { MaintenanceViewModel(firmwareWork) }
@@ -59,6 +61,17 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit) {
         }
     }
     val state by model.state.collectAsStateWithLifecycle(lifecycleOwner = lifecycleOwner)
+    val lifecycle by lifecycleOwner.lifecycle.currentStateAsState()
+    val active = lifecycle.isAtLeast(Lifecycle.State.STARTED)
+    val windowStatus by produceState<Int?>(null, active, state) {
+        if (windows.supported && active && !state.working) {
+            value = when (windows.connection()) {
+                WindowConnection.DISCONNECTED -> R.string.cockpit_setup_required
+                WindowConnection.DISABLED -> R.string.cockpit_disabled
+                WindowConnection.ENABLED -> R.string.cockpit_enabled
+            }
+        }
+    }
     val routeScope = rememberCoroutineScope()
     val importFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) routeScope.launch {
@@ -102,11 +115,6 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit) {
     }
 
     val product = remember { "${Build.PRODUCT} · ${Firmware.identify(Build.PRODUCT)}" }
-    val windowStatus = if (!FridaBridge.windowHookSupported()) null else when (windows.connection()) {
-        FridaWindowControls.Connection.DISCONNECTED -> R.string.cockpit_setup_required
-        FridaWindowControls.Connection.DISABLED -> R.string.cockpit_disabled
-        FridaWindowControls.Connection.ENABLED -> R.string.cockpit_enabled
-    }
     FirmwareScreen(product, adapter.translationEnabled(), windowStatus, state, back, ::select)
 }
 

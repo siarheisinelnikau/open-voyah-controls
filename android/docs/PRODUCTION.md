@@ -2,6 +2,8 @@
 
 Use a separate release and qualification record for each reviewed head unit build. The Android API level and product family identify candidate adapters. The full build fingerprint, ABI, OEM package certificates, and APK hashes identify a reviewed build. The shipped catalogs start empty until device evidence is available.
 
+For VOYAH FREE 318 H97D, preview the cockpit layout at the central display's published 1920 × 720 resolution. Use the installed firmware's Android display density and system bar insets when available. The current emulator preview uses a 240 dpi Android setting. Confirm the layout, reachable shortcuts and reserved content area on the actual head unit. [FREE 318 central display specifications](https://myroncars.com/en/new-cars/voyah/free/318-4wd-discovery-edition)
+
 ## Prepare a signed release
 
 Set the following variables in the local release environment. Keep the keystore and its passwords in the release secret store. The certificate fingerprint is public and must agree with the one pinned in the Windows installer.
@@ -29,6 +31,20 @@ Run the read-only evidence tool with an explicitly selected ADB device and a loc
 ```
 
 The tool verifies the selected device identity across the read and reports the active OEM package hashes and signing certificates. The output includes candidate rows for review. It omits the device serial and removes its temporary APK copies. An unavailable OEM component needs a separate check on that firmware.
+
+Use the narrower cockpit scope when reviewing the light feedback or factory seat handoff.
+
+```powershell
+./tools/read-firmware-evidence.ps1 -Scope Cockpit -Serial <ADB-serial> -SdkRoot <Android-SDK> -EventWindowSeconds 45
+```
+
+This scope records the installed Controls, CAN service, factory vehicle and factory vehicle settings packages. It includes the Android product and the optional factory product string. The `android_automotive` section records the Android API check, the advertised Automotive feature, the shared library declaration, `car_service` visibility to the selected shell and three effective permission checks for the verified Controls APK and foreground Android user. The official Android Automotive 13 emulator shows a running car service with no `android.car` shared-library declaration in Package Manager. `not_visible` describes what the shell can see, and `unknown` means the check could not be established. The reader events and independent lamp observations establish property availability for the app and data delivery.
+
+The `android_automotive.headlight_properties` section reads the switch, headlamp and high-beam configurations independently through `car_service`, when visible to the selected shell. Each result includes the exact property ID, observed access and change mode when available. **Compatible** means the returned configuration matches the Controls reader's requirements. **Incompatible** means a configuration was identified outside those requirements. **Unavailable** means the shell returned no usable configuration for that property. **Not probed** means the service was unavailable to the diagnostic check. Compare these results with the Controls permissions and reader events to establish whether the app receives observations.
+
+When `car_service` is visible, `android_automotive.seat_memory` reports the driver's seat area and the inclusive index ranges advertised for Save and Restore. The report reads the driver area from `INFO_DRIVER_SEAT` and the ranges from the two properties' configurations. Each field is `null` when the selected shell lacks a usable response. Compare the reported driver area with the ranges for that area and review the Controls permission separately. Qualification on the vehicle must establish the factory preset order and whether the positions include both exterior mirrors. [Driver seat location](https://developer.android.com/reference/android/car/VehiclePropertyIds#INFO_DRIVER_SEAT) · [Seat memory properties](https://developer.android.com/reference/android/car/VehiclePropertyIds#SEAT_MEMORY_SELECT)
+
+The optional window captures selector feedback, Android Automotive reader outcomes and lamp observations, screen-power events, driver-memory guidance and explicit factory launch requests from the active Controls process. Controls package lookup and process ownership use the foreground Android user, including headless-system-user Automotive builds. The report discards events when its identity checks detect a user or process change. Verify the physical seat and mirror positions on the selected slot and observe a full sleep and wake cycle at the head unit.
 
 Approve only packages whose actual classes, entry points, behavior, and recovery have been checked for this fingerprint. Record separately the evidence for privileged window management, profile operations, and each physical command. A package being present or an acknowledgment from a system service does not certify an actuator outcome.
 

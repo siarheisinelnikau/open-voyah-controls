@@ -11,7 +11,7 @@ Normal app screens share `MainActivity` and use Jetpack Compose. The root destin
 
 Normal screens use explicit routes in `MainActivity`. The application declares three real Activities and no activity aliases. The voice popup and installer handshake require a privileged permission for external callers; the application can open its own screens directly.
 
-Launching Controls or using the explicit app-grid entry returns to the root grid. With reviewed panel assignments enabled, a short press on the central lower-left menu button opens this grid by default; holding the button keeps the native launcher action. Detail destinations have Back navigation within the shared host. Android system screens and the foreground voice popup remain separate boundaries.
+Launching Controls or using the explicit app-grid entry returns to the root grid. When extra desktops are enabled, the tabs sit above the tiles and fresh grid entries open the saved default desktop. With reviewed panel assignments enabled, a short press on the central lower-left menu button opens this grid by default; holding the button keeps the native launcher action. Detail destinations have Back navigation within the shared host. Android system screens and the foreground voice popup remain separate boundaries.
 
 Android owns runtime permission dialogs, file selection, package-install approval, system settings, keyboard and toasts. The display destination embeds a native `SurfaceView` for the virtual display. Its `Presentation` and app dialog windows host `ComposeView` content.
 
@@ -19,20 +19,22 @@ Android owns runtime permission dialogs, file selection, package-install approva
 
 The existing Gradle modules retain logical MVVM and Clean Architecture boundaries. `core` contains Android-free command rules, button/session logic and ports. App `data` adapters own persistence, document serialization, Frida transport and privileged integration. Presentation ViewModels expose immutable state through StateFlow; Compose collects it using the destination lifecycle and handles local view state. Platform adapters and Android entry points handle permissions, intents, media, input and other operating-system events.
 
-Navigation state belongs to `ControlsNavigationViewModel` and is saved across host recreation. Each animated destination receives its own lifecycle: an outgoing route is capped at `CREATED`, so it cannot consume new UI effects while its last frame exits. Route-owned dialogs and preview resources close when their owner stops or leaves. Confirmed maintenance work has an independent lifetime; navigating away does not cancel an in-progress firmware or cluster transaction. Firmware and cluster maintenance use separate ViewModel keys in the shared host.
+`ControlsNavigationViewModel` publishes the route stack, entry revision, and motion direction together. The stack and entry revision survive host recreation. Each animated destination receives its own lifecycle. The outgoing route drops to `CREATED`, leaves the accessibility tree, and stops accepting input during its exit. Route-owned dialogs and preview resources close when their owner stops or leaves. Confirmed maintenance work continues independently of navigation. Firmware and cluster maintenance use separate ViewModel keys in the shared host.
 
 ## Motion behavior
 
 The shared palette uses neutral graphite surfaces, saturated blue actions, cool secondary text and restrained orange voice accents. Static cached lighting gives the background depth; it does not animate. App icons and labels have no background cards. Controls shortcuts and section icons use unboxed line artwork. Error feedback retains a separate coral role.
 
-- Route navigation uses a small directional slide and crossfade. The app grid opens directly; detail navigation does not create another normal-screen Activity.
+**Settings → Appearance** offers **Dark** and **Daytime** color themes. **High contrast** adjusts text, actions and outlines in either theme. **Text size** scales Compose typography together with Android's font size. **Spacing** adjusts page and card padding while keeping touch targets at their usual size. **Corner style** changes card, button and dialog shapes. **Start screen** selects the app grid, vehicle settings or general settings when starting Controls from its app icon. The app grid is the default. Explicit shortcuts and system Back use their own navigation routes.
+
+- Forward and Back use short, mirrored slides with a crossfade. External entries open their destination directly while Android handles the task transition. **Settings → Appearance → Animate screen transitions** controls in-app navigation and is enabled by default. **Transition speed** selects Short, Standard or Smooth and keeps the chosen speed if transitions are disabled. Navigation to or from the display screen switches immediately because its native preview surface cannot blend into a Compose transition on Android 9 and 11.
 - Shared actions, navigation rows and app tiles use a 120 ms press response with a restrained scale change and surface feedback.
 - Sections resize over 180 ms when their content changes. Status and result changes use short crossfades; first-run actions expand when available.
 - App and command lists animate placement and appearance when their data changes. Assignment dialogs animate transitions between their steps.
 - Activity and dialog windows have finite entry/exit transitions. The voice popup also animates recognition-state changes, and the virtual display crossfades changed media/navigation content.
 - Compose honors Android's animator duration scale, including zero. Window transitions honor the corresponding system window/transition scales. There are no permanent decorative animation loops.
 
-State collection follows the destination lifecycle. Settings snapshots copy mutable preferences into immutable presentation state. Closing the display route releases its presentation and virtual display; inactive routes must not retain a continuous draw loop.
+State collection follows the destination lifecycle. Settings snapshots copy mutable preferences into immutable presentation state. The app grid decodes the selected desktop's saved image on an I/O worker. Playback progress derives from a timed media-session sample and ticks while the visible preview shows a playing track. The main Displays screen owns playback actions. Closing the display route releases its presentation, media-preview listener and virtual display.
 
 ## Verification scope
 

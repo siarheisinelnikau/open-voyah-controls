@@ -1,0 +1,36 @@
+<resources>
+    <string name="appearance_text_size">Размер текста</string>
+    <string name="appearance_navigation_label_size">Размер подписей навигации</string>
+    <string name="appearance_page_title_size">Размер заголовков страниц</string>
+    <string name="appearance_text_follow">По общему размеру текста</string>
+    <string name="appearance_spacing">Отступы</string>
+    <string name="appearance_corners">Скругление углов</string>
+    <string name="appearance_option_standard">По умолчанию</string>
+    <string name="appearance_transition_speed">Скорость переходов</string>
+    <string name="appearance_transition_short">Быстрая</string>
+    <string name="appearance_transition_smooth">Плавная</string>
+    <string name="appearance_text_large">Крупный</string>
+    <string name="appearance_text_extra_large">Очень крупный</string>
+    <string name="appearance_spacing_compact">Компактные</string>
+    <string name="appearance_spacing_spacious">Просторные</string>
+    <string name="appearance_corners_subtle">Небольшое</string>
+    <string name="appearance_corners_rounded">Выраженное</string>
+    <string name="appearance_palette">Цветовая тема</string>
+    <string name="appearance_palette_dark">Тёмная</string>
+    <string name="appearance_palette_day">Дневная</string>
+    <string name="appearance_accent">Цвет акцента</string>
+    <string name="appearance_accent_default">Синий по умолчанию</string>
+    <string name="appearance_accent_teal">Бирюзовый</string>
+    <string name="appearance_accent_amber">Янтарный</string>
+    <string name="appearance_wallpaper_dimming">Приглушение обоев</string>
+    <string name="appearance_wallpaper_dimming_description">Применяется ко всем пользовательским обоям рабочих столов.</string>
+    <string name="appearance_wallpaper_dimming_light">Слабое</string>
+    <string name="appearance_wallpaper_dimming_strong">Сильное</string>
+    <string name="appearance_background">Фон экранов</string>
+    <string name="appearance_background_ambient">С мягкими бликами</string>
+    <string name="appearance_background_solid">Однотонный</string>
+    <string name="appearance_font_family">Шрифт</string>
+    <string name="appearance_font_system">Системный шрифт</string>
+    <string name="appearance_font_golos">Golos Text</string>
+    <string name="appearance_bold_text">Жирный текст</string>
+</resources>

@@ -12,6 +12,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
@@ -31,7 +33,8 @@ import org.openvoyah.controls.UiText
 
 @Composable
 internal fun CockpitAppPicker(title: String, back: () -> Unit, select: (InstalledApps.Entry?) -> Unit,
-                              defaultChoice: String? = null, backLabel: String = UiText.get(R.string.cockpit_back)) {
+                              defaultChoice: String? = null, backLabel: String = UiText.get(R.string.cockpit_back),
+                              eligible: ((String) -> Boolean)? = null, noChoices: String? = null) {
     val app = LocalContext.current.applicationContext
     val keyboard = LocalSoftwareKeyboardController.current
     val focus = LocalFocusManager.current
@@ -43,19 +46,35 @@ internal fun CockpitAppPicker(title: String, back: () -> Unit, select: (Installe
             singleLine = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { finishSearch() }))
         val entries = (apps as? AppList.Ready)?.entries.orEmpty()
-        val visible = remember(entries, query) {
-            val search = query.trim()
-            entries.filter { it.label().contains(search, ignoreCase = true) ||
+        val choices = remember(entries, eligible) {
+            if (eligible == null) entries else entries.filter { eligible(it.component().flattenToString()) }
+        }
+        val labelCounts = remember(choices) { choices.groupingBy { it.label() to it.component().packageName }.eachCount() }
+        val search = query.trim()
+        val visible = remember(choices, search) {
+            choices.filter { it.label().contains(search, ignoreCase = true) ||
                 it.component().flattenToString().contains(search, ignoreCase = true) }
         }
-        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 310.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            defaultChoice?.let { label -> item { CockpitChoice(label) { finishSearch(); select(null) } } }
-            when {
-                apps == AppList.Loading -> item { CockpitFeedback(UiText.get(R.string.binding_apps_loading)) }
-                apps == AppList.Failed || entries.isEmpty() -> item { CockpitFeedback(UiText.get(R.string.ui_112)) }
-                visible.isEmpty() -> item { CockpitFeedback(UiText.get(R.string.binding_apps_no_match)) }
-                else -> items(visible, key = { it.component().flattenToString() }) { entry ->
-                    CockpitChoice(entry.label(), entry.component().packageName, modifier = Modifier.animateItem()) { finishSearch(); select(entry) }
+        key(search) {
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 310.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                if (search.isEmpty()) defaultChoice?.let { label ->
+                    item { CockpitChoice(label) { finishSearch(); select(null) } }
+                }
+                when {
+                    apps == AppList.Loading -> item { CockpitFeedback(UiText.get(R.string.binding_apps_loading)) }
+                    apps == AppList.Failed || entries.isEmpty() -> item { CockpitFeedback(UiText.get(R.string.ui_112)) }
+                    choices.isEmpty() -> item { CockpitFeedback(noChoices ?: UiText.get(R.string.ui_112)) }
+                    visible.isEmpty() -> item { CockpitFeedback(UiText.get(R.string.binding_apps_no_match)) }
+                    else -> items(visible, key = { it.component().flattenToString() }) { entry ->
+                        val component = entry.component()
+                        val detail = if (labelCounts.getValue(entry.label() to component.packageName) > 1) {
+                            component.flattenToShortString()
+                        } else component.packageName
+                        CockpitChoice(entry.label(), detail, modifier = Modifier.testTag("appPicker:${component.flattenToString()}")) {
+                            finishSearch()
+                            select(entry)
+                        }
+                    }
                 }
             }
         }

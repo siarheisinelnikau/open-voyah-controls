@@ -21,33 +21,45 @@ class VoiceViewModelTest : AndroidTestCase() {
     }
 
     fun testFinalSeatCommandDispatchesOnceWithoutAnAdditionalAction() = runBlocking {
-        val input = Input()
-        val received = mutableListOf<String>()
-        model(input, received).use { model ->
-            model.listen()
-            model.listen()
-            input.events.emit(SpeechEvent.Listening("listening"))
-            assertEquals(Phase.LISTENING, model.state.value.phase)
-            input.events.emit(SpeechEvent.Recognized("сиденье водителя один"))
-            input.events.emit(SpeechEvent.Recognized("выключи фары"))
-            assertEquals(listOf("GetFromMemoryCellOne"), received)
-            assertEquals(1, input.captures)
-            assertEquals(Phase.DONE, model.state.value.phase)
-            assertEquals("sent", model.state.value.status)
-            assertFalse(model.state.value.failed)
+        val drivers = mapOf(
+            "водитель один" to "GetFromMemoryCellOne",
+            "водитель два" to "GetFromMemoryCellTwo",
+            "водитель три" to "GetFromMemoryCellThree",
+            "водитель 1" to "GetFromMemoryCellOne",
+            "водитель 2" to "GetFromMemoryCellTwo",
+            "водитель 3" to "GetFromMemoryCellThree",
+        )
+        for ((phrase, expected) in drivers) {
+            val input = Input()
+            val received = mutableListOf<String>()
+            model(input, received).use { model ->
+                model.listen()
+                model.listen()
+                input.events.emit(SpeechEvent.Listening("listening"))
+                assertEquals(Phase.LISTENING, model.state.value.phase)
+                input.events.emit(SpeechEvent.Recognized(phrase))
+                input.events.emit(SpeechEvent.Recognized("выключи фары"))
+                assertEquals(phrase, listOf(expected), received)
+                assertEquals(1, input.captures)
+                assertEquals(Phase.DONE, model.state.value.phase)
+                assertEquals("sent", model.state.value.status)
+                assertFalse(model.state.value.failed)
+            }
         }
     }
 
     fun testUnknownPhraseDoesNotDispatch() = runBlocking {
-        val input = Input()
-        val received = mutableListOf<String>()
-        model(input, received).use { model ->
-            model.listen()
-            input.events.emit(SpeechEvent.Recognized("не выключай фары"))
-            assertTrue(received.isEmpty())
-            assertEquals(Phase.DONE, model.state.value.phase)
-            assertEquals("unknown", model.state.value.status)
-            assertTrue(model.state.value.failed)
+        for (phrase in listOf("не выключай фары", "водитель 4", "не водитель 2")) {
+            val input = Input()
+            val received = mutableListOf<String>()
+            model(input, received).use { model ->
+                model.listen()
+                input.events.emit(SpeechEvent.Recognized(phrase))
+                assertTrue(phrase, received.isEmpty())
+                assertEquals(Phase.DONE, model.state.value.phase)
+                assertEquals("unknown", model.state.value.status)
+                assertTrue(model.state.value.failed)
+            }
         }
     }
 

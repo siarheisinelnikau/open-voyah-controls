@@ -1,14 +1,20 @@
 package org.openvoyah.controls.platform.voice
 
 import android.app.Activity
-import android.content.Intent
-import android.net.Uri
+import android.util.Log
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.Lifecycle
 import java.lang.ref.WeakReference
+import java.util.Locale
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.display.DisplayEventBus
+import org.openvoyah.controls.domain.seatmemory.SeatMemorySlot
+import org.openvoyah.controls.platform.phone.openPhoneDialer
 import org.openvoyah.controls.domain.voice.NaturalAction
+import org.openvoyah.controls.domain.voice.VoiceOutcome
 import org.openvoyah.controls.domain.voice.VoiceResult
+import org.openvoyah.controls.presentation.navigation.ControlsNavigation
 
 /** Android UI actions run on the foreground screen. Frida has its own gateway. */
 internal class VoiceUiActions(
@@ -26,9 +32,16 @@ internal class VoiceUiActions(
     fun runLocal(id: String, phrase: String): VoiceResult {
         val activity = screen.get()?.takeUnless { it.isDestroyed } ?: return VoiceResult(UiText.get(R.string.ui_148), failed = true)
         return try {
-            VoiceResult(if (launches.supports(id)) launches.execute(activity, id) else media.execute(id, phrase))
+            if (launches.supports(id)) {
+                val launch = launches.execute(activity, id)
+                if (launch.requested()) requested(launch.message())
+                else VoiceResult(launch.message(), failed = true, outcome = VoiceOutcome.APP_ASSIGNMENT_REQUIRED)
+            } else requested(media.execute(id, phrase))
         } catch (failure: SecurityException) {
-            VoiceResult(UiText.get(R.string.ui_204), failed = true)
+            VoiceResult(UiText.get(R.string.ui_204), failed = true, outcome = VoiceOutcome.BLOCKED)
+        } catch (failure: LaunchVoiceActions.AssignmentRequired) {
+            VoiceResult(UiText.get(R.string.ui_205) + failure.message.orEmpty(), failed = true,
+                outcome = VoiceOutcome.APP_ASSIGNMENT_REQUIRED)
         } catch (failure: Exception) {
             VoiceResult(UiText.get(R.string.ui_205) + failure.message.orEmpty(), failed = true)
         }
@@ -38,12 +51,16 @@ internal class VoiceUiActions(
         val activity = screen.get()?.takeUnless { it.isDestroyed || it.isFinishing }
             ?: return VoiceResult(UiText.get(R.string.ui_148), failed = true)
         return try {
-            VoiceResult(when (action) {
+            requested(when (action) {
                 NaturalAction.VOLUME_UP -> media.execute("VolumeUp", "")
                 NaturalAction.VOLUME_DOWN -> media.execute("VolumeDown", "")
                 NaturalAction.RESTART_MUSIC -> launches.restart(activity, "Music")
                 NaturalAction.RESTART_NAVIGATION -> launches.restart(activity, "Navigator")
             })
+        } catch (failure: LaunchVoiceActions.AssignmentRequired) {
+            VoiceResult(failure.message.orEmpty(), failed = true, outcome = VoiceOutcome.APP_ASSIGNMENT_REQUIRED)
+        } catch (failure: SecurityException) {
+            VoiceResult(failure.message ?: UiText.get(R.string.ui_85), failed = true, outcome = VoiceOutcome.BLOCKED)
         } catch (failure: Exception) {
             VoiceResult(failure.message ?: UiText.get(R.string.ui_85), failed = true)
         }
@@ -52,10 +69,30 @@ internal class VoiceUiActions(
     fun dial(phone: String): VoiceResult {
         val activity = screen.get()?.takeUnless { it.isDestroyed } ?: return VoiceResult(UiText.get(R.string.ui_148), failed = true)
         return try {
-            activity.startActivity(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", phone, null)))
-            VoiceResult(UiText.get(R.string.ui_201))
+            openPhoneDialer(activity, phone)
+            requested(UiText.get(R.string.ui_201))
+        } catch (failure: SecurityException) {
+            VoiceResult(UiText.get(R.string.ui_202) + failure.message.orEmpty(), failed = true, outcome = VoiceOutcome.BLOCKED)
         } catch (failure: Exception) {
             VoiceResult(UiText.get(R.string.ui_202) + failure.message.orEmpty(), failed = true)
         }
     }
+
+    fun openDriverMemory(slot: SeatMemorySlot): VoiceResult {
+        val activity = screen.get() as? ComponentActivity
+        if (activity == null || activity.isFinishing || activity.isDestroyed || !activity.hasWindowFocus() ||
+            !activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            return VoiceResult(UiText.get(R.string.ui_148), failed = true)
+        }
+        return try {
+            activity.startActivity(ControlsNavigation.driverMemoryIntent(activity, slot))
+            Log.i("OpenVoyahControls", "event=driver_memory_guidance slot=${slot.number} outcome=requested")
+            requested(UiText.get(R.string.seat_memory_voice_opening).format(Locale.ROOT, slot.number))
+        } catch (failure: RuntimeException) {
+            Log.w("OpenVoyahControls", "event=driver_memory_guidance slot=${slot.number} outcome=failed type=${failure.javaClass.simpleName}")
+            VoiceResult(UiText.get(R.string.seat_memory_voice_open_failed), failed = true)
+        }
+    }
+
+    private fun requested(message: String) = VoiceResult(message, outcome = VoiceOutcome.LOCAL_REQUESTED)
 }
