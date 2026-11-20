@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.util.Log
 import androidx.core.content.ContextCompat
 import java.time.LocalDate
 import kotlinx.coroutines.channels.awaitClose
@@ -13,6 +12,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import org.openvoyah.controls.diagnostics.ControlsLog
 
 /** Reads the local date on subscription and when Android reports time or date changes. */
 internal fun serviceReminderDates(context: Context): Flow<LocalDate> {
@@ -33,7 +33,7 @@ internal fun serviceReminderDates(context: Context): Flow<LocalDate> {
         awaitClose { app.unregisterReceiver(receiver) }
     }.conflate().catch { error ->
         if (error !is SecurityException) throw error
-        Log.w("OpenVoyahControls", "event=service_reminder_date outcome=updates_unavailable")
+        ControlsLog.warn("service_reminder_date", "outcome", "updates_unavailable")
         emit(LocalDate.now())
     }.distinctUntilChanged()
 }

@@ -2,7 +2,6 @@ package org.openvoyah.controls.data.vehicle.automation
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
@@ -12,6 +11,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.vehicle.automation.DrivingModeMemorySettings
 import org.openvoyah.controls.domain.vehicle.automation.HeadlightGearAction
 import org.openvoyah.controls.domain.vehicle.automation.HeadlightGearSettings
@@ -68,10 +68,10 @@ internal class LocalVehicleAutomationPreferences(context: Context) : VehicleAuto
                 else -> error("Unsupported original preference type")
             }
             rollback.commit()
-            Log.w("OpenVoyahControls", "event=vehicle_automation_settings outcome=commit_failed")
+            ControlsLog.warn("vehicle_automation_settings", "outcome", "commit_failed")
             error("Could not save vehicle automation settings")
         }
-        Log.i("OpenVoyahControls", "event=vehicle_automation_settings outcome=saved")
+        ControlsLog.info("vehicle_automation_settings", "outcome", "saved")
     }
 
     companion object {

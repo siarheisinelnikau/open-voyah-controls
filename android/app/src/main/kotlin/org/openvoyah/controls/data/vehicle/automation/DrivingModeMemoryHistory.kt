@@ -2,7 +2,6 @@ package org.openvoyah.controls.data.vehicle.automation
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
@@ -12,6 +11,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.vehicle.automation.DrivingMode
 import org.openvoyah.controls.domain.vehicle.automation.DrivingModeHistory
 import org.openvoyah.controls.domain.vehicle.automation.DrivingModeRecord
@@ -44,10 +44,10 @@ internal class LocalDrivingModeHistory(context: Context) : DrivingModeHistory {
                 val rollback = preferences.edit()
                 if (previous == null) rollback.remove(RECORD) else rollback.putString(RECORD, previous as String)
                 rollback.commit()
-                Log.w("OpenVoyahControls", "event=driving_mode_history outcome=commit_failed")
+                ControlsLog.warn("driving_mode_history", "outcome", "commit_failed")
                 error("Could not save actual driving mode")
             }
-            Log.i("OpenVoyahControls", "event=driving_mode_history outcome=confirmed mode=${record.mode.key} source=${record.sourceId}")
+            ControlsLog.info("driving_mode_history", "outcome", "confirmed", "mode", record.mode.key, "source", record.sourceId)
         }
     }
 

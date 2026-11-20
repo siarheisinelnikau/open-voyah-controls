@@ -1,7 +1,6 @@
 package org.openvoyah.controls.platform.voice
 
 import android.app.Activity
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.Lifecycle
 import java.lang.ref.WeakReference
@@ -9,6 +8,7 @@ import java.util.Locale
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.display.DisplayEventBus
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.seatmemory.SeatMemorySlot
 import org.openvoyah.controls.platform.phone.openPhoneDialer
 import org.openvoyah.controls.domain.voice.NaturalAction
@@ -86,10 +86,10 @@ internal class VoiceUiActions(
         }
         return try {
             activity.startActivity(ControlsNavigation.driverMemoryIntent(activity, slot))
-            Log.i("OpenVoyahControls", "event=driver_memory_guidance slot=${slot.number} outcome=requested")
+            ControlsLog.info("driver_memory_guidance", "slot", slot.number, "outcome", "requested")
             requested(UiText.get(R.string.seat_memory_voice_opening).format(Locale.ROOT, slot.number))
         } catch (failure: RuntimeException) {
-            Log.w("OpenVoyahControls", "event=driver_memory_guidance slot=${slot.number} outcome=failed type=${failure.javaClass.simpleName}")
+            ControlsLog.warn("driver_memory_guidance", "slot", slot.number, "outcome", "failed", "type", failure)
             VoiceResult(UiText.get(R.string.seat_memory_voice_open_failed), failed = true)
         }
     }

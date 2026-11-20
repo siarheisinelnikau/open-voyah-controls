@@ -1,7 +1,6 @@
 package org.openvoyah.controls.data.routines
 
 import android.content.Context
-import android.util.Log
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -9,6 +8,7 @@ import kotlinx.coroutines.withContext
 import org.openvoyah.controls.data.apps.DesktopLayoutRevision
 import org.openvoyah.controls.data.apps.DesktopLayoutsPreferences
 import org.openvoyah.controls.data.settings.LocalSettingsArchive
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.domain.routines.RoutineStartupRequest
 
@@ -50,11 +50,11 @@ internal class RoutineLayoutExecution(context: Context) {
                 dispatch.tryApply(write)
             }
             val outcome = if (applied) "applied" else "no_longer_eligible"
-            Log.i("OpenVoyahControls", "event=routine_layout mode=$mode outcome=$outcome")
+            ControlsLog.info("routine_layout", "mode", mode, "outcome", outcome)
             applied
         } catch (cancelled: CancellationException) {
-            if (cancelled.suppressed.isEmpty()) Log.i("OpenVoyahControls", "event=routine_layout mode=$mode outcome=cancelled")
-            else Log.w("OpenVoyahControls", "event=routine_layout mode=$mode outcome=rollback_incomplete")
+            if (cancelled.suppressed.isEmpty()) ControlsLog.info("routine_layout", "mode", mode, "outcome", "cancelled")
+            else ControlsLog.warn("routine_layout", "mode", mode, "outcome", "rollback_incomplete")
             throw cancelled
         }
     }

@@ -3,12 +3,12 @@ package org.openvoyah.controls.platform.apps
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
-import android.util.Log
 import androidx.annotation.MainThread
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.openvoyah.controls.InstalledApps
 import org.openvoyah.controls.data.settings.VoiceSettings
+import org.openvoyah.controls.diagnostics.ControlsLog
 
 @MainThread
 internal suspend fun openDesktopNavigator(activity: Activity, stillActive: () -> Boolean): Boolean {
@@ -20,7 +20,7 @@ internal suspend fun openDesktopNavigator(activity: Activity, stillActive: () ->
                 InstalledApps.list(app, component.packageName).firstOrNull { it.component() == component }
             }
         } catch (_: RuntimeException) {
-            Log.i("OpenVoyahControls", "event=desktop_navigator_launch outcome=launcher_lookup_failed")
+            ControlsLog.info("desktop_navigator_launch", "outcome", "launcher_lookup_failed")
             null
         }
     } ?: return false
@@ -29,10 +29,10 @@ internal suspend fun openDesktopNavigator(activity: Activity, stillActive: () ->
         AppsPlatform(activity).launch(entry)
         true
     } catch (_: ActivityNotFoundException) {
-        Log.i("OpenVoyahControls", "event=desktop_navigator_launch outcome=activity_unavailable")
+        ControlsLog.info("desktop_navigator_launch", "outcome", "activity_unavailable")
         false
     } catch (_: SecurityException) {
-        Log.i("OpenVoyahControls", "event=desktop_navigator_launch outcome=launch_denied")
+        ControlsLog.info("desktop_navigator_launch", "outcome", "launch_denied")
         false
     }
 }

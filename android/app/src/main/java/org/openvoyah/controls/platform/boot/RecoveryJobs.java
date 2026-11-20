@@ -4,8 +4,8 @@ import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
 import android.content.ComponentName;
 import android.content.Context;
-import android.util.Log;
 import org.openvoyah.controls.BootHookService;
+import org.openvoyah.controls.diagnostics.ControlsLog;
 
 /** Persists the same Android job ID and component across upgrades. */
 public final class RecoveryJobs {
@@ -17,8 +17,9 @@ public final class RecoveryJobs {
         JobInfo job = new JobInfo.Builder(ID, new ComponentName(context, BootHookService.class))
             .setMinimumLatency(5000).setBackoffCriteria(30000, JobInfo.BACKOFF_POLICY_EXPONENTIAL)
             .setPersisted(true).build();
-        if (context.getSystemService(JobScheduler.class).schedule(job) != JobScheduler.RESULT_SUCCESS)
-            Log.e("OpenVoyahControls", "Could not schedule boot hook");
+        boolean scheduled = context.getSystemService(JobScheduler.class).schedule(job) == JobScheduler.RESULT_SUCCESS;
+        if (scheduled) ControlsLog.info("boot_recovery_job", "outcome", "scheduled");
+        else ControlsLog.error("boot_recovery_job", "outcome", "schedule_failed");
     }
 
     public static void cancel(Context context) { context.getSystemService(JobScheduler.class).cancel(ID); }

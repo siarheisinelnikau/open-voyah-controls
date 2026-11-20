@@ -2,7 +2,6 @@ package org.openvoyah.controls.data.apps
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -15,6 +14,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.domain.apps.DesktopInfoCard
 import org.openvoyah.controls.domain.apps.DesktopClockFormat
@@ -45,7 +45,7 @@ internal class DesktopInfoPreferences(context: Context) {
             try {
                 Result.success(read())
             } catch (error: JSONException) {
-                Log.w(TAG, "event=desktop_info_settings outcome=invalid_stored_settings", error)
+                ControlsLog.warn("desktop_info_settings", error, "outcome", "invalid_stored_settings")
                 Result.failure(error)
             }
         }
@@ -99,7 +99,7 @@ internal class DesktopInfoPreferences(context: Context) {
         val previous = preferences.all[CARDS] as? String
         if (preferences.edit().putString(CARDS, encode(configuration).toString()).commit()) return
         val restored = preferences.edit().putString(CARDS, previous).commit()
-        Log.w(TAG, "event=desktop_info_settings outcome=commit_failed rolledBack=$restored")
+        ControlsLog.warn("desktop_info_settings", "outcome", "commit_failed", "rolledBack", restored)
         throw IllegalStateException("Could not save desktop card settings")
     }
 
@@ -114,7 +114,6 @@ internal class DesktopInfoPreferences(context: Context) {
         private const val HEADLIGHT_CONTENT = "headlightContent"
         private const val ROUTE_CONTENT = "routeContent"
         private const val ROUTE_OPEN_TARGET = "routeOpenTarget"
-        private const val TAG = "OpenVoyahControls"
         private val lock = DesktopLayoutStores.WRITE_LOCK
 
         @JvmStatic

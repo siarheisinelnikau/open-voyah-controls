@@ -3,7 +3,6 @@ package org.openvoyah.controls
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
@@ -33,6 +32,7 @@ import org.openvoyah.controls.data.routines.RoutineLayoutExecution
 import org.openvoyah.controls.data.routines.RoutineLayoutPermit
 import org.openvoyah.controls.data.routines.RoutinePreferences
 import org.openvoyah.controls.data.settings.AppearancePreferences
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.apps.DesktopLayoutException
 import org.openvoyah.controls.domain.apps.DesktopLayoutProblem
 import org.openvoyah.controls.domain.routines.NamedRoutine
@@ -242,7 +242,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun routineError(mode: String, withLayout: Boolean, failure: Exception): Int {
-        Log.w("OpenVoyahControls", "event=routine_run mode=$mode outcome=failed error=${failure.javaClass.simpleName}")
+        ControlsLog.warn("routine_run", "mode", mode, "outcome", "failed", "error", failure)
         return when {
             failure is RoutineEditException -> R.string.routines_changed
             failure is DesktopLayoutException && failure.problem == DesktopLayoutProblem.MISSING -> R.string.routines_layout_unavailable
@@ -254,16 +254,16 @@ class MainActivity : ComponentActivity() {
     private fun openRoutineApp(component: String, app: InstalledApps.Entry?) {
         if (app == null || app.component().flattenToString() != component) {
             routineMessage = UiText.get(R.string.routines_app_missing_notice).format(component)
-            Log.i("OpenVoyahControls", "event=routine_app_launch outcome=unavailable")
+            ControlsLog.info("routine_app_launch", "outcome", "unavailable")
             return
         }
         try {
             AppsPlatform(this).launch(app)
             routineMessage = UiText.get(R.string.routines_app_requested).format(app.label())
-            Log.i("OpenVoyahControls", "event=routine_app_launch outcome=requested")
+            ControlsLog.info("routine_app_launch", "outcome", "requested")
         } catch (failure: RuntimeException) {
             routineMessage = UiText.get(R.string.routines_app_failed).format(app.label())
-            Log.w("OpenVoyahControls", "event=routine_app_launch outcome=failed error=${failure.javaClass.simpleName}")
+            ControlsLog.warn("routine_app_launch", "outcome", "failed", "error", failure)
         }
     }
 
@@ -287,7 +287,7 @@ class MainActivity : ComponentActivity() {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: RuntimeException) {
-                Log.w("OpenVoyahControls", "event=launcher_media_volume outcome=settings_unavailable failure=${failure.javaClass.simpleName}")
+                ControlsLog.warn("launcher_media_volume", "outcome", "settings_unavailable", "failure", failure)
             } finally {
                 if (launcherMediaEntry === entry) {
                     launcherMediaEntry = null
@@ -415,7 +415,7 @@ class MainActivity : ComponentActivity() {
                 if (runConditionalRoutine(decision.routine, entry) { runtime.isCurrent(decision) } == null) "completed" else "failed"
             } catch (_: CancellationException) { "cancelled" }
             catch (_: Exception) { "unconfirmed" }
-            Log.i("OpenVoyahControls", "event=conditional_rule_handoff rule=${decision.rule.id} outcome=$outcome")
+            ControlsLog.info("conditional_rule_handoff", "rule", decision.rule.id, "outcome", outcome)
         }
     }
 

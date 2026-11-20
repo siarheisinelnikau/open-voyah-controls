@@ -7,7 +7,8 @@ import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.SystemClock
-import android.util.Log
+import org.openvoyah.controls.diagnostics.ControlsLog
+import org.openvoyah.controls.diagnostics.LogLevel
 import org.openvoyah.controls.domain.seatmemory.SeatMemoryAction
 import org.openvoyah.controls.domain.seatmemory.SeatMemorySlot
 
@@ -29,7 +30,7 @@ internal enum class FactorySeatHandoffOutcome { REQUESTED, UNAVAILABLE, FAILED }
 internal class VehicleSettingsLauncher(
     private val queryActivities: (Intent) -> List<ActivityInfo>,
     private val hasPermission: (String) -> Boolean,
-    private val logHandoff: (String) -> Unit = { Log.i("OpenVoyahControls", it) },
+    private val logHandoff: (String) -> Unit = { ControlsLog.line(LogLevel.INFO, it) },
 ) {
     constructor(context: Context) : this(
         queryActivities = { query -> context.packageManager.queryIntentActivities(query, 0).mapNotNull { it.activityInfo } },

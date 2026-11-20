@@ -1,6 +1,5 @@
 package org.openvoyah.controls.presentation.vehicle
 
-import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -32,6 +31,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.vehicle.ExteriorLamp
 import org.openvoyah.controls.domain.vehicle.HeadlightInput
 import org.openvoyah.controls.domain.vehicle.HeadlightInputState
@@ -65,7 +65,7 @@ internal fun HeadlightSourcesPopup(close: () -> Unit) {
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (failure: RuntimeException) {
-                    Log.w("OpenVoyahControls", "event=headlight_report outcome=collection_failed failure=${failure.javaClass.simpleName}")
+                    ControlsLog.warn("headlight_report", "outcome", "collection_failed", "failure", failure)
                     ReportCopyState.FAILED
                 }
             }

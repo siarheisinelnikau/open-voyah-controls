@@ -10,7 +10,6 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.text.format.DateFormat
-import android.util.Log
 import androidx.core.content.ContextCompat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -29,6 +28,7 @@ import kotlinx.coroutines.flow.map
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.display.DisplayEventBus
 import org.openvoyah.controls.data.vehicle.ServiceReminderPreferences
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.apps.DesktopClockFormat
 import org.openvoyah.controls.domain.apps.DesktopMediaStyle
 import org.openvoyah.controls.domain.display.DisplayPreviewContent
@@ -75,7 +75,7 @@ internal class DesktopInfoSources(context: Context) {
         }
     }.conflate().map { desktopClockText(app, format) }.catch { error ->
         if (error !is SecurityException) throw error
-        Log.w(TAG, "event=desktop_clock outcome=tick_access_unavailable", error)
+        ControlsLog.warn("desktop_clock", error, "outcome", "tick_access_unavailable")
         emit(desktopClockText(app, format))
     }.distinctUntilChanged()
 
@@ -123,12 +123,11 @@ internal class DesktopInfoSources(context: Context) {
         app.contentResolver.registerContentObserver(Settings.System.getUriFor(Settings.System.TIME_12_24), false, observer)
         true
     } catch (error: SecurityException) {
-        Log.w(TAG, "event=desktop_clock outcome=format_observer_unavailable", error)
+        ControlsLog.warn("desktop_clock", error, "outcome", "format_observer_unavailable")
         false
     }
 
     private companion object {
-        const val TAG = "OpenVoyahControls"
     }
 }
 

@@ -2,7 +2,6 @@ package org.openvoyah.controls.data.dock
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -15,6 +14,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.dock.MAX_DOCK_APP_SHORTCUTS
 import org.openvoyah.controls.domain.dock.QuickAction
 import org.openvoyah.controls.domain.dock.QuickActionAppsDestination
@@ -65,7 +65,7 @@ internal class QuickActionPreferences(context: Context) : QuickActionStore {
     }
 
     private fun invalidSavedSettings(): QuickActionSettings {
-        Log.w(TAG, "event=quick_actions outcome=invalid_saved_settings")
+        ControlsLog.warn("quick_actions", "outcome", "invalid_saved_settings")
         return QuickActionSettings()
     }
 
@@ -77,7 +77,7 @@ internal class QuickActionPreferences(context: Context) : QuickActionStore {
             if (!store.edit().putString(SETTINGS, encode(next).toString()).commit()) {
                 // SharedPreferences updates memory even if the disk write fails.
                 val rolledBack = store.edit().putString(SETTINGS, previous).commit()
-                Log.w(TAG, "event=quick_actions outcome=commit_failed rolledBack=$rolledBack")
+                ControlsLog.warn("quick_actions", "outcome", "commit_failed", "rolledBack", rolledBack)
                 error("Could not save quick actions")
             }
         }
@@ -86,7 +86,6 @@ internal class QuickActionPreferences(context: Context) : QuickActionStore {
     companion object {
         const val STORE = "quick_actions"
         private const val SETTINGS = "settings"
-        private const val TAG = "OpenVoyahControls"
         private val keys = setOf("enabled", "side", "showLabels", "area", "actions", "compactEdge", "collapseAfterUse",
             "highContrastHandle", "showCompactHandleLabel", "appsDestination", "railWidth", "idleCollapseSeconds",
             "startState", "compactLabels", "showHeadlightMode", "handleSize", "compactHandleSide", "headlightContent",

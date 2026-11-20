@@ -1,6 +1,5 @@
 package org.openvoyah.controls.presentation.dock
 
-import android.util.Log
 import android.view.accessibility.AccessibilityManager
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
@@ -95,6 +94,7 @@ import kotlinx.coroutines.launch
 import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.domain.dock.QuickAction
 import org.openvoyah.controls.domain.dock.QuickActionHandleAccent
@@ -142,8 +142,7 @@ internal fun QuickActionsHost(
             val opensSources = action == QuickAction.VEHICLE && settings.showHeadlightMode &&
                 settings.headlightTap == QuickActionHeadlightTap.SOURCES
             val destination = if (opensSources) "headlight_sources" else action.id
-            if (BuildConfig.DEBUG) Log.d("OpenVoyahControls",
-                "event=quick_actions_activate action=$destination collapse_after_use=${settings.collapseAfterUse}")
+            ControlsLog.debug("quick_actions_activate", "action", destination, "collapse_after_use", settings.collapseAfterUse)
             if (settings.collapseAfterUse) opened = false
             when {
                 opensSources -> inspectHeadlights = true
@@ -198,7 +197,7 @@ private fun QuickActionBar(settings: QuickActionSettings, route: ControlsRoute, 
     val rail = edge == DockEdge.LEFT || edge == DockEdge.RIGHT
     val showLabels = if (rail) settings.showLabels else settings.compactLabelsVisible
     if (BuildConfig.DEBUG) LaunchedEffect(edge, settings.canCollapse, expanded) {
-        Log.d("OpenVoyahControls", "event=quick_actions_bar edge=$edge collapsible=${settings.canCollapse} expanded=$expanded")
+        ControlsLog.debug("quick_actions_bar", "edge", edge, "collapsible", settings.canCollapse, "expanded", expanded)
     }
     val modifier = if (rail) Modifier.width(width).fillMaxHeight() else Modifier.fillMaxWidth()
     val pinnedWidth = if (settings.canCollapse) dockHandleSize else 0.dp
@@ -330,16 +329,18 @@ private fun Modifier.collapseDockWhenIdle(
     val inUse = pressed || focused || scrolling || touchExploration
     val onCollapse by rememberUpdatedState(collapse)
     LaunchedEffect(lifecycle, timeout, route, inUse, accessibility, showLabels) {
-        if (BuildConfig.DEBUG && inUse) Log.d("OpenVoyahControls", "event=quick_actions_idle outcome=held " +
-            "pressed=$pressed focused=$focused scrolling=$scrolling touch_exploration=$touchExploration")
-        if (inUse) return@LaunchedEffect
+        if (inUse) {
+            ControlsLog.debug("quick_actions_idle", "outcome", "held", "pressed", pressed, "focused", focused,
+                "scrolling", scrolling, "touch_exploration", touchExploration)
+            return@LaunchedEffect
+        }
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             val recommended = accessibility?.calculateRecommendedTimeoutMillis(timeout, containsIcons = true,
                 containsText = showLabels, containsControls = true) ?: timeout
-            if (BuildConfig.DEBUG) Log.d("OpenVoyahControls", "event=quick_actions_idle outcome=scheduled timeout_ms=$recommended")
+            ControlsLog.debug("quick_actions_idle", "outcome", "scheduled", "timeout_ms", recommended)
             if (recommended == Long.MAX_VALUE) return@repeatOnLifecycle
             delay(recommended)
-            if (BuildConfig.DEBUG) Log.d("OpenVoyahControls", "event=quick_actions_idle outcome=collapsed")
+            ControlsLog.debug("quick_actions_idle", "outcome", "collapsed")
             onCollapse()
         }
     }
