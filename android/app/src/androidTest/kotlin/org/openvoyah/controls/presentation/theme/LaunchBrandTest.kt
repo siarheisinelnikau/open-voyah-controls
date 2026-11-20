@@ -87,7 +87,7 @@ class LaunchBrandTest : InstrumentationTestCase() {
         val launcher = checkNotNull(app.packageManager.getLaunchIntentForPackage(app.packageName))
         withActivity(launcher, MainActivity::class.java) { activity ->
             assertTrue(onMain {
-                ViewModelProvider(activity)[ControlsNavigationViewModel::class.java].state.value.route == ControlsRoute.APPS
+                ViewModelProvider(activity)[ControlsNavigationViewModel::class.java].state.value.route == ControlsRoute.SETTINGS
             })
             assertFalse(hasTag(activity, LAUNCH_BRAND_TAG))
             appearance.setAnimateRoutes(false)

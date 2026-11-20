@@ -174,10 +174,39 @@ class ComposeScreensTest : InstrumentationTestCase() {
         capture("quick-voice")
     }
 
+    fun testAppGridOpensControlsOnceAndKeepsAndroidSettingsInsideIt() {
+        val activity = launch(MainActivity.appsIntent(app)) as MainActivity
+        assertAppGrid(activity)
+        val appName = UiText.get(R.string.app_name)
+        assertEquals(1, nodes().count { it.isVisibleToUser && it.text?.toString() == appName })
+        assertNull(textNode(UiText.get(R.string.ui_111)))
+        val systemSettings = UiText.get(R.string.ui_61)
+        assertNull(textNode(systemSettings))
+        assertNull(textNode("Settings"))
+        capture("apps-controls-entry")
+        clickText(appName)
+        awaitRoute(activity, ControlsRoute.SETTINGS)
+        awaitText(UiText.get(R.string.cockpit_back))
+        scrollTo(systemSettings)
+        capture("settings")
+        clickText(systemSettings)
+        val systemSettingsPackage = checkNotNull(Intent(Settings.ACTION_SETTINGS).resolveActivity(app.packageManager)).packageName
+        val automation = instrumentation.uiAutomation
+        val settingsDeadline = SystemClock.uptimeMillis() + 5_000
+        while (automation.rootInActiveWindow?.packageName != systemSettingsPackage && SystemClock.uptimeMillis() < settingsDeadline) {
+            SystemClock.sleep(50)
+        }
+        assertEquals(systemSettingsPackage, automation.rootInActiveWindow?.packageName?.toString())
+        backFromExternalApp()
+        awaitText(UiText.get(R.string.cockpit_back))
+        clickText(UiText.get(R.string.cockpit_back))
+        assertAppGrid(activity)
+    }
+
     fun testAppGridSettingsAndSubmenusKeepOneHostAfterRefreshAndDialogs() {
         val activity = launch(MainActivity.appsIntent(app)) as MainActivity
         assertAppGrid(activity)
-        clickText(UiText.get(R.string.ui_111))
+        clickText(UiText.get(R.string.app_name))
         awaitRoute(activity, ControlsRoute.SETTINGS)
         awaitText(UiText.get(R.string.cockpit_back))
         capture("settings")
@@ -212,7 +241,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         awaitRoute(recreated, ControlsRoute.SETTINGS)
         assertComposeContent(recreated)
 
-        scrollTo(UiText.get(R.string.voice_options_title))
+        scrollTo(UiText.get(R.string.voice_options_title), towardsStart = true)
         clickText(UiText.get(R.string.voice_options_title))
         awaitRoute(recreated, ControlsRoute.VOICE)
         awaitText(UiText.get(R.string.ui_185), 10_000)
@@ -451,7 +480,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         val language = UiText.language()
         try {
             UiText.language("en")
-            val settings = UiText.get(R.string.ui_111)
+            val settings = UiText.get(R.string.app_name)
             val order = UiText.get(R.string.apps_grid_sort_order)
             val edit = UiText.get(R.string.apps_grid_edit_manual_order)
             val manual = UiText.get(R.string.apps_grid_sort_manual)
@@ -539,7 +568,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         val preferences = AppGridPreferences(app)
         val original = preferences.exportSettings()
         val catalog = InstalledApps.list(app).filter { AppGridPins.supports(it.component().flattenToString()) }
-        val settings = UiText.get(R.string.ui_111)
+        val settings = UiText.get(R.string.app_name)
         val target = catalog.first { candidate ->
             candidate.label() != settings && catalog.count { it.label() == candidate.label() } == 1 &&
                 catalog.count { it.component().packageName.contains(candidate.component().packageName) } == 1
@@ -608,7 +637,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             .distinctBy { it.label() }.take(2)
         assertEquals("The fixture needs two launcher apps", 2, candidates.size)
         val components = candidates.map { it.component().flattenToString() }
-        val settings = UiText.get(R.string.ui_111)
+        val settings = UiText.get(R.string.app_name)
         val columns = UiText.get(R.string.apps_grid_columns)
         val shortcuts = UiText.get(R.string.apps_grid_shortcuts)
         val display = UiText.get(R.string.virtual_display)
@@ -689,7 +718,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         }.distinctBy { it.component().packageName }.distinctBy { it.label() }
         val pinned = candidates.first()
         val unpinned = candidates[1]
-        val settings = UiText.get(R.string.ui_111)
+        val settings = UiText.get(R.string.app_name)
         val tileSize = UiText.get(R.string.apps_grid_tile_size)
         val compact = UiText.get(R.string.apps_grid_size_compact)
         val showSystem = UiText.get(R.string.apps_grid_show_system)
@@ -763,7 +792,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         val target = InstalledApps.list(app).first {
             it.component().packageName != app.packageName && AppGridPins.supports(it.component().flattenToString())
         }
-        val settings = UiText.get(R.string.ui_111)
+        val settings = UiText.get(R.string.app_name)
         val desktopEnable = UiText.get(R.string.apps_desktop_enable)
         val desktopDefault = UiText.get(R.string.apps_desktop_default)
         val first = UiText.get(R.string.apps_desktop_favorites_one)
@@ -836,7 +865,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
     fun testFavoritesBackBehaviorPreservesLocalOverlaysAndSystemBack() {
         val preferences = AppGridPreferences(app)
         val original = preferences.exportSettings()
-        val settings = UiText.get(R.string.ui_111)
+        val settings = UiText.get(R.string.app_name)
         val favorite = UiText.get(R.string.apps_desktop_favorites_one)
         val all = UiText.get(R.string.apps_desktop_all)
         val backOption = UiText.get(R.string.apps_grid_favorites_back)
@@ -932,7 +961,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
     fun testFavoriteDesktopNamesAreAccessibleAndResettable() {
         val preferences = AppGridPreferences(app)
         val original = preferences.exportSettings()
-        val settings = UiText.get(R.string.ui_111)
+        val settings = UiText.get(R.string.app_name)
         val names = UiText.get(R.string.apps_grid_desktop_names)
         val default = UiText.get(R.string.apps_desktop_default)
         val allApps = UiText.get(R.string.apps_desktop_all)
@@ -1067,7 +1096,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
             assertAppGrid(activity)
             awaitClock()
-            clickText(UiText.get(R.string.ui_111))
+            clickText(UiText.get(R.string.app_name))
             awaitRoute(activity, ControlsRoute.SETTINGS)
             scrollTo(layoutSettings)
             clickText(layoutSettings)
@@ -1178,7 +1207,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             val done = UiText.get(R.string.apps_desktop_done)
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
             assertAppGrid(activity)
-            clickText(UiText.get(R.string.ui_111))
+            clickText(UiText.get(R.string.app_name))
             awaitRoute(activity, ControlsRoute.SETTINGS)
             scrollTo(desktopCards)
             clickText(desktopCards)
@@ -1290,7 +1319,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
                 flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
             }
             UiText.language("ru")
-            val settings = UiText.get(R.string.ui_111)
+            val settings = UiText.get(R.string.app_name)
             val desktopCards = UiText.get(R.string.desktop_info_settings)
             val clock = UiText.get(R.string.desktop_info_clock)
             val maintenance = UiText.get(R.string.desktop_info_service)
@@ -1389,7 +1418,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         val originalAppearance = appearance.exportSettings()
         val automation = instrumentation.uiAutomation
         val previousFlags = automation.serviceInfo.flags
-        val settings = UiText.get(R.string.ui_111)
+        val settings = UiText.get(R.string.app_name)
         val all = UiText.get(R.string.apps_desktop_all)
         val favorite = UiText.get(R.string.apps_desktop_favorites_one)
         val motionScale = android.provider.Settings.Global.getFloat(app.contentResolver, "animator_duration_scale", 1f)
@@ -1551,7 +1580,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             wallpapers.set(AppGridDesktop.FAVORITES_TWO, null)
 
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
-            clickText(UiText.get(R.string.ui_111))
+            clickText(UiText.get(R.string.app_name))
             awaitRoute(activity, ControlsRoute.SETTINGS)
             val icons = UiText.get(R.string.apps_grid_icon_style)
             scrollTo(icons)
@@ -1602,7 +1631,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         val preferences = AppGridPreferences(app)
         val before = preferences.exportSettings()
         val setting = UiText.get(R.string.apps_grid_show_search_field)
-        val settings = UiText.get(R.string.ui_111)
+        val settings = UiText.get(R.string.app_name)
         val empty = UiText.get(R.string.apps_empty)
         val clear = UiText.get(R.string.apps_grid_clear_search)
         val query = "open-voyah-test-query-with-no-matching-app"
@@ -1716,7 +1745,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         }
         assertNull("Explicit Apps entry restored the old search editor", editor())
         assertNull("Explicit Apps entry restored the obsolete query", textNode(query))
-        scrollTo(UiText.get(R.string.ui_111))
+        scrollTo(UiText.get(R.string.app_name))
         assertAppGrid(recreated)
 
         // A hidden stale query would still filter apps; reopening Search must reveal an empty value.
@@ -2295,7 +2324,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             assertNull(textNode(current))
             capture("desktop-headlight-history")
 
-            clickText(UiText.get(R.string.ui_111))
+            clickText(UiText.get(R.string.app_name))
             awaitRoute(activity, ControlsRoute.SETTINGS)
             awaitSubscribers(0)
         } finally {
@@ -2389,7 +2418,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             val editor = UiText.get(R.string.desktop_info_settings)
             val lampContent = UiText.get(R.string.desktop_info_headlights_content_lamps)
             val contentSetting = UiText.get(R.string.desktop_info_headlights_content)
-            clickText(UiText.get(R.string.ui_111))
+            clickText(UiText.get(R.string.app_name))
             awaitRoute(activity, ControlsRoute.SETTINGS)
             scrollTo(editor)
             clickText(editor)
@@ -2819,11 +2848,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             runBlocking {
                 withTimeout(5_000) { recreated.lifecycle.currentStateFlow.first { !it.isAtLeast(Lifecycle.State.RESUMED) } }
             }
-            val backAt = SystemClock.uptimeMillis()
-            for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
-                val event = KeyEvent(backAt, SystemClock.uptimeMillis(), action, KeyEvent.KEYCODE_BACK, 0)
-                assertTrue(automation.injectInputEvent(event, true))
-            }
+            backFromExternalApp()
             awaitText(saveTwo)
             capture("seat-memory-manual-return")
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
@@ -3109,9 +3134,18 @@ class ComposeScreensTest : InstrumentationTestCase() {
         failWithEvidence("route-${route.name}", "The existing host stayed at $current instead of $route")
     }
 
+    private fun backFromExternalApp() {
+        val automation = instrumentation.uiAutomation
+        val backAt = SystemClock.uptimeMillis()
+        for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
+            val event = KeyEvent(backAt, SystemClock.uptimeMillis(), action, KeyEvent.KEYCODE_BACK, 0)
+            assertTrue(automation.injectInputEvent(event, true))
+        }
+    }
+
     private fun assertAppGrid(activity: MainActivity) {
         awaitRoute(activity, ControlsRoute.APPS)
-        awaitText(UiText.get(R.string.ui_111))
+        awaitText(UiText.get(R.string.app_name))
         val deadline = SystemClock.uptimeMillis() + 3_000
         while (textNode(UiText.get(R.string.cockpit_back)) != null && SystemClock.uptimeMillis() < deadline) {
             SystemClock.sleep(50)

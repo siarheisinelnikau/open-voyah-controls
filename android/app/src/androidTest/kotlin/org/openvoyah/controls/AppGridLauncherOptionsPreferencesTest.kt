@@ -15,7 +15,7 @@ class AppGridLauncherOptionsPreferencesTest : AndroidTestCase() {
         val before = preferences.exportSettings()
         try {
             preferences.restoreSettings(grid().put("columns", "auto")
-                .put("visibleShortcuts", JSONArray(AppGridShortcut.entries.map { it.storedValue })))
+                .put("visibleShortcuts", JSONArray(AppGridShortcut.entries.map { it.storedValue } + "androidSettings")))
             runBlocking {
                 preferences.setColumns(AppGridColumns.SIX)
                 preferences.setShortcutVisible(AppGridShortcut.DISPLAY, false)

@@ -37,8 +37,7 @@ class AppGridLauncherOptionsTest {
         assertEquals(AppGridShortcut.entries.toSet(), grid.visibleShortcuts)
         assertEquals(AppGridColumns.FOUR, AppGridColumns.parse("4"))
         assertThrows(IllegalArgumentException::class.java) { AppGridColumns.parse("3") }
-        assertTrue(AppGridShortcut.ANDROID_SETTINGS in grid.visibleShortcuts)
-        assertFalse(AppGridShortcut.entries.any { it.storedValue == "settings" || it.storedValue == "search" })
+        assertFalse(AppGridShortcut.entries.any { it.storedValue in setOf("androidSettings", "settings", "search") })
     }
 
     @Test fun desktopNamesUseStableSlotsAndTheLocalizedFallbackForBlankNames() {

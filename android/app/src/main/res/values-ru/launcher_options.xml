@@ -21,7 +21,7 @@
     <string name="apps_grid_columns_auto">Автоматически</string>
     <string name="apps_grid_columns_fit">Если места мало, сетка использует меньше колонок.</string>
     <string name="apps_grid_shortcuts">Встроенные ярлыки</string>
-    <string name="apps_grid_always_available">Настройки Controls и поиск доступны всегда.</string>
+    <string name="apps_grid_always_available">Open Voyah Controls и поиск доступны всегда.</string>
     <string name="apps_grid_reorder_pins">Порядок закреплённых приложений</string>
     <string name="apps_grid_reorder_up">Вверх</string>
     <string name="apps_grid_reorder_down">Вниз</string>

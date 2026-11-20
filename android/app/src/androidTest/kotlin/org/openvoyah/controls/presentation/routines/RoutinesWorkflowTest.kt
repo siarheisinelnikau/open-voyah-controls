@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ShortcutManager
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Build
@@ -149,9 +150,7 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             app.startActivity(ControlsNavigation.intent(app, ControlsRoute.BUTTONS))
             awaitRoute(ControlsRoute.BUTTONS)
             finishHost()
-            fun launcher() = Intent(app, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            launch(launcher())
+            launch(startupShortcut())
             awaitRoute(ControlsRoute.APPS)
             await("Saved dark theme after restricted startup") { !daytime() }
             store.restoreSettings(JSONObject().put("startupDays", JSONArray((1..7).toList())).put("startupWindow", JSONObject.NULL))
@@ -163,7 +162,7 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             } finally { instrumentation.removeMonitor(monitor) }
             awaitRoute(ControlsRoute.APPS)
             finishHost()
-            launch(launcher())
+            launch(startupShortcut())
             awaitRoute(ControlsRoute.SETTINGS)
             await("Saved dark theme on next launch") { !daytime() }
             assertEquals(LauncherEntry.APP_GRID, appearance.load().launcherEntry)
@@ -185,8 +184,6 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
         val id = UUID.randomUUID().toString()
         val name = "Morning settings"
         fun recorded() = history.all.keys.any { it.substringBefore('.') == id }
-        fun launcher() = Intent(app, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         fun notice() = nodes().any { it.isVisibleToUser && it.matches(UiText.get(R.string.routines_stay)) }
         try {
             automation.serviceInfo = automation.serviceInfo.apply {
@@ -221,7 +218,7 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             capture("routine-startup-paused")
             finishHost()
 
-            launch(launcher())
+            launch(startupShortcut())
             awaitRoute(ControlsRoute.APPS)
             assertFalse(notice())
             assertFalse(recorded())
@@ -238,7 +235,7 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             await("Resumed daily launch") { store.exportSettings().getBoolean("startupEnabled") }
             finishHost()
 
-            launch(launcher())
+            launch(startupShortcut())
             awaitRoute(ControlsRoute.APPS)
             await("Countdown above the usual launcher") { notice() }
             capture("routine-startup-pending")
@@ -248,14 +245,14 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             store.restoreSettings(JSONObject().put("startupDelaySeconds", 3))
             finishHost()
 
-            launch(launcher())
+            launch(startupShortcut())
             await("Pending before explicit intent") { notice() }
             app.startActivity(ControlsNavigation.intent(app, ControlsRoute.BUTTONS))
             awaitRoute(ControlsRoute.BUTTONS)
             assertFalse(recorded())
             finishHost()
 
-            launch(launcher())
+            launch(startupShortcut())
             await("Pending before recreation") { notice() }
             val monitor = instrumentation.addMonitor(MainActivity::class.java.name, null, false)
             try {
@@ -268,14 +265,14 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             assertFalse(recorded())
             finishHost()
 
-            launch(launcher())
+            launch(startupShortcut())
             awaitRoute(ControlsRoute.APPS)
             awaitRoute(ControlsRoute.SETTINGS)
             await("Day recorded only after normal application", ::recorded)
             val successful = history.all
             finishHost()
             if (store.startupPlan() == null) {
-                launch(launcher())
+                launch(startupShortcut())
                 awaitRoute(ControlsRoute.APPS)
                 assertFalse(notice())
                 finishHost()
@@ -304,8 +301,6 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
         val component = target.component().flattenToString()
         val name = "Open installed app"
         fun foreground(packageName: String) = automation.rootInActiveWindow?.packageName?.toString() == packageName
-        fun launcher() = Intent(app, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         fun waitForTarget() = await("Selected installed app in the foreground") { foreground(target.component().packageName) }
         fun returnToControls(route: ControlsRoute) {
             assertTrue(automation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK))
@@ -364,7 +359,7 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
                 .put("startup", id).put("startupFrequency", "daily").put("startupDelaySeconds", 3))
             finishHost()
 
-            launch(launcher())
+            launch(startupShortcut())
             await("Delay before the external app opens", ::countdown)
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_LEFT)
             await("Normal input cancels the scheduled app launch") { !countdown() }
@@ -375,14 +370,14 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             finishHost()
 
             store.restoreSettings(JSONObject().put("startupDelaySeconds", 0))
-            launch(launcher())
+            launch(startupShortcut())
             waitForTarget()
             returnToControls(ControlsRoute.BUTTONS)
             val claimed = history.all
             assertTrue(claimed.keys.any { it.substringBefore('.') == id })
             finishHost()
             if (store.startupPlan() == null) {
-                launch(launcher())
+                launch(startupShortcut())
                 awaitRoute(ControlsRoute.APPS)
                 await("Usual page visible after exhausting the daily launch") {
                     foreground(app.packageName) && activity.hasWindowFocus()
@@ -560,8 +555,6 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             setOf("com.android.calendar", "com.google.android.calendar", "com.android.calculator2") }
         val id = UUID.randomUUID().toString()
         val stay = UiText.get(R.string.routines_stay)
-        fun launcher() = Intent(app, MainActivity::class.java).setAction(Intent.ACTION_MAIN)
-            .addCategory(Intent.CATEGORY_LAUNCHER).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         fun visible(label: String) = nodes().any { it.isVisibleToUser && it.matches(label) }
         fun recorded() = history.all.keys.any { it.substringBefore('.') == id }
         fun inForeground(packageName: String) = automation.rootInActiveWindow?.packageName?.toString() == packageName
@@ -593,7 +586,7 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
                 .put("startupWindow", JSONObject.NULL).put("startupFrequency", "daily")
                 .put("startupDelaySeconds", 8).put("startupEnabled", true))
 
-            launch(launcher())
+            launch(startupShortcut())
             await("Layout startup countdown") { visible(stay) }
             click(stay)
             await("Cancelled layout startup") { !visible(stay) }
@@ -604,7 +597,7 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
 
             routines.restoreSettings(JSONObject().put("startupDelaySeconds", 0))
             runBlocking { layouts.delete(preset.id) }
-            launch(launcher())
+            launch(startupShortcut())
             await("Unavailable layout reported before any later action") { visible(UiText.get(R.string.routines_layout_unavailable)) }
             assertFalse(recorded())
             assertTrue(inForeground(app.packageName))
@@ -613,7 +606,7 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             finishHost()
 
             layouts.restoreSettings(layoutLibrary)
-            launch(launcher())
+            launch(startupShortcut())
             await("Selected app opened after the saved layout") { inForeground(target.component().packageName) }
             assertEquals(selectedDesktop, archive.captureDesktopLayout().toString())
             assertTrue(recorded())
@@ -623,7 +616,7 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             finishHost()
 
             if (routines.startupRequest() == null) {
-                launch(launcher())
+                launch(startupShortcut())
                 awaitRoute(ControlsRoute.APPS)
                 assertTrue(inForeground(app.packageName))
                 assertFalse(visible(stay))
@@ -647,6 +640,12 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             } }
             check(editor.commit())
         }
+    }
+
+    private fun startupShortcut(): Intent {
+        val shortcuts = checkNotNull(app.getSystemService(ShortcutManager::class.java)).manifestShortcuts
+        return checkNotNull(shortcuts.single { it.id == "open_controls" }.intent)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
     private fun launch(intent: Intent) {

@@ -27,7 +27,6 @@ internal enum class AppGridShortcut(val storedValue: String) {
     VEHICLE("vehicle"),
     VOICE_SETTINGS("voiceSettings"),
     UPDATES("updates"),
-    ANDROID_SETTINGS("androidSettings"),
     INSTALL_APK("installApk");
 
     companion object {

@@ -97,7 +97,7 @@ class QuickActionsScreenTest : InstrumentationTestCase() {
 
         click(destination(R.string.appearance_app_grid))
         awaitRoute(ControlsRoute.APPS)
-        await("App grid content") { hasText(R.string.ui_111) }
+        await("App grid content") { hasText(R.string.app_name) }
         assertReserved(wide, left = false, full)
         capture(if (wide) "quick-actions" else "quick-actions-compact")
 
@@ -131,7 +131,7 @@ class QuickActionsScreenTest : InstrumentationTestCase() {
         await("Dock returns to Apps") { regions()?.bar != null }
         preferences.restoreSettings(JSONObject().put("enabled", false))
         await("Disabled dock releases its space") { regions()?.let { it.bar == null && it.pane == full } == true }
-        click(UiText.get(R.string.ui_111))
+        click(UiText.get(R.string.app_name))
         awaitRoute(ControlsRoute.SETTINGS)
     }
 

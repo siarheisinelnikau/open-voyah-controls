@@ -19,7 +19,7 @@ The inventory counts independently adjustable choices across supported firmware 
 | Headlights | Observe headlight feedback while Controls is open | 1 | `headlightMonitoring` (1) |
 | **Total** | | **153** | **150** |
 
-**Default desktop** selects a desktop within the app grid. **Start screen** selects the app page opened from the app icon or the **Open Controls** shortcut. The current desktop tab, playback position, last-used driver number and most recent headlight observation are runtime or historical records. The factory vehicle stores seat and mirror positions. The archive can still read older driver label records.
+**Default desktop** selects a desktop within the app grid. **Start screen** selects the page opened by the **Open Controls** shortcut in the Android launcher icon's long-press menu. Tapping the icon or the first app-grid tile opens Settings. The current desktop tab, playback position, last-used driver number and most recent headlight observation are runtime or historical records. The factory vehicle stores seat and mirror positions. The archive can still read older driver label records.
 
 The settings inventory test exports two profiles with different values for each portable setting family and restores them in both directions. It reads each result through a fresh archive instance. The test also checks that restoring either profile preserves the three device-bound settings and the confirmed headlight observations on the receiving device. [Settings inventory test](../app/src/androidTest/kotlin/org/openvoyah/controls/SettingsInventoryAuditTest.kt)
 
@@ -29,7 +29,7 @@ To repeat this test on an isolated Android 9 or 11 emulator, arm `SettingsInvent
 
 The wallpaper setting stores one bounded image rendition for each desktop that has a custom image. Resetting restores the default background. A settings export includes the renditions so the grid can display them after import without access to the original documents. **Wallpaper dimming** adjusts how much of the image shows through. **Accent color** applies to the day and dark palettes, including their high-contrast versions. **Appearance** also controls the font, backdrop and bold text. The size of Settings navigation labels and detail-page titles can follow the general text size or use separate sizes.
 
-In **Appearance**, **Limit media volume on launch** can lower the Android media level once when Controls opens from its app icon. The chosen ceiling stays saved when the switch is off. Playback below the ceiling continues at its current level, and you can change the volume manually after launch.
+In **Appearance**, **Limit media volume on launch** can lower the Android media level once when you choose **Open Controls** from the launcher shortcut menu. The chosen ceiling stays saved when the switch is off. Playback below the ceiling continues at its current level, and you can change the volume manually after launch.
 
 ![Media volume limit set to 30% on a compact Android 11 emulator](screenshots/launcher-media-volume-settings.png)
 

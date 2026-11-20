@@ -382,12 +382,12 @@ internal class AppGridPreferences(context: Context) {
         }
 
         private fun decodeShortcuts(data: JSONArray): Set<AppGridShortcut> {
-            require(data.length() <= AppGridShortcut.entries.size)
-            val shortcuts = (0 until data.length()).map { index ->
-                AppGridShortcut.parse(data.get(index) as? String ?: error("Invalid app grid shortcut"))
-            }.toSet()
-            require(shortcuts.size == data.length())
-            return shortcuts
+            require(data.length() <= AppGridShortcut.entries.size + 1)
+            val values = List(data.length()) { index ->
+                data.get(index) as? String ?: error("Invalid app grid shortcut")
+            }
+            require(values.toSet().size == values.size)
+            return values.asSequence().filterNot { it == "androidSettings" }.map(AppGridShortcut::parse).toSet()
         }
 
         private fun encodeShortcuts(shortcuts: Set<AppGridShortcut>): JSONArray =

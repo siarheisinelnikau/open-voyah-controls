@@ -21,6 +21,5 @@ private val shortcutDetails = mapOf(
     AppGridShortcut.VEHICLE to ShortcutDetails("controls-vehicle", R.string.vehicle_settings_title, CockpitIcon.CAR, ControlsRoute.VEHICLE),
     AppGridShortcut.VOICE_SETTINGS to ShortcutDetails("controls-voice", R.string.voice_options_title, CockpitIcon.VOICE, ControlsRoute.VOICE),
     AppGridShortcut.UPDATES to ShortcutDetails("controls-updates", R.string.updates_title, CockpitIcon.DOWNLOAD, ControlsRoute.UPDATES),
-    AppGridShortcut.ANDROID_SETTINGS to ShortcutDetails("controls-system", R.string.ui_61, CockpitIcon.SETTINGS),
     AppGridShortcut.INSTALL_APK to ShortcutDetails("controls-install", R.string.install_local_apk, CockpitIcon.DOWNLOAD),
 )

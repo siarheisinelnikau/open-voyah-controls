@@ -3,7 +3,6 @@ package org.openvoyah.controls
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -96,7 +95,7 @@ class MainActivity : ComponentActivity() {
             ControlsTheme(appearance = look.settings, systemBars = window, temporaryPalette = palette) {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) {
-                        ControlsHost(navigation, appearance, ::listen, ::systemSettings, ::runManualRoutine, ::runRoutineShortcut)
+                        ControlsHost(navigation, appearance, ::listen, ::runManualRoutine, ::runRoutineShortcut)
                     }
                     pending?.let { launch ->
                         if (launch.request.schedule.delay != RoutineStartupDelay.IMMEDIATE ||
@@ -138,7 +137,7 @@ class MainActivity : ComponentActivity() {
         cancelLauncherMedia()
         cancelManualRoutine()
         routineMessage = null
-        if (ControlsNavigation.isLauncherEntry(intent)) {
+        if (intent.action == ControlsNavigation.START_CONTROLS) {
             val appearance = appearancePreferences.load()
             val startRoute = appearance.launcherEntry.startRoute()
             val request = routinePreferences.startupRequest()
@@ -395,7 +394,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun listen() = external(QuickVoiceActivity.intent(this))
-    private fun systemSettings() = external(Intent(Settings.ACTION_SETTINGS))
     private fun external(intent: Intent) {
         try { startActivity(intent) }
         catch (_: RuntimeException) { Toast.makeText(this, UiText.get(R.string.ui_85), Toast.LENGTH_LONG).show() }
