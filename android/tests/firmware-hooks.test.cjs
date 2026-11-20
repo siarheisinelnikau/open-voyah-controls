@@ -7,40 +7,44 @@ const path = require('node:path');
 const source = (...files) => files.map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import [\s\S]*?;$/gm, '').replace(/^export /gm, '')).join('\n');
 
-test('Android 9 and 11 install distinct window adapters and leave unrelated launches alone', () => {
+test('Android 9 and 11 resolve distinct window start signatures', () => {
     for (const sdk of [28, 30]) {
-        let calls = 0, changed = 0, marker = true, pkg = 'some.other.caller';
         const owner = sdk === 28 ? 'com.android.server.am' : 'com.android.server.wm';
         const entry = {
             returnType: {className:'void'},
             argumentTypes: [owner + '.ActivityRecord', 'android.app.ActivityOptions', owner + '.Task'].map(className => ({className})),
-            call() { calls++; return 7; }
         };
-        const opts = {getLaunchBounds() { return {}; }, setLaunchWindowingMode(mode) { assert.equal(mode, 5); changed++; }};
-        const intent = {
-            getAction: () => 'android.intent.action.MAIN', getComponent: () => ({}),
-            getBooleanExtra: () => marker, removeExtra: () => { marker = false; }
-        };
-        const record = {get launchedFromPackage() { return {value:pkg}; }, intent:{value:intent}, isResizeable:()=>true};
-        const Java = {perform: fn => fn(), use(name) {
-            if (name === 'android.os.Build$VERSION') return {SDK_INT:{value:sdk}};
-            if (name === 'android.app.WindowConfiguration') return {WINDOWING_MODE_FREEFORM:{value:5}};
+        const Java = {use(name) {
             assert.equal(name, owner + '.ActivityStarter');
             return {setInitialState:{overloads:[entry], overload(...types) {
+                assert.equal(sdk, 28);
                 assert.equal(types[2], 'com.android.server.am.TaskRecord');
                 return entry;
             }}};
         }};
-        vm.runInNewContext(source('window-android9.js', 'window-android11.js', 'window-profiles.js', 'window-policy.js') + '\ninstallWindowPolicy(Java);',
-            {Java, systemTasks() { throw Error('Live adapter unavailable'); }, console:{log(){}}});
-        assert.equal(entry.implementation(record, opts), 7);
-        assert.equal(changed, 0);
-        pkg = 'org.openvoyah.controls';
-        entry.implementation(record, opts);
-        entry.implementation(record, opts);
-        assert.equal(changed, 1);
-        assert.equal(calls, 3);
+        const install = vm.runInNewContext(source('window-android9.js', 'window-android11.js') +
+            '\n({28:android9WindowHook, 30:android11WindowHook})')[sdk];
+        let intercepted;
+        install(Java, found => { intercepted = found; });
+        assert.equal(intercepted, entry);
     }
+});
+
+test('only a Controls launch that asked for a floating window changes its windowing mode, once', () => {
+    let changed = 0, marker = true, pkg = 'some.other.caller';
+    const opts = {getLaunchBounds() { return {}; }, setLaunchWindowingMode(mode) { assert.equal(mode, 5); changed++; }};
+    const intent = {
+        getAction: () => 'android.intent.action.MAIN', getComponent: () => ({}),
+        getBooleanExtra: () => marker, removeExtra: () => { marker = false; }
+    };
+    const record = {get launchedFromPackage() { return {value:pkg}; }, intent:{value:intent}, isResizeable:()=>true};
+    const apply = vm.runInNewContext(source('report.js', 'window-profiles.js', 'window-policy.js') + '\napplyWindowRequest');
+    assert.equal(apply(record, opts, 5), false);
+    assert.equal(changed, 0);
+    pkg = 'org.openvoyah.controls';
+    assert.equal(apply(record, opts, 5), true);
+    assert.equal(apply(record, opts, 5), false);
+    assert.equal(changed, 1);
 });
 
 function steeringHarness(options = {}) {

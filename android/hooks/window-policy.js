@@ -1,5 +1,6 @@
 import { android9WindowHook } from './window-android9.js';
 import { android11WindowHook } from './window-android11.js';
+import { createReporter, errorKind } from './report.js';
 import { systemTasks } from './window-tasks.js';
 import {
     CENTRAL_DISPLAY, CONTROLS, OEM_LAUNCHER, PANEL_CONFIG, PANEL_EDGE, SECONDARY_DISPLAY, WINDOW_CONFIG, WINDOW_REQUEST,
@@ -12,8 +13,15 @@ const LAUNCHER = 'android.intent.category.LAUNCHER';
 const failures = new Set(['no_display', 'no_profile', 'no_space', 'no_task', 'unsupported_task', 'unsupported_window',
     'placement_changed', 'density_rejected', 'rollback_failed']);
 
+/** The status of a request receipt. The app accepts only these values; anything else is reported as `failed`. */
 function failureStatus(error) {
     return failures.has(error?.code) ? error.code : 'failed';
+}
+
+/** Names the install step that failed, so an unsupported firmware is told apart from a broken agent. */
+function step(code, task) {
+    try { return task(); }
+    catch (cause) { throw Object.assign(Error(code), {code, cause}); }
 }
 
 export function applyWindowRequest(record, options, mode) {
@@ -92,58 +100,60 @@ function launcherPanelWidth(Java, context) {
 
 export function installWindowPolicy(Java) {
     Java.perform(() => {
+        const report = createReporter('OVC_WINDOW_ERROR');
         const sdk = Java.use('android.os.Build$VERSION').SDK_INT.value;
         const install = {28: android9WindowHook, 30: android11WindowHook}[sdk];
-        if (!install) return;
-        const mode = Java.use('android.app.WindowConfiguration').WINDOWING_MODE_FREEFORM.value;
-        let early;
+        if (!install) {
+            report('install', {code:'unsupported_sdk'}, {sdk});
+            return;
+        }
+        const hooks = [];
         try {
-            install(Java, entry => {
-                early = entry;
-                entry.implementation = function (...args) {
-                    try { applyWindowRequest(args[0], args[1], mode); } catch (_) { }
-                    return entry.call(this, ...args);
-                };
-            });
-            installLiveWindowPolicy(Java, sdk, early);
+            let early;
+            step('starter_signature', () => install(Java, entry => { early = entry; }));
+            installLiveWindowPolicy(Java, sdk, early, hooks, report);
         } catch (error) {
-            console.log('OVC_WINDOW_ERROR install ' + failureStatus(error));
-            if (early) console.log('OVC_WINDOW_READY sdk=' + sdk + ' launch-only');
+            // A start hook without its completion hook cannot be released, so nothing stays half-installed and
+            // no readiness is announced: the supervisor then reports this worker as not ready.
+            for (const hook of hooks) hook.implementation = null;
+            report('install', error, error?.cause === undefined ? {} : {cause:errorKind(error.cause)});
         }
     });
 }
 
-function installLiveWindowPolicy(Java, sdk, early) {
-    const Global = Java.use('android.provider.Settings$Global');
-    const context = Java.use('android.app.ActivityThread').currentActivityThread().getSystemContext();
-    const tasks = systemTasks(Java, sdk, launcherPanelWidth(Java, context));
-    const resolver = Java.retain(context.getContentResolver());
-    const Options = Java.use('android.app.ActivityOptions');
-    const Starter = Java.use(sdk === 28 ? 'com.android.server.am.ActivityStarter' : 'com.android.server.wm.ActivityStarter');
+function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
     const recordType = sdk === 28 ? 'com.android.server.am.ActivityRecord' : 'com.android.server.wm.ActivityRecord';
     const taskType = sdk === 28 ? 'com.android.server.am.TaskRecord' : 'com.android.server.wm.Task';
-    const lateEntries = Starter.startActivityUnchecked.overloads.filter(entry => {
-        const types = entry.argumentTypes.map(type => type.className);
-        return entry.returnType.className === 'int' && types[0] === recordType && types[1] === recordType &&
-            types[6] === 'android.app.ActivityOptions' && types[7] === taskType;
+    // Both hooks read the calling activity from this position; refuse a variant that moved it.
+    step('starter_signature', () => {
+        if (early.argumentTypes[5]?.className !== recordType) throw Error('Unexpected source position');
     });
-    if (lateEntries.length !== 1) throw Error('Android window completion signature unavailable');
-    const late = lateEntries[0];
-    const Manager = Java.use('android.app.ActivityManager');
+    const { Global, context, Options, Manager } = step('framework_api', () => ({
+        Global: Java.use('android.provider.Settings$Global'),
+        context: Java.use('android.app.ActivityThread').currentActivityThread().getSystemContext(),
+        Options: Java.use('android.app.ActivityOptions'),
+        Manager: Java.use('android.app.ActivityManager'),
+    }));
+    const tasks = step('tasks_api', () => systemTasks(Java, sdk, launcherPanelWidth(Java, context)));
+    const resolver = Java.retain(context.getContentResolver());
+    const late = step('completion_signature', () => {
+        const Starter = Java.use(sdk === 28 ? 'com.android.server.am.ActivityStarter' : 'com.android.server.wm.ActivityStarter');
+        const entries = Starter.startActivityUnchecked.overloads.filter(entry => {
+            const types = entry.argumentTypes.map(type => type.className);
+            return entry.returnType.className === 'int' && types[0] === recordType && types[1] === recordType &&
+                types[6] === 'android.app.ActivityOptions' && types[7] === taskType;
+        });
+        if (entries.length !== 1) throw Error('Android window completion signature unavailable');
+        return entries[0];
+    });
     const started = new Set([Manager.START_SUCCESS.value, Manager.START_TASK_TO_FRONT.value, Manager.START_DELIVERED_TO_TOP.value]);
     const starting = [];
     const pendingLaunches = new Map();
     let windowRaw, panelRaw, config, navigator, lastId;
     let lastNavigator = "";
     let released = false;
-    let loggedError = '';
-    function reportError(phase, error) {
-        const message = phase + ' ' + failureStatus(error);
-        if (message !== loggedError) {
-            loggedError = message;
-            console.log('OVC_WINDOW_ERROR ' + message);
-        }
-    }
+    const reportError = (phase, error) => report(phase, {code:failureStatus(error)},
+        error?.code === undefined ? {cause:errorKind(error)} : {});
     const raw = key => {
         const value = Global.getString(resolver, key);
         return value === null ? '' : String(value);
@@ -181,7 +191,10 @@ function installLiveWindowPolicy(Java, sdk, early) {
                 if (error?.code !== 'no_task') reportError('launch', error);
             }
         };
-        try { Java.scheduleOnMainThread(apply); }
+        // Runs once the current start has left ActivityStarter's lock; tasks.apply then takes the service lock
+        // itself, like a request from the settings timer. Java.scheduleOnMainThread is avoided on purpose: it
+        // attaches a permanent epoll_wait interceptor to every thread of system_server.
+        try { setTimeout(() => Java.perform(apply), 0); }
         catch (error) { pendingLaunches.delete(key); throw error; }
     }
 
@@ -191,6 +204,8 @@ function installLiveWindowPolicy(Java, sdk, early) {
         if (windowRaw !== windows) {
             windowRaw = windows;
             config = readWindowConfig(windows);
+            // A rejected document disables the policy; say so once instead of silently doing nothing.
+            if (windows !== '' && config === null) report('config', {code:'config_invalid'}, {bytes:windows.length});
         }
         if (panelRaw !== buttons) {
             panelRaw = buttons;
@@ -235,6 +250,7 @@ function installLiveWindowPolicy(Java, sdk, early) {
     }
 
     refresh();
+    hooks.push(early, late);
     early.implementation = function (...args) {
         const [record, options] = args;
         try {
@@ -256,7 +272,7 @@ function installLiveWindowPolicy(Java, sdk, early) {
                     start.cold = cold;
                 }
             }
-        } catch (_) { }
+        } catch (error) { reportError('start', error); }
         return early.call(this, ...args);
     };
 
@@ -271,7 +287,7 @@ function installLiveWindowPolicy(Java, sdk, early) {
                 start = {record:args[0], tasks:tasks.captureLaunch(profile, launch.user), cold:null};
                 starting.unshift(start);
             }
-        } catch (_) { }
+        } catch (error) { reportError('capture', error); }
         let result;
         try { result = late.call(this, ...args); }
         finally { if (start) starting.splice(starting.indexOf(start), 1); }
@@ -292,7 +308,7 @@ function installLiveWindowPolicy(Java, sdk, early) {
                         applyAfterLaunch(launch, tasks.id(task), originals, actualDisplay);
                     }
                 }
-            } catch (_) { }
+            } catch (error) { reportError('completion', error); }
         }
         return result;
     };
