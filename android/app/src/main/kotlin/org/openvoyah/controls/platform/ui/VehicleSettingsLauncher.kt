@@ -18,6 +18,7 @@ internal enum class VehicleSettingsDestination(vararg val packageNames: String) 
     VEHICLE(FACTORY_VEHICLE_PACKAGE, FACTORY_VEHICLE_SETTINGS_PACKAGE),
     INFOTAINMENT("com.qinggan.app.setting"),
     LIGHTING(FACTORY_VEHICLE_SETTINGS_PACKAGE),
+    ASSISTANCE(FACTORY_VEHICLE_SETTINGS_PACKAGE),
 }
 
 internal enum class FactorySeatShortcut { SEATS, VEHICLE }
@@ -38,8 +39,12 @@ internal class VehicleSettingsLauncher(
     )
 
     fun intent(destination: VehicleSettingsDestination): Intent? = destination.packageNames.firstNotNullOfOrNull { name ->
-        if (destination == VehicleSettingsDestination.LIGHTING) resolveShortcut(name, "SHOW_LIGHT")
-        else resolve(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(name))
+        when (destination) {
+            VehicleSettingsDestination.LIGHTING -> resolveShortcut(name, "SHOW_LIGHT")
+            // This spelling is the public action declared by the inspected factory APK.
+            VehicleSettingsDestination.ASSISTANCE -> resolveShortcut(name, "dirveassistance")
+            else -> resolve(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(name))
+        }
     }
 
     fun seatsIntent(): Intent? = resolveShortcut(FACTORY_VEHICLE_PACKAGE, "SHOW_SEAT")

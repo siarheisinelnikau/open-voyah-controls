@@ -54,6 +54,8 @@ internal val QuickAction.target: QuickActionTarget get() = when (this) {
         R.string.virtual_display)
     QuickAction.VEHICLE -> QuickActionTarget(ControlsRoute.VEHICLE, CockpitIcon.CAR, R.string.quick_actions_vehicle,
         R.string.vehicle_settings_title)
+    QuickAction.AUTOMATION -> QuickActionTarget(ControlsRoute.VEHICLE_AUTOMATION, CockpitIcon.ENERGY,
+        R.string.vehicle_automation_entry)
     QuickAction.SETTINGS -> QuickActionTarget(ControlsRoute.SETTINGS, CockpitIcon.SETTINGS, R.string.cockpit_settings)
     QuickAction.SEAT_MEMORY -> QuickActionTarget(ControlsRoute.SEAT_MEMORY, R.string.quick_actions_seat_memory, R.string.seat_memory_title) {
         Icon(painterResource(R.drawable.ic_quick_action_seat), contentDescription = null, modifier = Modifier.size(24.dp),

@@ -33,7 +33,7 @@
           "quickVoice",
           "display",
           "vehicle",
-          "androidSettings"
+          "automation"
         ],
         "desktopNames": {
           "favorites1": "Commute",
@@ -203,7 +203,7 @@
                 "quickVoice",
                 "display",
                 "vehicle",
-                "androidSettings"
+                "automation"
               ],
               "desktopNames": {
                 "favorites1": "Commute",
@@ -442,6 +442,63 @@
           "readyPrompt.ru": "Говорите.",
           "spokenReplyChannel": "assistant"
         }
+      },
+      "vehicleAutomation": {
+        "schema": 1,
+        "headlights": {
+          "enabled": true,
+          "onDrive": "low_beam",
+          "onPark": "off"
+        },
+        "drivingMode": {
+          "enabled": true
+        }
+      },
+      "seasonalClimate": {
+        "schema": 1,
+        "summer": {
+          "enabled": true,
+          "outsideThresholdCelsius": 28,
+          "driverCelsius": 20,
+          "passengerCelsius": 21,
+          "fanLevel": 5,
+          "gearCondition": "park",
+          "requireDoorsClosed": true,
+          "driverSeatLevel": 2,
+          "passengerSeatLevel": 3
+        },
+        "winter": {
+          "enabled": true,
+          "outsideThresholdCelsius": -4,
+          "driverCelsius": 24,
+          "passengerCelsius": 25,
+          "fanLevel": 4,
+          "gearCondition": "park",
+          "requireDoorsClosed": true,
+          "driverSeatLevel": 3,
+          "passengerSeatLevel": 2
+        }
+      },
+      "conditionalRules": {
+        "schema": 1,
+        "entries": [
+          {
+            "id": "70000000-0000-4000-8000-000000000001",
+            "name": "Park on arrival",
+            "enabled": true,
+            "gear": "park",
+            "doors": "all_closed",
+            "cooldownSeconds": 30,
+            "routine": {
+              "id": "3580a7b1-ba3a-40b2-9ca7-930df405ca71",
+              "name": "Morning grid",
+              "target": "apps",
+              "palette": "day",
+              "installedApp": "org.example.navigation/org.example.navigation.MainActivity",
+              "desktopLayoutId": "00000000-0000-4000-8000-0000000000a1"
+            }
+          }
+        ]
       }
     },
     "b": {
@@ -877,6 +934,63 @@
           "readyPrompt.ru": "Можно говорить.",
           "spokenReplyChannel": "media"
         }
+      },
+      "vehicleAutomation": {
+        "schema": 1,
+        "headlights": {
+          "enabled": false,
+          "onDrive": "automatic",
+          "onPark": "keep"
+        },
+        "drivingMode": {
+          "enabled": false
+        }
+      },
+      "seasonalClimate": {
+        "schema": 1,
+        "summer": {
+          "enabled": false,
+          "outsideThresholdCelsius": 32,
+          "driverCelsius": 23,
+          "passengerCelsius": 24,
+          "fanLevel": 3,
+          "gearCondition": "drive",
+          "requireDoorsClosed": false,
+          "driverSeatLevel": 1,
+          "passengerSeatLevel": 0
+        },
+        "winter": {
+          "enabled": false,
+          "outsideThresholdCelsius": 7,
+          "driverCelsius": 26,
+          "passengerCelsius": 27,
+          "fanLevel": 6,
+          "gearCondition": "drive",
+          "requireDoorsClosed": false,
+          "driverSeatLevel": 1,
+          "passengerSeatLevel": 0
+        }
+      },
+      "conditionalRules": {
+        "schema": 1,
+        "entries": [
+          {
+            "id": "70000000-0000-4000-8000-000000000001",
+            "name": "Departure view",
+            "enabled": false,
+            "gear": "drive",
+            "doors": "any_open",
+            "cooldownSeconds": 60,
+            "routine": {
+              "id": "3580a7b1-ba3a-40b2-9ca7-930df405ca71",
+              "name": "Morning shortcuts",
+              "target": "quickActions",
+              "palette": "day",
+              "installedApp": "org.example.media/org.example.media.PlayerActivity",
+              "desktopLayoutId": "00000000-0000-4000-8000-0000000000b1"
+            }
+          }
+        ]
       }
     }
   },
@@ -1630,6 +1744,101 @@
       "area": "Headlights",
       "name": "Observe headlight feedback while Controls is open",
       "path": "/headlightMonitoring/whileControlsOpen"
+    },
+    {
+      "area": "Vehicle routines",
+      "name": "lighting actions enabled",
+      "path": "/vehicleAutomation/headlights/enabled"
+    },
+    {
+      "area": "Vehicle routines",
+      "name": "Drive lighting action",
+      "path": "/vehicleAutomation/headlights/onDrive"
+    },
+    {
+      "area": "Vehicle routines",
+      "name": "Park lighting action",
+      "path": "/vehicleAutomation/headlights/onPark"
+    },
+    {
+      "area": "Vehicle routines",
+      "name": "actual driving-mode memory enabled",
+      "path": "/vehicleAutomation/drivingMode/enabled"
+    },
+    {
+      "area": "Seasonal climate",
+      "name": "scenario enabled",
+      "path": "/seasonalClimate/summer/enabled"
+    },
+    {
+      "area": "Seasonal climate",
+      "name": "outside temperature threshold",
+      "path": "/seasonalClimate/summer/outsideThresholdCelsius"
+    },
+    {
+      "area": "Seasonal climate",
+      "name": "driver temperature",
+      "path": "/seasonalClimate/summer/driverCelsius"
+    },
+    {
+      "area": "Seasonal climate",
+      "name": "passenger temperature",
+      "path": "/seasonalClimate/summer/passengerCelsius"
+    },
+    {
+      "area": "Seasonal climate",
+      "name": "front fan level",
+      "path": "/seasonalClimate/summer/fanLevel"
+    },
+    {
+      "area": "Seasonal climate",
+      "name": "gear condition",
+      "path": "/seasonalClimate/summer/gearCondition"
+    },
+    {
+      "area": "Seasonal climate",
+      "name": "all doors closed requirement",
+      "path": "/seasonalClimate/summer/requireDoorsClosed"
+    },
+    {
+      "area": "Seasonal climate",
+      "name": "driver seat level",
+      "path": "/seasonalClimate/summer/driverSeatLevel"
+    },
+    {
+      "area": "Seasonal climate",
+      "name": "passenger seat level",
+      "path": "/seasonalClimate/summer/passengerSeatLevel"
+    },
+    {
+      "area": "If–then rules",
+      "name": "saved rules",
+      "path": "/conditionalRules/entries/0/name"
+    },
+    {
+      "area": "If–then rules",
+      "name": "rule enabled",
+      "path": "/conditionalRules/entries/0/enabled"
+    },
+    {
+      "area": "If–then rules",
+      "name": "gear condition",
+      "path": "/conditionalRules/entries/0/gear"
+    },
+    {
+      "area": "If–then rules",
+      "name": "door condition",
+      "path": "/conditionalRules/entries/0/doors"
+    },
+    {
+      "area": "If–then rules",
+      "name": "selected saved routine",
+      "path": "/conditionalRules/entries/0/routine/name"
+    },
+    {
+      "area": "If–then rules",
+      "name": "minimum interval",
+      "path": "/conditionalRules/entries/0/cooldownSeconds"
     }
   ]
 }

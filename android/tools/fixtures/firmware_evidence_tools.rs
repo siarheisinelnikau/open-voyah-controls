@@ -392,7 +392,7 @@ fn main() {
                 "epoch",
                 "-s",
                 "-e",
-                "'^event=(headlight_(power|feedback|activity|reader|source)|driver_memory_(guidance|handoff)) '",
+                "'^event=(headlight_(power|feedback|activity|reader|source)|driver_memory_(guidance|handoff)|vehicle_(observer|gear|signal|automation_monitor|automation_dispatch|workflow_runtime)|seasonal_climate_automatic|conditional_rule_(attempt|handoff)) '",
                 "OpenVoyahControls:I",
             ],
         ) => {
@@ -401,6 +401,41 @@ fn main() {
                 std::process::exit(1);
             }
             println!("--------- beginning of main");
+            if event_case == "vehicle_workflows" {
+                let header = "1700000001.145 4321 4360 I OpenVoyahControls:";
+                for event in [
+                    "event=vehicle_observer state=model_unreviewed product=f6808",
+                    "event=vehicle_observer outcome=read_failed failure=SecurityException",
+                    "event=vehicle_automation_monitor outcome=started",
+                    "event=vehicle_automation_monitor outcome=stopped",
+                    "event=vehicle_workflow_runtime outcome=started background=true",
+                    "event=vehicle_workflow_runtime outcome=stopped",
+                    "event=conditional_rule_attempt rule=12345678-1234-4234-9234-123456789abc outcome=unconfirmed",
+                    "event=conditional_rule_handoff rule=12345678-1234-4234-9234-123456789abc outcome=completed",
+                    "event=vehicle_automation_dispatch kind=headlight command=LowBeam outcome=requested",
+                    "event=vehicle_automation_dispatch kind=driving_mode command=EcoMode outcome=unconfirmed",
+                    "event=seasonal_climate_automatic season=winter outcome=partial completed=2",
+                    "event=seasonal_climate_automatic season=summer outcome=recent completed=0",
+                    "event=vehicle_signal signal=gear value=drive outcome=observed elapsed_ns=42 session=12345678-1234-4234-9234-123456789abc",
+                    "event=vehicle_signal signal=outside_temperature value=-12.5 outcome=observed elapsed_ns=43 session=12345678-1234-4234-9234-123456789abc",
+                    "event=vehicle_signal signal=door_driver value=unknown outcome=unavailable elapsed_ns=44 session=12345678-1234-4234-9234-123456789abc",
+                    "event=vehicle_signal signal=gear value=open outcome=observed elapsed_ns=45 session=12345678-1234-4234-9234-123456789abc",
+                    "event=vehicle_signal signal=gear value=unknown outcome=observed elapsed_ns=45 session=12345678-1234-4234-9234-123456789abc",
+                    "event=vehicle_signal signal=driving_mode value=sport outcome=observed elapsed_ns=9223372036854775808 session=12345678-1234-4234-9234-123456789abc",
+                    "event=vehicle_signal signal=door_driver value=open outcome=observed elapsed_ns=45 session=PRIVATE_RECORD_MUST_NOT_APPEAR",
+                    "event=vehicle_automation_dispatch kind=headlight command=EcoMode outcome=requested",
+                    "event=vehicle_automation_dispatch kind=driving_mode command=LowBeam outcome=confirmed",
+                    "event=vehicle_automation_dispatch kind=headlight command=LampOff outcome=success",
+                    "event=seasonal_climate_automatic season=winter outcome=accepted completed=6",
+                    "event=vehicle_observer state=subscribed product=f6808 extra=PRIVATE_RECORD_MUST_NOT_APPEAR",
+                    "event=vehicle_observer state=active product=f6808",
+                    "event=vehicle_automation_monitor outcome=started private=PRIVATE_RECORD_MUST_NOT_APPEAR",
+                ] {
+                    println!("{header} {event}");
+                }
+                println!("1700000001.145 4322 4360 I OpenVoyahControls: event=vehicle_automation_monitor outcome=started");
+                return;
+            }
             if event_case == "handoff" {
                 let header = "1700000001.145 4321 4360 I OpenVoyahControls:";
                 let event = "event=driver_memory_handoff";

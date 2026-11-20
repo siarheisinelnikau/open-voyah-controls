@@ -19,6 +19,7 @@ internal fun VehicleSettingsScreen(
     open: (VehicleSettingsDestination) -> Unit, manual: () -> Unit, seatMemory: () -> Unit,
     serviceReminder: () -> Unit, serviceStatus: String?,
     monitoring: HeadlightMonitoringState, setMonitoring: (Boolean) -> Unit, inspectLightingSources: () -> Unit,
+    automation: () -> Unit, assistance: () -> Unit,
 ) {
     CockpitDetail(label(R.string.vehicle_settings_title), label(R.string.vehicle_settings_description), back) {
         CockpitColumns(first = {
@@ -32,15 +33,16 @@ internal fun VehicleSettingsScreen(
                 }
             }
         }, second = {
-            CockpitSection(label(R.string.vehicle_assistance_title), CockpitIcon.BUTTONS, label(R.string.vehicle_assistance_description)) {
+            CockpitChoice(label(R.string.vehicle_automation_entry), label(R.string.vehicle_automation_entry_summary), onClick = automation)
+            CockpitSection(label(R.string.vehicle_assistance_title), CockpitIcon.BUTTONS) {
+                CockpitChoice(label(R.string.factory_assistance_title), onClick = assistance)
                 if (VehicleSettingsDestination.VEHICLE in available) {
-                    CockpitAction(label(R.string.vehicle_settings_open), { open(VehicleSettingsDestination.VEHICLE) }, primary = true)
-                } else CockpitFeedback(label(R.string.vehicle_settings_unavailable))
-                CockpitAction(label(R.string.vehicle_manual), manual)
+                    CockpitAction(label(R.string.vehicle_settings_open), { open(VehicleSettingsDestination.VEHICLE) })
+                }
                 status?.let { CockpitFeedback(it, error = true) }
             }
             CockpitChoice(label(R.string.service_reminder_title), serviceStatus, onClick = serviceReminder)
-            CockpitSection(label(R.string.vehicle_energy_title), CockpitIcon.ENERGY, label(R.string.vehicle_energy_description)) { }
+            CockpitAction(label(R.string.vehicle_manual), manual)
         })
     }
 }

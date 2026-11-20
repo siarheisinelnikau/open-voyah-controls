@@ -1,0 +1,125 @@
+{
+  "date": "2026-11-20",
+  "version": "0.20.1",
+  "version_code": 24,
+  "source_commit": "37369c733fa3ff752d47d87ea3f090b8f6fb41f4",
+  "source_tree": "b890fee4615f098e20de0aedaac3d6d1e070c922",
+  "source_scope": "Feature implementation before adding this validation metadata.",
+  "distribution": "local-debug-only",
+  "vehicle_tested": false,
+  "production_ready": false,
+  "h97d_actions_approved": false,
+  "apollo_production_adapter_available": false,
+  "runtime_scope": "Automatic routines run while Controls is visible; physical H97D actions remain closed.",
+  "artifact": {
+    "name": "OpenVoyahControls-v0.20.1-vehicle-debug.apk",
+    "size": 165303096,
+    "sha256": "9ae22b2651b8d35cc1768a6cf8f542c6c3af8d2d2ab436ee4a15d4d556139ed5",
+    "installed_apk_hash_matched": true,
+    "signature": "Android debug signer, APK v2 verified"
+  },
+  "tests": {
+    "app_jvm": 290,
+    "core_jvm": 67,
+    "javascript": 183,
+    "cluster_transactions": 8,
+    "android": 49,
+    "gradle_tasks": [
+      ":app:assembleDebug",
+      ":app:assembleDebugAndroidTest",
+      ":app:lintDebug",
+      ":app:testDebugUnitTest",
+      ":core:test"
+    ]
+  },
+  "emulator": {
+    "sdk": 30,
+    "serial": "127.0.0.1:5683",
+    "adb_server_port": 5049,
+    "display": [
+      1920,
+      720
+    ],
+    "density_dpi": 240,
+    "selinux": "Enforcing",
+    "audio_input": "disabled",
+    "backend": "GLES: Google (Google Inc.), Android Emulator OpenGL ES Translator (Google SwiftShader), OpenGL ES 2.0 (OpenGL ES 3.0 SwiftShader 4.0.0.1)"
+  },
+  "rendering": {
+    "samples": [
+      {
+        "state": "visible",
+        "pid": 2039,
+        "seconds": 6.0269634,
+        "frames": 0,
+        "guest_cpu_ticks": 0,
+        "guest_cpu_one_core_percent": 0.0
+      },
+      {
+        "state": "hidden",
+        "pid": 2039,
+        "seconds": 6.0384923,
+        "frames": 0,
+        "guest_cpu_ticks": 1,
+        "guest_cpu_one_core_percent": 0.1656042519090403
+      },
+      {
+        "state": "restored",
+        "pid": 2039,
+        "seconds": 6.0335704,
+        "frames": 0,
+        "guest_cpu_ticks": 0,
+        "guest_cpu_one_core_percent": 0.0
+      }
+    ],
+    "cpu_units": "Guest one logical core percent; CLK_TCK read from the guest.",
+    "limits": "No vehicle frame-rate or native actuator qualification. GPU/presentation latency was not profiled."
+  },
+  "screenshots_sha256": {
+    "vehicle-settings": "f854bbec3b697e32975f567a0e587460b666626e074bc43a08436011cfec0e60",
+    "vehicle-automation": "7f6b0a24ced57f1b33909086c025c4d17d57d7e33939509e8431311f6972c745",
+    "seasonal-climate": "7adb70cf5c7ab3369886d1993ae4cee510a89a806739478a3dac21496dc2ffb6",
+    "seasonal-climate-editor": "351cf576f293d4fb57c217497b4d7772029e8e17c7d8d2845272cd2d887e59e5",
+    "conditional-rules": "a332f7ef2f4626d09de93a6fd24c225c0ccb47bddc9fdaccfc27506ba3870599",
+    "rule-editor": "9359ce8424e98c5038de4be06f72b59dfd8089275e7bc858d8a132f727abbfae",
+    "factory-assistance": "b507be897250eefc75a4de2e96027c9bccb510d98d39b673023c8d2dd409ca2c",
+    "vehicle-diagnostics": "a3bf9c7eb6437ab93c28c48f503892b97b013ac5f0a5053d714eea6b347400d5"
+  },
+  "missing_h97d_signals": [
+    {
+      "signal": "gear",
+      "required_evidence": "Exact H97D signed CAN service and onGearStatusChanged P/N/R/D plus sleep/wake trace; getGearStatus is a cached snapshot."
+    },
+    {
+      "signal": "speed",
+      "required_evidence": "Exact producer, units, invalid-state handling and fresh zero-speed feedback on H97D; an integer display cache cannot establish stationary telemetry."
+    },
+    {
+      "signal": "doors",
+      "required_evidence": "Each door position must have a qualified producer and fresh open/closed feedback. A lock-change DoorStatus callback can carry old position fields."
+    },
+    {
+      "signal": "outside_temperature",
+      "required_evidence": "H97D outside-temperature producer, scale, validity and wake trace; ambient callback data remains unqualified."
+    },
+    {
+      "signal": "driving_mode",
+      "required_evidence": "H97D DRIVING_MODE_SET_FB mapping and controller trace. DRIVING_MODE_SET and setter receipts are request echoes, not actual mode."
+    }
+  ],
+  "apollo_missing_evidence": [
+    "Exact installed H97D firmware, signed settings/CAN/provider APKs and qualified operation",
+    "Actual ASC/SDB configuration and Baidu equipment classification on this firmware",
+    "Reviewed method signatures and complete 18-flag controller effect mapping",
+    "Genuine factory account, learning result and TLC confirmation without identity contents",
+    "Complete off-device settings/provider/account/configuration backup and independent tested restore",
+    "Original ADCU values and verified restoration of each affected flag, including after sleep",
+    "Fresh qualified Park and zero speed plus session-bound explicit user confirmation"
+  ],
+  "settings_archive_sections": [
+    "vehicleAutomation",
+    "seasonalClimate",
+    "conditionalRules"
+  ],
+  "reference_implementation_materials_included": false
+}

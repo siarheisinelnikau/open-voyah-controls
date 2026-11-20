@@ -9,7 +9,7 @@ internal const val MAX_DOCK_APP_SHORTCUTS = 4
 
 internal enum class QuickAction(val id: String) {
     APPS("apps"), BUTTONS("buttons"), VOICE_SETTINGS("voiceSettings"),
-    DISPLAY("display"), VEHICLE("vehicle"), SETTINGS("settings"),
+    DISPLAY("display"), VEHICLE("vehicle"), AUTOMATION("automation"), SETTINGS("settings"),
     SEAT_MEMORY("seatMemory"), ROUTINES("routines"),
 }
 

@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "date": "2026-11-21",
+  "source_commit": "9bb2f1673a5e9723f4792499bdc4061577d9637d",
+  "source_tree": "379ac7eb070d995abed8084ec1c82bb37ce59dbb",
+  "artifact": "OpenVoyahControls-v0.20.1-runtime-debug.apk",
+  "artifact_bytes": 167684936,
+  "sha256": "3dfb04badc9e0364715e5e06be3bca184f7cd89f71dc63c94fd3c4acd67514ef",
+  "distribution": "local debug build",
+  "emulator_fixture": false,
+  "vehicle_tested": false,
+  "production_ready": false,
+  "checks": {
+    "gradle": "assembleDebug, assembleDebugAndroidTest, lintDebug, app JVM, core JVM passed; final test APK rebuilt for merged inventory and activity teardown",
+    "jvm": {
+      "app": {
+        "tests": 326,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "core": {
+        "tests": 67,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "javascript_tests": 184,
+    "firmware_evidence_tests": 29,
+    "android_tests": {
+      "regression": 56,
+      "lifecycle": 1,
+      "ui": 1,
+      "merged-routes": 20
+    },
+    "emulator": "isolated API 30 x86_64, 1920x720, 240dpi, SELinux Enforcing",
+    "renderer": "Google SwiftShader; software emulator only",
+    "settled_rendering": [
+      {
+        "state": "visible",
+        "pid": 3025,
+        "seconds": 6.0349496,
+        "frames": 0,
+        "guest_cpu_ticks": 0,
+        "guest_cpu_one_core_percent": 0.0
+      },
+      {
+        "state": "hidden",
+        "pid": 3025,
+        "seconds": 6.0351142,
+        "frames": 0,
+        "guest_cpu_ticks": 1,
+        "guest_cpu_one_core_percent": 0.16569694737508034
+      },
+      {
+        "state": "restored",
+        "pid": 3025,
+        "seconds": 6.0368922,
+        "frames": 0,
+        "guest_cpu_ticks": 0,
+        "guest_cpu_one_core_percent": 0.0
+      }
+    ],
+    "screenshots_sha256": {
+      "vehicle-settings": "5ec1ff4465fd95e2c3996dcc6db5d9c6ee96ea413927f74608d0287aef5370cd",
+      "vehicle-automation": "b1c1a8dc0d6c4d3f755eb8dff71268afae21d4c2fe6ab293bcbe98bfa3a53b93",
+      "seasonal-climate": "9421da902e104ac4c32b7198d9fa1a05f2371a2279573971c166a10f672e2023",
+      "seasonal-climate-editor": "7fc83cd47cd37edd52c84cc4786f7624371d44edb24d74b48f4cf221e44ebd87",
+      "conditional-rules": "954e51954c9a57374df03e7098adca20b8548e4fceedb806ac9df03476331ec6",
+      "rule-editor": "4a292a140ec2a408c2efefdf310fc33460781e5a08abf5aa3a0fbaf453c9284d",
+      "factory-assistance": "b286f74116ce1bc4652079d8073cb6c0f7b23c1dd3c056c4fb0eb8d4e90e5a62",
+      "vehicle-diagnostics": "e6877d4939c9597492c6db5b29cc251814a263caf3c5d4c7aa9345a816ed0c2f"
+    }
+  },
+  "integration": {
+    "shared_background_runtime": true,
+    "existing_accessibility_service_owner": true,
+    "single_use_routine_handoff": true,
+    "settings_export_and_rollback": true,
+    "apollo_factory_menu_and_read_only_export": true,
+    "apollo_production_activation": false
+  },
+  "hardware_limits": [
+    "H97D exact signed CAN service, source continuity, callback units and sleep/wake trace remain unqualified.",
+    "Pinned speed callback reports zero for invalid input as well as standstill; separate validity is required.",
+    "Physical commands retain exact-firmware and individual-capability admission.",
+    "Apollo needs actual ASC/SDB, independent ADCU originals, complete off-device backup, verified restore and asynchronous completion; request caches are not feedback."
+  ]
+}

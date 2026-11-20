@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vehicle_runtime_background_ready">Служба специальных возможностей Controls подключена. Сохранённые сценарии могут работать при закрытом Controls; нужны актуальные сигналы и допуск каждого действия.</string>
+    <string name="vehicle_runtime_foreground_only">Для работы в фоне включите службу Controls в специальных возможностях через настройку приложения.</string>
+</resources>

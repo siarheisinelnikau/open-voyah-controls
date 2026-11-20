@@ -8,6 +8,8 @@
     <uses-permission android:name="android.car.permission.CAR_EXTERIOR_LIGHTS" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <queries>
+        <provider android:authorities="com.pateo.baiduStateProvider" />
+        <provider android:authorities="qinggan.settings" />
         <package android:name="com.qinggan.app.launcher" />
         <package android:name="com.qinggan.app.setting" />
         <package android:name="com.qinggan.app.vehicle" />
