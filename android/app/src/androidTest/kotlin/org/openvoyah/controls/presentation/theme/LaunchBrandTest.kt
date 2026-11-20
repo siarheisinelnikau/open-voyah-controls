@@ -25,6 +25,9 @@ import org.openvoyah.controls.LaunchBrandActivity
 import org.openvoyah.controls.MainActivity
 import org.openvoyah.controls.R
 import org.openvoyah.controls.data.settings.AppearancePreferences
+import org.openvoyah.controls.domain.settings.AppAccent
+import org.openvoyah.controls.domain.settings.AppFontFamily
+import org.openvoyah.controls.domain.settings.AppTextSize
 import org.openvoyah.controls.domain.settings.LauncherEntry
 import org.openvoyah.controls.presentation.navigation.ControlsNavigationViewModel
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
@@ -67,8 +70,8 @@ class LaunchBrandTest : InstrumentationTestCase() {
                     assertFalse("The brand must have its own task", onMain { brand.taskId == controls.taskId })
                     captureStage(brand, "launch-brand-background.png", ::hasPlainBackground)
                     captureStage(brand, "launch-brand-wings.png", ::hasOnlyWings)
-                    captureColorStage(brand, "launch-brand-ruby.png", ruby = true)
-                    captureColorStage(brand, "launch-brand.png", ruby = false)
+                    captureColorStage(brand, "launch-brand-charge.png", StageColors::isBlueCharge)
+                    captureColorStage(brand, "launch-brand.png", StageColors::isSteel)
                     await("the launcher animation to close") { onMain { brand.isFinishing } }
                 }
                 await("existing settings to regain focus") {
@@ -77,6 +80,18 @@ class LaunchBrandTest : InstrumentationTestCase() {
                 assertTrue(onMain {
                     ViewModelProvider(controls)[ControlsNavigationViewModel::class.java].state.value.route == ControlsRoute.SETTINGS
                 })
+            }
+        }
+    }
+
+    fun testChargeFollowsTheAccentChosenInAppearance() = withLauncherSettings { appearance ->
+        appearance.setAnimateRoutes(true)
+        appearance.setAccent(AppAccent.AMBER)
+        withSlowMotion {
+            withActivity(bootBrandIntent(), LaunchBrandActivity::class.java) { brand ->
+                await("Brand on the boot entry") { hasTag(brand, LAUNCH_BRAND_TAG) }
+                captureColorStage(brand, "launch-brand-charge-amber.png", StageColors::isAmberCharge)
+                captureColorStage(brand, "launch-brand-amber.png", StageColors::isSteel)
             }
         }
     }
@@ -125,10 +140,21 @@ class LaunchBrandTest : InstrumentationTestCase() {
         val original = appearance.load()
         try {
             check(updates.edit().putBoolean("check_on_startup", false).commit())
+            // The intro takes its accent, contrast and type from Appearance; pin them so pixel checks are stable.
+            appearance.setAccent(AppAccent.DEFAULT)
+            appearance.setHighContrast(false)
+            appearance.setTextSize(AppTextSize.STANDARD)
+            appearance.setFontFamily(AppFontFamily.SYSTEM)
+            appearance.setBoldText(false)
             test(appearance)
         } finally {
             appearance.setAnimateRoutes(original.animateRoutes)
             appearance.setLauncherEntry(original.launcherEntry)
+            appearance.setAccent(original.accent)
+            appearance.setHighContrast(original.highContrast)
+            appearance.setTextSize(original.textSize)
+            appearance.setFontFamily(original.fontFamily)
+            appearance.setBoldText(original.boldText)
             check(updates.edit().apply {
                 if (startupCheck == null) remove("check_on_startup") else putBoolean("check_on_startup", startupCheck)
             }.commit())
@@ -189,45 +215,55 @@ class LaunchBrandTest : InstrumentationTestCase() {
         return true
     }
 
+    // The regions below follow the centered block on the 1920 x 720, 240 dpi reference display.
     private fun hasOnlyWings(bitmap: Bitmap): Boolean {
-        val wingRows = pixelRange(bitmap.height, 25 until 52)
+        val wingRows = pixelRange(bitmap.height, WING_ROWS)
         val left = brightPixels(bitmap, pixelRange(bitmap.width, 40 until 46), wingRows, threshold = 130)
         val right = brightPixels(bitmap, pixelRange(bitmap.width, 54 until 60), wingRows, threshold = 130)
-        val spine = brightPixels(bitmap, pixelRange(bitmap.width, 49 until 51),
-            pixelRange(bitmap.height, 54 until 64), threshold = 110)
-        val title = brightPixels(bitmap, pixelRange(bitmap.width, 34 until 66),
-            pixelRange(bitmap.height, 68 until 80), threshold = 110)
+        val spine = brightPixels(bitmap, pixelRange(bitmap.width, 49 until 51), pixelRange(bitmap.height, SPINE_ROWS),
+            threshold = 110)
+        val title = brightPixels(bitmap, pixelRange(bitmap.width, TEXT_COLUMNS), pixelRange(bitmap.height, TITLE_ROWS),
+            threshold = 110)
         return left > 40 && right > 40 && spine == 0 && title == 0
     }
 
-    private fun captureColorStage(brand: Activity, filename: String, ruby: Boolean) = captureStage(brand, filename) { bitmap ->
-        val emblem = colorsIn(bitmap, 46 until 54, 41 until 64)
-        val title = colorsIn(bitmap, 34 until 66, 68 until 80)
-        if (ruby) emblem.isRuby(1_500) && title.isRuby(300)
-        else emblem.isSilver(500) && title.isSilver(300)
-    }
+    private fun captureColorStage(brand: Activity, filename: String, reached: (StageColors, StageColors) -> Boolean) =
+        captureStage(brand, filename) { bitmap ->
+            reached(colorsIn(bitmap, 46 until 54, BODY_ROWS), colorsIn(bitmap, TEXT_COLUMNS, TITLE_ROWS))
+        }
 
-    private data class StageColors(val ruby: Int, val warm: Int, val silver: Int) {
-        fun isRuby(minimum: Int) = ruby > minimum && ruby > silver * 3
-        fun isSilver(minimum: Int) = silver > minimum && warm < 40
+    /**
+     * Pixel counts of the emblem body; each check also receives the counts of the title. The resting mark is steel
+     * and a charge takes the accent chosen in Appearance.
+     */
+    private data class StageColors(val blue: Int, val amber: Int, val red: Int, val steel: Int) {
+        fun isBlueCharge(title: StageColors) =
+            blue > 1_500 && blue > steel * 3 && title.blue > 300 && red == 0 && title.red == 0
+
+        fun isAmberCharge(title: StageColors) = amber > 1_500 && amber > steel * 3 && title.amber > 300 && blue < 40
+
+        fun isSteel(title: StageColors) = steel > 500 && title.steel > 300 && red == 0 && amber < 40 && title.blue < 40
     }
 
     private fun colorsIn(bitmap: Bitmap, horizontal: IntRange, vertical: IntRange): StageColors {
         val xs = pixelRange(bitmap.width, horizontal)
         val ys = pixelRange(bitmap.height, vertical)
-        var ruby = 0
-        var warm = 0
-        var silver = 0
+        var accentBlue = 0
+        var accentAmber = 0
+        var crimson = 0
+        var steel = 0
         for (y in ys) for (x in xs) {
             val color = bitmap.getPixel(x, y)
             val red = Color.red(color)
             val green = Color.green(color)
             val blue = Color.blue(color)
-            if (red > 80 && red * 3 > green * 5 && red * 3 > blue * 4) ruby++
-            if (red > 80 && red * 10 > green * 12 && red * 10 > blue * 11) warm++
-            if (red > 140 && green > 140 && blue > 140 && blue - red in -45..45) silver++
+            if (blue > 110 && blue * 10 > red * 14 && blue * 10 > green * 12) accentBlue++
+            if (red > 150 && red * 10 > blue * 16 && green * 10 > blue * 13) accentAmber++
+            // The intro used to glow crimson; no stage may bring that color back.
+            if (red > 80 && red * 3 > green * 5 && red * 3 > blue * 4) crimson++
+            if (red > 140 && green > 140 && blue > 140 && blue - red in -45..45) steel++
         }
-        return StageColors(ruby, warm, silver)
+        return StageColors(accentBlue, accentAmber, crimson, steel)
     }
 
     private fun pixelRange(size: Int, percents: IntRange): IntRange =
@@ -256,6 +292,14 @@ class LaunchBrandTest : InstrumentationTestCase() {
             val pixel = bitmap.getPixel(x, y)
             Color.alpha(pixel) > 200 && Color.red(pixel) + Color.green(pixel) + Color.blue(pixel) > threshold
         }
+    }
+
+    private companion object {
+        val WING_ROWS = 22 until 37
+        val BODY_ROWS = 33 until 55
+        val SPINE_ROWS = 46 until 56
+        val TITLE_ROWS = 61 until 68
+        val TEXT_COLUMNS = 34 until 66
     }
 
     private fun save(bitmap: Bitmap, file: File) {

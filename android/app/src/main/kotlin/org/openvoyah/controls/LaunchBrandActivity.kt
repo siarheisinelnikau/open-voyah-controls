@@ -6,6 +6,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import org.openvoyah.controls.data.settings.AppearancePreferences
+import org.openvoyah.controls.diagnostics.ControlsLog
+import org.openvoyah.controls.domain.settings.AppPalette
+import org.openvoyah.controls.presentation.theme.ControlsTheme
 import org.openvoyah.controls.presentation.theme.LaunchBrand
 
 /** Owns the launcher animation in a separate task from the cockpit. */
@@ -20,12 +23,25 @@ class LaunchBrandActivity : ComponentActivity() {
             finish()
             return
         }
-        if (intent.action != SHOW_BOOT_BRAND || savedInstanceState != null || !ValueAnimator.areAnimatorsEnabled() ||
-            !AppearancePreferences(applicationContext).load().animateRoutes) {
+        val appearance = AppearancePreferences(applicationContext).load()
+        val skipped = when {
+            intent.action != SHOW_BOOT_BRAND -> "unexpected_action"
+            savedInstanceState != null -> "recreated"
+            !ValueAnimator.areAnimatorsEnabled() -> "animators_disabled"
+            !appearance.animateRoutes -> "transitions_disabled"
+            else -> null
+        }
+        if (skipped != null) {
+            ControlsLog.info("launch_brand", "outcome", "skipped", "reason", skipped)
             finish()
             return
         }
-        setContent { LaunchBrand(::finish) }
+        ControlsLog.info("launch_brand", "outcome", "shown")
+        setContent {
+            // The window starts on the dark cockpit background, so the intro keeps the dark roles in every palette
+            // and only takes the accent, contrast and type choices from Appearance.
+            ControlsTheme(appearance = appearance, temporaryPalette = AppPalette.DARK) { LaunchBrand(::finish) }
+        }
     }
 
     override fun onPause() {

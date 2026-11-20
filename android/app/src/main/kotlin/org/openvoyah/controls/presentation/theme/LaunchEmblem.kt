@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
@@ -38,38 +39,40 @@ private val FEATHERS = listOf(
     "M18 36C10 40 1 47 -12 45C-5 50 6 49 12 47C17 44 20 46 23 48Z",
 )
 
-/** The metal and glass are rasterized once at the cockpit's rendering scale. */
-internal class LaunchEmblem(density: Density, direction: LayoutDirection, renderScale: Float) {
+/** The metal and glass are rasterized once at the cockpit's rendering scale, in the tones of the active theme. */
+internal class LaunchEmblem(density: Density, direction: LayoutDirection, renderScale: Float, palette: LaunchPalette) {
     private val left = PathParser().parsePathString(LEFT_RIM).toPath()
     private val spinePath = PathParser().parsePathString(CENTER_RIM).toPath()
-    private val crimson = ColorFilter.lighting(Color(0xFFB3233D), Color.Black)
-    private val glintColors = listOf(Color.Transparent, Color(0xFFE5F5FF), Color.Transparent)
+    private val metal = palette.metal
+    // Multiplying by the accent keeps the bevels and shadows of the metal while it takes the cockpit's color.
+    private val charged = ColorFilter.lighting(palette.energy, Color.Black)
+    private val glintColors = listOf(Color.Transparent, lerp(Color.White, palette.energy, .10f), Color.Transparent)
     private val badge = renderLayer(density, direction, IntRect(-4, -3, 81, 107), renderScale) {
         val leftFace = PathParser().parsePathString(LEFT_FACE).toPath()
         val centerFace = PathParser().parsePathString(CENTER_FACE).toPath()
-        val depth = Brush.linearGradient(listOf(Color(0xFFF0F6FE), Color(0xFF293C54), Color(0xFF8097B5)),
+        val depth = Brush.linearGradient(listOf(metal.tone(.95f), metal.tone(0f), metal.tone(.50f)),
             start = Offset(1f, 0f), end = Offset(33f, 76f))
         val bevel = Brush.linearGradient(
-            0f to Color(0xFFFAFCFF), .38f to Color(0xFFCED7E3), .57f to Color(0xFF596F8C),
-            .72f to Color(0xFFF5FAFF), 1f to Color(0xFF8D9BB0),
+            0f to metal.tone(1f), .38f to metal.tone(.80f), .57f to metal.tone(.30f),
+            .72f to metal.tone(.97f), 1f to metal.tone(.56f),
             start = Offset(2f, 3f), end = Offset(31f, 57f),
         )
         val satin = Brush.linearGradient(
-            0f to Color(0xFFB3C2D6), .20f to Color(0xFFF9FBFE), .38f to Color(0xFFE1EBF7),
-            .54f to Color(0xFF8F9FB6), .70f to Color(0xFFF1F6FD), .84f to Color(0xFFC7D4E6),
-            1f to Color(0xFF849AB5),
+            0f to metal.tone(.70f), .20f to metal.tone(.99f), .38f to metal.tone(.90f),
+            .54f to metal.tone(.57f), .70f to metal.tone(.95f), .84f to metal.tone(.78f),
+            1f to metal.tone(.52f),
             start = Offset(-3f, 29f), end = Offset(36f, 48f),
         )
         fun DrawScope.branch() {
             translate(1.6f, 2.7f) { drawPath(left, depth, alpha = .9f) }
             drawPath(left, bevel)
             drawPath(leftFace, satin)
-            drawPath(leftFace, Color(0xFFF5F9FE), alpha = .17f, style = Stroke(.36f))
+            drawPath(leftFace, metal.tone(.97f), alpha = .17f, style = Stroke(.36f))
         }
         branch()
         mirror { branch() }
-        val spine = Brush.horizontalGradient(listOf(Color(0xFF8C9FB9), Color(0xFFEDF6FF), Color(0xFFF7FBFF),
-            Color(0xFF99AFC9), Color(0xFFCAD5E5)), startX = 34.5f, endX = 41.5f)
+        val spine = Brush.horizontalGradient(listOf(metal.tone(.55f), metal.tone(.94f), metal.tone(.98f),
+            metal.tone(.62f), metal.tone(.80f)), startX = 34.5f, endX = 41.5f)
         translate(1.0f, 2.4f) { drawPath(spinePath, depth) }
         drawPath(spinePath, bevel)
         drawPath(centerFace, spine)
@@ -79,18 +82,18 @@ internal class LaunchEmblem(density: Density, direction: LayoutDirection, render
             val path = PathParser().parsePathString(outline).toPath()
             val bounds = path.getBounds()
             val glass = Brush.linearGradient(
-                0f to Color(0xA0DBEBFB), .22f to Color(0x3CB6CBDF), .54f to Color(0x244A6786),
-                .79f to Color(0x90CADDF1), 1f to Color(0xB2EFF7FF),
+                0f to metal.tone(.88f, .63f), .22f to metal.tone(.72f, .24f), .54f to metal.tone(.30f, .14f),
+                .79f to metal.tone(.80f, .56f), 1f to metal.tone(.96f, .70f),
                 start = Offset(bounds.left + 7f, bounds.top), end = Offset(bounds.right - 5f, bounds.bottom),
             )
-            val edge = Brush.horizontalGradient(listOf(Color(0x3FCADBF0), Color(0xB5EAF4FD), Color(0x40ABC9E5)),
+            val edge = Brush.horizontalGradient(listOf(metal.tone(.80f, .25f), metal.tone(.94f, .71f), metal.tone(.68f, .25f)),
                 startX = bounds.left, endX = bounds.right)
             drawPath(path, glass)
             drawPath(path, edge, style = Stroke(.46f))
         }
     }
 
-    fun DrawScope.draw(bodyOpacity: Float, spread: Float, wingOpacity: Float, lightX: Float?, heat: Float) {
+    fun DrawScope.draw(bodyOpacity: Float, spread: Float, wingOpacity: Float, lightX: Float?, charge: Float) {
         if (wingOpacity > 0f) {
             fun DrawScope.openWing() {
                 rotate(-24f * (1f - spread), pivot = Offset.Zero) {
@@ -104,11 +107,12 @@ internal class LaunchEmblem(density: Density, direction: LayoutDirection, render
         }
         if (bodyOpacity <= 0f) return
         badge.paint(this, bodyOpacity)
-        if (heat > 0f) badge.paint(this, heat * bodyOpacity, crimson)
+        // Stop short of a full tint so the bevels of the steel stay readable under the accent.
+        if (charge > 0f) badge.paint(this, charge * bodyOpacity * CHARGE_DEPTH, charged)
         if (lightX != null) {
             val reflection = Brush.linearGradient(glintColors,
                 start = Offset(lightX, 0f), end = Offset(lightX + 30f, -17f))
-            val shine = (.66f - .36f * heat) * bodyOpacity
+            val shine = (.66f - .30f * charge) * bodyOpacity
             drawPath(left, reflection, alpha = shine)
             drawPath(spinePath, reflection, alpha = shine)
             mirror {
@@ -124,6 +128,7 @@ internal class LaunchEmblem(density: Density, direction: LayoutDirection, render
     companion object {
         const val WIDTH = 76f
         const val HEIGHT = 106f
+        private const val CHARGE_DEPTH = .82f
     }
 }
 
