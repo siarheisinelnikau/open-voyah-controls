@@ -32,16 +32,16 @@
         android:supportsRtl="true">
         <uses-library android:name="android.car" android:required="false" />
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop"
-            android:windowSoftInputMode="adjustResize" />
-        <activity android:name=".LaunchBrandActivity" android:exported="true" android:launchMode="singleTask"
-            android:theme="@style/LaunchBrandTheme" android:excludeFromRecents="true"
-            android:taskAffinity="org.openvoyah.controls.branding">
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <meta-data android:name="android.app.shortcuts" android:resource="@xml/launcher_shortcuts" />
         </activity>
+        <activity android:name=".LaunchBrandActivity" android:exported="true" android:launchMode="singleTask"
+            android:theme="@style/LaunchBrandTheme" android:excludeFromRecents="true"
+            android:taskAffinity="org.openvoyah.controls.branding" />
         <activity android:name=".QuickVoiceActivity" android:exported="true" android:label="@string/quick_voice_title"
             android:permission="android.permission.WRITE_SECURE_SETTINGS"
             android:theme="@style/QuickVoiceTheme" android:launchMode="singleTop" android:excludeFromRecents="true"

@@ -63,7 +63,7 @@ class ControlsNavigationTest : InstrumentationTestCase() {
         assertNull(direct.permission)
 
         val launcher = checkNotNull(packages.getLaunchIntentForPackage(app.packageName))
-        assertEquals(ComponentName(app, LaunchBrandActivity::class.java), launcher.component)
+        assertEquals(ComponentName(app, MainActivity::class.java), launcher.component)
 
         val microphone = packages.getActivityInfo(ComponentName(app, QuickVoiceActivity::class.java), 0)
         assertNull(microphone.targetActivity)

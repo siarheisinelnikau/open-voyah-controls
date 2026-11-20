@@ -72,7 +72,7 @@ export function createActionLauncher(Java, buildIntent = createActionIntent(Java
 }
 
 /** Installs the panel adapter for the Qinggan launcher. */
-export function install(Java, onNavigation = () => {}) {
+export function install(Java, onNavigation = () => {}, startup) {
 Java.perform(function () {
     let clickHook, initHook, selectionHook;
     const holdHooks = [];
@@ -221,7 +221,7 @@ Java.perform(function () {
         panelState?.track(this);
         return result;
     };
-    panelState = installPanelState(Java, Nav, PANELS, readConfig, actionFor, buildIntent, ownsView);
+    panelState = installPanelState(Java, Nav, PANELS, readConfig, actionFor, buildIntent, ownsView, {startup});
     // Injection normally occurs after launcher has already constructed the bars.
     Java.choose('com.qinggan.mainlauncher.navigation.NavigationBar', {
         onMatch(nav) {
@@ -244,7 +244,7 @@ Java.perform(function () {
         panelState?.dispose();
         for(const hook of [clickHook,initHook,selectionHook,...holdHooks]) if(hook) hook.implementation=null;
         console.log('OVC_PANEL_ERROR ' + error + '; retry in 30s');
-        setTimeout(()=>install(Java, onNavigation),30000);
+        setTimeout(()=>install(Java, onNavigation, startup),30000);
     }
 });
 }
