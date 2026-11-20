@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -31,10 +32,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -51,17 +54,21 @@ internal fun CockpitDetail(
 ) {
     val layout = LocalCockpitLayout.current
     val spacing = Arrangement.spacedBy(layout.spacing(14.dp))
+    val cascade = rememberEntranceCascade()
     CockpitBackdrop {
-        Column(
-            Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = layout.spacing(horizontalPadding), vertical = layout.spacing(14.dp)),
-            verticalArrangement = spacing,
-        ) {
-            CockpitHeading(title, subtitle, back)
+        CompositionLocalProvider(LocalEntranceCascade provides cascade) {
             Column(
-                Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(bottom = layout.spacing(10.dp)),
-                verticalArrangement = spacing, content = content,
-            )
+                Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
+                    .padding(horizontal = layout.spacing(horizontalPadding), vertical = layout.spacing(14.dp)),
+                verticalArrangement = spacing,
+            ) {
+                CockpitHeading(title, subtitle, back)
+                Column(
+                    Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
+                        .padding(bottom = layout.spacing(10.dp)),
+                    verticalArrangement = spacing, content = content,
+                )
+            }
         }
     }
 }
@@ -100,16 +107,20 @@ internal fun CockpitSection(
 ) {
     val colors = MaterialTheme.colorScheme
     val layout = LocalCockpitLayout.current
+    val arrival = rememberEntranceOrder()?.let { Modifier.cockpitEntrance(it) } ?: Modifier
     Surface(
-        Modifier.fillMaxWidth().animateContentSize(tween(CockpitMotion.CHANGE)), shape = MaterialTheme.shapes.large, color = colors.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+        Modifier.fillMaxWidth().then(arrival).animateContentSize(CockpitMotion.change()),
+        shape = MaterialTheme.shapes.large, color = colors.surface, border = BorderStroke(1.dp, colors.outlineVariant),
     ) {
         Column(Modifier.padding(layout.spacing(16.dp)), verticalArrangement = Arrangement.spacedBy(layout.spacing(11.dp))) {
-            Row(horizontalArrangement = Arrangement.spacedBy(layout.spacing(12.dp)), verticalAlignment = Alignment.CenterVertically) {
-                CockpitGlyph(icon, Modifier.size(24.dp))
+            // The glyph stays beside the first line of the title, also when a long subtitle wraps below it.
+            Row(horizontalArrangement = Arrangement.spacedBy(layout.spacing(12.dp)), verticalAlignment = Alignment.Top) {
+                CockpitGlyph(icon, Modifier.padding(top = 2.dp).size(24.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleLarge)
-                    subtitle?.let { Text(it, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium) }
+                    Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleLarge)
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(subtitle, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
             content()
@@ -129,7 +140,7 @@ internal fun CockpitAction(
     colors: ButtonColors? = null,
 ) {
     val press = rememberPressMotion(enabled)
-    val target = modifier.then(press.modifier).heightIn(min = 50.dp)
+    val target = modifier.then(press.modifier).heightIn(min = CockpitTouch)
     val label: @Composable RowScope.() -> Unit = { Text(title, style = labelStyle) }
     if (primary) {
         Button(onClick, target, enabled, shape = MaterialTheme.shapes.medium, interactionSource = press.source,
@@ -142,7 +153,7 @@ internal fun CockpitAction(
 
 @Composable
 internal fun CockpitFeedback(message: String?, error: Boolean = false) {
-    AnimatedContent(message, transitionSpec = { fadeIn(tween(160)).togetherWith(fadeOut(tween(90))) },
+    AnimatedContent(message, transitionSpec = { fadeIn(CockpitMotion.change()).togetherWith(fadeOut(CockpitMotion.exit())) },
         label = "operation status") { status ->
         if (!status.isNullOrBlank()) {
             Text(status, Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },

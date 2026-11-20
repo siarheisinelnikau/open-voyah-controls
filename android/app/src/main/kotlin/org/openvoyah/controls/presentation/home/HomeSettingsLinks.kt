@@ -24,6 +24,8 @@ import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
+import org.openvoyah.controls.presentation.theme.cockpitEntrance
+import org.openvoyah.controls.presentation.theme.rememberEntranceOrder
 import org.openvoyah.controls.presentation.theme.rememberPressMotion
 import org.openvoyah.controls.presentation.theme.scaledText
 
@@ -70,7 +72,8 @@ internal fun HomeActionRow(title: String, subtitle: String, icon: CockpitIcon, o
     val layout = LocalCockpitLayout.current
     val labelStyle = MaterialTheme.typography.titleMedium.scaledText(layout.navigationLabelScale / layout.textScale)
     val press = rememberPressMotion()
-    Surface(onClick = open, modifier = modifier.fillMaxWidth().then(press.modifier), shape = MaterialTheme.shapes.medium,
+    val arrival = rememberEntranceOrder()?.let { Modifier.cockpitEntrance(it) } ?: Modifier
+    Surface(onClick = open, modifier = modifier.fillMaxWidth().then(arrival).then(press.modifier), shape = MaterialTheme.shapes.medium,
         interactionSource = press.source, color = press.color, border = BorderStroke(1.dp, colors.outlineVariant)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 66.dp).padding(horizontal = layout.spacing(15.dp), vertical = layout.spacing(8.dp)),
             horizontalArrangement = Arrangement.spacedBy(layout.spacing(14.dp)), verticalAlignment = Alignment.CenterVertically) {

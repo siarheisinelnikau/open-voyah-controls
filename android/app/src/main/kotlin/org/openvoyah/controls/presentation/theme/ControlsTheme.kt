@@ -12,6 +12,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -38,13 +39,19 @@ private val CockpitTypography = Typography(
     headlineSmall = TextStyle(fontSize = 23.sp, lineHeight = 29.sp, fontWeight = FontWeight.SemiBold),
     titleLarge = TextStyle(fontSize = 21.sp, lineHeight = 27.sp, fontWeight = FontWeight.SemiBold),
     titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 23.sp, fontWeight = FontWeight.Medium),
+    titleSmall = TextStyle(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Medium),
     bodyLarge = TextStyle(fontSize = 17.sp, lineHeight = 24.sp),
     bodyMedium = TextStyle(fontSize = 15.sp, lineHeight = 21.sp),
+    // Field labels, card captions and supporting lines use these roles. The Material baseline of 12 sp is too
+    // small to read at arm's length, so the cockpit scale stops at 14 sp for running text.
+    bodySmall = TextStyle(fontSize = 14.sp, lineHeight = 19.sp),
     labelLarge = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium),
+    labelMedium = TextStyle(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
     labelSmall = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 1.25.sp, fontWeight = FontWeight.Medium),
 )
 
 private val StandardCockpitShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(10.dp),
     medium = RoundedCornerShape(14.dp),
     large = RoundedCornerShape(20.dp),
@@ -173,7 +180,9 @@ internal fun ControlsTheme(
     val typography = remember(settings.textSize, settings.fontFamily, settings.boldText) {
         cockpitTypography(settings.textSize, settings.fontFamily, settings.boldText)
     }
-    val activePalette = temporaryPalette ?: settings.palette
+    // Dialogs and the voice popup are separate composition roots; they follow a routine's session palette too.
+    val sessionPalette by SessionPalette.selected.collectAsStateWithLifecycle()
+    val activePalette = temporaryPalette ?: sessionPalette ?: settings.palette
     val daytime = activePalette == AppPalette.DAY
     val baseColors = when {
         daytime && settings.highContrast -> HighContrastDayCockpitColors
@@ -192,6 +201,7 @@ internal fun ControlsTheme(
         LocalCockpitLayout provides layout,
         LocalCockpitWallpaperScrim provides wallpaperScrim,
         LocalCockpitBackgroundTreatment provides settings.backgroundTreatment,
+        LocalCockpitMotion provides CockpitMotionSettings(settings.animateRoutes, settings.transitionSpeed),
     ) {
         MaterialTheme(
             colorScheme = colors,

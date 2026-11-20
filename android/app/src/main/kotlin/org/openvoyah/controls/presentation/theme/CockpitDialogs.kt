@@ -5,6 +5,7 @@ import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.ComponentDialog
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -141,12 +143,16 @@ internal fun CockpitChoice(title: String, subtitle: String? = null, enabled: Boo
     val press = rememberPressMotion(enabled)
     var focused by remember { mutableStateOf(false) }
     val showFocus = enabled && focused
-    val target = modifier.fillMaxWidth().then(press.modifier).heightIn(min = 52.dp)
+    // A row that cannot be used while work is running must not look like one that can.
+    val strength by animateFloatAsState(if (enabled) 1f else DISABLED_CONTENT, CockpitMotion.change(), label = "choice enabled")
+    val target = modifier.fillMaxWidth().then(press.modifier).heightIn(min = CockpitTouch)
         .onFocusChanged { focused = it.isFocused }
     Surface(onClick, target, enabled = enabled,
         interactionSource = press.source, shape = MaterialTheme.shapes.medium, color = press.color,
-        border = BorderStroke(if (showFocus) 2.dp else 1.dp, if (showFocus) colors.primary else colors.outlineVariant)) {
-        Row(Modifier.padding(horizontal = layout.spacing(13.dp), vertical = layout.spacing(8.dp)),
+        border = BorderStroke(if (showFocus) 2.dp else 1.dp,
+            if (showFocus) colors.primary else colors.outlineVariant.copy(alpha = colors.outlineVariant.alpha * strength))) {
+        Row(Modifier.graphicsLayer { alpha = strength }
+            .padding(horizontal = layout.spacing(13.dp), vertical = layout.spacing(8.dp)),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(layout.spacing(9.dp))) {
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
@@ -157,16 +163,21 @@ internal fun CockpitChoice(title: String, subtitle: String? = null, enabled: Boo
     }
 }
 
+/** The smallest height of anything the driver taps. */
+internal val CockpitTouch = 52.dp
+private const val DISABLED_CONTENT = .38f
+
 @Composable
 internal fun CockpitTextAction(title: String, action: () -> Unit) {
     val press = rememberPressMotion()
-    TextButton(action, press.modifier.heightIn(min = 48.dp), interactionSource = press.source) { Text(title) }
+    TextButton(action, press.modifier.heightIn(min = CockpitTouch), shape = MaterialTheme.shapes.medium,
+        interactionSource = press.source) { Text(title) }
 }
 
 @Composable
 internal fun CockpitSwitch(title: String, checked: Boolean, enabled: Boolean = true, change: (Boolean) -> Unit) {
     val layout = LocalCockpitLayout.current
-    Row(Modifier.fillMaxWidth().heightIn(min = 50.dp).toggleable(checked, enabled = enabled, role = Role.Switch,
+    Row(Modifier.fillMaxWidth().heightIn(min = CockpitTouch).toggleable(checked, enabled = enabled, role = Role.Switch,
         onValueChange = change), horizontalArrangement = Arrangement.spacedBy(layout.spacing(10.dp)),
         verticalAlignment = Alignment.CenterVertically) {
         Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)

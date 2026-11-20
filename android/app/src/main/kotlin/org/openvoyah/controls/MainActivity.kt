@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +58,7 @@ import org.openvoyah.controls.presentation.routines.RoutineInteractionFrame
 import org.openvoyah.controls.presentation.routines.RoutineStartupNotice
 import org.openvoyah.controls.presentation.routines.route
 import org.openvoyah.controls.presentation.theme.ControlsTheme
+import org.openvoyah.controls.presentation.theme.SessionPalette
 
 /** Normal screens share this host; Android overlays and the installer handshake keep separate tasks. */
 class MainActivity : ComponentActivity() {
@@ -93,11 +95,12 @@ class MainActivity : ComponentActivity() {
         compose.setContent {
             val look by appearance.state.collectAsStateWithLifecycle()
             val palette by navigation.temporaryPalette.collectAsStateWithLifecycle(initialPalette)
+            SideEffect { SessionPalette.publish(palette) }
             ControlsTheme(appearance = look.settings, systemBars = window, temporaryPalette = palette) {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) {
                         ControlsHost(navigation, appearance, ::listen, ::runManualRoutine, ::runRoutineShortcut,
-                            ::runConditionalRoutine)
+                            ::runConditionalRoutine, restored = savedInstanceState != null)
                     }
                     pending?.let { launch ->
                         if (launch.request.schedule.delay != RoutineStartupDelay.IMMEDIATE ||
@@ -382,6 +385,12 @@ class MainActivity : ComponentActivity() {
         cancelStartup()
         cancelManualRoutine()
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        // A session palette ends with the screens that selected it; a later popup uses the saved palette again.
+        if (isFinishing) SessionPalette.publish(null)
+        super.onDestroy()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
