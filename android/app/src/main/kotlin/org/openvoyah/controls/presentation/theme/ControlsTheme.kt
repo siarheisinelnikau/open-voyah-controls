@@ -204,7 +204,7 @@ internal fun ControlsTheme(
         LocalCockpitMotion provides CockpitMotionSettings(settings.animateRoutes, settings.transitionSpeed),
     ) {
         MaterialTheme(
-            colorScheme = colors,
+            colorScheme = rememberBlendedColors(colors, settings.animateRoutes),
             shapes = cockpitShapes(settings.corners),
             typography = typography,
             content = content,
