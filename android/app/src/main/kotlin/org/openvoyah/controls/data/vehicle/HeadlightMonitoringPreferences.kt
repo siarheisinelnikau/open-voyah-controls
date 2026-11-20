@@ -2,7 +2,6 @@ package org.openvoyah.controls.data.vehicle
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -13,6 +12,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.vehicle.HeadlightMonitoringStore
 
 internal class HeadlightMonitoringPreferences(context: Context) : HeadlightMonitoringStore {
@@ -44,7 +44,7 @@ internal class HeadlightMonitoringPreferences(context: Context) : HeadlightMonit
             val rollback = preferences.edit()
             if (before == null) rollback.remove(ENABLED) else rollback.putBoolean(ENABLED, before)
             rollback.commit()
-            Log.w("OpenVoyahControls", "event=headlight_monitoring_settings outcome=commit_failed")
+            ControlsLog.warn("headlight_monitoring_settings", "outcome", "commit_failed")
             error("Headlight monitoring preference could not be written")
         }
     }

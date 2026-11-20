@@ -1,12 +1,11 @@
 package org.openvoyah.controls.data.frida
 
 import android.os.SystemClock
-import android.util.Log
+import org.openvoyah.controls.diagnostics.ControlsLog
+import org.openvoyah.controls.diagnostics.LogLevel
 
 /** Emits one allowlisted log entry for an explicit window-service operation. */
 internal object WindowDiagnostics {
-    private const val TAG = "OpenVoyahControls"
-
     enum class Operation { APPLY_PROFILE, RESET_PROFILE, SYNC_DEFAULTS, ENABLE_SERVICE, DISABLE_SERVICE }
 
     enum class Stage {
@@ -23,7 +22,7 @@ internal object WindowDiagnostics {
 
     @JvmStatic
     fun start(operation: Operation): Attempt = Attempt(operation, SystemClock::elapsedRealtime) { outcome, line ->
-        if (outcome.warning) Log.w(TAG, line) else Log.i(TAG, line)
+        ControlsLog.line(if (outcome.warning) LogLevel.WARN else LogLevel.INFO, line)
     }
 
     class Attempt(

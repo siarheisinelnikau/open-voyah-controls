@@ -5,7 +5,6 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Parcel
 import android.os.SystemClock
-import android.util.Log
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +22,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.vehicle.HeadlightInputState
 import org.openvoyah.controls.domain.vehicle.automation.VehicleDoor
 import org.openvoyah.controls.domain.vehicle.automation.VehicleIdentity
@@ -81,7 +81,7 @@ internal class NativeVehicleTelemetryMonitor(context: Context) : VehicleTelemetr
                 }) { state ->
                     diagnostic.update { it.copy(readerState = state) }
                     if (state != HeadlightInputState.SUBSCRIBED) trySend(unknownTelemetry())
-                    Log.i(LOG_TAG, "event=vehicle_observer state=${state.name.lowercase()} product=${identity.product}")
+                    ControlsLog.info("vehicle_observer", "state", state, "product", identity.product)
                 }.collect { /* Lighting continues through the existing monitor and history. */ }
             } finally {
                 diagnostic.update { it.copy(connected = false) }
@@ -93,7 +93,7 @@ internal class NativeVehicleTelemetryMonitor(context: Context) : VehicleTelemetr
     }.catch { failure ->
         if (failure is CancellationException || (failure !is Exception && failure !is LinkageError)) throw failure
         diagnostic.update { it.copy(connected = false) }
-        Log.w(LOG_TAG, "event=vehicle_observer outcome=read_failed failure=${failure.javaClass.simpleName}")
+        ControlsLog.warn("vehicle_observer", "outcome", "read_failed", "failure", failure)
         emit(unknownTelemetry())
         awaitCancellation()
     }.flowOn(Dispatchers.IO)
@@ -143,8 +143,9 @@ internal class NativeVehicleTelemetryMonitor(context: Context) : VehicleTelemetr
             if (current != previous) {
                 publish(current)
                 fun logSignal(signal: String, value: String?) {
-                    Log.i(LOG_TAG, "event=vehicle_signal signal=$signal value=${value ?: "unknown"} " +
-                        "outcome=${if (value == null) "unavailable" else "observed"} elapsed_ns=$elapsed session=${current.sessionId}")
+                    ControlsLog.info("vehicle_signal", "signal", signal, "value", value ?: "unknown",
+                        "outcome", if (value == null) "unavailable" else "observed", "elapsed_ns", elapsed,
+                        "session", current.sessionId)
                 }
                 if (current.gear != previous.gear) logSignal("gear", current.gear?.value?.key)
                 if (current.drivingMode != previous.drivingMode) logSignal("driving_mode", current.drivingMode?.value?.key)
@@ -189,4 +190,3 @@ private fun readCachedGear(service: IBinder): Pair<CachedNativeGear?, String> {
 private const val SERVICE_DESCRIPTOR = "com.qinggan.canbus.ICanBusService"
 private const val LISTENER_DESCRIPTOR = "com.qinggan.canbus.ICanBusServiceCallback"
 private const val GET_GEAR_STATUS = 6
-private const val LOG_TAG = "OpenVoyahControls"

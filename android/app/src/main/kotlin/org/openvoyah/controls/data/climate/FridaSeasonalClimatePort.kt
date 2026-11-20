@@ -2,7 +2,6 @@ package org.openvoyah.controls.data.climate
 
 import android.content.Context
 import android.os.SystemClock
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -15,6 +14,7 @@ import org.openvoyah.controls.data.frida.FridaBridge
 import org.openvoyah.controls.data.frida.FridaVoiceDispatcher
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
 import org.openvoyah.controls.data.settings.VoiceSettings
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.climate.ClimateApplyGuard
 import org.openvoyah.controls.domain.climate.ClimateApplyResult
 import org.openvoyah.controls.domain.climate.ClimateApplyStatus
@@ -56,11 +56,11 @@ internal class FridaSeasonalClimatePort(context: Context, private val telemetry:
                 }
                 dispatcher.dispatch(Request(Destination.VEHICLE, command, phrase, ""), stillAllowed).outcome
             }
-            Log.i(TAG, "event=seasonal_climate_request outcome=${result.status.name.lowercase()} completed=${result.completedCommands}")
+            ControlsLog.info("seasonal_climate_request", "outcome", result.status, "completed", result.completedCommands)
             return result
         } catch (cancelled: CancellationException) {
             // A dispatched request continues in the shared transport. Never restart the remaining group.
-            Log.w(TAG, "event=seasonal_climate_request outcome=caller_cancelled")
+            ControlsLog.warn("seasonal_climate_request", "outcome", "caller_cancelled")
             throw cancelled
         } finally {
             inFlight.unlock()
@@ -68,7 +68,6 @@ internal class FridaSeasonalClimatePort(context: Context, private val telemetry:
     }
 
     private companion object {
-        const val TAG = "OpenVoyahControls"
         val inFlight = Mutex()
         val guard = ClimateApplyGuard()
     }

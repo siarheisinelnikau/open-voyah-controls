@@ -2,14 +2,12 @@ package org.openvoyah.controls.platform.audio
 
 import android.content.Context
 import android.media.AudioManager
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.openvoyah.controls.data.settings.AppearancePreferences
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.settings.launcherMediaVolumeTarget
-
-private const val TAG = "OpenVoyahControls"
 
 /** Applies one opted-in ceiling for a launcher entry while its window is still foreground. */
 internal suspend fun limitLauncherMediaVolume(
@@ -33,12 +31,12 @@ internal suspend fun limitLauncherMediaVolume(
 
             if (isForegroundLauncherEntry()) {
                 audio.setStreamVolume(stream, target, 0)
-                Log.i(TAG, "event=launcher_media_volume outcome=requested")
+                ControlsLog.info("launcher_media_volume", "outcome", "requested")
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: RuntimeException) {
-            Log.w(TAG, "event=launcher_media_volume outcome=unavailable failure=${failure.javaClass.simpleName}")
+            ControlsLog.warn("launcher_media_volume", "outcome", "unavailable", "failure", failure)
         }
     }
 }

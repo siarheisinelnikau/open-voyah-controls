@@ -3,7 +3,6 @@ package org.openvoyah.controls.data.vehicle.automation
 import android.content.Context
 import android.os.Build
 import android.os.SystemClock
-import android.util.Log
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
@@ -13,6 +12,7 @@ import org.openvoyah.controls.data.frida.FridaBridge
 import org.openvoyah.controls.data.frida.FridaVoiceDispatcher
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
 import org.openvoyah.controls.data.settings.VoiceSettings
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.vehicle.HeadlightStatus
 import org.openvoyah.controls.domain.vehicle.automation.DrivingMode
 import org.openvoyah.controls.domain.vehicle.automation.DrivingModeRecord
@@ -86,7 +86,7 @@ internal class FridaVehicleAutomationPort(
             VoiceOutcome.VEHICLE_UNCONFIRMED, VoiceOutcome.VEHICLE_PARTIAL -> VehicleAutomationOutcome.UNCONFIRMED
             else -> VehicleAutomationOutcome.BLOCKED
         }
-        Log.i("OpenVoyahControls", "event=vehicle_automation_dispatch kind=$kind command=$id outcome=${outcome.name.lowercase()}")
+        ControlsLog.info("vehicle_automation_dispatch", "kind", kind, "command", id, "outcome", outcome)
         return outcome
     }
 

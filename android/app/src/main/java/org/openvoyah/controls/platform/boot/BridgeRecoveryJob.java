@@ -3,9 +3,9 @@ package org.openvoyah.controls.platform.boot;
 import android.app.job.JobParameters;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
+import org.openvoyah.controls.diagnostics.ControlsLog;
 
 /** Maps a cancellable recovery request onto the Android job lifecycle. */
 public final class BridgeRecoveryJob {
@@ -30,7 +30,7 @@ public final class BridgeRecoveryJob {
             try { recovery.run(); }
             catch (Exception ex) {
                 retry = needed.getAsBoolean();
-                Log.w("OpenVoyahControls", "Bridge recovery will retry", ex);
+                ControlsLog.warn("bridge_recovery", ex, "outcome", retry ? "retry_scheduled" : "abandoned");
             }
             boolean reschedule = retry;
             Thread task = Thread.currentThread();

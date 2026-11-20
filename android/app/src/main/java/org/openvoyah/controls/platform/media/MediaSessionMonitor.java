@@ -8,7 +8,6 @@ import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -17,6 +16,7 @@ import java.util.concurrent.Executors;
 import org.openvoyah.controls.core.display.DisplayEventBus.Media;
 import org.openvoyah.controls.core.display.DisplayEventBus;
 import org.openvoyah.controls.data.display.DisplayPreferences;
+import org.openvoyah.controls.diagnostics.ControlsLog;
 
 /** Translates Android media callbacks into display events. Runs on the main thread. */
 public final class MediaSessionMonitor implements AutoCloseable {
@@ -120,7 +120,7 @@ public final class MediaSessionMonitor implements AutoCloseable {
             if (token != revision) return;
             try { cluster.publish(desired); }
             catch (IOException ex) {
-                Log.i("OpenVoyahControls", "Cluster media transport unavailable");
+                ControlsLog.info("cluster_media_publish", "outcome", "transport_unavailable", "error", ex);
                 handler.post(() -> { if (token == revision) lastRequested = null; });
             }
         });

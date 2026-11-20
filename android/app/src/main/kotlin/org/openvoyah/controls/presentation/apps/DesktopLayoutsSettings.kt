@@ -1,6 +1,5 @@
 package org.openvoyah.controls.presentation.apps
 
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +39,7 @@ import kotlinx.coroutines.launch
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.apps.DesktopLayoutsPreferences
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.apps.DesktopLayoutException
 import org.openvoyah.controls.domain.apps.DesktopLayoutPreset
 import org.openvoyah.controls.domain.apps.DesktopLayoutProblem
@@ -139,7 +139,7 @@ private class DesktopLayoutsViewModel(private val layouts: DesktopLayoutsPrefere
                     DesktopLayoutProblem.SIZE_LIMIT -> R.string.desktop_layouts_too_large
                     DesktopLayoutProblem.MISSING -> R.string.desktop_layouts_changed
                     null -> {
-                        Log.w("OpenVoyahControls", "event=desktop_layouts outcome=operation_failed error=${exception.javaClass.simpleName}")
+                        ControlsLog.warn("desktop_layouts", "outcome", "operation_failed", "error", exception)
                         R.string.desktop_layouts_update_failed
                     }
                 }

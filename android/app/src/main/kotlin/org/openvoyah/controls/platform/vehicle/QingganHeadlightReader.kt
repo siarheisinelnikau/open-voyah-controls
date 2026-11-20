@@ -12,7 +12,6 @@ import android.os.DeadObjectException
 import android.os.IBinder
 import android.os.RemoteException
 import android.os.SystemClock
-import android.util.Log
 import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
@@ -29,6 +28,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.withTimeoutOrNull
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.vehicle.HeadlightFeedback
 import org.openvoyah.controls.domain.vehicle.HeadlightInputState
 import org.openvoyah.controls.domain.vehicle.HeadlightObservation
@@ -317,7 +317,7 @@ internal object QingganHeadlightReader {
     private fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
     private fun report(outcome: Outcome, reportState: (HeadlightInputState) -> Unit) {
-        Log.i("OpenVoyahControls", "event=headlight_source source=qinggan outcome=${outcome.key}")
+        ControlsLog.info("headlight_source", "source", "qinggan", "outcome", outcome.key)
         outcome.state?.let(reportState)
     }
 }

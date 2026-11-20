@@ -1,6 +1,5 @@
 package org.openvoyah.controls.presentation.apps
 
-import android.util.Log
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -32,6 +31,7 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.settings.VoiceContacts
 import org.openvoyah.controls.data.settings.VoiceSettings.LocalContact
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.platform.phone.openPhoneDialer
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
@@ -82,7 +82,7 @@ private fun VisiblePhoneFavorites(ids: List<String>) {
                             openPhoneDialer(activity, contact.phone())
                             false
                         } catch (error: RuntimeException) {
-                            Log.w("OpenVoyahControls", "event=phone_favorite_dial outcome=unavailable type=${error.javaClass.simpleName}")
+                            ControlsLog.warn("phone_favorite_dial", "outcome", "unavailable", "type", error)
                             true
                         }
                     }

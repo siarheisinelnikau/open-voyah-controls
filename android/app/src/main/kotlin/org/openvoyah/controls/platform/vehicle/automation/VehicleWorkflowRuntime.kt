@@ -3,7 +3,6 @@ package org.openvoyah.controls.platform.vehicle.automation
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +35,8 @@ import org.openvoyah.controls.data.vehicle.LocalHeadlightHistory
 import org.openvoyah.controls.data.vehicle.automation.FridaVehicleAutomationPort
 import org.openvoyah.controls.data.vehicle.automation.LocalDrivingModeHistory
 import org.openvoyah.controls.data.vehicle.automation.LocalVehicleAutomationPreferences
+import org.openvoyah.controls.diagnostics.ControlsLog
+import org.openvoyah.controls.diagnostics.LogLevel
 import org.openvoyah.controls.domain.climate.ClimateConditionState
 import org.openvoyah.controls.domain.climate.SeasonalClimateEdgeEngine
 import org.openvoyah.controls.domain.climate.SeasonalClimatePolicy
@@ -80,7 +81,7 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
     val climatePort = FridaSeasonalClimatePort(app) { telemetry.value }
     val controller = VehicleAutomationController(automation, LocalDrivingModeHistory(app), telemetry, headlights,
         FridaVehicleAutomationPort(app, { telemetry.value }, { headlights.value }),
-        SystemClock::elapsedRealtimeNanos, scope, { Log.i(TAG, it) })
+        SystemClock::elapsedRealtimeNanos, scope, { ControlsLog.line(LogLevel.INFO, it) })
     private val handoff = RuleHandoff<RuleDecision>()
 
     init {
@@ -100,7 +101,7 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
             }.map { it.monitoring }.distinctUntilChanged().collectLatest { monitoring ->
                 if (!monitoring) return@collectLatest
                 controller.startMonitoring()
-                Log.i(TAG, "event=vehicle_workflow_runtime outcome=started background=${state.value.backgroundConnected}")
+                ControlsLog.info("vehicle_workflow_runtime", "outcome", "started", "background", state.value.backgroundConnected)
                 try {
                     coroutineScope {
                         launch { observeRules() }
@@ -110,7 +111,7 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
                 } finally {
                     handoff.clear()
                     controller.stopMonitoring()
-                    Log.i(TAG, "event=vehicle_workflow_runtime outcome=stopped")
+                    ControlsLog.info("vehicle_workflow_runtime", "outcome", "stopped")
                 }
             }
         }
@@ -174,7 +175,7 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
                         catch (_: Exception) { outcome = RuleAttemptOutcome.UNCONFIRMED }
                         finally {
                             engine.completeAttempt(decision, outcome)
-                            Log.i(TAG, "event=conditional_rule_attempt rule=${decision.rule.id} outcome=${outcome.name.lowercase()}")
+                            ControlsLog.info("conditional_rule_attempt", "rule", decision.rule.id, "outcome", outcome)
                         }
                     }
                 }
@@ -197,13 +198,13 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
                             SeasonalClimatePolicy.assess(plan.season, plan.preset, latest, SystemClock.elapsedRealtimeNanos()) !=
                                 ClimateConditionState.READY) continue
                         val result = climatePort.apply(plan, session)
-                        Log.i(TAG, "event=seasonal_climate_automatic season=${plan.season.name.lowercase()} " +
-                            "outcome=${result.status.name.lowercase()} completed=${result.completedCommands}")
+                        ControlsLog.info("seasonal_climate_automatic", "season", plan.season, "outcome", result.status,
+                            "completed", result.completedCommands)
                     }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: Exception) {
                     engine.invalidate()
-                    Log.w(TAG, "event=seasonal_climate_automatic outcome=unconfirmed error=${failure.javaClass.simpleName}")
+                    ControlsLog.warn("seasonal_climate_automatic", "outcome", "unconfirmed", "error", failure)
                 }
             }
         } finally { engine.invalidate() }
@@ -212,7 +213,6 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
     private data class RuntimeLease(val background: Boolean, val configured: Boolean, val monitoring: Boolean)
 
     companion object {
-        private const val TAG = "OpenVoyahControls"
         @Volatile private var instance: VehicleWorkflowRuntime? = null
         @JvmStatic fun get(context: Context): VehicleWorkflowRuntime = instance ?: synchronized(this) {
             instance ?: VehicleWorkflowRuntime(context).also { instance = it }

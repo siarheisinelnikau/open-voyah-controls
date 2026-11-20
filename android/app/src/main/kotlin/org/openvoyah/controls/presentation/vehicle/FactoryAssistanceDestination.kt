@@ -3,7 +3,6 @@ package org.openvoyah.controls.presentation.vehicle
 import android.content.Intent
 import android.net.Uri
 import android.os.SystemClock
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -29,6 +28,8 @@ import kotlinx.coroutines.launch
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.apollo.ApolloCandidateEvidenceProbe
+import org.openvoyah.controls.diagnostics.ControlsLog
+import org.openvoyah.controls.diagnostics.LogLevel
 import org.openvoyah.controls.domain.apollo.ApolloCacheStatus
 import org.openvoyah.controls.domain.apollo.ApolloCandidatePlan
 import org.openvoyah.controls.domain.apollo.FactoryAssistanceEvidence
@@ -125,7 +126,7 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
                 canOpenVehicleMenu = { launcher.vehicleMenuIntent() != null },
                 capture = { probe.capture(includeFactoryCache = true) },
                 export = { destination, snapshot -> probe.export(Uri.parse(destination), snapshot) },
-                log = { Log.i("OpenVoyahControls", "$it elapsed_ms=${SystemClock.elapsedRealtime()}") },
+                log = { ControlsLog.line(LogLevel.INFO, "$it elapsed_ms=${SystemClock.elapsedRealtime()}") },
             )
         } })[FactoryAssistanceViewModel::class.java]
     }

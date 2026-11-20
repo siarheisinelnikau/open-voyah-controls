@@ -2,7 +2,6 @@ package org.openvoyah.controls.data.apps
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import java.security.MessageDigest
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +16,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import org.openvoyah.controls.data.settings.LocalSettingsArchive
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.domain.apps.DesktopLayoutException
 import org.openvoyah.controls.domain.apps.DesktopLayoutPreset
@@ -38,7 +38,7 @@ internal class DesktopLayoutsPreferences(context: Context) {
         awaitClose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
     }.conflate().map {
         runCatching { synchronized(lock) { read().layouts.map { it.preset } } }.onFailure {
-            Log.w(TAG, "event=desktop_layouts outcome=invalid_library error=${it.javaClass.simpleName}")
+            ControlsLog.warn("desktop_layouts", "outcome", "invalid_library", "error", it)
         }
     }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
@@ -143,7 +143,7 @@ internal class DesktopLayoutsPreferences(context: Context) {
         if (raw == previous) return
         if (!preferences.edit().putString(LIBRARY, raw).commit()) {
             val restored = preferences.edit().putString(LIBRARY, previous).commit()
-            Log.w(TAG, "event=desktop_layouts outcome=commit_failed rolledBack=$restored")
+            ControlsLog.warn("desktop_layouts", "outcome", "commit_failed", "rolledBack", restored)
             error("Could not save desktop layouts")
         }
     }
@@ -195,7 +195,6 @@ internal class DesktopLayoutsPreferences(context: Context) {
         private const val GRID = "appGrid"
         private const val CARDS = "desktopInfoCards"
         private const val WALLPAPERS = "desktopWallpapers"
-        private const val TAG = "OpenVoyahControls"
         private const val HEX = "0123456789abcdef"
         private val lock = Any()
         private val fingerprintPattern = Regex("[0-9a-f]{64}")

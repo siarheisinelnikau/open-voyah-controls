@@ -3,7 +3,6 @@ package org.openvoyah.controls.platform.voice
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.MediaPlayer
-import android.util.Log
 import androidx.annotation.RawRes
 import java.io.File
 import java.io.IOException
@@ -16,6 +15,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.openvoyah.controls.R
 import org.openvoyah.controls.core.voice.VoiceAudioOptions
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.ReadyCueStyle
+import org.openvoyah.controls.diagnostics.ControlsLog
 
 internal suspend fun playReadyVoiceCue(
     context: Context, options: VoiceAudioOptions, speech: OfflineVoiceFeedback?, voiceName: String, readyPrompt: String = "",
@@ -64,7 +64,7 @@ private suspend fun playCue(
                         .setContentType(contentType).build())
                     setSource(cue)
                     cue.setOnErrorListener { _, what, extra ->
-                        Log.i("OpenVoyahControls", "Voice cue audio error: $what/$extra")
+                        ControlsLog.info("voice_cue", "outcome", "player_error", "what", what, "extra", extra)
                         complete(false)
                         true
                     }
@@ -79,20 +79,20 @@ private suspend fun playCue(
                         } else complete(false)
                     }
                     cue.prepareAsync()
-                } catch (_: IOException) {
-                    Log.i("OpenVoyahControls", "Voice cue audio unavailable")
+                } catch (failure: IOException) {
+                    ControlsLog.info("voice_cue", "outcome", "source_unavailable", "error", failure)
                     complete(false)
-                } catch (_: RuntimeException) {
-                    Log.i("OpenVoyahControls", "Voice cue audio unavailable")
+                } catch (failure: RuntimeException) {
+                    ControlsLog.info("voice_cue", "outcome", "player_unavailable", "error", failure)
                     complete(false)
                 }
             }
         }
     } finally {
         try { player?.release() }
-        catch (_: RuntimeException) { Log.i("OpenVoyahControls", "Could not release voice cue audio") }
+        catch (failure: RuntimeException) { ControlsLog.info("voice_cue", "outcome", "release_failed", "error", failure) }
     }
-    if (completed == null) Log.i("OpenVoyahControls", "Voice cue audio timed out")
+    if (completed == null) ControlsLog.info("voice_cue", "outcome", "timed_out", "limit_ms", timeoutMs)
     // Leave a short silent gap for the acoustic tail after Android closes the output.
     if (started) delay(45L)
     completed == true

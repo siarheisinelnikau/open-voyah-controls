@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
 import android.os.SystemClock
-import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +21,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.withContext
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.vehicle.AutomotiveHeadlightSignal
 import org.openvoyah.controls.domain.vehicle.ExteriorLamp
 import org.openvoyah.controls.domain.vehicle.HeadlightFeedback
@@ -45,7 +45,8 @@ internal fun factoryHeadlightFeedback(context: Context): Flow<HeadlightFeedback>
             automotive = flow { emitAll(automotiveFeedback(app, ::report)) },
             onSourceFailure = { source, failure ->
                 val type = failure.javaClass.simpleName.ifEmpty { "Unknown" }
-                Log.w(LOG_TAG, "event=headlight_source source=${source.key} outcome=reader_failed failure=$type elapsed_ms=${SystemClock.elapsedRealtime()}")
+                ControlsLog.warn("headlight_source", "source", source.key, "outcome", "reader_failed", "failure", type,
+                    "elapsed_ms", SystemClock.elapsedRealtime())
                 for (input in HeadlightInput.entries) {
                     if (input.source == source) report(input, HeadlightInputState.READ_FAILED)
                 }
@@ -145,7 +146,7 @@ internal suspend fun watchDeviceInteractivity(app: Context, changed: (Boolean, L
         fun report(trigger: String, interactive: Boolean) {
             val elapsed = SystemClock.elapsedRealtimeNanos()
             changed(interactive, elapsed)
-            Log.i(LOG_TAG, "event=headlight_power trigger=$trigger interactive=$interactive elapsed_ms=${elapsed / NANOS_PER_MILLISECOND}")
+            ControlsLog.info("headlight_power", "trigger", trigger, "interactive", interactive, "elapsed_ms", elapsed / NANOS_PER_MILLISECOND)
         }
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -168,16 +169,17 @@ internal suspend fun watchDeviceInteractivity(app: Context, changed: (Boolean, L
 
 private fun logHeadlightObservation(source: String, feedback: HeadlightFeedback) {
     when (feedback) {
-        is HeadlightFeedback.Confirmed -> Log.i(LOG_TAG, "event=headlight_feedback source=$source mode=${feedback.observation.mode.key} " +
-            "elapsed_ms=${feedback.eventElapsedNanos / NANOS_PER_MILLISECOND} confirmed_at_ms=${feedback.observation.confirmedAtMillis}")
-        is HeadlightFeedback.ActivityConfirmed -> Log.i(LOG_TAG,
-            "event=headlight_activity source=$source lamp=${feedback.lamp.key} activity=${feedback.observation.activity.key} " +
-                "elapsed_ms=${feedback.eventElapsedNanos / NANOS_PER_MILLISECOND} confirmed_at_ms=${feedback.observation.confirmedAtMillis}")
+        is HeadlightFeedback.Confirmed -> ControlsLog.info("headlight_feedback", "source", source,
+            "mode", feedback.observation.mode.key, "elapsed_ms", feedback.eventElapsedNanos / NANOS_PER_MILLISECOND,
+            "confirmed_at_ms", feedback.observation.confirmedAtMillis)
+        is HeadlightFeedback.ActivityConfirmed -> ControlsLog.info("headlight_activity", "source", source,
+            "lamp", feedback.lamp.key, "activity", feedback.observation.activity.key,
+            "elapsed_ms", feedback.eventElapsedNanos / NANOS_PER_MILLISECOND,
+            "confirmed_at_ms", feedback.observation.confirmedAtMillis)
         else -> Unit
     }
 }
 
-private const val LOG_TAG = "OpenVoyahControls"
 private const val NANOS_PER_MILLISECOND = 1_000_000L
 
 internal enum class AutomotiveHeadlightReaderOutcome(val key: String, val state: HeadlightInputState) {
@@ -194,8 +196,8 @@ internal enum class AutomotiveHeadlightReaderOutcome(val key: String, val state:
 
 internal fun logAutomotiveHeadlightReader(signal: AutomotiveHeadlightSignal, outcome: AutomotiveHeadlightReaderOutcome) {
     val key = signal.lamp?.key ?: "selector"
-    Log.i(LOG_TAG, "event=headlight_reader source=android_automotive signal=$key outcome=${outcome.key} " +
-        "elapsed_ms=${SystemClock.elapsedRealtime()}")
+    ControlsLog.info("headlight_reader", "source", "android_automotive", "signal", key, "outcome", outcome.key,
+        "elapsed_ms", SystemClock.elapsedRealtime())
 }
 
 private fun automotiveFeedback(

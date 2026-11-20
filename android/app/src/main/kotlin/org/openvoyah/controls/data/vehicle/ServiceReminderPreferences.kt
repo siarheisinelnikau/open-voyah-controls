@@ -2,7 +2,6 @@ package org.openvoyah.controls.data.vehicle
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -14,6 +13,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONException
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.vehicle.ServiceCalendarLead
 import org.openvoyah.controls.domain.vehicle.ServiceCalendarSchedule
 import org.openvoyah.controls.domain.vehicle.ServiceReminderLead
@@ -61,7 +61,7 @@ internal class ServiceReminderPreferences(context: Context) : ServiceReminderSet
         return try {
             decode(JSONObject(raw))
         } catch (_: JSONException) {
-            Log.w(TAG, "event=service_reminder_settings outcome=invalid_saved_plan")
+            ControlsLog.warn("service_reminder_settings", "outcome", "invalid_saved_plan")
             ServiceReminderSettings()
         }
     }
@@ -70,7 +70,7 @@ internal class ServiceReminderPreferences(context: Context) : ServiceReminderSet
         val previous = preferences.all[PLAN] as? String
         if (!preferences.edit().putString(PLAN, encode(settings).toString()).commit()) {
             val restored = preferences.edit().putString(PLAN, previous).commit()
-            Log.w(TAG, "event=service_reminder_settings outcome=commit_failed rolledBack=$restored")
+            ControlsLog.warn("service_reminder_settings", "outcome", "commit_failed", "rolledBack", restored)
             throw IllegalStateException("Could not save service reminder settings")
         }
     }
@@ -82,7 +82,6 @@ internal class ServiceReminderPreferences(context: Context) : ServiceReminderSet
         private const val CALENDAR_INTERVAL = "calendarIntervalMonths"
         private const val LAST_SERVICE_DATE = "lastServiceDate"
         private const val CALENDAR_LEAD = "calendarLeadDays"
-        private const val TAG = "OpenVoyahControls"
         private val lock = Any()
 
         @JvmStatic

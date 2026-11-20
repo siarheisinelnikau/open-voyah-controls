@@ -1,7 +1,7 @@
 package org.openvoyah.controls.data.vehicle
 
 import android.content.Context
-import android.util.Log
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.vehicle.ExteriorLamp
 import org.openvoyah.controls.domain.vehicle.HeadlightHistory
 import org.openvoyah.controls.domain.vehicle.HeadlightMode
@@ -64,7 +64,7 @@ internal class LocalHeadlightHistory(context: Context) : HeadlightHistory {
                 restore.remove(stateKey).remove(timeKey).remove(sourceKey)
             }
             val restored = restore.commit()
-            Log.w("OpenVoyahControls", "event=headlight_history signal=$signal outcome=commit_failed restored=$restored")
+            ControlsLog.warn("headlight_history", "signal", signal, "outcome", "commit_failed", "restored", restored)
         }
         saved
     }

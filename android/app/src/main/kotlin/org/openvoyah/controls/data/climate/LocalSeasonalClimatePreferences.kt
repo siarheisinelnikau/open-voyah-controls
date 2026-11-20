@@ -2,7 +2,6 @@ package org.openvoyah.controls.data.climate
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -14,6 +13,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONException
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.climate.ClimateGearCondition
 import org.openvoyah.controls.domain.climate.SeasonalClimateChanged
 import org.openvoyah.controls.domain.climate.SeasonalClimatePreset
@@ -71,17 +71,16 @@ internal class LocalSeasonalClimatePreferences(context: Context) : SeasonalClima
                 else -> error("Unsupported original climate preference type")
             }
             val restored = rollback.commit()
-            Log.w(TAG, "event=seasonal_climate_settings outcome=commit_failed rolledBack=$restored")
+            ControlsLog.warn("seasonal_climate_settings", "outcome", "commit_failed", "rolledBack", restored)
             error("Could not save seasonal climate settings")
         }
-        Log.i(TAG, "event=seasonal_climate_settings outcome=saved")
+        ControlsLog.info("seasonal_climate_settings", "outcome", "saved")
     }
 
     companion object {
         const val STORE = "seasonal_climate"
         private const val SETTINGS = "settings"
         private const val MAX_CHARACTERS = 4_096
-        private const val TAG = "OpenVoyahControls"
         private val lock = Any()
 
         @JvmStatic fun validateSettings(source: JSONObject): JSONObject = encode(decode(source))

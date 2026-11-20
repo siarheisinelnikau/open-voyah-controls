@@ -8,7 +8,6 @@ import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
-import android.util.Log
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.CompletableDeferred
@@ -21,6 +20,7 @@ import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
 import org.openvoyah.controls.core.voice.VoiceAudioOptions
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.SpokenReplyChannel
+import org.openvoyah.controls.diagnostics.ControlsLog
 
 /** Speaks through an installed offline voice and owns the engine for one foreground request. */
 internal class OfflineVoiceFeedback(
@@ -48,7 +48,7 @@ internal class OfflineVoiceFeedback(
     private val engine = try {
         createEngine(app) { result -> main.post { ready(result) } }
     } catch (_: RuntimeException) {
-        Log.i(TAG, "Offline speech engine unavailable")
+        ControlsLog.info("offline_speech", "outcome", "engine_unavailable")
         null
     }
 
@@ -77,7 +77,7 @@ internal class OfflineVoiceFeedback(
         pending = null
         if (voices.isEmpty()) {
             speaking.value = false
-            Log.i(TAG, "Installed offline voice unavailable")
+            ControlsLog.info("offline_speech", "outcome", "voice_unavailable")
         } else if (queued != null) speak(queued.text, queued.options, queued.voiceName)
     }
 
@@ -103,7 +103,9 @@ internal class OfflineVoiceFeedback(
                 SpokenReplyChannel.MEDIA -> AudioAttributes.USAGE_MEDIA
             }
             val attributes = AudioAttributes.Builder().setUsage(usage).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
-            if (tts.setSpeechRate(options.speechRate()) != TextToSpeech.SUCCESS) Log.i(TAG, "Speech rate was unavailable")
+            if (tts.setSpeechRate(options.speechRate()) != TextToSpeech.SUCCESS) {
+                ControlsLog.info("offline_speech", "outcome", "speech_rate_rejected")
+            }
             tts.setAudioAttributes(attributes) == TextToSpeech.SUCCESS &&
                 tts.speak(message, TextToSpeech.QUEUE_FLUSH, parameters, id) == TextToSpeech.SUCCESS
         } catch (_: RuntimeException) { false }
@@ -154,7 +156,7 @@ internal class OfflineVoiceFeedback(
         utterance = null
         speaking.value = false
         if (initialized) try { engine?.stop() }
-        catch (_: RuntimeException) { Log.i(TAG, "Could not stop offline speech") }
+        catch (failure: RuntimeException) { ControlsLog.info("offline_speech", "outcome", "stop_failed", "error", failure) }
     }
 
     override fun close() {
@@ -164,10 +166,8 @@ internal class OfflineVoiceFeedback(
         voices = emptyList()
         availableVoices.value = emptyList()
         try { engine?.shutdown() }
-        catch (_: RuntimeException) { Log.i(TAG, "Could not release offline speech") }
+        catch (failure: RuntimeException) { ControlsLog.info("offline_speech", "outcome", "release_failed", "error", failure) }
     }
-
-    private companion object { const val TAG = "OpenVoyahControls" }
 }
 
 internal data class OfflineVoiceChoice(val name: String, val locale: Locale)
