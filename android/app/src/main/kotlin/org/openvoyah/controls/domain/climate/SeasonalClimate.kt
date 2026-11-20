@@ -7,6 +7,7 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
 import org.openvoyah.controls.domain.vehicle.automation.VehicleIdentity
 import org.openvoyah.controls.domain.vehicle.automation.VehicleSignalKind
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
+import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetrySession
 
 internal enum class ClimateSeason(val key: String) { SUMMER("summer"), WINTER("winter") }
 internal enum class ClimateGearCondition(val key: String) { PARK("park"), DRIVE("drive") }
@@ -131,7 +132,7 @@ internal data class ClimateApplyResult(val status: ClimateApplyStatus, val compl
 
 internal interface SeasonalClimatePort {
     fun approved(plan: SeasonalClimatePlan): Boolean
-    suspend fun apply(plan: SeasonalClimatePlan): ClimateApplyResult
+    suspend fun apply(plan: SeasonalClimatePlan, session: VehicleTelemetrySession): ClimateApplyResult
 }
 
 internal interface SeasonalClimateStore {

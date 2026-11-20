@@ -28,13 +28,11 @@ import org.openvoyah.controls.domain.climate.SeasonalClimatePreset
 import org.openvoyah.controls.domain.climate.SeasonalClimateSettings
 import org.openvoyah.controls.domain.climate.SeasonalClimateStore
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
-import org.openvoyah.controls.domain.vehicle.automation.VehicleIdentity
+import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetrySession
 
 internal data class SeasonalClimateConfirmation(
     val settings: SeasonalClimateSettings,
-    val identity: VehicleIdentity,
-    val sessionId: String,
-    val sessionStartedAtElapsedNanos: Long,
+    val session: VehicleTelemetrySession,
     val plan: SeasonalClimatePlan,
 )
 
@@ -58,8 +56,7 @@ internal data class SeasonalClimateUiState(
     val form: SeasonalClimateForm = SeasonalClimateForm(),
 ) {
     val confirmation: SeasonalClimateConfirmation? get() = form.pending?.takeIf {
-        it.settings == settings && it.identity == telemetry?.identity && it.sessionId == telemetry?.sessionId &&
-            it.sessionStartedAtElapsedNanos == telemetry?.sessionStartedAtElapsedNanos &&
+        it.settings == settings && it.session.matches(telemetry) &&
             conditions[it.plan.season] == ClimateConditionState.READY && it.plan.season in approved
     }
 }
@@ -124,8 +121,8 @@ internal class SeasonalClimateViewModel(
         val plan = SeasonalClimatePlan(season, preset)
         if (current.form.busy || SeasonalClimatePolicy.assess(season, preset, snapshot, nowNanos()) != ClimateConditionState.READY ||
             !port.approved(plan)) return
-        form.update { if (it.busy) it else it.copy(pending = SeasonalClimateConfirmation(settings, snapshot.identity,
-            snapshot.sessionId, snapshot.sessionStartedAtElapsedNanos, plan), lastResult = null) }
+        val confirmation = SeasonalClimateConfirmation(settings, VehicleTelemetrySession(snapshot), plan)
+        form.update { if (it.busy) it else it.copy(pending = confirmation, lastResult = null) }
     }
 
     fun dismissConfirmation() { form.update { it.copy(pending = null) } }
@@ -144,11 +141,10 @@ internal class SeasonalClimateViewModel(
             val result = try {
                 val saved = store.observe().first().getOrNull()
                 val latest = state.value.telemetry
-                if (saved != pending.settings || latest?.identity != pending.identity || latest?.sessionId != pending.sessionId ||
-                    latest?.sessionStartedAtElapsedNanos != pending.sessionStartedAtElapsedNanos ||
+                if (saved != pending.settings || !pending.session.matches(latest) ||
                     SeasonalClimatePolicy.assess(pending.plan.season, pending.plan.preset, latest, nowNanos()) != ClimateConditionState.READY ||
                     !port.approved(pending.plan)) ClimateApplyResult(ClimateApplyStatus.BLOCKED)
-                else port.apply(pending.plan)
+                else port.apply(pending.plan, pending.session)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

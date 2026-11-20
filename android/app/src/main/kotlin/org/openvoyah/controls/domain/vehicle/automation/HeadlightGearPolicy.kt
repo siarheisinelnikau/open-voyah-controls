@@ -35,16 +35,13 @@ internal interface VehicleAutomationStore {
 
 internal data class HeadlightGearDecision(
     val settings: HeadlightGearSettings,
-    val identity: VehicleIdentity,
-    val sessionId: String,
-    val sessionStartedAtElapsedNanos: Long,
+    val session: VehicleTelemetrySession,
     val gear: VehicleSignal<VehicleGear>,
     val action: HeadlightGearAction,
 ) {
     /** Recheck immediately before a native request; a reserved transition is never replayed. */
     fun isCurrent(current: HeadlightGearSettings, telemetry: VehicleTelemetry, lighting: HeadlightStatus, now: Long): Boolean =
-        current == settings && current.enabled && telemetry.identity == identity && telemetry.sessionId == sessionId &&
-            telemetry.sessionStartedAtElapsedNanos == sessionStartedAtElapsedNanos &&
+        current == settings && current.enabled && session.matches(telemetry) &&
             VehicleSignalKind.GEAR !in telemetry.unavailable && telemetry.gear == gear &&
             gear.isFreshFor(telemetry, now) && lighting.currentObservation != null &&
             lighting.currentObservation?.mode != action.mode &&
@@ -54,10 +51,8 @@ internal data class HeadlightGearDecision(
 /** Consumes a fresh D/P edge before dispatch, including blocked and ambiguous attempts. */
 internal class HeadlightGearEngine(private val minimumIntervalMillis: Long = 3_000) {
     private var settings: HeadlightGearSettings? = null
-    private var session: String? = null
-    private var sessionStartedAt: Long? = null
-    private var identity: VehicleIdentity? = null
-    private var previousGear: VehicleGear? = null
+    private var session: VehicleTelemetrySession? = null
+    private var previousGear: VehicleSignal<VehicleGear>? = null
     private var newestGearNanos = 0L
     private var attemptedAtNanos: Long? = null
 
@@ -66,8 +61,6 @@ internal class HeadlightGearEngine(private val minimumIntervalMillis: Long = 3_0
     fun reset() {
         settings = null
         session = null
-        sessionStartedAt = null
-        identity = null
         previousGear = null
         newestGearNanos = 0
         attemptedAtNanos = null
@@ -79,26 +72,29 @@ internal class HeadlightGearEngine(private val minimumIntervalMillis: Long = 3_0
         lighting: HeadlightStatus,
         nowNanos: Long,
     ): HeadlightGearDecision? {
-        val rearm = settings != configuration || session != telemetry.sessionId || identity != telemetry.identity ||
-            sessionStartedAt != telemetry.sessionStartedAtElapsedNanos
+        val rearm = settings != configuration || session?.matches(telemetry) != true
         if (rearm) {
             settings = configuration
-            session = telemetry.sessionId
-            sessionStartedAt = telemetry.sessionStartedAtElapsedNanos
-            identity = telemetry.identity
+            session = VehicleTelemetrySession(telemetry)
             previousGear = null
             newestGearNanos = 0
         }
         val gear = telemetry.gear?.takeIf { VehicleSignalKind.GEAR !in telemetry.unavailable && it.isFreshFor(telemetry, nowNanos) }
         if (gear == null) {
-            previousGear = null
+            // A change-only source can stay silent for an entire trip. Keep the exact observed
+            // baseline across its age timeout; the next action still requires fresh gear feedback.
+            if (!telemetry.gearExpiredByAge || telemetry.gear != previousGear) previousGear = null
             return null
         }
-        if (gear.observedAtElapsedNanos <= newestGearNanos) return null
+        if (gear.observedAtElapsedNanos <= newestGearNanos) {
+            if (gear.observedAtElapsedNanos == newestGearNanos && gear != previousGear) previousGear = null
+            return null
+        }
         newestGearNanos = gear.observedAtElapsedNanos
         val before = previousGear
-        previousGear = gear.value
-        if (rearm || before == null || before == gear.value || !configuration.enabled) return null
+        previousGear = gear
+        if (rearm || before == null || before.sourceId != gear.sourceId || before.value == gear.value ||
+            !configuration.enabled) return null
         val action = when (gear.value) {
             VehicleGear.DRIVE -> configuration.onDrive
             VehicleGear.PARK -> configuration.onPark
@@ -109,8 +105,7 @@ internal class HeadlightGearEngine(private val minimumIntervalMillis: Long = 3_0
         if (last != null && (nowNanos < last || nowNanos - last < minimumIntervalMillis * 1_000_000)) return null
         // Reserve before examining availability. Late speed/light/capability updates cannot replay this edge.
         attemptedAtNanos = nowNanos
-        return HeadlightGearDecision(configuration, telemetry.identity, telemetry.sessionId,
-            telemetry.sessionStartedAtElapsedNanos, gear, action)
+        return HeadlightGearDecision(configuration, checkNotNull(session), gear, action)
             .takeIf { it.isCurrent(configuration, telemetry, lighting, nowNanos) }
     }
 }

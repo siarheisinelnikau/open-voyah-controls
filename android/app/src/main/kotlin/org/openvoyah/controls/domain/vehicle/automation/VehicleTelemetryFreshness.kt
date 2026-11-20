@@ -25,7 +25,14 @@ internal fun VehicleTelemetry.expireVehicleSignals(
             add(VehicleSignalKind.DOORS)
     }
     val unavailable = unavailable + expired
-    return if (unavailable == this.unavailable) this else copy(unavailable = unavailable)
+    val gearExpiredByAge = gear?.let { sample ->
+        (VehicleSignalKind.GEAR !in this.unavailable || this.gearExpiredByAge) &&
+            sample.isFreshFor(this, sample.observedAtElapsedNanos, maxAgeMillis = 0) &&
+            nowElapsedNanos >= sample.observedAtElapsedNanos &&
+            nowElapsedNanos - sample.observedAtElapsedNanos > maxAgeMillis * 1_000_000
+    } == true
+    return if (unavailable == this.unavailable && gearExpiredByAge == this.gearExpiredByAge) this
+        else copy(unavailable = unavailable, gearExpiredByAge = gearExpiredByAge)
 }
 
 /**
