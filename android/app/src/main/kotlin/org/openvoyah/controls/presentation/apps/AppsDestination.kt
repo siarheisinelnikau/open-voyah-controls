@@ -50,7 +50,6 @@ internal fun AppsDestination(
     entryDesktop: AppGridDesktop?,
     navigate: (ControlsRoute) -> Unit,
     listen: () -> Unit,
-    system: () -> Unit,
     animateDesktopPaging: Boolean,
 ) {
     val activity = checkNotNull(LocalActivity.current as? ComponentActivity) { "Apps require a ComponentActivity host" }
@@ -134,7 +133,7 @@ internal fun AppsDestination(
     AnimatedContent(selected, contentKey = { it?.app?.id },
         transitionSpec = { fadeIn(tween(170)).togetherWith(fadeOut(tween(110))) }, label = "app details") { current ->
         if (current == null) saved.SaveableStateProvider("apps-grid") {
-            AppsScreen(state, entry, desktop, navigate, listen, system, animateDesktopPaging,
+            AppsScreen(state, entry, desktop, navigate, listen, animateDesktopPaging,
                 gridActive = selected == null && lifecycle == Lifecycle.State.RESUMED,
                 install = { if (platform.canInstall()) send(picker, platform.pickApk()) },
                 canInstall = platform::canInstall,

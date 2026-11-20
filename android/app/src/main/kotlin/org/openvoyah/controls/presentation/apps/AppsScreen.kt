@@ -50,6 +50,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -61,6 +62,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -98,7 +100,6 @@ internal fun AppsScreen(
     desktop: AppGridDesktop,
     navigate: (ControlsRoute) -> Unit,
     listen: () -> Unit,
-    system: () -> Unit,
     animateDesktopPaging: Boolean,
     gridActive: Boolean,
     install: () -> Unit,
@@ -146,7 +147,7 @@ internal fun AppsScreen(
     }
     val visible = remember(orderedApps, query) {
         val filter = query.trim().lowercase(Locale.ROOT)
-        orderedApps.filter { it.packageName != "org.openvoyah.controls" && it.matchesAppFilter(filter) }
+        orderedApps.filter { it.matchesAppFilter(filter) }
     }
     val openDesktop: (AppGridDesktop) -> Unit = { next ->
         if (next != desktop) {
@@ -223,7 +224,13 @@ internal fun AppsScreen(
                 LazyVerticalGrid(columns, Modifier.fillMaxSize(),
                     state = gridState,
                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    item(key = "controls-settings") { Shortcut(R.string.ui_111, CockpitIcon.SETTINGS, tiles) { navigate(ControlsRoute.SETTINGS) } }
+                    item(key = "controls-settings") {
+                        LauncherTile(text(R.string.app_name), tiles, open = { navigate(ControlsRoute.SETTINGS) }) {
+                            Image(painterResource(R.drawable.ic_controls_art), contentDescription = null,
+                                modifier = Modifier.size(tiles.iconSize).clip(CircleShape),
+                                colorFilter = if (grid.iconStyle == AppGridIconStyle.MONOCHROME) monochromeIcons else null)
+                        }
+                    }
                     if (appsBeforeCards == 0) desktopInfoCards(cards, gridState, grid.showDesktopCardOutlines, navigate)
                     if (AppGridShortcut.QUICK_VOICE in grid.visibleShortcuts) {
                         val quickVoice = AppGridShortcut.QUICK_VOICE.details
@@ -255,7 +262,6 @@ internal fun AppsScreen(
                             Shortcut(details.label, details.icon, tiles, enabled = shortcut != AppGridShortcut.INSTALL_APK || installEnabled) {
                                 when (shortcut) {
                                     AppGridShortcut.QUICK_VOICE -> listen()
-                                    AppGridShortcut.ANDROID_SETTINGS -> system()
                                     AppGridShortcut.INSTALL_APK -> if (canInstall()) install() else allow = true
                                     else -> navigate(checkNotNull(details.route))
                                 }

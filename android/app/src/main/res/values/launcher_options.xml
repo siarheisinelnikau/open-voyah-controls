@@ -21,7 +21,7 @@
     <string name="apps_grid_columns_auto">Automatic</string>
     <string name="apps_grid_columns_fit">The grid uses fewer columns when space is limited.</string>
     <string name="apps_grid_shortcuts">Built-in shortcuts</string>
-    <string name="apps_grid_always_available">Controls settings and Search are always available.</string>
+    <string name="apps_grid_always_available">Open Voyah Controls and Search are always available.</string>
     <string name="apps_grid_reorder_pins">Reorder pinned apps</string>
     <string name="apps_grid_reorder_up">Up</string>
     <string name="apps_grid_reorder_down">Down</string>

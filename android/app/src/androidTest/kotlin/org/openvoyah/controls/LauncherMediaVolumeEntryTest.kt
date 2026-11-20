@@ -1,6 +1,7 @@
 package org.openvoyah.controls
 
 import android.content.Intent
+import android.content.pm.ShortcutManager
 import android.media.AudioManager
 import android.os.Build
 import android.os.SystemClock
@@ -50,11 +51,11 @@ class LauncherMediaVolumeEntryTest : InstrumentationTestCase() {
             assertEquals(maximum, manager.getStreamVolume(media))
 
             instrumentation.runOnMainSync {
-                host.startActivity(Intent(app, MainActivity::class.java)
-                    .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
+                val shortcuts = checkNotNull(app.getSystemService(ShortcutManager::class.java)).manifestShortcuts
+                val shortcut = checkNotNull(shortcuts.single { it.id == "open_controls" }.intent)
+                host.startActivity(shortcut.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
             }
-            await("launch with the normal launcher intent limits media volume") { manager.getStreamVolume(media) == target }
+            await("launch from the Open Controls shortcut limits media volume") { manager.getStreamVolume(media) == target }
 
             manager.setStreamVolume(media, maximum, 0)
             await("manually raised volume") { manager.getStreamVolume(media) == maximum }

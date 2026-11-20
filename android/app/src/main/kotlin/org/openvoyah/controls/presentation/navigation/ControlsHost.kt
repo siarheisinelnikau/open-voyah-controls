@@ -62,7 +62,6 @@ internal fun ControlsHost(
     navigation: ControlsNavigationViewModel,
     appearance: AppearanceViewModel,
     listen: () -> Unit,
-    systemSettings: () -> Unit,
     runRoutine: suspend (NamedRoutine, ControlsNavigationState) -> Int?,
     runRoutineShortcut: (NamedRoutine, ControlsNavigationState) -> Boolean,
 ) {
@@ -100,7 +99,7 @@ internal fun ControlsHost(
                 screens.SaveableStateProvider(route.name) {
                     when (route) {
                         ControlsRoute.APPS -> AppsDestination(destination.entry, destination.entryDesktop, navigation::open,
-                            listen, systemSettings, animateDesktopPaging = look.settings?.animateRoutes == true)
+                            listen, animateDesktopPaging = look.settings?.animateRoutes == true)
                         ControlsRoute.SETTINGS, ControlsRoute.BUTTONS -> ControlsSettingsDestination(
                             route == ControlsRoute.BUTTONS, navigation::back, navigation::open, appearance, navigation::clearTemporaryPalette,
                         )

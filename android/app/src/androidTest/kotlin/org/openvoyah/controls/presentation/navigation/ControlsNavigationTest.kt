@@ -183,6 +183,7 @@ class ControlsNavigationTest : InstrumentationTestCase() {
 
     fun testLauncherAndMalformedSettingsEntriesSelectSafeRoots() {
         assertEquals(ControlsRoute.APPS, ControlsNavigation.route(Intent(Intent.ACTION_MAIN)))
+        assertEquals(ControlsRoute.SETTINGS, ControlsNavigation.route(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)))
         assertEquals(ControlsRoute.APPS, ControlsNavigation.route(Intent("unrecognized.action")))
         assertEquals(ControlsRoute.SETTINGS, ControlsNavigation.route(Intent(ControlsNavigation.OPEN_SETTINGS)))
         assertEquals(ControlsRoute.SETTINGS, ControlsNavigation.route(Intent(ControlsNavigation.OPEN_SETTINGS)
