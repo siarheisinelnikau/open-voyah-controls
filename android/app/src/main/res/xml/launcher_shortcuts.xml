@@ -1,0 +1,7 @@
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="open_controls" android:enabled="true"
+        android:icon="@drawable/ic_controls" android:shortcutShortLabel="@string/launcher_open_controls">
+        <intent android:action="org.openvoyah.controls.action.START_CONTROLS"
+            android:targetPackage="org.openvoyah.controls" android:targetClass="org.openvoyah.controls.MainActivity" />
+    </shortcut>
+</shortcuts>

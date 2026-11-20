@@ -39,11 +39,12 @@ internal data class ControlsNavigationState(
 internal object ControlsNavigation {
     const val OPEN_APPS = "org.openvoyah.controls.action.OPEN_APPS"
     const val OPEN_SETTINGS = "org.openvoyah.controls.action.OPEN_SETTINGS"
+    const val START_CONTROLS = "org.openvoyah.controls.action.START_CONTROLS"
     private const val ROUTE = "org.openvoyah.controls.extra.ROUTE"
     private const val DRIVER_MEMORY_SLOT = "org.openvoyah.controls.extra.DRIVER_MEMORY_SLOT"
 
     fun isLauncherEntry(intent: Intent): Boolean =
-        intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_LAUNCHER)
+        intent.action == START_CONTROLS || (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_LAUNCHER))
 
     fun intent(context: Context, route: ControlsRoute): Intent = Intent(context, MainActivity::class.java)
         .setAction(if (route == ControlsRoute.APPS) OPEN_APPS else OPEN_SETTINGS)
