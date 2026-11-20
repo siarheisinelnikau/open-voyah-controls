@@ -3,10 +3,10 @@
     <string name="appearance_animate_routes">Animate screen transitions</string>
     <string name="appearance_high_contrast">High contrast</string>
     <string name="appearance_start_screen">Start screen</string>
-    <string name="appearance_start_screen_description">Shown when you open Controls from its app icon.</string>
+    <string name="appearance_start_screen_description">Shown when you hold the app icon and choose Open Controls.</string>
     <string name="appearance_limit_media_on_launch">Limit media volume on launch</string>
     <string name="appearance_launch_media_limit">Launch volume limit</string>
-    <string name="appearance_launch_media_limit_description">Lowers media volume above this limit when you open Controls from its app icon.</string>
+    <string name="appearance_launch_media_limit_description">Lowers media volume above this limit when you hold the app icon and choose Open Controls.</string>
     <string name="appearance_media_volume_percent">%1$d%%</string>
     <string name="appearance_app_grid">App grid</string>
     <string name="appearance_save_failed">Could not save the appearance setting.</string>

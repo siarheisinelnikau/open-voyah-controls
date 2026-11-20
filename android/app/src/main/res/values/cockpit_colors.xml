@@ -1,5 +1,6 @@
 <resources>
     <color name="cockpit_background">#0A0B10</color>
+    <color name="controls_icon_backdrop">#08090A</color>
     <color name="cockpit_surface">#14161F</color>
     <color name="cockpit_surface_raised">#202431</color>
     <color name="cockpit_stroke">#343B50</color>

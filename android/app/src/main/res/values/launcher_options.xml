@@ -1,4 +1,5 @@
 <resources>
+    <string name="launcher_open_controls">Open Controls</string>
     <string name="apps_grid_sort_manual">Manual order</string>
     <string name="apps_grid_edit_manual_order">Edit app order</string>
     <string name="apps_grid_manual_order_note">Pinned apps stay first. New apps follow your order by name.</string>

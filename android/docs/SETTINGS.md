@@ -19,7 +19,7 @@ The inventory counts independently adjustable choices across supported firmware 
 | Headlights | Observe headlight feedback while Controls is open | 1 | `headlightMonitoring` (1) |
 | **Total** | | **153** | **150** |
 
-**Default desktop** selects a desktop within the app grid. **Start screen** selects the app page opened by the normal launcher icon. The current desktop tab, playback position, last-used driver number and most recent headlight observation are runtime or historical records. The factory vehicle stores seat and mirror positions. The archive can still read older driver label records.
+**Default desktop** selects a desktop within the app grid. **Start screen** selects the app page opened by the **Open Controls** shortcut. The current desktop tab, playback position, last-used driver number and most recent headlight observation are runtime or historical records. The factory vehicle stores seat and mirror positions. The archive can still read older driver label records.
 
 The settings inventory test exports two profiles with different values for each portable setting family and restores them in both directions. It reads each result through a fresh archive instance. The test also checks that restoring either profile preserves the three device-bound settings and the confirmed headlight observations on the receiving device. [Settings inventory test](../app/src/androidTest/kotlin/org/openvoyah/controls/SettingsInventoryAuditTest.kt)
 
