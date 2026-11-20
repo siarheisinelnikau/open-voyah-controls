@@ -11,7 +11,7 @@ Open Voyah Controls is an Android app for Voyah head units. It opens directly to
 
 | App grid | Settings |
 | --- | --- |
-| ![Controls app grid on Android 9](android/docs/screenshots/home.png) | ![Compose settings on Android 9](android/docs/screenshots/settings.png) |
+| ![App grid with Open Voyah Controls first](android/docs/screenshots/home.png) | ![Controls settings with the System settings link](android/docs/screenshots/settings.png) |
 
 Screenshots are from Android emulators. See [Head unit qualification and recovery](android/docs/PRODUCTION.md) for the device evidence required before enabling a production build.
 

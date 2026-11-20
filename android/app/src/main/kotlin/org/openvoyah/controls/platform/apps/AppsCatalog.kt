@@ -2,10 +2,12 @@ package org.openvoyah.controls.platform.apps
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
+import android.provider.Settings
 import androidx.core.graphics.createBitmap
 import org.openvoyah.controls.InstalledApps
 
@@ -26,7 +28,9 @@ internal class AppsCatalog(
     @Suppress("DEPRECATION")
     fun load(launcherOnly: Boolean = false): List<LocalApp> {
         val packages = context.packageManager
-        val launchable = InstalledApps.list(context)
+        val settingsPackage = Intent(Settings.ACTION_SETTINGS).resolveActivity(packages)?.packageName
+        val excluded = setOfNotNull(context.packageName, "com.android.settings", settingsPackage)
+        val launchable = InstalledApps.list(context).filterNot { it.component().packageName in excluded }
         val latestInstallTime = System.currentTimeMillis()
         val installations = mutableMapOf<String, AppInstallationInfo>()
         fun installation(packageName: String) = installations.getOrPut(packageName) {
@@ -46,7 +50,7 @@ internal class AppsCatalog(
         @SuppressLint("QueryPermissionsNeeded")
         val withoutLauncher = packages.getInstalledApplications(0).mapNotNull { app ->
             val id = app.packageName
-            if (id in launcherPackages) return@mapNotNull null
+            if (id in launcherPackages || id in excluded) return@mapNotNull null
             val installed = installation(id)
             if (installed.origin != InstallOrigin.CONTROLS && installed.origin != InstallOrigin.UNVERIFIED) return@mapNotNull null
             LocalApp(id, id, app.loadLabel(packages).toString(), null, context.appIcon(app.loadIcon(packages)),

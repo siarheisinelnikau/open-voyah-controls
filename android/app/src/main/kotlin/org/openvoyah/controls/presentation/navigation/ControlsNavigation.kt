@@ -43,9 +43,6 @@ internal object ControlsNavigation {
     private const val ROUTE = "org.openvoyah.controls.extra.ROUTE"
     private const val DRIVER_MEMORY_SLOT = "org.openvoyah.controls.extra.DRIVER_MEMORY_SLOT"
 
-    fun isLauncherEntry(intent: Intent): Boolean =
-        intent.action == START_CONTROLS || (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_LAUNCHER))
-
     fun intent(context: Context, route: ControlsRoute): Intent = Intent(context, MainActivity::class.java)
         .setAction(if (route == ControlsRoute.APPS) OPEN_APPS else OPEN_SETTINGS)
         .putExtra(ROUTE, route.name)
@@ -60,13 +57,13 @@ internal object ControlsNavigation {
         return runCatching { SeatMemorySlot.forNumber(intent.getIntExtra(DRIVER_MEMORY_SLOT, 0)) }.getOrNull()
     }
 
-    fun route(intent: Intent, launcherEntry: () -> ControlsRoute = { ControlsRoute.APPS }): ControlsRoute {
+    fun route(intent: Intent): ControlsRoute {
         if (intent.action == OPEN_APPS) return ControlsRoute.APPS
         if (intent.action == OPEN_SETTINGS) {
             return ControlsRoute.entries.firstOrNull { it.name == intent.getStringExtra(ROUTE) }
                 ?: ControlsRoute.SETTINGS
         }
-        if (isLauncherEntry(intent)) return launcherEntry()
+        if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_LAUNCHER)) return ControlsRoute.SETTINGS
         return ControlsRoute.APPS
     }
 }
