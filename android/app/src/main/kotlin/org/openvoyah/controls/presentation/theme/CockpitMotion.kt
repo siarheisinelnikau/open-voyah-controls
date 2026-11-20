@@ -1,5 +1,9 @@
 package org.openvoyah.controls.presentation.theme
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
@@ -12,6 +16,12 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.MaterialTheme
@@ -153,6 +163,37 @@ internal fun Modifier.cockpitEntrance(order: Int = 0): Modifier {
 internal fun rememberEntranceOrder(): Int? {
     val cascade = LocalEntranceCascade.current ?: return null
     return remember(cascade) { cascade.take() }
+}
+
+/**
+ * Shows or hides a block by growing and fading it, so the rows below move into place instead of jumping. With
+ * transitions turned off the block appears and disappears at once.
+ */
+@Composable
+internal fun CockpitReveal(visible: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val animate = LocalCockpitMotion.current.enabled
+    AnimatedVisibility(
+        visible, modifier,
+        enter = if (animate) expandVertically(CockpitMotion.change()) + fadeIn(CockpitMotion.enter()) else EnterTransition.None,
+        exit = if (animate) shrinkVertically(CockpitMotion.change()) + fadeOut(CockpitMotion.exit()) else ExitTransition.None,
+    ) { content() }
+}
+
+/**
+ * The transition between two views of one page, such as a list and its editor: the same short slide and
+ * crossfade as a route change, at the chosen speed. [offsetPx] is the travel of the arriving view.
+ */
+internal fun cockpitSwap(motion: CockpitMotionSettings, offsetPx: Int, forward: Boolean = true): ContentTransform {
+    if (!motion.enabled) return ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
+    val durations = motion.route
+    val direction = if (forward) 1 else -1
+    return ContentTransform(
+        fadeIn(tween(durations.enterMillis, easing = CockpitMotion.Arrive)) +
+            slideInHorizontally(tween(durations.enterMillis, easing = CockpitMotion.Arrive)) { offsetPx * direction },
+        fadeOut(tween(durations.exitMillis, easing = CockpitMotion.Leave)) +
+            slideOutHorizontally(tween(durations.exitMillis, easing = CockpitMotion.Leave)) { -offsetPx * direction / 2 },
+        sizeTransform = null,
+    )
 }
 
 internal data class PressMotion(val source: MutableInteractionSource, val modifier: Modifier, val color: Color)

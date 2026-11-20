@@ -22,19 +22,28 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
@@ -63,9 +72,10 @@ internal fun CockpitDetail(
                 verticalArrangement = spacing,
             ) {
                 CockpitHeading(title, subtitle, back)
+                val scroll = rememberScrollState()
                 Column(
-                    Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
-                        .padding(bottom = layout.spacing(10.dp)),
+                    Modifier.fillMaxWidth().weight(1f).cockpitScrollFade(scroll, MaterialTheme.colorScheme.background)
+                        .verticalScroll(scroll).padding(bottom = layout.spacing(10.dp)),
                     verticalArrangement = spacing, content = content,
                 )
             }
@@ -138,16 +148,69 @@ internal fun CockpitAction(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     labelStyle: TextStyle = MaterialTheme.typography.labelLarge,
     colors: ButtonColors? = null,
+    destructive: Boolean = false,
 ) {
     val press = rememberPressMotion(enabled)
+    val scheme = MaterialTheme.colorScheme
     val target = modifier.then(press.modifier).heightIn(min = CockpitTouch)
     val label: @Composable RowScope.() -> Unit = { Text(title, style = labelStyle) }
+    // An action that removes something uses the error roles, so it cannot be mistaken for the safe choice.
     if (primary) {
+        val fill = colors ?: if (destructive) {
+            ButtonDefaults.buttonColors(containerColor = scheme.error, contentColor = scheme.onError)
+        } else ButtonDefaults.buttonColors()
         Button(onClick, target, enabled, shape = MaterialTheme.shapes.medium, interactionSource = press.source,
-            colors = colors ?: ButtonDefaults.buttonColors(), contentPadding = contentPadding, content = label)
+            colors = fill, contentPadding = contentPadding, content = label)
     } else {
+        val outline = colors ?: if (destructive) {
+            ButtonDefaults.outlinedButtonColors(contentColor = scheme.error)
+        } else ButtonDefaults.outlinedButtonColors()
         OutlinedButton(onClick, target, enabled, shape = MaterialTheme.shapes.medium, interactionSource = press.source,
-            colors = colors ?: ButtonDefaults.outlinedButtonColors(), contentPadding = contentPadding, content = label)
+            colors = outline, contentPadding = contentPadding, content = label)
+    }
+}
+
+/**
+ * The text field of every form: the corner style from Appearance instead of the 4 dp Material default, a full
+ * touch height and one place for the label, supporting text and error state.
+ */
+@Composable
+internal fun CockpitTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    error: Boolean = false,
+    supporting: String? = null,
+    singleLine: Boolean = true,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    trailingIcon: (@Composable () -> Unit)? = null,
+) {
+    OutlinedTextField(value, onValueChange, modifier.heightIn(min = CockpitTouch), enabled = enabled,
+        label = { Text(label) }, isError = error, singleLine = singleLine, shape = MaterialTheme.shapes.medium,
+        supportingText = supporting?.let { message -> { Text(message) } }, trailingIcon = trailingIcon,
+        keyboardOptions = keyboardOptions, keyboardActions = keyboardActions)
+}
+
+/**
+ * Shows that a scrolling page continues: a short fade in the page color at an edge that still hides content. It
+ * is drawn over the content from the scroll position, so it costs no offscreen layer and no recomposition.
+ */
+internal fun Modifier.cockpitScrollFade(scroll: ScrollState, color: Color, length: Dp = 26.dp): Modifier = drawWithContent {
+    drawContent()
+    val edge = length.toPx().coerceAtMost(size.height / 3f)
+    if (edge <= 0f) return@drawWithContent
+    val above = (scroll.value / edge).coerceIn(0f, 1f)
+    val below = ((scroll.maxValue - scroll.value) / edge).coerceIn(0f, 1f)
+    if (above > 0f) {
+        drawRect(Brush.verticalGradient(listOf(color, color.copy(alpha = 0f)), startY = 0f, endY = edge),
+            size = Size(size.width, edge), alpha = above)
+    }
+    if (below > 0f && scroll.maxValue != Int.MAX_VALUE) {
+        drawRect(Brush.verticalGradient(listOf(color.copy(alpha = 0f), color), startY = size.height - edge, endY = size.height),
+            topLeft = Offset(0f, size.height - edge), size = Size(size.width, edge), alpha = below)
     }
 }
 
