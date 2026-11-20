@@ -30,8 +30,10 @@ import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 
+/** Line glyphs on one 24-unit grid. A concept keeps one glyph everywhere, because shape is how a driver finds it. */
 internal enum class CockpitIcon {
     HOME, APPS, VOICE, DISPLAY, BUTTONS, SETTINGS, ARROW, BACK, DOWNLOAD, LOCK, CAR, LANGUAGE, ENERGY, LIGHT, HIGH_BEAM,
+    SEARCH, CLOSE, PLAY, EXPAND, ROUTINE, SYSTEM, FIRMWARE, CLIMATE,
 }
 
 /** [tint] replaces the role color, for example inside a disabled row; voice keeps its own accent by default. */
@@ -103,6 +105,31 @@ internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier, tint
                 CockpitIcon.ENERGY -> path {
                     moveTo(14f, 2.5f); lineTo(5.5f, 13.5f); lineTo(11.5f, 13.5f)
                     lineTo(10f, 21.5f); lineTo(18.5f, 10.5f); lineTo(12.5f, 10.5f); close()
+                }
+                CockpitIcon.SEARCH -> {
+                    drawCircle(color, 6.5f, Offset(10.5f, 10.5f), style = stroke)
+                    line(15.3f, 15.3f, 20.5f, 20.5f)
+                }
+                CockpitIcon.CLOSE -> { line(6f, 6f, 18f, 18f); line(18f, 6f, 6f, 18f) }
+                CockpitIcon.PLAY -> path { moveTo(8f, 5f); lineTo(19f, 12f); lineTo(8f, 19f); close() }
+                CockpitIcon.EXPAND -> path { moveTo(6f, 9f); lineTo(12f, 15f); lineTo(18f, 9f) }
+                CockpitIcon.ROUTINE -> {
+                    drawCircle(color, 8.5f, Offset(12f, 12f), style = stroke)
+                    path { moveTo(12f, 7f); lineTo(12f, 12f); lineTo(15.5f, 14f) }
+                }
+                CockpitIcon.SYSTEM -> {
+                    drawCircle(color, 4.6f, Offset(12f, 12f), style = stroke)
+                    line(18.5f, 12f, 21f, 12f); line(5.5f, 12f, 3f, 12f); line(12f, 18.5f, 12f, 21f); line(12f, 5.5f, 12f, 3f)
+                    line(16.6f, 16.6f, 18.4f, 18.4f); line(7.4f, 7.4f, 5.6f, 5.6f)
+                    line(16.6f, 7.4f, 18.4f, 5.6f); line(7.4f, 16.6f, 5.6f, 18.4f)
+                }
+                CockpitIcon.FIRMWARE -> {
+                    box(7f, 7f, 10f, 10f)
+                    line(10f, 3.5f, 10f, 7f); line(14f, 3.5f, 14f, 7f); line(10f, 17f, 10f, 20.5f); line(14f, 17f, 14f, 20.5f)
+                    line(3.5f, 10f, 7f, 10f); line(3.5f, 14f, 7f, 14f); line(17f, 10f, 20.5f, 10f); line(17f, 14f, 20.5f, 14f)
+                }
+                CockpitIcon.CLIMATE -> {
+                    line(12f, 3.5f, 12f, 20.5f); line(4.6f, 7.75f, 19.4f, 16.25f); line(4.6f, 16.25f, 19.4f, 7.75f)
                 }
                 CockpitIcon.LIGHT, CockpitIcon.HIGH_BEAM -> {
                     path {
