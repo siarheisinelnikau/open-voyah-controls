@@ -18,7 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
@@ -32,9 +34,11 @@ internal enum class CockpitIcon {
     HOME, APPS, VOICE, DISPLAY, BUTTONS, SETTINGS, ARROW, BACK, DOWNLOAD, LOCK, CAR, LANGUAGE, ENERGY, LIGHT, HIGH_BEAM,
 }
 
+/** [tint] replaces the role color, for example inside a disabled row; voice keeps its own accent by default. */
 @Composable
-internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier) {
-    val color = if (icon == CockpitIcon.VOICE) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier, tint: Color = Color.Unspecified) {
+    val role = if (icon == CockpitIcon.VOICE) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+    val color = if (tint.isSpecified) tint else role
     Canvas(modifier.size(24.dp)) {
         scale(size.width / 24f, size.height / 24f, Offset.Zero) {
             val stroke = Stroke(1.55f, cap = StrokeCap.Round)
@@ -140,7 +144,8 @@ internal fun CockpitHeading(title: String, subtitle: String? = null, back: (() -
         Column(Modifier.weight(1f)) {
             val style = MaterialTheme.typography.headlineSmall.scaledText(layout.pageTitleScale / layout.textScale)
             Text(title, modifier = Modifier.semantics { heading() }, style = style)
-            if (subtitle != null) {
+            // A blank subtitle would still take a line and push the title off the Back button's center.
+            if (!subtitle.isNullOrBlank()) {
                 Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

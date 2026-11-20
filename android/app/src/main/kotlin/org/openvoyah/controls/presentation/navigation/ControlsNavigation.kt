@@ -31,6 +31,8 @@ internal data class ControlsNavigationState(
     // A visit and its read-only guide are kept in memory for the active route.
     val driverMemoryGuide: SeatMemoryPrompt.Factory? = null,
     val seatMemoryVisit: Any? = null,
+    // Counts the pages opened in this process. A restored host compares it to tell a new page from a redrawn one.
+    val arrival: Long = 0,
 ) {
     val route: ControlsRoute get() = stack.last()
 }
@@ -167,7 +169,8 @@ internal class ControlsNavigationViewModel(private val saved: SavedStateHandle) 
         saved["entries"] = state.entry
         saved["entryDesktop"] = state.entryDesktop?.storedValue
         saved["temporaryPalette"] = state.temporaryPalette?.preferenceId
-        current.value = state.copy(seatMemoryVisit = visit)
+        val opened = state.route != previous.route || state.entry != previous.entry
+        current.value = state.copy(seatMemoryVisit = visit, arrival = if (opened) previous.arrival + 1 else previous.arrival)
     }
 
     private fun restore(names: List<String>?): List<ControlsRoute> {

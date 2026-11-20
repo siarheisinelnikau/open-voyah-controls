@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +57,7 @@ import org.openvoyah.controls.presentation.routines.RoutinesDestination
 import org.openvoyah.controls.presentation.rules.ConditionalRulesDestination
 import org.openvoyah.controls.presentation.seatmemory.SeatMemoryDestination
 import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.theme.LocalCockpitEntrance
 import org.openvoyah.controls.presentation.updates.UpdatesDestination
 import org.openvoyah.controls.presentation.vehicle.KeepHeadlightsObserved
 import org.openvoyah.controls.presentation.vehicle.ServiceReminderDestination
@@ -79,8 +81,11 @@ internal fun ControlsHost(
     runRoutine: suspend (NamedRoutine, ControlsNavigationState) -> Int?,
     runRoutineShortcut: (NamedRoutine, ControlsNavigationState) -> Boolean,
     runConditionalRoutine: suspend (NamedRoutine, ControlsNavigationState, () -> Boolean) -> Int?,
+    restored: Boolean = false,
 ) {
     val state by navigation.state.collectAsStateWithLifecycle()
+    // A host rebuilt after a language or theme change redraws the page it already showed, without an arrival.
+    val shownBefore = remember { if (restored) navigation.state.value.arrival else -1L }
     val look by appearance.state.collectAsStateWithLifecycle()
     val dock = quickActionsModel()
     val dockState by dock.state.collectAsStateWithLifecycle()
@@ -121,7 +126,10 @@ internal fun ControlsHost(
             label = "controls destination",
         ) { destination ->
             val route = destination.route
-            DestinationFrame(route == state.route) {
+            // The virtual display hosts a SurfaceView, which a draw-layer fade cannot move on Android 9 and 11.
+            val arrives = destination.direction != RouteDirection.BACK && destination.arrival > shownBefore &&
+                route != ControlsRoute.DISPLAY
+            DestinationFrame(active = route == state.route, arrives = arrives) {
                 screens.SaveableStateProvider(route.name) {
                     when (route) {
                         ControlsRoute.APPS -> AppsDestination(destination.entry, destination.entryDesktop, navigation::open,
@@ -190,8 +198,9 @@ private fun routeTransition(
     )
 }
 
+/** [arrives] is true only for a newly opened page; a page the driver returns to appears without its cascade. */
 @Composable
-private fun DestinationFrame(active: Boolean, content: @Composable () -> Unit) {
+private fun DestinationFrame(active: Boolean, arrives: Boolean, content: @Composable () -> Unit) {
     val acceptsInput by rememberUpdatedState(active)
     val semantics = if (active) Modifier else Modifier.clearAndSetSemantics { hideFromAccessibility() }
     // Keep the pointer filter in the hit path to cancel touches that started before the route changed.
@@ -203,6 +212,6 @@ private fun DestinationFrame(active: Boolean, content: @Composable () -> Unit) {
             }
         }
     }) {
-        DestinationLifecycle(active, content)
+        CompositionLocalProvider(LocalCockpitEntrance provides arrives) { DestinationLifecycle(active, content) }
     }
 }
