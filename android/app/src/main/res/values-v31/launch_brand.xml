@@ -1,0 +1,6 @@
+<resources>
+    <style name="LaunchBrandTheme" parent="AppTheme">
+        <item name="android:windowSplashScreenBackground">@color/cockpit_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+    </style>
+</resources>
