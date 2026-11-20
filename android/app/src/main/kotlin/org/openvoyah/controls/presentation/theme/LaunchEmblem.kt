@@ -102,6 +102,7 @@ internal class LaunchEmblem(density: Density, direction: LayoutDirection, render
             openWing()
             mirror { openWing() }
         }
+        if (bodyOpacity <= 0f) return
         badge.paint(this, bodyOpacity)
         if (heat > 0f) badge.paint(this, heat * bodyOpacity, crimson)
         if (lightX != null) {

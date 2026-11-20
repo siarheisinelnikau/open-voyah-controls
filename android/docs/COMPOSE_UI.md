@@ -34,7 +34,7 @@ The shared palette uses neutral graphite surfaces, saturated blue actions, cool 
 - App and command lists animate placement and appearance when their data changes. Assignment dialogs animate transitions between their steps.
 - Activity and dialog windows have finite entry/exit transitions. The voice popup also animates recognition-state changes, and the virtual display crossfades changed media/navigation content.
 - Compose honors Android's animator duration scale, including zero. Window transitions honor the corresponding system window/transition scales. There are no permanent decorative animation loops.
-- The launcher animation draws cached metal and wing layers with Compose from silver through ruby and back, then closes its task. Disabling screen transitions or the system animator skips the intro.
+- The launcher animation starts on a solid background. Compose reveals the wings, then the emblem and title. The emblem and title go from silver through ruby and back before the task closes. Disabling screen transitions or the system animator skips the intro.
 
 State collection follows the destination lifecycle. Settings snapshots copy mutable preferences into immutable presentation state. The app grid decodes the selected desktop's saved image on an I/O worker. Playback progress derives from a timed media-session sample and ticks while the visible preview shows a playing track. The main Displays screen owns playback actions. Closing the display route releases its presentation, media-preview listener and virtual display.
 

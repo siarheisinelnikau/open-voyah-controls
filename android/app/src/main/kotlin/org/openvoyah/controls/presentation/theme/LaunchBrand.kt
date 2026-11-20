@@ -38,6 +38,7 @@ import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.R
 
 internal const val LAUNCH_BRAND_TAG = "launchBrand"
+private const val WING_REVEAL_START = .12f
 
 @Composable
 internal fun LaunchBrand(onFinished: () -> Unit) {
@@ -84,33 +85,39 @@ internal fun LaunchBrand(onFinished: () -> Unit) {
             onDrawBehind {
                 // Reading the phase in draw keeps composition, layout and text measurement out of the frame loop.
                 val progress = phase.value
-                val out = 1f - ease(progress, .86f, 1f)
-                val reveal = ease(progress, .02f, .32f)
-                val spread = ease(progress, .07f, .48f)
-                val wingAlpha = ease(progress, .07f, .43f) * out
-                val heat = ease(progress, .33f, .52f) * (1f - ease(progress, .60f, .76f))
-                val titleAlpha = ease(progress, .21f, .49f) * out
-                drawCircle(ambient, radius = glowRadius, center = glowCenter, alpha = reveal * out * (1f - .43f * heat))
+                if (progress <= WING_REVEAL_START) return@onDrawBehind
+
+                val out = 1f - ease(progress, .88f, 1f)
+                val reveal = ease(progress, .21f, .44f)
+                val spread = ease(progress, WING_REVEAL_START, .50f)
+                val wingAlpha = ease(progress, WING_REVEAL_START, .36f) * out
+                val heat = ease(progress, .44f, .57f) * (1f - ease(progress, .64f, .79f))
+                val titleAlpha = ease(progress, .26f, .42f) * out
+                if (reveal > 0f) {
+                    drawCircle(ambient, radius = glowRadius, center = glowCenter, alpha = reveal * out * (1f - .43f * heat))
+                }
                 if (heat > 0f) {
                     drawCircle(warmAmbient, radius = glowRadius * .86f, center = glowCenter, alpha = .64f * heat)
                 }
-                if (markScale > 0f) withTransform({
+                if (reveal > 0f && markScale > 0f) withTransform({
                     translate(centerX + shadowShift * (1f - reveal), top + markHeight * 1.02f)
                     scale(markHeight * .23f, markHeight * .026f, pivot = Offset.Zero)
                 }) { drawCircle(shadow, center = Offset.Zero, radius = 1f, alpha = reveal * out) }
 
                 val emblemScale = markScale * (.91f + .09f * reveal)
                 val horizontalScale = emblemScale * (.90f + .10f * reveal)
-                val lightX = if (progress in .18f.. .81f) -54f + 164f * ((progress - .18f) / .63f) else null
+                val lightX = if (progress in .24f.. .86f) -54f + 164f * ((progress - .24f) / .62f) else null
                 withTransform({
                     translate(centerX - LaunchEmblem.WIDTH * horizontalScale / 2f, top + (markHeight - LaunchEmblem.HEIGHT * emblemScale) / 2f)
                     scale(horizontalScale, emblemScale, pivot = Offset.Zero)
                 }) {
                     with(emblem) { draw(reveal * out, spread, wingAlpha, lightX, heat) }
                 }
-                val titleColor = lerp(Color(0xFFEAF0FB), Color(0xFFD34459), heat)
-                drawText(titleLayout, color = titleColor, alpha = titleAlpha,
-                    topLeft = Offset(centerX - titleLayout.size.width / 2f, top + markHeight + titleGap + titleShift * (1f - titleAlpha)))
+                if (titleAlpha > 0f) {
+                    val titleColor = lerp(Color(0xFFEAF0FB), Color(0xFFD34459), heat)
+                    drawText(titleLayout, color = titleColor, alpha = titleAlpha,
+                        topLeft = Offset(centerX - titleLayout.size.width / 2f, top + markHeight + titleGap + titleShift * (1f - titleAlpha)))
+                }
             }
         })
 }
