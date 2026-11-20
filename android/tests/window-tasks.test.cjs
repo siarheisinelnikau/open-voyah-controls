@@ -233,12 +233,13 @@ function livePolicy(sdk, h) {
     const owner = sdk === 28 ? 'com.android.server.am' : 'com.android.server.wm';
     const types = [owner + '.ActivityRecord', owner + '.ActivityRecord', '', '', '', '',
         'android.app.ActivityOptions', owner + (sdk === 28 ? '.TaskRecord' : '.Task')];
-    const early = {call(_receiver, _record, options) {
-        const value = options?.getLaunchBounds();
-        if (value && options.getLaunchWindowingMode() === 5) {
-            h.launchAt([value.left.value, value.top.value, value.right.value, value.bottom.value]);
-        }
-    }};
+    const early = {argumentTypes:types.slice(0, 6).map((_, index)=>({className:index === 5 ? owner + '.ActivityRecord' : ''})),
+        call(_receiver, _record, options) {
+            const value = options?.getLaunchBounds();
+            if (value && options.getLaunchWindowingMode() === 5) {
+                h.launchAt([value.left.value, value.top.value, value.right.value, value.bottom.value]);
+            }
+        }};
     const late = {
         returnType:{className:'int'}, argumentTypes:types.map(className=>({className})),
         call(receiver, ...args) {
@@ -257,12 +258,18 @@ function livePolicy(sdk, h) {
         },
         'android.app.ActivityManager':{START_SUCCESS:field(0), START_TASK_TO_FRONT:field(2), START_DELIVERED_TO_TOP:field(3)},
     };
-    const Java = {use:name=>classes[name], retain:value=>value, perform:fn=>fn(), scheduleOnMainThread:fn=>queue.push(fn)};
-    vm.runInNewContext(source('window-profiles.js','window-policy.js') + '\ninstallLiveWindowPolicy(Java, sdk, early)', {
-        Java, sdk, early, systemTasks:()=>h.agent, setInterval:fn=>{ tick = fn; }, console:{log:line=>logs.push(line)},
+    // The deferred layout must not use scheduleOnMainThread: it would hook epoll_wait in all of system_server.
+    const Java = {use:name=>classes[name], retain:value=>value, perform:fn=>fn(),
+        scheduleOnMainThread() { throw Error('The window agent must stay off the main-thread scheduler'); }};
+    const hooks = [];
+    vm.runInNewContext(source('report.js','window-profiles.js','window-policy.js') +
+        '\ninstallLiveWindowPolicy(Java, sdk, early, hooks, createReporter("OVC_WINDOW_ERROR"))', {
+        Java, sdk, early, hooks, systemTasks:()=>h.agent, setInterval:fn=>{ tick = fn; }, setTimeout:fn=>queue.push(fn),
+        console:{log:line=>logs.push(line)},
     });
     return {
-        queue, logs, setClear:value=>{ acceptClear = value; },
+        queue, logs, hooks, late, setClear:value=>{ acceptClear = value; }, setProfiles:value=>settings.set(prefix + 'windowProfiles', value),
+        tick:()=>tick(),
         launch(nativeMode = 0, nativeBounds = null, sourceMode = 1) {
             let mode = nativeMode, bounds = nativeBounds && rect(...nativeBounds);
             const options = {
@@ -321,7 +328,7 @@ test('a cold start too large for the workspace returns to its native placement a
         assert.equal(h.mode(), 1);
         assert.equal(h.density(), 180);
         assert.deepEqual(h.bounds(), [0, 0, 1920, 720]);
-        assert.ok(service.logs.includes('OVC_WINDOW_ERROR launch no_space'));
+        assert.ok(service.logs.includes('OVC_WINDOW_ERROR stage=launch kind=no_space'));
         service.request('release');
         assert.equal(h.placements(), 1);
     }
@@ -349,6 +356,85 @@ test('a failed request acknowledgement precedes any write and diagnostics expose
     service.setClear(true);
     h.agent.apply = () => { throw Object.assign(Error('private fixture payload'), {code:'private fixture code'}); };
     assert.equal(service.request('apply').status, 'failed');
-    assert.ok(service.logs.includes('OVC_WINDOW_ERROR request failed'));
+    assert.ok(service.logs.includes('OVC_WINDOW_ERROR stage=request kind=failed'));
     assert.equal(service.logs.some(line=>line.includes('private fixture')), false);
+});
+
+test('a start that fails inside the hooks still reaches Android and is reported once with its cause', () => {
+    for (const sdk of [28, 30]) {
+        const h = harness(sdk, {displayId:0, cold:true});
+        const service = livePolicy(sdk, h);
+        h.agent.captureLaunch = () => { throw new TypeError('private field layout'); };
+        for (let attempt = 0; attempt < 12; attempt++) assert.equal(service.launch(), 0);
+        const reports = service.logs.filter(line=>line.startsWith('OVC_WINDOW_ERROR stage=capture '));
+        assert.deepEqual(reports, ['OVC_WINDOW_ERROR stage=capture kind=failed cause=TypeError',
+            'OVC_WINDOW_ERROR stage=capture kind=failed cause=TypeError repeated=10']);
+        assert.equal(service.logs.some(line=>line.includes('private')), false);
+    }
+});
+
+test('a rejected profile document is reported once and leaves launches native', () => {
+    const h = harness(30, {displayId:0, cold:true});
+    const service = livePolicy(30, h);
+    service.setProfiles('{"schema":7,"apps":"private"}');
+    service.tick();
+    service.tick();
+    assert.deepEqual(service.logs.filter(line=>line.includes('stage=config')),
+        ['OVC_WINDOW_ERROR stage=config kind=config_invalid bytes=29']);
+    service.launch();
+    assert.equal(service.queue.length, 0);
+    assert.equal(h.placements(), 0);
+});
+
+test('installation failures name their step, announce no readiness and leave no hook behind', () => {
+    for (const [sdk, broken, expected] of [
+        [29, null, 'OVC_WINDOW_ERROR stage=install kind=unsupported_sdk sdk=29'],
+        [30, 'starter', 'OVC_WINDOW_ERROR stage=install kind=starter_signature cause=Error'],
+        [28, 'tasks', 'OVC_WINDOW_ERROR stage=install kind=tasks_api cause=ClassNotFoundException'],
+        [30, 'completion', 'OVC_WINDOW_ERROR stage=install kind=completion_signature cause=Error'],
+    ]) {
+        const logs = [];
+        const owner = sdk === 28 ? 'com.android.server.am' : 'com.android.server.wm';
+        const names = [owner + '.ActivityRecord', 'android.app.ActivityOptions', owner + (sdk === 28 ? '.TaskRecord' : '.Task'),
+            'boolean', 'int', owner + '.ActivityRecord'];
+        const early = {returnType:{className:'void'}, argumentTypes:names.map(className=>({className})), call() {}};
+        const late = {returnType:{className:broken === 'completion' ? 'void' : 'int'}, call() {},
+            argumentTypes:[names[0], names[0], '', '', '', '', names[1], names[2]].map(className=>({className}))};
+        const Java = {perform:fn=>fn(), retain:value=>value, use(name) {
+            if (name === 'android.os.Build$VERSION') return {SDK_INT:{value:sdk}};
+            if (name === owner + '.ActivityStarter') return {
+                setInitialState:{overloads:broken === 'starter' ? [] : [early], overload:()=>early},
+                startActivityUnchecked:{overloads:[late]},
+            };
+            if (name === 'android.app.ActivityThread') {
+                return {currentActivityThread:()=>({getSystemContext:()=>({getContentResolver:()=>({}),
+                    getPackageManager:()=>({getResourcesForApplication:()=>({getIdentifier:()=>0})})})})};
+            }
+            if (name === 'android.app.ActivityManager') {
+                return {START_SUCCESS:field(0), START_TASK_TO_FRONT:field(2), START_DELIVERED_TO_TOP:field(3)};
+            }
+            return {getString:()=>null};
+        }};
+        vm.runInNewContext(source('report.js','window-android9.js','window-android11.js','window-profiles.js','window-policy.js') +
+            '\ninstallWindowPolicy(Java);', {
+            Java, console:{log:line=>logs.push(line)}, setInterval() {}, setTimeout() {},
+            systemTasks() {
+                if (broken === 'tasks') throw Error('java.lang.ClassNotFoundException: com.android.server.am.Private');
+                return {framework:{freeform:5}};
+            },
+        });
+        assert.deepEqual(logs, [expected]);
+        assert.equal(early.implementation ?? null, null);
+        assert.equal(late.implementation ?? null, null);
+    }
+});
+
+test('a complete installation announces the request protocol after both hooks are in place', () => {
+    for (const sdk of [28, 30]) {
+        const h = harness(sdk, {displayId:0});
+        const service = livePolicy(sdk, h);
+        assert.deepEqual(service.logs, ['OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1']);
+        assert.equal(service.hooks.length, 2);
+        assert.ok(service.hooks.every(hook=>typeof hook.implementation === 'function'));
+    }
 });
