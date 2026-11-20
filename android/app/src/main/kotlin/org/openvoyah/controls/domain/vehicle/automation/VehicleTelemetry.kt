@@ -69,6 +69,7 @@ internal data class VehicleTelemetry(
     val drivingMode: VehicleSignal<DrivingMode>? = null,
     val unavailable: Set<VehicleSignalKind> = VehicleSignalKind.entries.toSet(),
     val confirmationWindow: VehicleTelemetryWindow? = null,
+    val gearExpiredByAge: Boolean = false,
 ) {
     init {
         require(sessionId.isNotBlank() && sessionId.length <= 96)
@@ -79,6 +80,19 @@ internal data class VehicleTelemetry(
         VehicleSignalKind.GEAR !in unavailable && VehicleSignalKind.SPEED !in unavailable &&
             gear?.let { it.value == VehicleGear.PARK && it.isFreshFor(this, nowElapsedNanos) } == true &&
             speedKph?.let { it.value == 0f && it.isFreshFor(this, nowElapsedNanos) } == true
+}
+
+/** The source can revoke a session before its replacement reaches observers. */
+internal class VehicleTelemetrySession(telemetry: VehicleTelemetry) {
+    private val identity = telemetry.identity
+    private val id = telemetry.sessionId
+    private val startedAt = telemetry.sessionStartedAtElapsedNanos
+    private val window = telemetry.confirmationWindow
+
+    fun matches(current: VehicleTelemetry?): Boolean =
+        current != null && current.identity == identity && current.sessionId == id &&
+            current.sessionStartedAtElapsedNanos == startedAt && current.confirmationWindow === window &&
+            window?.isOpen != false
 }
 
 internal fun interface VehicleTelemetryMonitor {

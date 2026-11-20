@@ -70,7 +70,7 @@ class HeadlightGearPolicyTest {
         assertFalse(decision.isCurrent(position, moving, lights, 2_000))
     }
 
-    @Test fun reconnectConfigurationChangeAndStaleGapOnlySeed() {
+    @Test fun reconnectConfigurationChangeAndUnqualifiedDataOnlySeed() {
         val engine = HeadlightGearEngine()
         engine.evaluate(settings, telemetry(VehicleGear.PARK, 1_000), lights, 1_000)
         assertNull(engine.evaluate(settings, telemetry(VehicleGear.DRIVE, 2_000, "wake"), lights, 2_000))
@@ -78,6 +78,45 @@ class HeadlightGearPolicyTest {
         assertNull(engine.evaluate(changed, telemetry(VehicleGear.PARK, 3_000, "wake"), lights, 3_000))
         assertNull(engine.evaluate(changed, telemetry(VehicleGear.PARK, 3_000, "wake"), lights, 6_000_004_000))
         assertNull(engine.evaluate(changed, telemetry(VehicleGear.DRIVE, 6_000_005_000, "wake"), lights, 6_000_005_000))
+    }
+
+    @Test fun realAgeTimeoutDoesNotConsumeTheNextFreshGearChange() {
+        val engine = HeadlightGearEngine()
+        val park = telemetry(VehicleGear.PARK, 1_000_000_000L)
+        assertNull(engine.evaluate(settings, park, lights, 1_000_000_000L))
+        val expiredPark = park.expireVehicleSignals(7_000_000_000L)
+        assertFalse(expiredPark.isStationary(7_000_000_000L))
+        assertNull(engine.evaluate(settings, expiredPark, lights, 7_000_000_000L))
+        val drive = telemetry(VehicleGear.DRIVE, 8_000_000_000L)
+        assertEquals(HeadlightGearAction.LOW_BEAM, engine.evaluate(settings, drive, lights, 8_000_000_000L)?.action)
+        assertNull(engine.evaluate(settings, drive.expireVehicleSignals(14_000_000_000L), lights, 14_000_000_000L))
+        val nextPark = telemetry(VehicleGear.PARK, 30_000_000_000L)
+        assertEquals(HeadlightGearAction.OFF, engine.evaluate(settings, nextPark, lights, 30_000_000_000L)?.action)
+    }
+
+    @Test fun actualLossAndNewGearSourceOnlySeedTheNextCallback() {
+        val engine = HeadlightGearEngine()
+        val park = telemetry(VehicleGear.PARK, 1_000_000_000L)
+        assertNull(engine.evaluate(settings, park, lights, 1_000_000_000L))
+        val unavailable = park.copy(unavailable = setOf(VehicleSignalKind.GEAR)).expireVehicleSignals(7_000_000_000L)
+        assertNull(engine.evaluate(settings, unavailable, lights, 7_000_000_000L))
+        val drive = telemetry(VehicleGear.DRIVE, 8_000_000_000L)
+        assertNull(engine.evaluate(settings, drive, lights, 8_000_000_000L))
+        val replacement = telemetry(VehicleGear.PARK, 9_000_000_000L).let { it.copy(gear = it.gear!!.copy(sourceId = "replacement")) }
+        assertNull(engine.evaluate(settings, replacement, lights, 9_000_000_000L))
+    }
+
+    @Test fun revokingTheWindowInvalidatesAReservedActionAndTheNextSessionOnlySeeds() {
+        val engine = HeadlightGearEngine()
+        val window = VehicleTelemetryWindow()
+        val park = telemetry(VehicleGear.PARK, 1_000_000_000L).copy(confirmationWindow = window)
+        val drive = telemetry(VehicleGear.DRIVE, 2_000_000_000L).copy(confirmationWindow = window)
+        assertNull(engine.evaluate(settings, park, lights, 1_000_000_000L))
+        val decision = checkNotNull(engine.evaluate(settings, drive, lights, 2_000_000_000L))
+        window.close()
+        val replacement = drive.copy(confirmationWindow = VehicleTelemetryWindow())
+        assertFalse(decision.isCurrent(settings, replacement, lights, 2_000_000_000L))
+        assertNull(engine.evaluate(settings, replacement, lights, 2_000_000_000L))
     }
 
     @Test fun disabledConfigurationNeverActs() {
