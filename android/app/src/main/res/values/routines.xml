@@ -32,7 +32,7 @@
     <string name="routines_app_dismiss_notice">Dismiss</string>
     <string name="routines_favorites_off">Favorite desktops are off. This routine opens All apps.</string>
     <string name="routines_startup">Startup routine</string>
-    <string name="routines_startup_hint">Choose a routine for new sessions opened from the Controls icon.</string>
+    <string name="routines_startup_hint">Choose a routine for sessions started by holding the app icon and choosing Open Controls.</string>
     <string name="routines_startup_none">Use the usual start screen</string>
     <string name="routines_startup_enabled">Run selected routine at startup</string>
     <string name="routines_on_startup">Runs at startup</string>

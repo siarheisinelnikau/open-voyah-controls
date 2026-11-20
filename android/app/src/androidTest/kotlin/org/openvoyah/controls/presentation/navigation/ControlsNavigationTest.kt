@@ -4,11 +4,13 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ShortcutManager
 import android.os.Build
 import android.test.InstrumentationTestCase
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
 import org.openvoyah.controls.BuildConfig
+import org.openvoyah.controls.LaunchBrandActivity
 import org.openvoyah.controls.MainActivity
 import org.openvoyah.controls.QuickVoiceActivity
 import org.openvoyah.controls.SetupActivity
@@ -20,7 +22,7 @@ import org.openvoyah.controls.domain.settings.AppPalette
 import org.openvoyah.controls.domain.settings.LauncherEntry
 import org.openvoyah.controls.presentation.seatmemory.SeatMemoryPrompt
 
-/** Three real activities retain one normal host, protected native entries and a saved back stack. */
+/** Explicit entries retain one normal host, protected native entries and a saved back stack. */
 class ControlsNavigationTest : InstrumentationTestCase() {
     private val app get() = instrumentation.targetContext
     private var activity: MainActivity? = null
@@ -46,11 +48,11 @@ class ControlsNavigationTest : InstrumentationTestCase() {
         }
     }
 
-    fun testExactlyThreeRealActivitiesRetainTheHostAndProtectedEntryBoundaries() {
+    fun testActivitiesRetainTheHostAndProtectedEntryBoundaries() {
         val packages = app.packageManager
         val activities = checkNotNull(packages.getPackageInfo(app.packageName, PackageManager.GET_ACTIVITIES).activities)
-        val expected = setOf(MainActivity::class.java.name, QuickVoiceActivity::class.java.name, SetupActivity::class.java.name)
-        assertEquals("The package must contain exactly three real activities", 3, activities.size)
+        val expected = setOf(MainActivity::class.java.name, QuickVoiceActivity::class.java.name,
+            SetupActivity::class.java.name, LaunchBrandActivity::class.java.name)
         assertEquals(expected, activities.map { it.name }.toSet())
         for (info in activities) {
             assertNull("${info.name} must be a real activity", info.targetActivity)
@@ -59,6 +61,9 @@ class ControlsNavigationTest : InstrumentationTestCase() {
         assertTrue(direct.exported)
         assertNull(direct.targetActivity)
         assertNull(direct.permission)
+
+        val launcher = checkNotNull(packages.getLaunchIntentForPackage(app.packageName))
+        assertEquals(ComponentName(app, LaunchBrandActivity::class.java), launcher.component)
 
         val microphone = packages.getActivityInfo(ComponentName(app, QuickVoiceActivity::class.java), 0)
         assertNull(microphone.targetActivity)
@@ -187,11 +192,13 @@ class ControlsNavigationTest : InstrumentationTestCase() {
         }
     }
 
-    fun testLauncherTapUsesSavedEntryAndExplicitIntentsKeepTheirRoute() {
+    fun testOpenControlsShortcutUsesSavedEntryAndExplicitIntentsKeepTheirRoute() {
         val appearance = AppearancePreferences(app)
         val original = appearance.load().launcherEntry
-        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            .setClass(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val shortcut = checkNotNull(app.getSystemService(ShortcutManager::class.java)).manifestShortcuts.single { it.id == "open_controls" }
+        val launcherIntent = checkNotNull(shortcut.intent).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        assertEquals(ControlsNavigation.START_CONTROLS, launcherIntent.action)
+        assertEquals(ComponentName(app, MainActivity::class.java), launcherIntent.component)
         try {
             appearance.setLauncherEntry(LauncherEntry.VEHICLE)
             val launched = instrumentation.startActivitySync(launcherIntent) as MainActivity

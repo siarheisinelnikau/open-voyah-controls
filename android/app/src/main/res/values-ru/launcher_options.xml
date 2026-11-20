@@ -1,4 +1,5 @@
 <resources>
+    <string name="launcher_open_controls">Открыть Controls</string>
     <string name="apps_grid_sort_manual">Ручной порядок</string>
     <string name="apps_grid_edit_manual_order">Изменить порядок приложений</string>
     <string name="apps_grid_manual_order_note">Закреплённые приложения остаются первыми. Новые добавляются после заданного порядка по имени.</string>

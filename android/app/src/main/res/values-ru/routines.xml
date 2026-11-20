@@ -32,7 +32,7 @@
     <string name="routines_app_dismiss_notice">Закрыть</string>
     <string name="routines_favorites_off">Столы избранного выключены. Откроется страница «Все приложения».</string>
     <string name="routines_startup">Сценарий при запуске</string>
-    <string name="routines_startup_hint">Выберите сценарий для открытия Controls через значок приложения.</string>
+    <string name="routines_startup_hint">Выберите сценарий для запуска через «Открыть Controls» после долгого нажатия на значок.</string>
     <string name="routines_startup_none">Обычный начальный экран</string>
     <string name="routines_startup_enabled">Запускать выбранный сценарий при открытии</string>
     <string name="routines_on_startup">При запуске Controls</string>
