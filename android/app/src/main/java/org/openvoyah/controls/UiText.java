@@ -1,40 +1,71 @@
 package org.openvoyah.controls;
 
-import android.app.Application;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.content.res.Resources;
 import java.util.Locale;
 import org.openvoyah.controls.core.display.DisplayEventBus;
-import org.openvoyah.controls.data.settings.LocalSettingsArchive;
-import org.openvoyah.controls.diagnostics.ControlsLog;
-import org.openvoyah.controls.diagnostics.Diagnostics;
 
-/** Resource access also works in services and transport adapters. */
-public final class UiText extends Application {
-    private static Context application;
-    private final DisplayEventBus displayEvents = new DisplayEventBus();
+/**
+ * Strings in the app's own language setting, for screens as well as services and transport adapters.
+ *
+ * A screen asks for hundreds of strings while it composes, so the localized resources are kept until the language
+ * or the device configuration changes instead of building a configuration context for every lookup.
+ */
+public final class UiText {
+    private static final String STORE = "ui";
+    private static final String LANGUAGE = "language";
+
+    private static volatile ControlsApplication application;
+    private static volatile SharedPreferences preferences;
+    private static volatile Localized localized;
+
+    private UiText() { }
+
+    private static final class Localized {
+        final String language;
+        final Resources resources;
+
+        Localized(String language, Resources resources) {
+            this.language = language;
+            this.resources = resources;
+        }
+    }
+
+    static void attach(ControlsApplication app) {
+        application = app;
+        preferences = app.getSharedPreferences(STORE, Context.MODE_PRIVATE);
+        localized = null;
+    }
+
+    static void invalidate() { localized = null; }
+
     public static DisplayEventBus displayEvents(Context context) {
-        return ((UiText) context.getApplicationContext()).displayEvents;
+        return ((ControlsApplication) context.getApplicationContext()).displayEvents();
     }
-    @Override public void onCreate() {
-        super.onCreate();
-        application = this;
-        Diagnostics.install(this, BuildConfig.DEBUG, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE);
-        try { new LocalSettingsArchive(this).recoverInterruptedRestore(); }
-        catch (Exception ex) { ControlsLog.error("settings_restore_recovery", ex, "outcome", "failed"); }
-    }
+
     public static String language() {
         String deviceLanguage = Locale.getDefault().getLanguage();
-        return application.getSharedPreferences("ui", MODE_PRIVATE).getString("language", deviceLanguage.equals("ru") ? "ru" : "en");
+        return preferences.getString(LANGUAGE, deviceLanguage.equals("ru") ? "ru" : "en");
     }
+
     public static void language(String value) {
         if (!value.equals("ru") && !value.equals("en")) throw new IllegalArgumentException("Invalid UI language");
-        if (!application.getSharedPreferences("ui", MODE_PRIVATE).edit().putString("language", value).commit())
-            throw new IllegalStateException("Could not save language");
+        if (!preferences.edit().putString(LANGUAGE, value).commit()) throw new IllegalStateException("Could not save language");
+        localized = null;
     }
+
     public static String get(int resource) {
-        Configuration config = new Configuration(application.getResources().getConfiguration());
-        config.setLocale(Locale.forLanguageTag(language()));
-        return application.createConfigurationContext(config).getString(resource);
+        // The stored value is compared on every lookup because a settings restore writes the store directly.
+        String language = language();
+        Localized current = localized;
+        if (current == null || !current.language.equals(language)) {
+            Configuration config = new Configuration(application.getResources().getConfiguration());
+            config.setLocale(Locale.forLanguageTag(language));
+            current = new Localized(language, application.createConfigurationContext(config).getResources());
+            localized = current;
+        }
+        return current.resources.getString(resource);
     }
 }
