@@ -19,9 +19,11 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import java.io.File
+import kotlin.math.abs
 import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.LaunchBrandActivity
 import org.openvoyah.controls.MainActivity
+import org.openvoyah.controls.R
 import org.openvoyah.controls.data.settings.AppearancePreferences
 import org.openvoyah.controls.domain.settings.LauncherEntry
 import org.openvoyah.controls.presentation.navigation.ControlsNavigationViewModel
@@ -54,7 +56,7 @@ class LaunchBrandTest : InstrumentationTestCase() {
         }
     }
 
-    fun testLauncherEmblemAndTitleTurnRubyAndBackThenCloseOverExistingControls() = withLauncherSettings { appearance ->
+    fun testLauncherPlaysEveryStageThenClosesOverExistingControls() = withLauncherSettings { appearance ->
         appearance.setAnimateRoutes(true)
         withActivity(MainActivity.settingsIntent(app), MainActivity::class.java) { controls ->
             await("Direct settings page") { hasTag(controls, "quickActionsContent") }
@@ -63,8 +65,10 @@ class LaunchBrandTest : InstrumentationTestCase() {
                 withActivity(launcherIntent(), LaunchBrandActivity::class.java) { brand ->
                     await("Brand on the launcher entry") { hasTag(brand, LAUNCH_BRAND_TAG) }
                     assertFalse("The brand must have its own task", onMain { brand.taskId == controls.taskId })
-                    captureStage(brand, "launch-brand-ruby.png", ruby = true)
-                    captureStage(brand, "launch-brand.png", ruby = false)
+                    captureStage(brand, "launch-brand-background.png", ::hasPlainBackground)
+                    captureStage(brand, "launch-brand-wings.png", ::hasOnlyWings)
+                    captureColorStage(brand, "launch-brand-ruby.png", ruby = true)
+                    captureColorStage(brand, "launch-brand.png", ruby = false)
                     await("the launcher animation to close") { onMain { brand.isFinishing } }
                 }
                 await("existing settings to regain focus") {
@@ -155,18 +159,12 @@ class LaunchBrandTest : InstrumentationTestCase() {
         return result
     }
 
-    private fun captureStage(brand: Activity, filename: String, ruby: Boolean) {
+    private fun captureStage(brand: Activity, filename: String, matches: (Bitmap) -> Boolean) {
         await(filename) {
             if (!hasTag(brand, LAUNCH_BRAND_TAG)) return@await false
             val bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return@await false
             try {
-                val emblem = colorsIn(bitmap, 46 until 54, 41 until 64)
-                val title = colorsIn(bitmap, 34 until 66, 68 until 80)
-                val reachedStage = if (ruby) {
-                    emblem.isRuby(1_500) && title.isRuby(300)
-                } else {
-                    emblem.isSilver(500) && title.isSilver(300)
-                }
+                val reachedStage = matches(bitmap)
                 if (reachedStage) save(bitmap, File(app.filesDir, "ui-audit/$filename"))
                 reachedStage
             } finally {
@@ -175,14 +173,45 @@ class LaunchBrandTest : InstrumentationTestCase() {
         }
     }
 
+    private fun hasPlainBackground(bitmap: Bitmap): Boolean {
+        val background = app.getColor(R.color.cockpit_background)
+        val xs = pixelRange(bitmap.width, 30 until 70).step(maxOf(bitmap.width / 96, 1))
+        val ys = pixelRange(bitmap.height, 19 until 81).step(maxOf(bitmap.height / 72, 1))
+        for (y in ys) for (x in xs) {
+            val pixel = bitmap.getPixel(x, y)
+            if (abs(Color.red(pixel) - Color.red(background)) > 3 ||
+                abs(Color.green(pixel) - Color.green(background)) > 3 ||
+                abs(Color.blue(pixel) - Color.blue(background)) > 3) return false
+        }
+        return true
+    }
+
+    private fun hasOnlyWings(bitmap: Bitmap): Boolean {
+        val wingRows = pixelRange(bitmap.height, 25 until 52)
+        val left = brightPixels(bitmap, pixelRange(bitmap.width, 40 until 46), wingRows, threshold = 130)
+        val right = brightPixels(bitmap, pixelRange(bitmap.width, 54 until 60), wingRows, threshold = 130)
+        val spine = brightPixels(bitmap, pixelRange(bitmap.width, 49 until 51),
+            pixelRange(bitmap.height, 54 until 64), threshold = 110)
+        val title = brightPixels(bitmap, pixelRange(bitmap.width, 34 until 66),
+            pixelRange(bitmap.height, 68 until 80), threshold = 110)
+        return left > 40 && right > 40 && spine == 0 && title == 0
+    }
+
+    private fun captureColorStage(brand: Activity, filename: String, ruby: Boolean) = captureStage(brand, filename) { bitmap ->
+        val emblem = colorsIn(bitmap, 46 until 54, 41 until 64)
+        val title = colorsIn(bitmap, 34 until 66, 68 until 80)
+        if (ruby) emblem.isRuby(1_500) && title.isRuby(300)
+        else emblem.isSilver(500) && title.isSilver(300)
+    }
+
     private data class StageColors(val ruby: Int, val warm: Int, val silver: Int) {
         fun isRuby(minimum: Int) = ruby > minimum && ruby > silver * 3
         fun isSilver(minimum: Int) = silver > minimum && warm < 40
     }
 
     private fun colorsIn(bitmap: Bitmap, horizontal: IntRange, vertical: IntRange): StageColors {
-        val xs = bitmap.width * horizontal.first / 100 until bitmap.width * (horizontal.last + 1) / 100
-        val ys = bitmap.height * vertical.first / 100 until bitmap.height * (vertical.last + 1) / 100
+        val xs = pixelRange(bitmap.width, horizontal)
+        val ys = pixelRange(bitmap.height, vertical)
         var ruby = 0
         var warm = 0
         var silver = 0
@@ -197,6 +226,9 @@ class LaunchBrandTest : InstrumentationTestCase() {
         }
         return StageColors(ruby, warm, silver)
     }
+
+    private fun pixelRange(size: Int, percents: IntRange): IntRange =
+        size * percents.first / 100 until size * (percents.last + 1) / 100
 
     private fun findRoot(view: View): ViewRootForTest? {
         if (view is ViewRootForTest) return view
