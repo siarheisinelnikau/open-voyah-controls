@@ -13,12 +13,13 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import java.io.IOException
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -35,9 +37,11 @@ import org.json.JSONObject
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.VoiceCatalog
+import org.openvoyah.controls.core.voice.VoiceAudioOptions.ListeningWindow
 import org.openvoyah.controls.data.voice.VoskModels
 import org.openvoyah.controls.domain.voice.SpeechEvent
 import org.openvoyah.controls.domain.voice.VoiceInput
+import org.openvoyah.controls.domain.voice.VoiceOutcome
 import org.vosk.Model
 import org.vosk.Recognizer
 
@@ -46,9 +50,13 @@ class OfflineVoiceInput(
     context: Context,
     private val duckMedia: Boolean,
     private val naturalPhrases: Boolean = false,
+    private val readyCue: (suspend () -> Unit)? = null,
+    private val endCue: (suspend () -> Unit)? = null,
+    private val listeningWindow: ListeningWindow = ListeningWindow.FOUR_SECONDS,
 ) : VoiceInput {
     private val context = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
+    private val sampleLimit = listeningWindow.maxSamples(SAMPLE_RATE)
 
     override fun listen(language: String, grammar: Set<String>): Flow<SpeechEvent> = flow {
         try {
@@ -84,7 +92,8 @@ class OfflineVoiceInput(
         val captureContext = currentCoroutineContext()
         val model = models.load(context, language) { captureContext.isActive }
         captureContext.ensureActive()
-        val replay = if (naturalPhrases) ShortArray((SAMPLE_RATE * LISTEN_MS / 1000).toInt()) else null
+        val replay = if (naturalPhrases) ShortArray(sampleLimit) else null
+        val focusLost = CompletableDeferred<Unit>()
         val captured = Recognizer(model, SAMPLE_RATE.toFloat(), recognitionGrammar(grammar)).use { recognizer ->
             val size = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             if (size <= 0) throw IOException(UiText.get(R.string.ui_140))
@@ -94,15 +103,26 @@ class OfflineVoiceInput(
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(size, 6400))
             val manager = context.getSystemService(AudioManager::class.java)
             var focus: AudioFocusRequest? = null
-            val focusLost = AtomicBoolean()
             try {
                 if (audio.state != AudioRecord.STATE_INITIALIZED) throw IOException(UiText.get(R.string.ui_141))
                 captureContext.ensureActive()
                 if (duckMedia && manager != null) focus = requestFocus(manager, focusLost)
+                if (readyCue != null) {
+                    if (!focusLost.isCompleted) coroutineScope {
+                        val cue = launch { readyCue.invoke() }
+                        select<Unit> {
+                            focusLost.onAwait { cue.cancel() }
+                            cue.onJoin { }
+                        }
+                    }
+                    captureContext.ensureActive()
+                }
+                if (focusLost.isCompleted) return@use Captured(interrupted())
                 audio.startRecording()
                 if (audio.recordingState != AudioRecord.RECORDSTATE_RECORDING) throw IOException(UiText.get(R.string.ui_142))
+                val deadline = SystemClock.elapsedRealtime() + listeningWindow.millis()
                 listening()
-                read(audio, recognizer, focusLost, replay)
+                read(audio, recognizer, focusLost, replay, deadline)
             } finally {
                 try {
                     if (audio.recordingState == AudioRecord.RECORDSTATE_RECORDING) audio.stop()
@@ -111,6 +131,12 @@ class OfflineVoiceInput(
                     focus?.let { manager?.abandonAudioFocusRequest(it) }
                 }
             }
+        }
+        // The recorder is released and the capture lock still excludes a second microphone request.
+        if (endCue != null && !focusLost.isCompleted) {
+            captureContext.ensureActive()
+            endCue.invoke()
+            captureContext.ensureActive()
         }
         if (replay != null && captured.replaySamples > 0) {
             captureContext.ensureActive()
@@ -128,13 +154,14 @@ class OfflineVoiceInput(
             SpeechEvent.Natural(text)
         }
 
-    private fun requestFocus(manager: AudioManager, focusLost: AtomicBoolean): AudioFocusRequest? {
+    private fun requestFocus(manager: AudioManager, focusLost: CompletableDeferred<Unit>): AudioFocusRequest? {
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
             .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
             .setOnAudioFocusChangeListener({ change ->
-                if (change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
-                    focusLost.set(true)
+                if (change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ||
+                    change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
+                    focusLost.complete(Unit)
                 }
             }, main).build()
         return request.takeIf { manager.requestAudioFocus(it) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED }
@@ -145,37 +172,34 @@ class OfflineVoiceInput(
     private suspend fun read(
         audio: AudioRecord,
         recognizer: Recognizer,
-        focusLost: AtomicBoolean,
+        focusLost: CompletableDeferred<Unit>,
         replay: ShortArray?,
+        deadline: Long,
     ): Captured {
         var recorded = 0
         val samples = ShortArray(1600)
-        val deadline = SystemClock.elapsedRealtime() + LISTEN_MS
         val captureContext = currentCoroutineContext()
-        while (!focusLost.get() && SystemClock.elapsedRealtime() < deadline) {
+        while (!focusLost.isCompleted && recorded < sampleLimit && SystemClock.elapsedRealtime() < deadline) {
             captureContext.ensureActive()
-            val count = audio.read(samples, 0, samples.size, AudioRecord.READ_NON_BLOCKING)
+            val count = audio.read(samples, 0, minOf(samples.size, sampleLimit - recorded), AudioRecord.READ_NON_BLOCKING)
             if (count < 0) throw IOException(UiText.get(R.string.ui_144) + count)
             if (count == 0) {
                 delay(20)
                 continue
             }
-            if (replay != null && recorded < replay.size) {
-                val copied = minOf(count, replay.size - recorded)
-                samples.copyInto(replay, recorded, endIndex = copied)
-                recorded += copied
-            }
+            if (replay != null) samples.copyInto(replay, recorded, endIndex = count)
+            recorded += count
             if (recognizer.acceptWaveForm(samples, count)) {
-                if (focusLost.get()) break
+                if (focusLost.isCompleted) break
                 val endpoint = recognizer.result
                 val event = decodeEndpoint(endpoint)
                 val unclear = event is SpeechEvent.Failed && JSONObject(endpoint).optString("text").isNotBlank()
-                return Captured(event, if (unclear) recorded else 0)
+                return Captured(event, if (unclear && replay != null) recorded else 0)
             }
         }
-        if (focusLost.get()) return Captured(SpeechEvent.Failed(UiText.get(R.string.voice_audio_interrupted)))
+        if (focusLost.isCompleted) return Captured(interrupted())
         val partial = JSONObject(recognizer.partialResult).optString("partial")
-        return Captured(SpeechEvent.Failed(UiText.get(if (partial.isBlank()) R.string.voice_no_speech else R.string.unknown_command)))
+        return Captured(if (partial.isBlank()) noSpeech() else unrecognized())
     }
 
     private fun error(failure: Throwable) = SpeechEvent.Failed(
@@ -190,7 +214,6 @@ class OfflineVoiceInput(
 
     private companion object {
         const val SAMPLE_RATE = 16_000
-        const val LISTEN_MS = 4_000L
         val audioLock = Mutex()
         val cacheScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val models = VoskModels()
@@ -198,15 +221,19 @@ class OfflineVoiceInput(
     }
 }
 
+private fun interrupted() = SpeechEvent.Failed(UiText.get(R.string.voice_audio_interrupted), VoiceOutcome.AUDIO_INTERRUPTED)
+private fun noSpeech() = SpeechEvent.Failed(UiText.get(R.string.voice_no_speech), VoiceOutcome.NO_SPEECH)
+private fun unrecognized() = SpeechEvent.Failed(UiText.get(R.string.unknown_command), VoiceOutcome.UNRECOGNIZED)
+
 internal fun decodeEndpoint(json: String): SpeechEvent {
     val result = JSONObject(json)
     val text = result.optString("text")
-    if (VoiceCatalog.isBlank(text)) return SpeechEvent.Failed(UiText.get(R.string.voice_no_speech))
+    if (VoiceCatalog.isBlank(text)) return noSpeech()
     val words = result.optJSONArray("result")
     val confident = words != null && words.length() > 0 && (0 until words.length()).all { index ->
         val score = words.optJSONObject(index)?.optDouble("conf") ?: Double.NaN
         score.isFinite() && score >= 0.65
     }
-    if ("[unk]" in text || !confident) return SpeechEvent.Failed(UiText.get(R.string.unknown_command))
+    if ("[unk]" in text || !confident) return unrecognized()
     return SpeechEvent.Recognized(text)
 }

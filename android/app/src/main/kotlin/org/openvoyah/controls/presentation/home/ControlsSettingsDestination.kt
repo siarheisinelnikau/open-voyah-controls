@@ -27,12 +27,19 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.frida.FridaPanelControls
 import org.openvoyah.controls.data.settings.SettingsStore
+import org.openvoyah.controls.presentation.apps.AppGridSettingsSection
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 
 @Composable
-internal fun ControlsSettingsDestination(buttons: Boolean, back: () -> Unit, open: (ControlsRoute) -> Unit) {
+internal fun ControlsSettingsDestination(
+    buttons: Boolean,
+    back: () -> Unit,
+    open: (ControlsRoute) -> Unit,
+    appearance: AppearanceViewModel,
+    onPaletteSelected: () -> Unit,
+) {
     val context = LocalContext.current
     val activity = remember(context) { context.controlsSettingsActivity() }
     val model = remember(activity) {
@@ -81,6 +88,14 @@ internal fun ControlsSettingsDestination(buttons: Boolean, back: () -> Unit, ope
         if (buttons) HomeButtons(state, coordinator)
         else {
             HomeSettingsLinks({ coordinator.open(it, open) }, coordinator::language, coordinator::systemSettings)
+            val look by appearance.state.collectAsStateWithLifecycle(lifecycleOwner = owner)
+            AppearanceSettings(look) { change ->
+                if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    if (change is AppearanceChange.Palette) onPaletteSelected()
+                    appearance.change(change)
+                }
+            }
+            AppGridSettingsSection()
             HomeSettings(state, coordinator)
         }
     }

@@ -1,0 +1,36 @@
+<resources>
+    <string name="appearance_text_size">Text size</string>
+    <string name="appearance_navigation_label_size">Navigation label size</string>
+    <string name="appearance_page_title_size">Page title size</string>
+    <string name="appearance_text_follow">Follow text size</string>
+    <string name="appearance_spacing">Spacing</string>
+    <string name="appearance_corners">Corner style</string>
+    <string name="appearance_option_standard">Standard</string>
+    <string name="appearance_transition_speed">Transition speed</string>
+    <string name="appearance_transition_short">Short</string>
+    <string name="appearance_transition_smooth">Smooth</string>
+    <string name="appearance_text_large">Large</string>
+    <string name="appearance_text_extra_large">Extra large</string>
+    <string name="appearance_spacing_compact">Compact</string>
+    <string name="appearance_spacing_spacious">Spacious</string>
+    <string name="appearance_corners_subtle">Subtle</string>
+    <string name="appearance_corners_rounded">Rounded</string>
+    <string name="appearance_palette">Color theme</string>
+    <string name="appearance_palette_dark">Dark</string>
+    <string name="appearance_palette_day">Daytime</string>
+    <string name="appearance_accent">Accent color</string>
+    <string name="appearance_accent_default">Default blue</string>
+    <string name="appearance_accent_teal">Teal</string>
+    <string name="appearance_accent_amber">Amber</string>
+    <string name="appearance_wallpaper_dimming">Wallpaper dimming</string>
+    <string name="appearance_wallpaper_dimming_description">Applies to all custom desktop wallpapers.</string>
+    <string name="appearance_wallpaper_dimming_light">Light</string>
+    <string name="appearance_wallpaper_dimming_strong">Strong</string>
+    <string name="appearance_background">Screen background</string>
+    <string name="appearance_background_ambient">Ambient</string>
+    <string name="appearance_background_solid">Solid</string>
+    <string name="appearance_font_family">Font family</string>
+    <string name="appearance_font_system">System font</string>
+    <string name="appearance_font_golos">Golos Text</string>
+    <string name="appearance_bold_text">Bold text</string>
+</resources>

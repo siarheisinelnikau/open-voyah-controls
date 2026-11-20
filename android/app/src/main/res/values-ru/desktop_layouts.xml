@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_layouts_settings">Раскладки рабочих столов</string>
+    <string name="desktop_layouts_empty">Сохраните текущую сетку, карточки и обои, чтобы вернуться к этой раскладке позже.</string>
+    <string name="desktop_layouts_save_current">Сохранить текущую раскладку</string>
+    <string name="desktop_layouts_apply">Применить раскладку</string>
+    <string name="desktop_layouts_rename">Переименовать раскладку</string>
+    <string name="desktop_layouts_duplicate">Создать копию</string>
+    <string name="desktop_layouts_delete">Удалить раскладку</string>
+    <string name="desktop_layouts_name">Название раскладки</string>
+    <string name="desktop_layouts_apply_confirm">Заменить текущую сетку, карточки и обои на сохранённые в раскладке «%1$s»?</string>
+    <string name="desktop_layouts_apply_confirm_action">Применить</string>
+    <string name="desktop_layouts_delete_confirm">Удалить сохранённую раскладку «%1$s»?</string>
+    <string name="desktop_layouts_delete_confirm_action">Удалить</string>
+    <string name="desktop_layouts_loading">Загрузка раскладок…</string>
+    <string name="desktop_layouts_load_failed">Не удалось загрузить сохранённые раскладки.</string>
+    <string name="desktop_layouts_full">Можно сохранить до %1$d раскладок. Чтобы освободить место, удалите одну из них.</string>
+    <string name="desktop_layouts_too_large">С этими обоями превышен лимит хранения раскладок. Удалите одну из раскладок или уменьшите количество пользовательских обоев.</string>
+    <string name="desktop_layouts_invalid_name">Введите название длиной до %1$d символов.</string>
+    <string name="desktop_layouts_duplicate_name">Раскладка с таким названием уже сохранена.</string>
+    <string name="desktop_layouts_changed">Эта раскладка уже удалена из сохранённых.</string>
+    <string name="desktop_layouts_update_failed">Не удалось изменить раскладки.</string>
+    <string name="desktop_layouts_working">Обновление раскладок…</string>
+    <string name="desktop_layouts_saved">Раскладка сохранена.</string>
+    <string name="desktop_layouts_applied">Раскладка применена.</string>
+    <string name="desktop_layouts_renamed">Раскладка переименована.</string>
+    <string name="desktop_layouts_duplicated">Копия раскладки сохранена.</string>
+    <string name="desktop_layouts_deleted">Раскладка удалена.</string>
+</resources>

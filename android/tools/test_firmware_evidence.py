@@ -15,6 +15,25 @@ SOURCE = ANDROID / "tools/read-firmware-evidence.ps1"
 POWERSHELL = shutil.which("pwsh")
 RUSTC = shutil.which("rustc")
 APK = b"portable evidence fixture APK"
+ACTIVITY_PERMISSION = "android.car.permission.CAR_EXTERIOR_LIGHTS"
+SELECTOR_PERMISSION = "android.car.permission.CONTROL_CAR_EXTERIOR_LIGHTS"
+SEATS_PERMISSION = "android.car.permission.CONTROL_CAR_SEATS"
+
+
+def expected_headlight_configs(
+    selector=("compatible", "read_write", "on_change"),
+    headlights=("compatible", "read", "on_change"),
+    high_beam=("compatible", "read", "on_change"),
+    source="car_service_shell",
+):
+    result = {"source": source}
+    for signal, property_id, (status, access, mode) in (
+        ("selector", "0x11400e10", selector),
+        ("headlights", "0x11400e00", headlights),
+        ("high_beam", "0x11400e01", high_beam),
+    ):
+        result[signal] = {"property_id": property_id, "status": status, "access": access, "change_mode": mode}
+    return result
 
 
 @unittest.skipUnless(os.name == "nt" and POWERSHELL and RUSTC, "Windows, PowerShell and Rust are required")
@@ -65,6 +84,10 @@ class FirmwareEvidenceTest(unittest.TestCase):
         self.environment.pop("OVC_FIRMWARE_FIXTURE_MANIFEST_FAIL", None)
         self.environment.pop("OVC_FIRMWARE_FIXTURE_MANIFEST_EMPTY", None)
         self.environment.pop("OVC_FIRMWARE_FIXTURE_ADB_DELAY", None)
+        self.environment.pop("OVC_FIRMWARE_FIXTURE_EVENTS", None)
+        self.environment.pop("OVC_FIRMWARE_FIXTURE_AUTOMOTIVE", None)
+        self.environment.pop("OVC_FIRMWARE_FIXTURE_SEAT_METADATA", None)
+        self.environment.pop("OVC_FIRMWARE_FIXTURE_HEADLIGHT_CONFIG", None)
         self.environment.pop("JAVA_HOME", None)
 
     def cleanup(self):
@@ -97,6 +120,8 @@ class FirmwareEvidenceTest(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         report = json.loads(result.stdout)
         self.assertFalse(report["reviewed"])
+        self.assertNotIn("android_automotive", report)
+        self.assertNotIn("factory_product", report["device"])
         self.assertEqual("Enforcing", report["selinux"])
         self.assertEqual("Fixture head unit", report["model"])
         self.assertEqual(8, len(report["packages"]))
@@ -110,6 +135,9 @@ class FirmwareEvidenceTest(unittest.TestCase):
             self.assertEqual(hashlib.sha256(APK).hexdigest(), package["apk_sha256"])
             self.assertEqual("1" * 64, package["signing_cert_sha256"])
         commands = self.commands()
+        self.assertFalse(any("check-permission" in row or "get-current-user" in row for row in commands))
+        self.assertFalse(any("car_service" in row for row in commands))
+        self.assertFalse(any("ro.build.product_3rdparty" in row for row in commands))
         java_commands = [row for row in commands if Path(row[0]).name == "java.exe"]
         self.assertEqual(10, len(java_commands))
         jar = self.sdk / f"build-tools/{version}/lib/apksigner.jar"
@@ -155,6 +183,309 @@ class FirmwareEvidenceTest(unittest.TestCase):
     def test_requested_build_tools_version_is_preserved(self):
         self.build_tools("36.0.0")
         self.assert_collected(self.collect("-BuildToolsVersion", "36.0.0"), self.java, "36.0.0")
+
+    def test_cockpit_scope_verifies_only_four_packages_without_account_or_log_reads(self):
+        result = self.collect("-Scope", "Cockpit")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual("cockpit", report["scope"])
+        self.assertFalse(report["reviewed"])
+        self.assertNotIn("account_evidence", report)
+        self.assertNotIn("cockpit_events", report)
+        self.assertEqual("f6808", report["device"]["factory_product"])
+        self.assertEqual("f0506h", report["device"]["product"])
+        self.assertEqual({
+            "api_eligible": True, "automotive_feature": "present", "car_library": "present",
+            "car_service": "present",
+            "controls_permissions": {ACTIVITY_PERMISSION: "granted", SELECTOR_PERMISSION: "denied",
+                                     SEATS_PERMISSION: "denied"},
+            "seat_memory": {"source": "car_service_shell", "driver_area": 1,
+                            "save_ranges": [{"area_id": 1, "min_index": 0, "max_index": 3}],
+                            "restore_ranges": [{"area_id": 1, "min_index": 0, "max_index": 3}]},
+            "headlight_properties": expected_headlight_configs(),
+        }, report["android_automotive"])
+        packages = {item["package"]: item for item in report["packages"]}
+        self.assertEqual({"org.openvoyah.controls", "com.qinggan.canbus.service",
+                          "com.qinggan.app.vehicle", "com.qinggan.app.vehiclesetting"}, set(packages))
+        for name, item in packages.items():
+            self.assertEqual("fixture", item["version_name"])
+            self.assertEqual("1", item["version_code"])
+            self.assertEqual("1" * 64, item["signing_cert_sha256"])
+            self.assertEqual(hashlib.sha256(APK).hexdigest(), item["apk_sha256"])
+            self.assertNotIn("account_components", item)
+            if name in {"com.qinggan.canbus.service", "com.qinggan.app.vehicle"}:
+                self.assertIn("candidate_catalog_row", item)
+            else:
+                self.assertTrue(item["diagnostic_only"])
+                self.assertNotIn("candidate_catalog_row", item)
+        commands = self.commands()
+        self.assertEqual(set(packages), {cmd[-1] for cmd in commands if cmd[4:6] == ["pm", "path"]})
+        self.assertEqual([
+            ["shell", "service", "check", "car_service"],
+            ["shell", "cmd", "car_service", "get-property-value", "0x1540010a", "0"],
+            ["shell", "cmd", "car_service", "get-carpropertyconfig", "0x15400b81"],
+            ["shell", "cmd", "car_service", "get-carpropertyconfig", "0x15400b80"],
+            ["shell", "cmd", "car_service", "get-carpropertyconfig", "0x11400e10"],
+            ["shell", "cmd", "car_service", "get-carpropertyconfig", "0x11400e00"],
+            ["shell", "cmd", "car_service", "get-carpropertyconfig", "0x11400e01"],
+        ],
+                         [cmd[3:] for cmd in commands if "car_service" in cmd])
+        grant_queries = [cmd[4:] for cmd in commands if "check-permission" in cmd]
+        self.assertEqual([
+            ["dumpsys", "package", "check-permission", permission, "org.openvoyah.controls", "10"]
+            for permission in (ACTIVITY_PERMISSION, SELECTOR_PERMISSION, SEATS_PERMISSION)
+        ], grant_queries)
+        self.assertEqual(3, sum("get-current-user" in cmd for cmd in commands))
+        self.assertEqual(4, sum(cmd[4:7] == ["pm", "path", "--user"] for cmd in commands))
+        controls_path = "/data/app/~~Z9_eFI-00a==/org.openvoyah.controls-a11_Bc==/base.apk"
+        self.assertTrue(any(cmd[3:5] == ["pull", controls_path] for cmd in commands))
+        self.assertGreaterEqual(sum(cmd[4:] == ["sha256sum", controls_path] for cmd in commands), 3)
+        for field in ("providers", "xmltree", "-T", "logcat", "pidof", "ro.serialno"):
+            self.assertFalse(any(field in cmd for cmd in commands), field)
+        self.assertNotIn("fixture-hardware", result.stdout)
+
+    def test_cockpit_readiness_distinguishes_absent_and_unreadable_capabilities(self):
+        cases = (("legacy", False, "absent", "absent", "not_visible"),
+                 ("malformed", True, "unknown", "unknown", "unknown"),
+                 ("feature-only", True, "present", "absent", "not_visible"),
+                 ("library-only", True, "absent", "present", "not_visible"),
+                 ("service-only", True, "present", "absent", "present"),
+                 ("overflow-version", True, "unknown", "present", "present"))
+        for case, eligible, feature, library, service in cases:
+            with self.subTest(case=case):
+                self.log.unlink(missing_ok=True)
+                self.environment["OVC_FIRMWARE_FIXTURE_AUTOMOTIVE"] = case
+                result = self.collect("-Scope", "Cockpit")
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                report = json.loads(result.stdout)
+                self.assertEqual(None if case in {"legacy", "malformed"} else "f6808", report["device"]["factory_product"])
+                readiness = report["android_automotive"]
+                self.assertIs(eligible, readiness["api_eligible"])
+                self.assertEqual((feature, library, service),
+                                 (readiness["automotive_feature"], readiness["car_library"], readiness["car_service"]))
+                other_grant = "unknown" if case == "malformed" else "denied"
+                self.assertEqual({ACTIVITY_PERMISSION: "granted", SELECTOR_PERMISSION: other_grant,
+                                  SEATS_PERMISSION: other_grant}, readiness["controls_permissions"])
+                if service != "present":
+                    self.assertEqual({"source": "not_probed", "driver_area": None, "save_ranges": None,
+                                      "restore_ranges": None}, readiness["seat_memory"])
+                    signal = ("not_probed", None, None)
+                    self.assertEqual(expected_headlight_configs(signal, signal, signal, "not_probed"),
+                                     readiness["headlight_properties"])
+                    self.assertFalse(any(cmd[4:6] == ["cmd", "car_service"] for cmd in self.commands()))
+                else:
+                    self.assertEqual("car_service_shell", readiness["seat_memory"]["source"])
+                    self.assertEqual(expected_headlight_configs(), readiness["headlight_properties"])
+                self.assertNotIn("PRIVATE_RECORD_MUST_NOT_APPEAR", result.stdout + result.stderr)
+
+    def test_cockpit_headlight_configs_require_the_exact_property_and_reader_policy(self):
+        unavailable = ("unavailable", None, None)
+        expected = {
+            "modern": expected_headlight_configs(),
+            "policy": expected_headlight_configs(
+                ("compatible", "read", "static"),
+                ("incompatible", "read_write", "on_change"),
+                ("incompatible", "read", "continuous"),
+            ),
+            "invalid": expected_headlight_configs(
+                ("incompatible", "read_write", "on_change"),
+                ("incompatible", "read", "on_change"),
+                unavailable,
+            ),
+            "unavailable": expected_headlight_configs(unavailable, unavailable),
+        }
+        for case, configs in expected.items():
+            with self.subTest(case=case):
+                self.environment["OVC_FIRMWARE_FIXTURE_HEADLIGHT_CONFIG"] = case
+                result = self.collect("-Scope", "Cockpit")
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                readiness = json.loads(result.stdout)["android_automotive"]
+                self.assertEqual(configs, readiness["headlight_properties"])
+                self.assertEqual("denied", readiness["controls_permissions"][SELECTOR_PERMISSION])
+                self.assertEqual("granted", readiness["controls_permissions"][ACTIVITY_PERMISSION])
+                self.assertNotIn("PRIVATE_RECORD_MUST_NOT_APPEAR", result.stdout + result.stderr)
+
+    def test_cockpit_reads_current_seat_configuration_without_assuming_the_driver_side(self):
+        self.environment["OVC_FIRMWARE_FIXTURE_SEAT_METADATA"] = "modern"
+        result = self.collect("-Scope", "Cockpit")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        readiness = json.loads(result.stdout)["android_automotive"]
+        ranges = [{"area_id": 4, "min_index": 0, "max_index": 2}]
+        self.assertEqual({"source": "car_service_shell", "driver_area": 4,
+                          "save_ranges": ranges, "restore_ranges": ranges}, readiness["seat_memory"])
+        self.assertEqual("denied", readiness["controls_permissions"][SEATS_PERMISSION])
+
+    def test_cockpit_omits_unproven_driver_area_and_ranges_independently(self):
+        for case, expected_restore in (("invalid-ranges", None), ("missing", [{"area_id": 1, "min_index": 0, "max_index": 3}])):
+            with self.subTest(case=case):
+                self.environment["OVC_FIRMWARE_FIXTURE_SEAT_METADATA"] = case
+                result = self.collect("-Scope", "Cockpit")
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                metadata = json.loads(result.stdout)["android_automotive"]["seat_memory"]
+                self.assertEqual({"source": "car_service_shell", "driver_area": None,
+                                  "save_ranges": None, "restore_ranges": expected_restore}, metadata)
+                self.assertNotIn("PRIVATE_RECORD_MUST_NOT_APPEAR", result.stdout + result.stderr)
+
+    def test_cockpit_rejects_a_changed_factory_product(self):
+        self.environment["OVC_FIRMWARE_FIXTURE_AUTOMOTIVE"] = "product-changed"
+        result = self.collect("-Scope", "Cockpit")
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual("", result.stdout.strip())
+        self.assertIn("changed during collection", result.stderr)
+
+    def test_cockpit_resolves_controls_installed_for_the_driver_only(self):
+        self.environment["OVC_FIRMWARE_FIXTURE_AUTOMOTIVE"] = "driver-user-only"
+        result = self.collect("-Scope", "Cockpit", "-EventWindowSeconds", "1")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        controls = next(item for item in report["packages"] if item["package"] == "org.openvoyah.controls")
+        self.assertEqual(hashlib.sha256(APK).hexdigest(), controls["apk_sha256"])
+        self.assertEqual("granted", report["android_automotive"]["controls_permissions"][ACTIVITY_PERMISSION])
+        self.assertEqual("captured", report["cockpit_events"]["status"])
+        commands = self.commands()
+        self.assertFalse(any(cmd[4:] == ["pm", "path", "org.openvoyah.controls"] for cmd in commands))
+        self.assertTrue(any(cmd[4:] == ["pm", "list", "packages", "-U", "--user", "10", "org.openvoyah.controls"]
+                            for cmd in commands))
+
+    def test_cockpit_rejects_apk_paths_outside_the_expected_package_directories(self):
+        for case in ("outside-path", "dot-path", "wrong-tilde"):
+            with self.subTest(case=case):
+                self.log.unlink(missing_ok=True)
+                self.environment["OVC_FIRMWARE_FIXTURE_AUTOMOTIVE"] = case
+                result = self.collect("-Scope", "Cockpit")
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                report = json.loads(result.stdout)
+                controls = next(item for item in report["packages"] if item["package"] == "org.openvoyah.controls")
+                self.assertIn("unavailable", controls)
+                self.assertEqual({"unknown"}, set(report["android_automotive"]["controls_permissions"].values()))
+                self.assertFalse(any("check-permission" in cmd for cmd in self.commands()))
+                self.assertFalse(any(cmd[-1].endswith("/base.apk") for cmd in self.commands() if "sha256sum" in cmd))
+
+    def test_cockpit_grants_require_the_same_foreground_user_and_signed_controls_apk(self):
+        cases = {"bad-user": False, "path-mismatch": False, "user-changed": True,
+                 "path-changed": True, "hash-changed": True, "app-missing": False}
+        for case, permission_checked in cases.items():
+            with self.subTest(case=case):
+                self.log.unlink(missing_ok=True)
+                self.environment["OVC_FIRMWARE_FIXTURE_AUTOMOTIVE"] = case
+                self.environment["OVC_FIRMWARE_FIXTURE_EVENTS"] = case
+                result = self.collect("-Scope", "Cockpit")
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                readiness = json.loads(result.stdout)["android_automotive"]
+                self.assertEqual(("present", "present"), (readiness["automotive_feature"], readiness["car_library"]))
+                self.assertEqual(dict.fromkeys((ACTIVITY_PERMISSION, SELECTOR_PERMISSION, SEATS_PERMISSION), "unknown"),
+                                 readiness["controls_permissions"])
+                self.assertEqual(expected_headlight_configs(), readiness["headlight_properties"])
+                self.assertEqual(permission_checked, any("check-permission" in row for row in self.commands()))
+
+    def test_cockpit_handoff_exports_only_typed_factory_navigation(self):
+        self.environment["OVC_FIRMWARE_FIXTURE_EVENTS"] = "handoff"
+        result = self.collect("-Scope", "Cockpit", "-EventWindowSeconds", "1")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        window = json.loads(result.stdout)["cockpit_events"]
+        self.assertEqual("captured", window["status"])
+        record = {"event": "driver_memory_handoff", "logged_at_ms": 1700000001145}
+        expected = [
+            {**record, "slot": slot, "action": action, "target": target, "outcome": outcome, "elapsed_ms": 0}
+            for slot in (1, 2, 3) for action in ("save", "restore") for target in ("seats", "vehicle")
+            for outcome in ("requested", "unavailable", "failed")
+        ]
+        expected.append({**record, "slot": 2, "action": "save", "target": "seats", "outcome": "requested",
+                         "elapsed_ms": 2**63 - 1})
+        self.assertEqual(expected, window["records"])
+        self.assertNotIn("PRIVATE_RECORD_MUST_NOT_APPEAR", result.stdout + result.stderr)
+
+    def test_cockpit_event_window_exports_only_typed_events_for_the_verified_process(self):
+        result = self.collect("-Scope", "Cockpit", "-EventWindowSeconds", "1")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        window = json.loads(result.stdout)["cockpit_events"]
+        self.assertEqual("captured", window["status"])
+        self.assertEqual((1700000001000, 1700000002000), (window["start_epoch_ms"], window["end_epoch_ms_exclusive"]))
+        self.assertEqual(256, window["log_entry_limit"])
+        self.assertEqual([
+            {"event": "headlight_power", "trigger": "screen_off", "interactive": False, "elapsed_ms": 8100},
+            {"event": "headlight_power", "trigger": "screen_on", "interactive": True, "elapsed_ms": 8110},
+            {"event": "headlight_source", "source": "qinggan", "outcome": "waiting_for_change"},
+            {"event": "headlight_source", "source": "qinggan", "outcome": "unsupported_product"},
+            {"event": "headlight_source", "source": "qinggan", "outcome": "service_not_found"},
+            {"event": "headlight_source", "source": "qinggan", "outcome": "reader_failed",
+             "failure": "BadParcelableException", "elapsed_ms": 8111},
+            {"event": "headlight_source", "source": "android_automotive", "outcome": "reader_failed",
+             "failure": "LinkageError", "elapsed_ms": 8112},
+            {"event": "headlight_feedback", "source": "qinggan", "mode": "automatic", "elapsed_ms": 8120,
+             "confirmed_at_ms": 1700000001100},
+            {"event": "headlight_feedback", "source": "qinggan", "mode": "low_beam", "elapsed_ms": 8130,
+             "confirmed_at_ms": 1700000001120},
+            {"event": "headlight_feedback", "source": "qinggan", "mode": "position", "elapsed_ms": 8200,
+             "confirmed_at_ms": 1700000001145},
+            {"event": "headlight_feedback", "source": "qinggan", "mode": "off", "elapsed_ms": 8240,
+             "confirmed_at_ms": 1700000001160},
+            {"event": "headlight_feedback", "source": "android_automotive", "mode": "on", "elapsed_ms": 8300,
+             "confirmed_at_ms": 1700000001200},
+            {"event": "driver_memory_guidance", "slot": 2, "outcome": "requested"},
+            {"event": "driver_memory_guidance", "slot": 3, "outcome": "failed"},
+        ], [{k: v for k, v in record.items() if k != "logged_at_ms"} for record in window["records"]])
+        self.assertTrue(all(record["logged_at_ms"] == 1700000001145 for record in window["records"]))
+        self.assertNotIn("PRIVATE_RECORD_MUST_NOT_APPEAR", result.stdout + result.stderr)
+
+    def test_cockpit_activity_records_require_an_exact_automotive_lamp_sample(self):
+        self.environment["OVC_FIRMWARE_FIXTURE_EVENTS"] = "activity"
+        result = self.collect("-Scope", "Cockpit", "-EventWindowSeconds", "1")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        window = json.loads(result.stdout)["cockpit_events"]
+        self.assertEqual("captured", window["status"])
+        self.assertEqual([
+            {"event": "headlight_activity", "source": "android_automotive", "lamp": lamp, "activity": activity,
+             "elapsed_ms": 0, "confirmed_at_ms": 1, "logged_at_ms": 1700000001145}
+            for lamp, activities in (("headlights", ("off", "on", "daytime_running")), ("high_beam", ("off", "on")))
+            for activity in activities
+        ], window["records"])
+        self.assertNotIn("PRIVATE_RECORD_MUST_NOT_APPEAR", result.stdout + result.stderr)
+
+    def test_cockpit_reader_reports_subscription_diagnostics_without_lamp_confirmations(self):
+        self.environment["OVC_FIRMWARE_FIXTURE_EVENTS"] = "reader"
+        result = self.collect("-Scope", "Cockpit", "-EventWindowSeconds", "1")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        window = json.loads(result.stdout)["cockpit_events"]
+        self.assertEqual("captured", window["status"])
+        record = {"event": "headlight_reader", "source": "android_automotive", "logged_at_ms": 1700000001145}
+        expected = [
+            {**record, "signal": signal, "outcome": outcome, "elapsed_ms": 0}
+            for signal in ("selector", "headlights", "high_beam")
+            for outcome in ("unsupported_system", "permission_not_granted", "not_connected",
+                            "property_not_listed", "incompatible_config", "registration_rejected",
+                            "access_denied", "read_failed", "subscribed")
+        ]
+        expected.append({**record, "signal": "headlights", "outcome": "subscribed", "elapsed_ms": 2**63 - 1})
+        self.assertEqual(expected, window["records"])
+        self.assertNotIn("PRIVATE_RECORD_MUST_NOT_APPEAR", result.stdout + result.stderr)
+
+    def test_cockpit_event_limit_is_explicit(self):
+        self.environment["OVC_FIRMWARE_FIXTURE_EVENTS"] = "full"
+        result = self.collect("-Scope", "Cockpit", "-EventWindowSeconds", "1")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        window = json.loads(result.stdout)["cockpit_events"]
+        self.assertEqual("record_limit_reached", window["status"])
+        self.assertEqual(256, len(window["records"]))
+
+    def test_cockpit_event_window_rejects_missing_mismatched_or_restarted_processes(self):
+        cases = {"app-missing": "app_unverified", "ambiguous": "process_unavailable",
+                 "other-owner": "process_unavailable", "restarted": "identity_changed",
+                 "denied": "log_unavailable", "clock-jump": "window_unavailable", "driver-changed": "identity_changed"}
+        for case, status in cases.items():
+            with self.subTest(case=case):
+                self.log.unlink(missing_ok=True)
+                self.environment["OVC_FIRMWARE_FIXTURE_EVENTS"] = case
+                result = self.collect("-Scope", "Cockpit", "-EventWindowSeconds", "1")
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertEqual({"status": status, "records": []}, json.loads(result.stdout)["cockpit_events"])
+                self.assertEqual(case in {"restarted", "denied", "driver-changed"}, any("logcat" in cmd for cmd in self.commands()))
+                self.assertNotIn("PRIVATE_RECORD_MUST_NOT_APPEAR", result.stdout + result.stderr)
+
+    def test_event_window_requires_cockpit_scope_before_any_device_read(self):
+        result = self.collect("-EventWindowSeconds", "1")
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual([], self.commands())
 
     def test_explicit_java_home_supports_an_unbundled_sdk(self):
         self.java.unlink()

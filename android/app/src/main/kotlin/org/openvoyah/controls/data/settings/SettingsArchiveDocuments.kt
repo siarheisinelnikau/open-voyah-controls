@@ -27,6 +27,7 @@ internal class LocalSettingsArchiveDocuments(context: Context) : SettingsArchive
         // Serialize the full archive before opening the destination. A failed section must never
         // silently produce a button-only backup, or truncate an existing document.
         val bytes = archive.exportJson().toByteArray(Charsets.UTF_8)
+        if (bytes.size > LocalSettingsArchive.MAX_BYTES) throw IOException(UiText.get(R.string.settings_archive_too_large))
         val output = app.contentResolver.openOutputStream(Uri.parse(document), "wt")
             ?: throw IOException(UiText.get(R.string.ui_123))
         output.use { it.write(bytes) }
@@ -43,7 +44,7 @@ internal class LocalSettingsArchiveDocuments(context: Context) : SettingsArchive
                 val count = it.read(buffer)
                 if (count == -1) break
                 if (bytes.size() + count > LocalSettingsArchive.MAX_BYTES)
-                    throw IOException(UiText.get(R.string.ui_125))
+                    throw IOException(UiText.get(R.string.settings_archive_too_large))
                 bytes.write(buffer, 0, count)
             }
         }

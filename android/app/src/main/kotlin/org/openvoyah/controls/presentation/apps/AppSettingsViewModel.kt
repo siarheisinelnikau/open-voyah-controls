@@ -10,24 +10,26 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
-import org.openvoyah.controls.data.frida.FridaWindowControls
-import org.openvoyah.controls.data.frida.FridaWindowControls.Connection
+import org.openvoyah.controls.domain.display.AppWindowConfiguration
 import org.openvoyah.controls.domain.display.AppWindowProfile
+import org.openvoyah.controls.domain.display.WindowConnection
+import org.openvoyah.controls.domain.display.WindowProfileChange
+import org.openvoyah.controls.domain.display.WindowProfileDelivery
 import org.openvoyah.controls.platform.apps.AppPermissions
 import org.openvoyah.controls.platform.apps.InstalledAppPermissions
 import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.platform.apps.PermissionChange
 
 internal class AppSettingsViewModel(
-    private val windows: FridaWindowControls,
+    private val windows: AppWindowConfiguration,
     private val permissions: InstalledAppPermissions,
 ) : ViewModel() {
     data class Window(
         val component: String,
         val profile: AppWindowProfile? = null,
-        val connection: Connection? = null,
+        val connection: WindowConnection? = null,
         val busy: Boolean = false,
-        val result: FridaWindowControls.Result? = null,
+        val result: WindowProfileDelivery? = null,
         val message: Int? = null,
     )
 
@@ -59,12 +61,19 @@ internal class AppSettingsViewModel(
 
     fun open(app: LocalApp) {
         if (mutable.value != null) return
-        val window = if (windows.supports(app.id)) Window(app.id) else null
+        val window = if (windows.supportsProfile(app.id)) Window(app.id) else null
         mutable.value = State(app, window)
-        if (window != null) updateWindow(window, R.string.app_window_failed) {
-            window.copy(profile = windows.load(app.id), connection = windows.connection())
-        }
+        loadWindow()
         refreshPermissions()
+    }
+
+    fun loadWindow() {
+        val window = mutable.value?.window ?: return
+        if (window.profile != null) return
+        updateWindow(window, R.string.app_window_read_failed) {
+            val selection = windows.readProfile(window.component)
+            window.copy(profile = selection.profile, connection = selection.connection)
+        }
     }
 
     fun close() {
@@ -77,27 +86,32 @@ internal class AppSettingsViewModel(
         mutable.update { state ->
             val window = state?.window ?: return@update state
             val profile = window.profile ?: return@update state
-            if (window.busy) state
-            else state.copy(window = window.copy(profile = change(profile), message = null, result = null))
+            if (window.busy) return@update state
+            val draft = change(profile)
+            if (draft == profile) state
+            else state.copy(window = window.copy(profile = draft, message = null, result = null))
         }
     }
 
-    fun applyWindow(reset: Boolean) {
+    fun applyWindow() = saveWindow(WindowProfileChange.APPLY)
+
+    fun resetWindow() = saveWindow(WindowProfileChange.RESET)
+
+    private fun saveWindow(change: WindowProfileChange) {
         val window = mutable.value?.window ?: return
         val profile = window.profile ?: return
-        updateWindow(window, R.string.app_window_failed) {
-            val result = windows.save(profile, reset)
-            window.copy(profile = windows.load(window.component), connection = windows.connection(),
-                result = result, message = null)
+        updateWindow(window, R.string.app_window_save_failed) {
+            val saved = windows.changeProfile(profile, change)
+            window.copy(profile = saved.selection.profile, connection = saved.selection.connection,
+                result = saved.delivery, message = null)
         }
     }
 
     fun enableWindows() {
         val window = mutable.value?.window ?: return
-        if (window.connection != Connection.DISABLED) return
+        if (window.connection != WindowConnection.DISABLED) return
         updateWindow(window, R.string.window_hook_requirement) {
-            windows.enable()
-            window.copy(connection = windows.connection(), result = null, message = R.string.app_window_enabled)
+            window.copy(connection = windows.enableService(), result = null, message = R.string.app_window_enabled)
         }
     }
 
@@ -110,13 +124,13 @@ internal class AppSettingsViewModel(
         updatePermissions { permissions.set(identity, name, granted) }
     }
 
-    private fun updateWindow(current: Window, failure: Int, operation: () -> Window) {
+    private fun updateWindow(current: Window, failure: Int, operation: suspend () -> Window) {
         if (current.busy) return
         val working = current.copy(busy = true, message = null, result = null)
         mutable.update { it?.copy(window = working) }
         viewModelScope.launch {
             val result = try {
-                withContext(Dispatchers.IO) { operation() }
+                operation()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

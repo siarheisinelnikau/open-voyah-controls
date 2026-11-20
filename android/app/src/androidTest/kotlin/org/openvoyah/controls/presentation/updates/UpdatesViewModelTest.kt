@@ -48,7 +48,7 @@ import kotlin.coroutines.coroutineContext
 
 class UpdatesViewModelTest : AndroidTestCase() {
     fun testMissingPreparationPortCannotStartDownloadOrClaimInstallationReady() = runBlocking {
-        fixture(null) { model, http, _, _, _ ->
+        fixture(null) { model, http, _, _, _, _ ->
             assertFalse(model.state.value.installAvailable)
             assertFalse(model.state.value.canInstall)
             withContext(Dispatchers.Main) { model.downloadAndInstall() }
@@ -57,9 +57,18 @@ class UpdatesViewModelTest : AndroidTestCase() {
         }
     }
 
+    fun testResumeReadsTheStartupPreferenceFromStorage() = runBlocking {
+        fixture(null) { model, _, _, _, _, preferences ->
+            assertTrue(model.state.value.checkOnStartup)
+            withContext(Dispatchers.IO) { preferences.checkOnStartup(false) }
+            withContext(Dispatchers.Main) { model.recover() }
+            assertFalse(model.state.value.checkOnStartup)
+        }
+    }
+
     fun testOpeningScreenDoesNotDownloadAndBlockedPreparationNeverCommits() = runBlocking {
         val port = RecordingInstaller(blocked = true)
-        fixture(port) { model, http, verifier, _, directory ->
+        fixture(port) { model, http, verifier, _, directory, _ ->
             assertEquals(0, http.downloads.get())
             assertEquals(0, port.prepares.get())
             withContext(Dispatchers.Main) { model.downloadAndInstall() }
@@ -74,7 +83,7 @@ class UpdatesViewModelTest : AndroidTestCase() {
 
     fun testCancellationAfterReadyButBeforeCommitCancelsCapabilityAndDeletesDownload() = runBlocking {
         val port = RecordingInstaller(cancelAtReady = true)
-        fixture(port) { model, _, _, _, directory ->
+        fixture(port) { model, _, _, _, directory, _ ->
             withContext(Dispatchers.Main) { model.downloadAndInstall() }
             try {
                 withTimeout(3_000) {
@@ -95,7 +104,7 @@ class UpdatesViewModelTest : AndroidTestCase() {
     fun testUserCancellingBlockedDownloadDeletesPartialFileAndReturnsToIdle() = runBlocking {
         val port = RecordingInstaller()
         val http = FixtureHttp(blockDownload = true)
-        fixture(port, http) { model, _, _, _, directory ->
+        fixture(port, http) { model, _, _, _, directory, _ ->
             withContext(Dispatchers.Main) { model.downloadAndInstall() }
             withTimeout(3_000) { http.downloadStarted.await() }
             withContext(Dispatchers.Main) { model.cancelDownload() }
@@ -116,7 +125,7 @@ class UpdatesViewModelTest : AndroidTestCase() {
 
     fun testClosingScreenAfterCommitDoesNotCancelAnAmbiguousAndroidAttempt() = runBlocking {
         val port = RecordingInstaller(waitInCommit = true)
-        fixture(port) { model, _, _, store, directory ->
+        fixture(port) { model, _, _, store, directory, _ ->
             withContext(Dispatchers.Main) { model.downloadAndInstall() }
             withTimeout(3_000) { port.committed.await() }
             withContext(Dispatchers.Main) { store.clear() }
@@ -129,7 +138,7 @@ class UpdatesViewModelTest : AndroidTestCase() {
     }
 
     private suspend fun fixture(port: RecordingInstaller?, http: FixtureHttp = FixtureHttp(), test: suspend
-        (UpdatesViewModel, FixtureHttp, FixtureVerifier, ViewModelStore, File) -> Unit) {
+        (UpdatesViewModel, FixtureHttp, FixtureVerifier, ViewModelStore, File, UpdatePreferences) -> Unit) {
         val prefix = "updates_vm_${UUID.randomUUID()}_"
         val isolated = object : ContextWrapper(context) {
             override fun getApplicationContext(): Context = this
@@ -140,13 +149,14 @@ class UpdatesViewModelTest : AndroidTestCase() {
         val repository = OfficialUpdateRepository("0.18.0", directory, http)
         repository.check()
         val verifier = FixtureVerifier()
+        val preferences = UpdatePreferences(isolated)
         val store = ViewModelStore()
         val model = withContext(Dispatchers.Main) {
             ViewModelProvider(store, viewModelFactory { initializer {
-                UpdatesViewModel(repository, UpdatePreferences(isolated), verifier, port)
+                UpdatesViewModel(repository, preferences, verifier, port)
             } })[UpdatesViewModel::class.java]
         }
-        try { test(model, http, verifier, store, directory) }
+        try { test(model, http, verifier, store, directory, preferences) }
         finally {
             withContext(Dispatchers.Main) { store.clear() }
             context.deleteSharedPreferences(prefix + "updates")

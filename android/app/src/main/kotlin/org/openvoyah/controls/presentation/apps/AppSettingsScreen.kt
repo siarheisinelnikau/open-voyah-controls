@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
@@ -43,12 +45,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
-import org.openvoyah.controls.data.frida.FridaWindowControls.Connection
+import org.openvoyah.controls.domain.display.WindowConnection
 import org.openvoyah.controls.platform.apps.AndroidAppAccess
 import org.openvoyah.controls.platform.apps.AppsPlatform
 import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+
+internal data class AppShortcutGridState(
+    val pinned: Boolean?,
+    val showInAll: Boolean?,
+    val isFavorites: Boolean,
+    val working: Boolean,
+    val notice: Int?,
+)
 
 @Composable
 internal fun AppSettingsScreen(
@@ -56,21 +66,46 @@ internal fun AppSettingsScreen(
     model: AppSettingsViewModel,
     displays: () -> List<AppsPlatform.DisplayChoice>,
     windowsSupported: () -> Boolean,
+    shortcut: AppShortcutGridState?,
+    setPinned: (Boolean) -> Unit,
+    setShowInAll: (Boolean) -> Unit,
     open: (Int?, Boolean) -> Unit,
     openAdjacent: (Int) -> Unit,
     appInfo: () -> Unit,
     specialAccess: (AndroidAppAccess) -> Unit,
 ) {
     val app = state.app
+    val window = state.window
+    val permissions = state.permissions
+    val busy = state.busy
     val colors = MaterialTheme.colorScheme
     var choices by remember(app.id) { mutableStateOf<List<AppsPlatform.DisplayChoice>?>(null) }
-    val launchActions: @Composable () -> Unit = {
+    val launchActions: @Composable (Modifier) -> Unit = { modifier ->
         if (app.launchEntry != null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton({ choices = displays() }, Modifier.heightIn(min = 50.dp), enabled = !state.busy) {
+            FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (shortcut?.showInAll != null) {
+                    val shown = shortcut.showInAll
+                    val editable = !busy && !shortcut.working
+                    Row(Modifier.heightIn(min = 50.dp).toggleable(shown, enabled = editable, role = Role.Switch,
+                        onValueChange = setShowInAll), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text(text(R.string.apps_grid_show_in_all), style = MaterialTheme.typography.bodyLarge)
+                        Switch(shown, onCheckedChange = null, enabled = editable)
+                    }
+                }
+                if (shortcut?.pinned != null) {
+                    val pinned = shortcut.pinned
+                    TextButton({ setPinned(!pinned) }, Modifier.heightIn(min = 50.dp), enabled = !busy && !shortcut.working) {
+                        val label = if (shortcut.isFavorites) {
+                            if (pinned) R.string.apps_desktop_unpin else R.string.apps_desktop_pin
+                        } else if (pinned) R.string.apps_unpin else R.string.apps_pin
+                        Text(text(label))
+                    }
+                }
+                OutlinedButton({ choices = displays() }, Modifier.heightIn(min = 50.dp), enabled = !busy) {
                     Text(text(R.string.choose_display))
                 }
-                Button({ open(null, false) }, Modifier.heightIn(min = 50.dp), enabled = !state.busy) {
+                Button({ open(null, false) }, Modifier.heightIn(min = 50.dp), enabled = !busy) {
                     Text(text(R.string.open_app))
                 }
             }
@@ -81,14 +116,15 @@ internal fun AppSettingsScreen(
             Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = 22.dp, vertical = 17.dp),
         ) {
-            val wide = maxWidth >= 880.dp && state.window != null
-            val inlineActions = maxWidth >= 680.dp
+            val wide = maxWidth >= 880.dp && window != null
+            val inlineActions = maxWidth >= (if (shortcut == null) 680.dp else 1040.dp)
+            val inlineActionWidth = maxWidth - 310.dp
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(
                     Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OutlinedButton(model::close, Modifier.heightIn(min = 50.dp), enabled = !state.busy) {
+                    OutlinedButton(model::close, Modifier.heightIn(min = 50.dp), enabled = !busy) {
                         CockpitGlyph(CockpitIcon.BACK, Modifier.size(19.dp))
                         Text(text(R.string.cockpit_back), Modifier.padding(start = 7.dp))
                     }
@@ -99,33 +135,35 @@ internal fun AppSettingsScreen(
                         Text(app.label, style = MaterialTheme.typography.headlineSmall, maxLines = 1,
                             overflow = TextOverflow.Ellipsis)
                     }
-                    if (inlineActions) launchActions()
+                    if (inlineActions) launchActions(Modifier.widthIn(max = inlineActionWidth))
                 }
-                if (!inlineActions) launchActions()
-                state.notice?.let { message ->
+                if (!inlineActions) launchActions(Modifier)
+                (state.notice ?: shortcut?.notice)?.let { message ->
                     Text(text(message), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = colors.error)
                 }
                 if (wide) {
                     Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         SettingsPane(R.string.app_window_title, CockpitIcon.DISPLAY,
                             Modifier.weight(1.15f).fillMaxHeight(), scroll = true) {
-                            AppWindowSettings(requireNotNull(state.window), model)
+                            AppWindowSettings(requireNotNull(window), model)
                         }
                         SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK,
                             Modifier.weight(1f).fillMaxHeight(), scroll = true) {
-                            PermissionSettings(state, model::permission, model::refreshPermissions, appInfo, specialAccess)
+                            PermissionSettings(permissions, app.origin, busy, model::permission,
+                                model::refreshPermissions, appInfo, specialAccess)
                         }
                     }
                 } else {
                     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        state.window?.let {
+                        window?.let {
                             SettingsPane(R.string.app_window_title, CockpitIcon.DISPLAY, Modifier.fillMaxWidth()) {
                                 AppWindowSettings(it, model)
                             }
                         }
                         SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK, Modifier.fillMaxWidth()) {
-                            PermissionSettings(state, model::permission, model::refreshPermissions, appInfo, specialAccess)
+                            PermissionSettings(permissions, app.origin, busy, model::permission,
+                                model::refreshPermissions, appInfo, specialAccess)
                         }
                     }
                 }
@@ -133,7 +171,7 @@ internal fun AppSettingsScreen(
         }
     }
     choices?.let {
-        DisplayPicker(it, windowsSupported(), state.window?.connection == Connection.ENABLED,
+        DisplayPicker(it, windowsSupported(), window?.connection == WindowConnection.ENABLED,
             close = { choices = null },
             open = { id, window ->
                 choices = null
@@ -171,18 +209,19 @@ private fun SettingsPane(
 
 @Composable
 private fun PermissionSettings(
-    state: AppSettingsViewModel.State,
+    panel: AppSettingsViewModel.Permissions,
+    appOrigin: InstallOrigin,
+    busy: Boolean,
     set: (String, Boolean) -> Unit,
     refresh: () -> Unit,
     appInfo: () -> Unit,
     specialAccess: (AndroidAppAccess) -> Unit,
 ) {
-    val panel = state.permissions
     val details = panel.details
     val colors = MaterialTheme.colorScheme
     val description = when {
         details == null && panel.busy -> R.string.apps_permission_checking
-        else -> when (details?.origin ?: state.app.origin) {
+        else -> when (details?.origin ?: appOrigin) {
             InstallOrigin.CONTROLS -> R.string.apps_permission_persisted
             InstallOrigin.ADB -> R.string.apps_source_adb
             InstallOrigin.OTHER -> R.string.apps_source_other
@@ -192,7 +231,7 @@ private fun PermissionSettings(
         }
     }
     Text(text(description), color = colors.onSurfaceVariant)
-    OutlinedButton(appInfo, Modifier.heightIn(min = 48.dp), enabled = !state.busy) {
+    OutlinedButton(appInfo, Modifier.heightIn(min = 48.dp), enabled = !busy) {
         Text(text(R.string.apps_app_info))
     }
     panel.message?.let {
@@ -231,7 +270,7 @@ private fun PermissionSettings(
         Text(text(R.string.apps_special_access), style = MaterialTheme.typography.titleMedium)
         Text(text(R.string.apps_special_handoff), color = colors.onSurfaceVariant)
         details.specialAccess.forEach { access ->
-            OutlinedButton({ specialAccess(access) }, Modifier.heightIn(min = 48.dp), enabled = !state.busy) {
+            OutlinedButton({ specialAccess(access) }, Modifier.heightIn(min = 48.dp), enabled = !busy) {
                 Text(text(access.label()))
             }
         }

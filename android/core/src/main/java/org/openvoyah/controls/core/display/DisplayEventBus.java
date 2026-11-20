@@ -10,11 +10,28 @@ public final class DisplayEventBus {
         public boolean available() { return !title.isEmpty(); }
     }
 
-    public record Navigation(String road, String nextRoad, int meters) {
+    public record Navigation(String road, String nextRoad, int meters, boolean routeUpdate) {
         public static final Navigation EMPTY = new Navigation("", "", -1);
+
+        public Navigation(String road, String nextRoad, int meters) {
+            this(road, nextRoad, meters, true);
+        }
+
+        public static Navigation opened(String label) {
+            // Keep the launch label for the existing display preview. It is not a road report.
+            return label.isEmpty() ? EMPTY : new Navigation(label, "", -1, false);
+        }
     }
 
-    public record Snapshot(Media media, Navigation navigation) { }
+    public record Snapshot(Media media, Navigation navigation, PlaybackProgress playbackProgress) {
+        public Snapshot(Media media, Navigation navigation) { this(media, navigation, null); }
+
+        public Snapshot {
+            if (playbackProgress != null && (!media.available() || media.playing() != playbackProgress.advancing())) {
+                playbackProgress = null;
+            }
+        }
+    }
 
     private final CopyOnWriteArrayList<Consumer<Snapshot>> observers = new CopyOnWriteArrayList<>();
     private volatile Snapshot snapshot = new Snapshot(Media.EMPTY, Navigation.EMPTY);
@@ -26,8 +43,16 @@ public final class DisplayEventBus {
         return () -> observers.remove(observer);
     }
 
-    public void publishMedia(Media media) { update(new Snapshot(media, snapshot.navigation())); }
-    public void publishNavigation(Navigation navigation) { update(new Snapshot(snapshot.media(), navigation)); }
+    public void publishMedia(Media media) { publishMedia(media, null); }
+
+    public void publishMedia(Media media, PlaybackProgress playbackProgress) {
+        update(new Snapshot(media, snapshot.navigation(), playbackProgress));
+    }
+
+    public void publishNavigation(Navigation navigation) {
+        Snapshot before = snapshot;
+        update(new Snapshot(before.media(), navigation, before.playbackProgress()));
+    }
 
     private void update(Snapshot next) {
         if (next.equals(snapshot)) return;

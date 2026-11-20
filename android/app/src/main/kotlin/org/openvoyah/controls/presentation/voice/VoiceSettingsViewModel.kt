@@ -17,6 +17,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
 import org.openvoyah.controls.core.VoiceCatalog
+import org.openvoyah.controls.core.voice.VoiceAudioOptions
 
 internal data class VoiceSettingsConfiguration(
     val catalog: VoiceCatalog,
@@ -29,6 +30,9 @@ internal data class VoiceSettingsConfiguration(
     val duckMedia: Boolean,
     val spokenFeedback: Boolean,
     val onlineConfigured: Boolean,
+    val audioOptions: VoiceAudioOptions = VoiceAudioOptions.DEFAULTS,
+    val offlineVoiceName: String = "",
+    val readyPrompt: String = "",
 )
 
 internal sealed interface VoiceSettingsChange {
@@ -36,7 +40,10 @@ internal sealed interface VoiceSettingsChange {
     data class App(val command: String, val component: String) : VoiceSettingsChange
     data class Level(val command: String, val level: Int) : VoiceSettingsChange
     data class Windows(val smoke: Boolean, val ventilation: Boolean) : VoiceSettingsChange
-    data class Audio(val duck: Boolean, val feedback: Boolean) : VoiceSettingsChange
+    data class Audio(
+        val duck: Boolean, val feedback: Boolean, val options: VoiceAudioOptions, val language: String, val offlineVoiceName: String,
+        val readyPrompt: String,
+    ) : VoiceSettingsChange
     data class Contact(val name: String, val phone: String) : VoiceSettingsChange
     data object RestorePrevious : VoiceSettingsChange
 }
@@ -98,8 +105,9 @@ internal class VoiceSettingsViewModel(
     fun contact(name: String, phone: String) = change(VoiceSettingsChange.Contact(name, phone))
     fun restorePrevious() = change(VoiceSettingsChange.RestorePrevious)
 
-    fun audio(duck: Boolean, feedback: Boolean): Boolean {
-        val started = change(VoiceSettingsChange.Audio(duck, feedback))
+    fun audio(selection: VoiceSettingsChange.Audio): Boolean {
+        if (selection.language != mutable.value.configuration?.language || !VoiceAudioOptions.validReadyPrompt(selection.readyPrompt)) return false
+        val started = change(selection)
         if (started) mutable.update { it.copy(audioOpen = false) }
         return started
     }

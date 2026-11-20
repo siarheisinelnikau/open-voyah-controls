@@ -17,13 +17,15 @@ internal class VoiceSettingsRepository(context: Context) : VoiceSettingsSource {
     private val documents by lazy { VoiceSettingsDocuments(app.contentResolver, settings) }
 
     override fun load(): VoiceSettingsConfiguration {
+        val language = settings.language()
         val catalog = settings.withContacts()
         val commands = catalog.all()
-        return VoiceSettingsConfiguration(catalog, settings.language(), ReviewedVoiceCommands(app).hasApprovedCommands(),
+        return VoiceSettingsConfiguration(catalog, language, ReviewedVoiceCommands(app).hasApprovedCommands(),
             commands.mapNotNull { it.id().takeIf { id -> settings.app(id).isNotEmpty() } }.toSet(),
             commands.filter { it.id().endsWith("LevelDefault") }.associate { it.id() to settings.level(it.id()) },
             settings.option("doubleSmoke"), settings.option("doubleVentilation"),
-            settings.option("duckMedia"), settings.option("spokenFeedback"), online.configured())
+            settings.option("duckMedia"), settings.option("spokenFeedback"), online.configured(), settings.audioOptions(),
+            settings.offlineVoice(language), settings.readyPrompt(language))
     }
 
     override fun change(change: VoiceSettingsChange) {
@@ -32,7 +34,8 @@ internal class VoiceSettingsRepository(context: Context) : VoiceSettingsSource {
             is VoiceSettingsChange.App -> settings.app(change.command, change.component)
             is VoiceSettingsChange.Level -> settings.level(change.command, change.level)
             is VoiceSettingsChange.Windows -> settings.windowOptions(change.smoke, change.ventilation)
-            is VoiceSettingsChange.Audio -> settings.audio(change.duck, change.feedback)
+            is VoiceSettingsChange.Audio -> settings.audio(change.duck, change.feedback, change.options, change.language,
+                change.offlineVoiceName, change.readyPrompt)
             is VoiceSettingsChange.Contact -> settings.contact(change.name, change.phone)
             VoiceSettingsChange.RestorePrevious -> settings.restore()
         }

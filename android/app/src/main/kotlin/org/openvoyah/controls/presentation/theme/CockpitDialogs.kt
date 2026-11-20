@@ -23,8 +23,13 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -101,14 +106,15 @@ class CockpitDialogs(private val activity: ComponentActivity) {
 internal fun CockpitModal(title: String, footer: (@Composable () -> Unit)? = null, scroll: Boolean = true,
                           headerAction: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val layout = LocalCockpitLayout.current
     val maxHeight = (LocalConfiguration.current.screenHeightDp - 24).coerceAtLeast(1).dp
     val compact = headerAction != null
     Surface(
         Modifier.fillMaxWidth().heightIn(max = maxHeight), shape = MaterialTheme.shapes.extraLarge, color = colors.surface,
         border = BorderStroke(1.dp, colors.outlineVariant),
     ) {
-        Column(Modifier.padding(if (compact) 12.dp else 20.dp),
-            verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 14.dp)) {
+        Column(Modifier.padding(layout.spacing(if (compact) 12.dp else 20.dp)),
+            verticalArrangement = Arrangement.spacedBy(layout.spacing(if (compact) 7.dp else 14.dp))) {
             if (headerAction == null) Text(title, style = MaterialTheme.typography.headlineSmall)
             else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, Modifier.weight(1f).padding(start = 5.dp), style = MaterialTheme.typography.headlineSmall)
@@ -117,11 +123,11 @@ internal fun CockpitModal(title: String, footer: (@Composable () -> Unit)? = nul
             val body = Modifier.fillMaxWidth().weight(1f, fill = false)
             Column(
                 if (scroll) body.verticalScroll(rememberScrollState()) else body,
-                verticalArrangement = Arrangement.spacedBy(8.dp), content = content,
+                verticalArrangement = Arrangement.spacedBy(layout.spacing(8.dp)), content = content,
             )
             if (footer != null) FlowRow(
-                Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(layout.spacing(8.dp), Alignment.End),
+                verticalArrangement = Arrangement.spacedBy(layout.spacing(4.dp)),
             ) { footer() }
         }
     }
@@ -131,12 +137,17 @@ internal fun CockpitModal(title: String, footer: (@Composable () -> Unit)? = nul
 internal fun CockpitChoice(title: String, subtitle: String? = null, enabled: Boolean = true,
                           modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val layout = LocalCockpitLayout.current
     val press = rememberPressMotion(enabled)
-    Surface(onClick, modifier.fillMaxWidth().then(press.modifier).heightIn(min = 52.dp), enabled = enabled,
+    var focused by remember { mutableStateOf(false) }
+    val showFocus = enabled && focused
+    val target = modifier.fillMaxWidth().then(press.modifier).heightIn(min = 52.dp)
+        .onFocusChanged { focused = it.isFocused }
+    Surface(onClick, target, enabled = enabled,
         interactionSource = press.source, shape = MaterialTheme.shapes.medium, color = press.color,
-        border = BorderStroke(1.dp, colors.outlineVariant)) {
-        Row(Modifier.padding(horizontal = 13.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        border = BorderStroke(if (showFocus) 2.dp else 1.dp, if (showFocus) colors.primary else colors.outlineVariant)) {
+        Row(Modifier.padding(horizontal = layout.spacing(13.dp), vertical = layout.spacing(8.dp)),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(layout.spacing(9.dp))) {
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 subtitle?.let { Text(it, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium) }
@@ -154,8 +165,9 @@ internal fun CockpitTextAction(title: String, action: () -> Unit) {
 
 @Composable
 internal fun CockpitSwitch(title: String, checked: Boolean, enabled: Boolean = true, change: (Boolean) -> Unit) {
+    val layout = LocalCockpitLayout.current
     Row(Modifier.fillMaxWidth().heightIn(min = 50.dp).toggleable(checked, enabled = enabled, role = Role.Switch,
-        onValueChange = change), horizontalArrangement = Arrangement.spacedBy(10.dp),
+        onValueChange = change), horizontalArrangement = Arrangement.spacedBy(layout.spacing(10.dp)),
         verticalAlignment = Alignment.CenterVertically) {
         Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         Switch(checked, onCheckedChange = null, enabled = enabled)

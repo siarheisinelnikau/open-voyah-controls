@@ -1,0 +1,29 @@
+<resources>
+    <string name="seat_memory_title">Seat memory</string>
+    <string name="seat_memory_description">Driver seat and mirrors</string>
+    <string name="seat_memory_driver_seat">Seat for %1$s</string>
+    <string name="seat_memory_slot">Driver\u00a0%1$d</string>
+    <string name="seat_memory_save_position">Save</string>
+    <string name="seat_memory_save_driver">Save %1$s</string>
+    <string name="seat_memory_restore_driver">Restore %1$s</string>
+    <string name="seat_memory_recall">Restore</string>
+    <string name="seat_memory_recall_title">Restore %1$s?</string>
+    <string name="seat_memory_confirm">Check that the vehicle is in P and leave space for the driver seat and mirrors to move.</string>
+    <string name="seat_memory_cancel">Cancel</string>
+    <string name="seat_memory_close">Close</string>
+    <string name="seat_memory_retry">Try again</string>
+    <string name="seat_memory_working">Working…</string>
+    <string name="seat_memory_load_failed">Could not read seat memory settings.</string>
+    <string name="seat_memory_save_failed">Could not remember the selected driver in Controls.</string>
+    <string name="seat_memory_open_factory_on_tap">Open factory seat controls directly</string>
+    <string name="seat_memory_open_factory_on_tap_hint">When the factory Seats screen is available, choose the driver number there.</string>
+    <string name="seat_memory_open_factory_on_tap_save_failed">Could not save the factory screen preference.</string>
+    <string name="seat_memory_factory_path">Factory home → All apps → Seats</string>
+    <string name="seat_memory_factory_save">While parked, open Driver memory and restore in Seats or tap the driver icon. For position\u00a0%1$d, tap Memory (记忆). Wait for “saved” (记忆成功).</string>
+    <string name="seat_memory_factory_restore">While parked, open Driver memory and restore in Seats or tap the driver icon. For position\u00a0%1$d, tap Restore (恢复). Wait for “Restore successful” (恢复成功).</string>
+    <string name="seat_memory_seats_open">Open Seats</string>
+    <string name="seat_memory_factory_open">Open factory vehicle menu</string>
+    <string name="seat_memory_voice_opening">Opening restore instructions for Driver\u00a0%1$d.</string>
+    <string name="seat_memory_voice_open_failed">Could not open driver memory.</string>
+    <string name="seat_memory_open_failed">Could not open the factory controls.</string>
+</resources>

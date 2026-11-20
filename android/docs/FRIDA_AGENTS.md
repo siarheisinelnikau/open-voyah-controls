@@ -38,6 +38,12 @@ The process-by-process scope and button mappings are listed in [Injection target
 
 The boot and supervisor files ending in `.sh` are shell scripts. They verify the deployment, wait for the right process, start the corresponding agent and monitor its readiness. Each optional agent has its own process/package checks and recovery. Frida execution in a fixture proves the adapter can run; exact OEM compatibility and physical behavior still require vehicle qualification.
 
+## Window service diagnostics
+
+Each explicit profile apply or reset, display defaults sync, and window-service toggle that reaches `FridaBridge` emits one `event=window_service` entry under the `OpenVoyahControls` Logcat tag. The entry contains an allowlisted operation, the last stage reached, an outcome, and monotonic elapsed time in milliseconds. The elapsed time includes any wait for the bridge lock.
+
+`agent_reply` records the validated receipt, including `density_only`, `no_task`, and `rollback_failed`. Invalid receipts are recorded as `invalid_reply` and shown as unconfirmed in the app. `request_round_trip` with `unconfirmed` indicates that no receipt was confirmed. `profiles_published` records settings delivery to Android, and `service_configured` records completion of the service toggle. Check the connection status for worker readiness after enabling the service.
+
 ## CAN edge ownership
 
 The `can-steering-edges` profile is distinct from `can-steering-terminal`; a firmware cannot select both. Both require an exact CAN-service package pin. The edge route requires assigned, currently launchable tap and hold actions. Otherwise the full gesture stays native from its down event. Hold timing and debounce use the existing button settings.

@@ -25,6 +25,7 @@ android {
     compileSdk 35
     useLibrary 'android.test.runner'
     useLibrary 'android.test.base'
+    useLibrary 'android.car', false
     defaultConfig {
         applicationId 'org.openvoyah.controls'
         minSdk 28

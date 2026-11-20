@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_layouts_settings">Desktop layouts</string>
+    <string name="desktop_layouts_empty">Save the current grid, cards and wallpapers to return to this layout later.</string>
+    <string name="desktop_layouts_save_current">Save current layout</string>
+    <string name="desktop_layouts_apply">Apply layout</string>
+    <string name="desktop_layouts_rename">Rename layout</string>
+    <string name="desktop_layouts_duplicate">Duplicate layout</string>
+    <string name="desktop_layouts_delete">Delete layout</string>
+    <string name="desktop_layouts_name">Layout name</string>
+    <string name="desktop_layouts_apply_confirm">Replace the current grid, cards and wallpapers with “%1$s”?</string>
+    <string name="desktop_layouts_apply_confirm_action">Apply</string>
+    <string name="desktop_layouts_delete_confirm">Delete the saved layout “%1$s”?</string>
+    <string name="desktop_layouts_delete_confirm_action">Delete</string>
+    <string name="desktop_layouts_loading">Loading layouts…</string>
+    <string name="desktop_layouts_load_failed">Could not load saved layouts.</string>
+    <string name="desktop_layouts_full">You can save up to %1$d layouts. Delete one to make room.</string>
+    <string name="desktop_layouts_too_large">These wallpapers exceed the storage limit for saved layouts. Delete a saved layout or use fewer custom wallpapers.</string>
+    <string name="desktop_layouts_invalid_name">Enter a name of up to %1$d characters.</string>
+    <string name="desktop_layouts_duplicate_name">A layout with this name is already saved.</string>
+    <string name="desktop_layouts_changed">This layout is no longer saved.</string>
+    <string name="desktop_layouts_update_failed">Could not update desktop layouts.</string>
+    <string name="desktop_layouts_working">Updating layouts…</string>
+    <string name="desktop_layouts_saved">Layout saved.</string>
+    <string name="desktop_layouts_applied">Layout applied.</string>
+    <string name="desktop_layouts_renamed">Layout renamed.</string>
+    <string name="desktop_layouts_duplicated">Layout copy saved.</string>
+    <string name="desktop_layouts_deleted">Layout deleted.</string>
+</resources>

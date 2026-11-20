@@ -1,0 +1,8 @@
+<resources>
+    <string name="apps_wallpaper_title">Desktop wallpaper</string>
+    <string name="apps_wallpaper_custom">Custom image</string>
+    <string name="apps_wallpaper_default">Default background</string>
+    <string name="apps_wallpaper_reset">Reset</string>
+    <string name="apps_wallpaper_reset_desktop">Reset wallpaper for %1$s</string>
+    <string name="apps_wallpaper_failed">Could not save the wallpaper. Choose a supported image up to 8 MB.</string>
+</resources>

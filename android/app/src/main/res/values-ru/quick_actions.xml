@@ -25,7 +25,7 @@
     <string name="cluster_media_share">Показывать текущий трек на приборке</string>
     <string name="display_density">Масштаб виртуального экрана</string>
     <string name="display_auto_density">Автовыбор DPI</string>
-    <string name="display_unavailable">Android не смог создать виртуальный экран.</string>
+    <string name="display_unavailable">Предпросмотр в приложении · Виртуальный экран недоступен</string>
     <string name="display_no_media">Плеер не активен</string>
     <string name="display_no_route">Нет данных навигации</string>
     <string name="display_navigation">Навигация</string>

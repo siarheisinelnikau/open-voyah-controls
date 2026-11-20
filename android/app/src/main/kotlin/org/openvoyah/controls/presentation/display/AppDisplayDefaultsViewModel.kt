@@ -3,18 +3,16 @@ package org.openvoyah.controls.presentation.display
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
-import org.openvoyah.controls.data.frida.FridaWindowControls
-import org.openvoyah.controls.data.frida.FridaWindowControls.DefaultsDelivery
 import org.openvoyah.controls.domain.display.AppDisplayDefaults
+import org.openvoyah.controls.domain.display.AppWindowConfiguration
+import org.openvoyah.controls.domain.display.DisplayDefaultsDelivery
 
-internal class AppDisplayDefaultsViewModel(private val windows: FridaWindowControls) : ViewModel() {
+internal class AppDisplayDefaultsViewModel(private val windows: AppWindowConfiguration) : ViewModel() {
     data class State(
         val visible: Boolean = false,
         val draft: AppDisplayDefaults? = null,
@@ -30,10 +28,10 @@ internal class AppDisplayDefaultsViewModel(private val windows: FridaWindowContr
         mutable.value = State(visible = true, working = true)
         viewModelScope.launch {
             val draft = try {
-                withContext(Dispatchers.IO) { windows.loadDisplayDefaults() }
+                windows.readDisplayDefaults()
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: RuntimeException) {
+            } catch (_: Exception) {
                 null
             }
             mutable.value = State(visible = true, draft = draft,
@@ -63,15 +61,14 @@ internal class AppDisplayDefaultsViewModel(private val windows: FridaWindowContr
         mutable.value = state.copy(working = true, message = null)
         viewModelScope.launch {
             val message = try {
-                val delivered = withContext(Dispatchers.IO) { windows.saveDisplayDefaults(draft) }
-                when (delivered) {
-                    DefaultsDelivery.SAVED -> R.string.app_display_defaults_pending
-                    DefaultsDelivery.CENTRAL_ONLY -> R.string.app_display_defaults_central_only
-                    DefaultsDelivery.NEXT_LAUNCH -> R.string.app_display_defaults_synced
+                when (windows.changeDisplayDefaults(draft)) {
+                    DisplayDefaultsDelivery.SAVED -> R.string.app_display_defaults_pending
+                    DisplayDefaultsDelivery.CENTRAL_ONLY -> R.string.app_display_defaults_central_only
+                    DisplayDefaultsDelivery.NEXT_LAUNCH -> R.string.app_display_defaults_synced
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: RuntimeException) {
+            } catch (_: Exception) {
                 R.string.app_display_defaults_failed
             }
             mutable.value = state.copy(working = false, message = message)

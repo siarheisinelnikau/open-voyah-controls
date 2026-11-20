@@ -4,11 +4,14 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.car.permission.CONTROL_CAR_EXTERIOR_LIGHTS" />
+    <uses-permission android:name="android.car.permission.CAR_EXTERIOR_LIGHTS" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <queries>
         <package android:name="com.qinggan.app.launcher" />
         <package android:name="com.qinggan.app.setting" />
         <package android:name="com.qinggan.app.vehicle" />
+        <package android:name="com.qinggan.app.vehiclesetting" />
         <package android:name="com.qinggan.bluetoothphone" />
         <package android:name="com.qinggan.cluster" />
         <package android:name="com.qinggan.canbus.service" />
@@ -27,7 +30,9 @@
     <application android:name=".UiText" android:label="@string/app_name" android:theme="@style/AppTheme"
         android:icon="@drawable/ic_controls" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules"
         android:supportsRtl="true">
-        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop">
+        <uses-library android:name="android.car" android:required="false" />
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

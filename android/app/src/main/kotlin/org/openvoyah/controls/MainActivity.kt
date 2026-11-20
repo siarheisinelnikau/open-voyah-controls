@@ -4,71 +4,122 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.setContent
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.openvoyah.controls.presentation.apps.AppsDestination
-import org.openvoyah.controls.presentation.cluster.ClusterDestination
-import org.openvoyah.controls.presentation.display.DisplayDestination
-import org.openvoyah.controls.presentation.firmware.FirmwareDestination
-import org.openvoyah.controls.presentation.home.ControlsSettingsDestination
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.openvoyah.controls.data.routines.RoutineLayoutExecution
+import org.openvoyah.controls.data.routines.RoutineLayoutPermit
+import org.openvoyah.controls.data.routines.RoutinePreferences
+import org.openvoyah.controls.data.settings.AppearancePreferences
+import org.openvoyah.controls.domain.apps.DesktopLayoutException
+import org.openvoyah.controls.domain.apps.DesktopLayoutProblem
+import org.openvoyah.controls.domain.routines.NamedRoutine
+import org.openvoyah.controls.domain.routines.RoutineEditException
+import org.openvoyah.controls.domain.routines.RoutinePlan
+import org.openvoyah.controls.domain.routines.RoutineStartupDelay
+import org.openvoyah.controls.domain.routines.RoutineStartupRequest
+import org.openvoyah.controls.domain.settings.LauncherEntry
+import org.openvoyah.controls.platform.apps.AppsPlatform
+import org.openvoyah.controls.platform.apps.LauncherShortcuts
+import org.openvoyah.controls.platform.audio.limitLauncherMediaVolume
 import org.openvoyah.controls.presentation.home.HomeUpdatesViewModel
+import org.openvoyah.controls.presentation.home.appearanceViewModel
+import org.openvoyah.controls.presentation.navigation.ControlsHost
 import org.openvoyah.controls.presentation.navigation.ControlsNavigation
+import org.openvoyah.controls.presentation.navigation.ControlsNavigationState
 import org.openvoyah.controls.presentation.navigation.ControlsNavigationViewModel
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
-import org.openvoyah.controls.presentation.navigation.DestinationLifecycle
-import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.routines.RoutineAppNotice
+import org.openvoyah.controls.presentation.routines.RoutineInteractionFrame
+import org.openvoyah.controls.presentation.routines.RoutineStartupNotice
+import org.openvoyah.controls.presentation.routines.route
 import org.openvoyah.controls.presentation.theme.ControlsTheme
-import org.openvoyah.controls.presentation.updates.UpdatesDestination
-import org.openvoyah.controls.presentation.vehicle.VehicleSettingsDestination
-import org.openvoyah.controls.presentation.voice.VoiceDestination
 
 /** Normal screens share this host; Android overlays and the installer handshake keep separate tasks. */
 class MainActivity : ComponentActivity() {
     private lateinit var navigation: ControlsNavigationViewModel
+    private val appearancePreferences by lazy { AppearancePreferences(applicationContext) }
+    private val routinePreferences by lazy { RoutinePreferences(applicationContext) }
+    private val routineApps by lazy { LauncherShortcuts(applicationContext) }
+    private val routineLayouts by lazy { RoutineLayoutExecution(applicationContext) }
+    private class PendingStartup(val request: RoutineStartupRequest, val entry: ControlsNavigationState) {
+        var layoutPermit: RoutineLayoutPermit? = null
+    }
+    private var pending by mutableStateOf<PendingStartup?>(null)
+    private var secondsLeft by mutableIntStateOf(0)
+    private var routineMessage by mutableStateOf<String?>(null)
+    private var manualRoutineJob: Job? = null
+    private var manualLayoutPermit: RoutineLayoutPermit? = null
+    private var noticeVisible = false
+    private var resumed = false
+    private var focused = false
+    private var startupTimer: Job? = null
+    private var launcherMediaEntry: ControlsNavigationState? = null
+    private var launcherMediaTask: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val provider = ViewModelProvider(this)
         navigation = provider[ControlsNavigationViewModel::class.java]
         provider[HomeUpdatesViewModel::class.java]
-        if (savedInstanceState == null) navigation.enter(ControlsNavigation.route(intent))
-        setContent {
-            ControlsTheme {
-                val stack by navigation.stack.collectAsStateWithLifecycle()
-                val entry by navigation.entries.collectAsStateWithLifecycle()
-                val route = stack.last()
-                val screens = rememberSaveableStateHolder()
-                BackHandler(stack.size > 1) { navigation.back() }
-                AnimatedContent(route, transitionSpec = {
-                    (fadeIn(tween(CockpitMotion.ENTER)) + slideInHorizontally(tween(CockpitMotion.ENTER)) { it / 45 })
-                        .togetherWith(fadeOut(tween(CockpitMotion.EXIT)) + slideOutHorizontally(tween(CockpitMotion.EXIT)) { -it / 70 })
-                }, label = "controls destination") { target ->
-                    DestinationLifecycle(target == route) {
-                        screens.SaveableStateProvider(target.name) {
-                            when (target) {
-                                ControlsRoute.APPS -> AppsDestination(entry, navigation::open, ::listen, ::systemSettings)
-                                ControlsRoute.SETTINGS, ControlsRoute.BUTTONS -> ControlsSettingsDestination(
-                                    target == ControlsRoute.BUTTONS, navigation::back, navigation::open)
-                                ControlsRoute.VOICE -> VoiceDestination(navigation::back, ::listen)
-                                ControlsRoute.DISPLAY -> DisplayDestination(navigation::back)
-                                ControlsRoute.VEHICLE -> VehicleSettingsDestination(navigation::back)
-                                ControlsRoute.FIRMWARE -> FirmwareDestination(navigation::back) { navigation.open(ControlsRoute.CLUSTER) }
-                                ControlsRoute.CLUSTER -> ClusterDestination(navigation::back)
-                                ControlsRoute.UPDATES -> UpdatesDestination(navigation::back)
+        val appearance = appearanceViewModel(this)
+        if (savedInstanceState == null) enter(intent)
+        val initialPalette = navigation.state.value.temporaryPalette
+        val compose = ComposeView(this)
+        setContentView(RoutineInteractionFrame(this, ::cancelStartup).apply { addView(compose) })
+        compose.setContent {
+            val look by appearance.state.collectAsStateWithLifecycle()
+            val palette by navigation.temporaryPalette.collectAsStateWithLifecycle(initialPalette)
+            ControlsTheme(appearance = look.settings, systemBars = window, temporaryPalette = palette) {
+                Column(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(1f)) {
+                        ControlsHost(navigation, appearance, ::listen, ::systemSettings, ::runManualRoutine, ::runRoutineShortcut)
+                    }
+                    pending?.let { launch ->
+                        if (launch.request.schedule.delay != RoutineStartupDelay.IMMEDIATE ||
+                            launch.request.routine.plan.desktopLayoutId != null) {
+                            RoutineStartupNotice(launch.request.routine.name, secondsLeft, ::cancelStartup)
+                        }
+                        val entry by navigation.state.collectAsStateWithLifecycle()
+                        LaunchedEffect(launch, entry) {
+                            if (entry !== launch.entry) cancelStartup()
+                            else {
+                                withFrameNanos { }
+                                if (pending === launch) {
+                                    noticeVisible = true
+                                    startLauncherWorkIfReady()
+                                }
                             }
+                        }
+                    }
+                    routineMessage?.let { message ->
+                        RoutineAppNotice(message) { routineMessage = null }
+                        LaunchedEffect(message) {
+                            delay(8000)
+                            if (routineMessage == message) routineMessage = null
                         }
                     }
                 }
@@ -79,7 +130,268 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        navigation.enter(ControlsNavigation.route(intent))
+        enter(intent)
+    }
+
+    private fun enter(intent: Intent) {
+        cancelStartup()
+        cancelLauncherMedia()
+        cancelManualRoutine()
+        routineMessage = null
+        if (ControlsNavigation.isLauncherEntry(intent)) {
+            val appearance = appearancePreferences.load()
+            val startRoute = appearance.launcherEntry.startRoute()
+            val request = routinePreferences.startupRequest()
+            val needsForeground = request != null && (request.schedule.delay != RoutineStartupDelay.IMMEDIATE ||
+                request.routine.plan.installedApp != null || request.routine.plan.desktopLayoutId != null)
+            val prepared = request != null && !needsForeground && applyStartup(request, startRoute)
+            if (!prepared) {
+                navigation.enterFromLauncher(startRoute, null, null)
+                if (request != null && needsForeground) {
+                    secondsLeft = request.schedule.delay.seconds
+                    pending = PendingStartup(request, navigation.state.value)
+                }
+            }
+            if (appearance.limitMediaVolumeOnLaunch) launcherMediaEntry = navigation.state.value
+            startLauncherWorkIfReady()
+        } else {
+            navigation.enter(ControlsNavigation.route(intent), ControlsNavigation.driverMemorySlot(intent))
+        }
+    }
+
+    private fun LauncherEntry.startRoute() = when (this) {
+        LauncherEntry.APP_GRID -> ControlsRoute.APPS
+        LauncherEntry.VEHICLE -> ControlsRoute.VEHICLE
+        LauncherEntry.SETTINGS -> ControlsRoute.SETTINGS
+    }
+
+    private fun applyStartup(request: RoutineStartupRequest, shownRoute: ControlsRoute, app: InstalledApps.Entry? = null) =
+        routinePreferences.runStartup(request) { plan -> dispatchRoutine(plan, app, shownRoute) }
+
+    private suspend fun runManualRoutine(routine: NamedRoutine, entry: ControlsNavigationState): Int? {
+        if (entry.route != ControlsRoute.ROUTINES) throw CancellationException()
+        return runRoutineFromEntry(routine, entry)
+    }
+
+    private fun runRoutineShortcut(routine: NamedRoutine, entry: ControlsNavigationState): Boolean {
+        if (!routineEntryIsCurrent(entry) || manualRoutineJob != null) return false
+        lifecycleScope.launch {
+            val error = runRoutineFromEntry(routine, entry)
+            if (error != null) routineMessage = UiText.get(error)
+            else if (routine.plan.installedApp == null) routineMessage = UiText.get(R.string.routines_ran).format(routine.name)
+        }
+        return true
+    }
+
+    private suspend fun runRoutineFromEntry(routine: NamedRoutine, entry: ControlsNavigationState): Int? {
+        if (!routineEntryIsCurrent(entry) || manualRoutineJob != null) throw CancellationException()
+        val job = currentCoroutineContext().job
+        manualRoutineJob = job
+        cancelStartup()
+        routineMessage = null
+        val layoutId = routine.plan.desktopLayoutId
+        val permit = layoutId?.let { RoutineLayoutPermit { job.isActive && navigation.state.value === entry } }
+        manualLayoutPermit = permit
+        try {
+            val app = routine.plan.installedApp?.let { withContext(Dispatchers.IO) { routineApps.find(it) } }
+            if (!routineEntryIsCurrent(entry)) throw CancellationException()
+            if (layoutId == null) {
+                routinePreferences.planFor(routine)
+            } else {
+                val layout = routineLayouts.prepare(layoutId)
+                val applied = routineLayouts.runManual(routine, layout, checkNotNull(permit))
+                if (!applied) return R.string.routines_changed
+            }
+            if (!routineEntryIsCurrent(entry)) throw CancellationException()
+            dispatchRoutine(routine.plan, app)
+            return null
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            return routineError("manual", layoutId != null, failure)
+        } finally {
+            if (manualLayoutPermit === permit) manualLayoutPermit = null
+            if (manualRoutineJob === job) manualRoutineJob = null
+        }
+    }
+
+    private fun routineEntryIsCurrent(entry: ControlsNavigationState) =
+        canDispatchInForeground() && navigation.state.value === entry
+
+    private suspend fun layoutPermit(entry: ControlsNavigationState): RoutineLayoutPermit {
+        val owner = currentCoroutineContext().job
+        return RoutineLayoutPermit { owner.isActive && navigation.state.value === entry }
+    }
+
+    private fun cancelManualRoutine() {
+        manualLayoutPermit?.cancel()
+        manualRoutineJob?.cancel()
+    }
+
+    private fun dispatchRoutine(plan: RoutinePlan, app: InstalledApps.Entry?, startRoute: ControlsRoute? = null) {
+        val target = plan.target.route
+        if (startRoute == null) navigation.runRoutine(target, plan.target.desktop, plan.palette)
+        else navigation.enterFromLauncher(target ?: startRoute, plan.target.desktop, plan.palette)
+        plan.installedApp?.let { openRoutineApp(it, app) }
+    }
+
+    private fun routineError(mode: String, withLayout: Boolean, failure: Exception): Int {
+        Log.w("OpenVoyahControls", "event=routine_run mode=$mode outcome=failed error=${failure.javaClass.simpleName}")
+        return when {
+            failure is RoutineEditException -> R.string.routines_changed
+            failure is DesktopLayoutException && failure.problem == DesktopLayoutProblem.MISSING -> R.string.routines_layout_unavailable
+            withLayout -> R.string.routines_layout_apply_failed
+            else -> R.string.routines_load_failed
+        }
+    }
+
+    private fun openRoutineApp(component: String, app: InstalledApps.Entry?) {
+        if (app == null || app.component().flattenToString() != component) {
+            routineMessage = UiText.get(R.string.routines_app_missing_notice).format(component)
+            Log.i("OpenVoyahControls", "event=routine_app_launch outcome=unavailable")
+            return
+        }
+        try {
+            AppsPlatform(this).launch(app)
+            routineMessage = UiText.get(R.string.routines_app_requested).format(app.label())
+            Log.i("OpenVoyahControls", "event=routine_app_launch outcome=requested")
+        } catch (failure: RuntimeException) {
+            routineMessage = UiText.get(R.string.routines_app_failed).format(app.label())
+            Log.w("OpenVoyahControls", "event=routine_app_launch outcome=failed error=${failure.javaClass.simpleName}")
+        }
+    }
+
+    private fun canDispatchInForeground() = resumed && hasWindowFocus() && !isFinishing && !isDestroyed
+
+    private fun startLauncherWorkIfReady() {
+        if (!canDispatchInForeground()) return
+        val entry = launcherMediaEntry
+        if (entry == null || navigation.state.value !== entry) {
+            cancelLauncherMedia()
+            startTimerIfReady()
+            return
+        }
+        if (launcherMediaTask != null) return
+        // Apply the opted-in limit before a routine can hand focus to another app.
+        launcherMediaTask = lifecycleScope.launch(start = CoroutineStart.LAZY) {
+            try {
+                limitLauncherMediaVolume(this@MainActivity, appearancePreferences) {
+                    launcherMediaEntry === entry && navigation.state.value === entry && canDispatchInForeground()
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: RuntimeException) {
+                Log.w("OpenVoyahControls", "event=launcher_media_volume outcome=settings_unavailable failure=${failure.javaClass.simpleName}")
+            } finally {
+                if (launcherMediaEntry === entry) {
+                    launcherMediaEntry = null
+                    launcherMediaTask = null
+                    startTimerIfReady()
+                }
+            }
+        }
+        launcherMediaTask?.start()
+    }
+
+    private fun cancelLauncherMedia() {
+        launcherMediaEntry = null
+        launcherMediaTask?.cancel()
+        launcherMediaTask = null
+    }
+
+    private fun startTimerIfReady() {
+        val launch = pending ?: return
+        if (startupTimer != null || !noticeVisible || !canDispatchInForeground()) return
+        startupTimer = lifecycleScope.launch(start = CoroutineStart.LAZY) {
+            val plan = launch.request.routine.plan
+            try {
+                val layout = plan.desktopLayoutId?.let { id ->
+                    launch.layoutPermit = layoutPermit(launch.entry)
+                    routineLayouts.prepare(id)
+                }
+                for (second in launch.request.schedule.delay.seconds downTo 1) {
+                    secondsLeft = second
+                    delay(1000)
+                }
+                val app = plan.installedApp?.let { withContext(Dispatchers.IO) { routineApps.find(it) } }
+                if (!canCompleteStartup(launch)) return@launch
+                if (layout == null) {
+                    clearStartup(launch)
+                    applyStartup(launch.request, launch.entry.route, app)
+                } else {
+                    secondsLeft = 0
+                    val applied = routineLayouts.runStartup(launch.request, layout, checkNotNull(launch.layoutPermit))
+                    if (!canCompleteStartup(launch)) return@launch
+                    clearStartup(launch)
+                    if (applied) dispatchRoutine(plan, app, launch.entry.route)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                if (pending === launch) {
+                    routineMessage = UiText.get(routineError("startup", plan.desktopLayoutId != null, failure))
+                }
+            } finally {
+                clearStartup(launch)
+            }
+        }
+        startupTimer?.start()
+    }
+
+    private fun canCompleteStartup(launch: PendingStartup) =
+        pending === launch && canDispatchInForeground() && navigation.state.value === launch.entry
+
+    private fun cancelStartup() {
+        val launch = pending ?: return
+        launch.layoutPermit?.cancel()
+        startupTimer?.cancel()
+        clearStartup(launch)
+    }
+
+    private fun clearStartup(launch: PendingStartup) {
+        if (pending !== launch) return
+        startupTimer = null
+        pending = null
+        noticeVisible = false
+    }
+
+    override fun onResume() {
+        super.onResume()
+        resumed = true
+        startLauncherWorkIfReady()
+    }
+
+    override fun onPause() {
+        resumed = false
+        cancelLauncherMedia()
+        cancelStartup()
+        cancelManualRoutine()
+        routineMessage = null
+        super.onPause()
+    }
+
+    override fun onStop() {
+        cancelLauncherMedia()
+        cancelStartup()
+        cancelManualRoutine()
+        super.onStop()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (focused && !hasFocus) {
+            cancelLauncherMedia()
+            cancelStartup()
+            cancelManualRoutine()
+        }
+        focused = hasFocus
+        if (hasFocus) startLauncherWorkIfReady()
+    }
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        cancelLauncherMedia()
+        cancelStartup()
     }
 
     private fun listen() = external(QuickVoiceActivity.intent(this))

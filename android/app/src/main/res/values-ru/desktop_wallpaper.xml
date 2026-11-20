@@ -1,0 +1,8 @@
+<resources>
+    <string name="apps_wallpaper_title">Обои рабочих столов</string>
+    <string name="apps_wallpaper_custom">Своё изображение</string>
+    <string name="apps_wallpaper_default">Стандартный фон</string>
+    <string name="apps_wallpaper_reset">Сбросить</string>
+    <string name="apps_wallpaper_reset_desktop">Сбросить обои для «%1$s»</string>
+    <string name="apps_wallpaper_failed">Не удалось сохранить обои. Выберите поддерживаемое изображение размером до 8 МБ.</string>
+</resources>

@@ -1,4 +1,4 @@
-# English voice commands; see docs/VOICE.md
+# English command vocabulary. The optional fourth column lists final transcript aliases separated by |.
 Assistant	Basic	open assistant
 Camera	Basic	camera
 Music	Basic	music
@@ -20,9 +20,9 @@ OpenFuelPort	Basic	gas tank|fuel door|open fuel door|open gas tank
 CarWashMode	Basic	wash mode|wash
 PowerHold	Basic	powerhold
 WiperMaintain	Basic	wipers
-GetFromMemoryCellOne	Basic	driver number one|driver one|driver seat position one|driver seat memory one
-GetFromMemoryCellThree	Basic	driver number three|driver three|driver seat position three|driver seat memory three
-GetFromMemoryCellTwo	Basic	driver number two|driver two|driver seat position two|driver seat memory two
+GetFromMemoryCellOne	Basic	driver number one|driver one|driver seat position one|driver seat memory one	driver 1
+GetFromMemoryCellThree	Basic	driver number three|driver three|driver seat position three|driver seat memory three	driver 3
+GetFromMemoryCellTwo	Basic	driver number two|driver two|driver seat position two|driver seat memory two	driver 2
 SmokeCommand	Basic	let's have a smoke|open the window a little|open window a little|open window little
 VentilationCommand	Basic	ventilation|fresh air|air out|stuffy
 DisableDriverCondition	DriverSeat	seat ventilation off

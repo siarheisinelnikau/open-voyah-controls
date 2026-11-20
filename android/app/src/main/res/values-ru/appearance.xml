@@ -1,0 +1,13 @@
+<resources>
+    <string name="appearance_title">Интерфейс</string>
+    <string name="appearance_animate_routes">Анимация переходов между экранами</string>
+    <string name="appearance_high_contrast">Высокая контрастность</string>
+    <string name="appearance_start_screen">Стартовый экран</string>
+    <string name="appearance_start_screen_description">Открывается при запуске Controls с ярлыка приложения.</string>
+    <string name="appearance_limit_media_on_launch">Ограничивать громкость медиа при запуске</string>
+    <string name="appearance_launch_media_limit">Предел громкости при запуске</string>
+    <string name="appearance_launch_media_limit_description">Снижает слишком высокую громкость медиа при открытии Controls с ярлыка приложения.</string>
+    <string name="appearance_media_volume_percent">%1$d %%</string>
+    <string name="appearance_app_grid">Сетка приложений</string>
+    <string name="appearance_save_failed">Не удалось сохранить настройку интерфейса.</string>
+</resources>

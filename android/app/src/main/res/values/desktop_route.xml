@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_info_route">Navigation</string>
+    <string name="desktop_info_route_content">Show on navigation card</string>
+    <string name="desktop_info_route_next_turn">Next turn</string>
+    <string name="desktop_info_route_current_and_next">Current road and next turn</string>
+    <string name="desktop_info_route_waiting">Waiting for route details</string>
+    <string name="desktop_info_route_current_road">Current road · %1$s</string>
+    <string name="desktop_info_route_open_target">When you tap the navigation card</string>
+    <string name="desktop_info_route_open_navigator">Assigned navigator</string>
+    <string name="desktop_info_route_open_navigator_hint">Choose in Voice settings. Virtual display opens if unavailable.</string>
+    <string name="desktop_info_route_open_navigator_action">Open assigned navigator</string>
+</resources>

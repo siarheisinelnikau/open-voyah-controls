@@ -1,0 +1,28 @@
+<resources>
+    <string name="headlight_sources_title">Lighting sources</string>
+    <string name="headlight_sources_factory_selector">Factory light switch</string>
+    <string name="headlight_sources_android_selector">Android light switch</string>
+    <string name="headlight_sources_android_headlamps">Android headlamps</string>
+    <string name="headlight_sources_android_high_beam">Android high beam</string>
+    <string name="headlight_sources_model_unreviewed">Vehicle model unverified</string>
+    <string name="headlight_sources_service_absent">Factory service unavailable</string>
+    <string name="headlight_sources_service_unreviewed">Factory service unverified</string>
+    <string name="headlight_sources_platform_unavailable">Android Automotive unavailable</string>
+    <string name="headlight_sources_permission_denied">Read access denied</string>
+    <string name="headlight_sources_disconnected">Service disconnected</string>
+    <string name="headlight_sources_property_unavailable">Signal unavailable on this system</string>
+    <string name="headlight_sources_incompatible_property">Signal format unsupported</string>
+    <string name="headlight_sources_subscription_rejected">The service rejected monitoring</string>
+    <string name="headlight_sources_subscribed">Subscription active</string>
+    <string name="headlight_sources_read_failed">Read failed</string>
+    <string name="headlight_sources_waiting">Waiting for source status</string>
+    <string name="headlight_sources_last_confirmation">Sources of last confirmations</string>
+    <string name="headlight_sources_factory">Factory service</string>
+    <string name="headlight_sources_android">Android Automotive</string>
+    <string name="headlight_sources_unknown">Source unknown</string>
+    <string name="headlight_sources_copy">Copy report</string>
+    <string name="headlight_sources_copied">Report copied.</string>
+    <string name="headlight_sources_preparing">Preparing report…</string>
+    <string name="headlight_sources_copy_failed">Could not copy the report.</string>
+    <string name="headlight_sources_done">Done</string>
+</resources>

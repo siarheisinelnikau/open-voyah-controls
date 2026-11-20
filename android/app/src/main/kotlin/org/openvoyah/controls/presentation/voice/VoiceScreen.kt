@@ -30,7 +30,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import org.openvoyah.controls.presentation.theme.CockpitAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -135,7 +134,7 @@ internal fun VoiceSettingsScreen(
 }
 
 @Composable
-internal fun QuickVoicePopup(state: VoiceViewModel.State, recoverMicrophone: (() -> Unit)? = null) {
+internal fun QuickVoicePopup(state: VoiceViewModel.State, showRecognizedPhrase: Boolean, recoverMicrophone: (() -> Unit)? = null) {
     val colors = MaterialTheme.colorScheme
     val border by animateColorAsState(
         if (state.failed) colors.error.copy(alpha = .65f) else colors.primary.copy(alpha = .42f),
@@ -170,8 +169,9 @@ internal fun QuickVoicePopup(state: VoiceViewModel.State, recoverMicrophone: (()
                     Text(current.status, style = MaterialTheme.typography.titleMedium,
                         color = if (current.failed) colors.error else colors.onSurface,
                         maxLines = 3, overflow = TextOverflow.Ellipsis)
-                    current.phrase?.let {
-                        Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
+                    val phrase = current.phrase
+                    if (showRecognizedPhrase && phrase != null) {
+                        Text(phrase, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     recoverMicrophone?.let { recover ->
@@ -277,33 +277,6 @@ private fun CommandRow(command: VoiceCatalog.Command, assigned: Boolean, select:
             .padding(horizontal = 8.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyLarge)
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
-}
-
-@Composable
-internal fun VoiceAudioDialog(
-    duckMedia: Boolean,
-    feedbackEnabled: Boolean,
-    dismiss: () -> Unit,
-    save: (Boolean, Boolean) -> Unit,
-) {
-    var duck by remember { mutableStateOf(duckMedia) }
-    var feedback by remember { mutableStateOf(feedbackEnabled) }
-    AlertDialog(
-        onDismissRequest = dismiss,
-        title = { Text(label(R.string.voice_audio_settings)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                VoiceOptionToggle(label(R.string.voice_duck_media), duck) { duck = it }
-                VoiceOptionToggle(label(R.string.voice_spoken_feedback), feedback) { feedback = it }
-            }
-        },
-        confirmButton = {
-            Button({ save(duck, feedback) }, Modifier.heightIn(min = 52.dp)) { Text(label(R.string.ui_104)) }
-        },
-        dismissButton = {
-            TextButton(dismiss, Modifier.heightIn(min = 52.dp)) { Text(label(R.string.ui_89)) }
-        },
-    )
 }
 
 @Composable

@@ -19,6 +19,8 @@ Screenshots are from Android emulators. See [Head unit qualification and recover
 
 Normal screens share `MainActivity` with Compose destinations and ViewModels exposing StateFlow. `core` owns portable rules and ports; app data adapters own persistence and Frida, while platform adapters handle Android permissions and external services. The voice popup and first-run/installer handshake use their own permission-protected Activities. See [Compose routes and motion](android/docs/COMPOSE_UI.md).
 
-[Driver 1/2/3](android/docs/DRIVER_MEMORY.md) recall driver seat and mirror memory. The separate [account-record recovery appendix](android/docs/ACCOUNT_RECOVERY.md) explains OEM account limits.
+Choose **Driver 1**, **Driver 2**, or **Driver 3** to open the corresponding seat and mirror memory workflow. See the [driver memory guide](android/docs/DRIVER_MEMORY.md).
+
+The [account-record recovery appendix](android/docs/ACCOUNT_RECOVERY.md) explains OEM account limits.
 
 [GPLv3](LICENSE)

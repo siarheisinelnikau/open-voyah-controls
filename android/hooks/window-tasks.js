@@ -8,7 +8,7 @@ function error(code) {
     return failure;
 }
 
-export function systemTasks(Java, sdk) {
+export function systemTasks(Java, sdk, panelWidth) {
     const Rect = Java.use('android.graphics.Rect');
     const Configuration = Java.use('android.content.res.Configuration');
     const WindowConfiguration = Java.use('android.app.WindowConfiguration');
@@ -44,63 +44,97 @@ export function systemTasks(Java, sdk) {
         return null;
     }
 
-    function frame() {
+    function boundsFor(profile, reportedPanel = 0, minWidth = 0, minHeight = 0) {
         const display = api.display();
         if (!display) throw error('no_display');
-        const bounds = rectValues(display.getConfiguration().windowConfiguration.value.getBounds());
+        const config = display.getConfiguration();
+        const bounds = rectValues(config.windowConfiguration.value.getBounds());
         const insets = Rect.$new();
         api.windowManager.getStableInsets(0, insets);
         const [left, top, right, bottom] = rectValues(insets);
-        return {bounds, stable: [bounds[0] + left, bounds[1] + top, bounds[2] - right, bounds[3] - bottom]};
+        const stable = [bounds[0] + left, bounds[1] + top, bounds[2] - right, bounds[3] - bottom];
+        return windowBounds({bounds, stable}, profile, panelWidth(bounds, config.densityDpi.value, reportedPanel), minWidth, minHeight);
     }
 
     function activities(task, pkg, user, displayId) {
         if (!task || !api.isLeaf(task) || !task.isActivityTypeStandardOrUndefined()) return null;
         const records = [];
+        let expectedDisplay = displayId;
         for (let i = 0, count = task.getChildCount(); i < count; i++) {
             const record = Java.cast(task.getChildAt(i), api.activity);
             if (record.finishing.value) continue;
-            const expectedDisplay = displayId ?? records[0]?.getDisplayId() ?? record.getDisplayId();
+            const currentDisplay = record.getDisplayId();
+            expectedDisplay ??= currentDisplay;
             if (String(record.packageName.value) !== pkg || api.userOf(record) !== user ||
-                record.getDisplayId() !== expectedDisplay || expectedDisplay < 0) return null;
+                currentDisplay !== expectedDisplay || currentDisplay < 0) return null;
             records.push(record);
         }
         return records.length === 0 ? null : records;
     }
 
+    function matchingTask(id, pkg, user, displayId) {
+        const task = api.find(id);
+        const records = activities(task, pkg, user, displayId);
+        return records && {task, records};
+    }
+
     function* runningTasks(pkg, user) {
         const list = api.am.getTasks(64);
-        for (let i = 0; i < list.size(); i++) {
+        for (let i = 0, count = list.size(); i < count; i++) {
             const info = Java.cast(list.get(i), TaskInfo);
             const base = info.baseActivity.value;
             if (base === null || String(base.getPackageName()) !== pkg) continue;
-            const task = api.find(api.runningId(info));
-            if (activities(task, pkg, user, 0)) yield task;
+            const match = matchingTask(api.runningId(info), pkg, user, 0);
+            if (match) yield match;
         }
     }
 
-    function matchingTask(pkg, user, exactId, displayId) {
-        if (exactId === undefined) return runningTasks(pkg, user).next().value ?? null;
-        const task = api.find(exactId);
-        return activities(task, pkg, user, displayId) ? task : null;
-    }
-
-    function geometry(task) {
+    function geometry(task, mode = task.getWindowingMode()) {
+        if (mode !== framework.freeform) return null;
         const bounds = api.requestedBounds(task);
-        return task.getWindowingMode() === framework.freeform && bounds && !bounds.isEmpty() ? rectValues(bounds) : null;
+        return bounds && !bounds.isEmpty() ? rectValues(bounds) : null;
     }
 
-    function snapshot(task) {
-        return {mode:task.getWindowingMode(), bounds:geometry(task), override:Configuration.$new(api.getOverride(task))};
+    function snapshot(task, mode) {
+        const override = Configuration.$new(api.getOverride(task));
+        return {mode, bounds:geometry(task, mode), override, dpi:override.densityDpi.value};
     }
 
     function captureLaunch(profile, user) {
         return api.lock(() => {
             const originals = new Map();
-            for (const task of runningTasks(profile.component.split('/')[0], user)) {
-                if (knownMode(task.getWindowingMode())) originals.set(key(task), snapshot(task));
+            for (const {task} of runningTasks(profile.component.split('/')[0], user)) {
+                const mode = task.getWindowingMode();
+                if (knownMode(mode)) originals.set(key(task), snapshot(task, mode));
             }
             return originals;
+        });
+    }
+
+    function tracking(task, id, pkg, user, dpi) {
+        const existing = saved.get(id);
+        if (existing) return existing;
+        if (saved.size >= 24) {
+            for (const [keyId, entry] of saved) {
+                const live = api.find(entry.taskId);
+                if (!live || key(live) !== keyId) saved.delete(keyId);
+            }
+        }
+        const entry = {taskId:api.id(task), pkg, user, dpi, central:null, appliedDpi:null};
+        saved.set(id, entry);
+        return entry;
+    }
+
+    function rememberLaunch(task, component, user, previous, cold) {
+        return api.lock(() => {
+            const pkg = component.split('/')[0];
+            if (api.user() !== user || api.isLocked() || !activities(task, pkg, user, 0) || !knownMode(task.getWindowingMode())) return null;
+            const id = key(task);
+            const prior = previous.get(id) ?? {...cold, dpi:api.getOverride(task).densityDpi.value};
+            // Release can arrive before the queued density/layout pass. Register the native placement now.
+            const entry = tracking(task, id, pkg, user, prior.dpi);
+            entry.central ??= prior;
+            return {id, prior};
         });
     }
 
@@ -109,14 +143,14 @@ export function systemTasks(Java, sdk) {
         for (const record of records) record.ensureActivityConfiguration(0, false);
     }
 
-    function restore(task, records, prior, geometryAllowed = true, originalDpi = prior.override.densityDpi.value) {
+    function restore(task, records, prior, geometryAllowed = true, originalDpi = prior.dpi) {
         if (!knownMode(task.getWindowingMode())) throw error('rollback_failed');
         const current = geometry(task);
         if (geometryAllowed && (task.getWindowingMode() !== prior.mode ||
             (prior.bounds !== null && !sameBounds(current, prior.bounds)))) {
             api.place(task, toRect(prior.bounds));
         }
-        api.setOverride(task, prior.override);
+        if (prior.override) api.setOverride(task, prior.override);
         if (api.getOverride(task).densityDpi.value !== originalDpi) {
             api.setOverride(task, api.densityConfig(task, originalDpi));
         }
@@ -126,26 +160,31 @@ export function systemTasks(Java, sdk) {
                 (prior.bounds !== null && !sameBounds(geometry(task), prior.bounds))))) throw error('rollback_failed');
     }
 
-    function apply(profile, user, measuredPanel, taskId, originals = null, displayId = 0) {
+    function apply(profile, user, taskId, launch = null, displayId = 0) {
         const pkg = profile.component.split('/')[0];
         return api.lock(() => {
             if (api.user() !== user || api.isLocked()) throw error('unsupported_task');
             const screen = screenOf(displayId);
             if (!screen || (displayId !== 0 && taskId === undefined)) throw error('no_display');
-            const task = matchingTask(pkg, user, taskId, displayId);
-            if (!task) throw error('no_task');
-            const records = activities(task, pkg, user, displayId);
-            if (!records || !knownMode(task.getWindowingMode())) throw error('unsupported_task');
-            const before = snapshot(task);
+            const match = taskId === undefined ? runningTasks(pkg, user).next().value : matchingTask(taskId, pkg, user, displayId);
+            if (!match) throw error('no_task');
+            const {task, records} = match;
+            const mode = task.getWindowingMode();
+            if (!knownMode(mode)) throw error('unsupported_task');
+            const before = snapshot(task, mode);
             const taskKey = key(task);
             const dpi = profile.dpi;
-            const changeDensity = before.override.densityDpi.value !== dpi;
+            const changeDensity = before.dpi !== dpi;
             const canPlace = screen === CENTRAL_DISPLAY && api.supportsFreeform() && task.isResizeable();
             if (screen === CENTRAL_DISPLAY && !canPlace && dpi === 0 && !changeDensity) throw error('unsupported_window');
-            const bounds = canPlace ? windowBounds(frame(), profile, measuredPanel, ...api.minimum(task)) : null;
-            if (canPlace && bounds === null) throw error('no_space');
-            const changeBounds = bounds !== null && (before.mode !== framework.freeform || !sameBounds(before.bounds, bounds));
+            // Android may already have applied our provisional bounds. A new task keeps its native density.
+            const launchOriginal = canPlace && launch?.id === taskKey ? launch.prior : null;
+            let rollback = launchOriginal;
             try {
+                const bounds = canPlace ? boundsFor(profile, 0, ...api.minimum(task)) : null;
+                if (canPlace && bounds === null) throw error('no_space');
+                rollback ??= before;
+                const changeBounds = bounds !== null && (before.mode !== framework.freeform || !sameBounds(before.bounds, bounds));
                 if (changeBounds) api.place(task, toRect(bounds));
                 if (bounds !== null && (task.getWindowingMode() !== framework.freeform || !sameBounds(geometry(task), bounds))) {
                     throw error('placement_changed');
@@ -158,27 +197,22 @@ export function systemTasks(Java, sdk) {
                 if (dpi !== 0 && actualDpi !== dpi) throw error('density_rejected');
                 const actual = rectValues(task.getBounds());
                 if (bounds !== null && !sameBounds(actual, bounds)) throw error('placement_changed');
-                if (changeBounds || changeDensity || (originals && canPlace)) {
-                    const prior = originals?.get(taskKey) ?? (originals && canPlace && before.mode === framework.freeform
-                        ? {mode: framework.fullscreen, bounds:null, override: Configuration.$new()} : before);
-                    const savedTask = saved.get(taskKey);
-                    if (saved.size >= 24) {
-                        for (const [id, entry] of saved) {
-                            const existing = api.find(entry.taskId);
-                            if (!existing || key(existing) !== id) saved.delete(id);
-                        }
-                    }
-                    const entry = savedTask ?? {taskId:api.id(task), pkg, user, dpi:prior.override.densityDpi.value,
-                        central:null, appliedDpi:null};
-                    if (canPlace) entry.central ??= prior;
-                    if (dpi !== entry.dpi) entry.appliedDpi = dpi;
-                    else entry.appliedDpi = null;
-                    saved.set(taskKey, entry);
+                if (changeBounds || changeDensity) {
+                    const entry = tracking(task, taskKey, pkg, user, before.dpi);
+                    if (canPlace) entry.central ??= before;
+                    entry.appliedDpi = dpi !== entry.dpi ? dpi : null;
                 }
                 return {width:actual[2] - actual[0], dpi:actualDpi, left:actual[0],
                     status:canPlace ? 'applied' : 'density_only'};
             } catch (failure) {
-                try { restore(task, records, before, displayId === 0); } catch (_) { throw error('rollback_failed'); }
+                if (rollback) {
+                    try { restore(task, records, rollback, displayId === 0); } catch (_) { throw error('rollback_failed'); }
+                    const entry = saved.get(taskKey);
+                    if (launchOriginal && entry?.central === launchOriginal) {
+                        entry.central = null;
+                        if (entry.appliedDpi === null) saved.delete(taskKey);
+                    }
+                }
                 throw failure;
             }
         });
@@ -235,7 +269,7 @@ export function systemTasks(Java, sdk) {
     }
 
     return {
-        Rect, framework, frame, apply, captureLaunch, release, releaseSecondary, screenOf,
+        Rect, framework, boundsFor, apply, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf,
         freeformAvailable: () => api.supportsFreeform() && !api.isLocked(),
         userOf: api.userOf,
         currentUser: api.user,

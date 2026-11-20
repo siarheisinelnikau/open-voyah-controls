@@ -23,6 +23,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.openvoyah.controls.core.VoiceCatalog
+import org.openvoyah.controls.core.voice.VoiceAudioOptions
 
 class VoiceSettingsViewModelTest {
     private companion object {
@@ -87,7 +88,8 @@ class VoiceSettingsViewModelTest {
                     current.assigned - change.command else current.assigned + change.command)
                 is VoiceSettingsChange.Level -> current.copy(levels = current.levels + (change.command to change.level))
                 is VoiceSettingsChange.Windows -> current.copy(doubleSmoke = change.smoke, doubleVentilation = change.ventilation)
-                is VoiceSettingsChange.Audio -> current.copy(duckMedia = change.duck, spokenFeedback = change.feedback)
+                is VoiceSettingsChange.Audio -> current.copy(duckMedia = change.duck, spokenFeedback = change.feedback,
+                    audioOptions = change.options, offlineVoiceName = change.offlineVoiceName, readyPrompt = change.readyPrompt)
                 is VoiceSettingsChange.Contact -> current
                 VoiceSettingsChange.RestorePrevious -> { loadFailure = null; previous }
             }
@@ -149,10 +151,20 @@ class VoiceSettingsViewModelTest {
             assertEquals(setOf("Music"), f.settled().configuration!!.assigned)
             f.ui { f.model.level("SeatLevelDefault", 3) }
             assertEquals(3, f.settled().configuration!!.levels["SeatLevelDefault"])
-            f.ui { f.model.openAudio(); f.model.audio(true, true) }
+            val audioOptions = VoiceAudioOptions(75, 40, true, 30)
+            val selection = VoiceSettingsChange.Audio(true, true, audioOptions, "en", "en-US-local", "Go ahead.")
+            f.ui {
+                f.model.openAudio()
+                assertFalse(f.model.audio(selection.copy(language = "ru")))
+                assertFalse(f.model.audio(selection.copy(readyPrompt = "Line\nbreak")))
+                assertTrue(f.model.audio(selection))
+            }
             val audio = f.settled()
             val config = audio.configuration!!
             assertTrue(config.duckMedia && config.spokenFeedback)
+            assertEquals(audioOptions, config.audioOptions)
+            assertEquals("en-US-local", config.offlineVoiceName)
+            assertEquals("Go ahead.", config.readyPrompt)
             assertFalse(audio.audioOpen)
             assertTrue(f.source.threads.all { it === f.ioThread.get() })
         }

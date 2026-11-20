@@ -21,9 +21,13 @@ public final class InstalledApps {
     static Intent launchIntent() { return new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER); }
 
     public static List<Entry> list(Context context) {
+        return list(context, null);
+    }
+
+    public static List<Entry> list(Context context, String packageName) {
         PackageManager packages = context.getPackageManager();
         List<Entry> apps = new ArrayList<>();
-        for (ResolveInfo match : packages.queryIntentActivities(launchIntent(), 0)) {
+        for (ResolveInfo match : packages.queryIntentActivities(launchIntent().setPackage(packageName), 0)) {
             if (match.activityInfo == null || !match.activityInfo.exported || !match.activityInfo.enabled) continue;
             ComponentName component = new ComponentName(match.activityInfo.packageName, match.activityInfo.name);
             apps.add(new Entry(component, match.loadLabel(packages).toString()));

@@ -218,9 +218,7 @@ internal fun VoiceDestination(back: () -> Unit, tryVoice: () -> Unit) {
             state.onlineFailed, settings::closeOnline) { enabled, key -> settings.saveOnline(enabled, key) }
     }
     if (routeState.isAtLeast(Lifecycle.State.STARTED) && state.audioOpen) {
-        VoiceAudioDialog(config.duckMedia, config.spokenFeedback, settings::closeAudio) { duck, feedback ->
-            settings.audio(duck, feedback)
-        }
+        VoiceAudioDialog(config, settings::closeAudio) { settings.audio(it) }
     }
 }
 
