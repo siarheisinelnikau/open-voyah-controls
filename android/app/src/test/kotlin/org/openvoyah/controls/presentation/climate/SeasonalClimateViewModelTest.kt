@@ -29,6 +29,7 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
 import org.openvoyah.controls.domain.vehicle.automation.VehicleIdentity
 import org.openvoyah.controls.domain.vehicle.automation.VehicleSignal
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
+import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetrySession
 
 class SeasonalClimateViewModelTest {
     @Test fun aConfirmationExpiresBeforeDispatchAndDoesNotReplayWhenTelemetryReturns() = runBlocking {
@@ -177,7 +178,7 @@ class SeasonalClimateViewModelTest {
     private class FakePort(private val available: Boolean, private val failure: Exception? = null) : SeasonalClimatePort {
         val calls = MutableStateFlow(0)
         override fun approved(plan: SeasonalClimatePlan) = available
-        override suspend fun apply(plan: SeasonalClimatePlan): ClimateApplyResult {
+        override suspend fun apply(plan: SeasonalClimatePlan, session: VehicleTelemetrySession): ClimateApplyResult {
             calls.value++
             failure?.let { throw it }
             return ClimateApplyResult(ClimateApplyStatus.ACCEPTED, plan.commands.size)

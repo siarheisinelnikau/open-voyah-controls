@@ -47,6 +47,7 @@ import org.openvoyah.controls.domain.vehicle.HeadlightMonitor
 import org.openvoyah.controls.domain.vehicle.HeadlightStatus
 import org.openvoyah.controls.domain.vehicle.automation.VehicleAutomationController
 import org.openvoyah.controls.domain.vehicle.automation.VehicleForegroundLeases
+import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetrySession
 import org.openvoyah.controls.domain.vehicle.automation.withVehicleSignalExpiry
 import org.openvoyah.controls.platform.vehicle.factoryHeadlightFeedback
 import org.openvoyah.controls.platform.ui.VehicleRoutineLauncher
@@ -189,12 +190,13 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
                 try {
                     for (plan in engine.observe(settings, car, SystemClock.elapsedRealtimeNanos())) {
                         if (!climatePort.approved(plan)) continue
+                        val session = VehicleTelemetrySession(car)
                         val current = climates.observe().first().getOrNull()
                         val latest = telemetry.value
-                        if (current != settings || latest.sessionId != car.sessionId || latest.identity != car.identity ||
+                        if (current != settings || !session.matches(latest) ||
                             SeasonalClimatePolicy.assess(plan.season, plan.preset, latest, SystemClock.elapsedRealtimeNanos()) !=
                                 ClimateConditionState.READY) continue
-                        val result = climatePort.apply(plan)
+                        val result = climatePort.apply(plan, session)
                         Log.i(TAG, "event=seasonal_climate_automatic season=${plan.season.name.lowercase()} " +
                             "outcome=${result.status.name.lowercase()} completed=${result.completedCommands}")
                     }

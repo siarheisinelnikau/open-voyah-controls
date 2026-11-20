@@ -12,6 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.openvoyah.controls.BuildConfig;
@@ -650,6 +651,10 @@ public final class FridaBridge {
     }
 
     public VoiceReply sendRecognizedVoice(String id, JSONObject options) throws IOException {
+        return sendRecognizedVoice(id, options, () -> true);
+    }
+
+    VoiceReply sendRecognizedVoice(String id, JSONObject options, BooleanSupplier stillAllowed) throws IOException {
         synchronized (IO_LOCK) {
             if (!runtimeConfigured()) throw new IOException(UiText.get(R.string.ui_19));
             requireRoot();
@@ -662,6 +667,7 @@ public final class FridaBridge {
             try { request = new JSONObject().put("schema",3).put("id",token).put("command",id)
                 .put("confirmed",true).put("expires",SystemClock.elapsedRealtime()+12000).put("options",options).toString(); }
             catch (JSONException ex) { throw new IOException(ex); }
+            if (!stillAllowed.getAsBoolean()) return new VoiceReply("blocked", UiText.get(R.string.voice_vehicle_blocked));
             try {
                 command(activationGuard() + "settings put global org.openvoyah.controls.voice " + quote(request));
                 // A lost response can be ambiguous even when publishing failed locally. Do not resend.

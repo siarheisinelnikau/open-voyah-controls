@@ -23,12 +23,12 @@ internal class FridaVoiceDispatcher(
     private val settings: VoiceSettings,
     private val reviewed: ReviewedVoiceCommands,
 ) {
-    suspend fun dispatch(request: Request): VoiceResult {
+    suspend fun dispatch(request: Request, stillAllowed: (() -> Boolean)? = null): VoiceResult {
         currentCoroutineContext().ensureActive()
         if (!inFlight.tryLock()) return result(R.string.ui_199, VoiceOutcome.BUSY, failed = true)
         return worker.async {
             try {
-                send(request)
+                send(request, stillAllowed)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -39,7 +39,7 @@ internal class FridaVoiceDispatcher(
         }.await()
     }
 
-    private fun send(request: Request): VoiceResult {
+    private fun send(request: Request, stillAllowed: (() -> Boolean)?): VoiceResult {
         val id = request.command().id()
         val profile = reviewed.profileFor(id)?.takeIf { request.destination() == Destination.VEHICLE }
             ?: return result(R.string.voice_vehicle_approval_required, VoiceOutcome.VEHICLE_APPROVAL_REQUIRED, failed = true)
@@ -49,7 +49,8 @@ internal class FridaVoiceDispatcher(
         val options = settings.options(planPhrase).put("profile", profile)
         if (ClimatePhrases.supports(id)) options.put("climateValue", ClimatePhrases.value(id, request.phrase()))
         val reply = try {
-            bridge.sendRecognizedVoice(id, options)
+            if (stillAllowed == null) bridge.sendRecognizedVoice(id, options)
+            else bridge.sendRecognizedVoice(id, options) { stillAllowed() }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
