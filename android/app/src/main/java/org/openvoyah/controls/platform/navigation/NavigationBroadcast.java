@@ -23,7 +23,7 @@ public final class NavigationBroadcast {
                 DisplayEventText.sanitize(intent.getStringExtra("nextRoad")),
                 meters >= 0 && meters <= 1_000_000 ? meters : -1));
         } else if ("open".equals(event)) {
-            events.publishNavigation(new Navigation(DisplayEventText.sanitize(intent.getStringExtra("app")), "", -1));
+            events.publishNavigation(Navigation.opened(DisplayEventText.sanitize(intent.getStringExtra("app"))));
         }
     }
 }

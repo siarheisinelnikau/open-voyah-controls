@@ -3,6 +3,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class VoiceSessionTest {
@@ -38,5 +40,39 @@ public class VoiceSessionTest {
     @Test public void ambiguousVocabularyRejected() throws Exception {
         try { new VoiceCatalog(new ByteArrayInputStream("a\tx\tслово\nb\tx\tслово".getBytes(StandardCharsets.UTF_8))); fail(); }
         catch(IOException expected) { assertTrue(expected.getMessage().contains("Ambiguous")); }
+    }
+
+    @Test public void digitAliasesMatchExactlyAndStayOutOfTheSpokenGrammar() throws Exception {
+        VoiceCatalog catalog = new VoiceCatalog(vocabulary("seatTwo\tVehicle\tdriver two\t driver 2 \n"));
+        assertEquals("seatTwo", catalog.match("  DRIVER  2! ").id());
+        assertEquals("driver two", catalog.byId("seatTwo").title());
+        assertEquals(Set.of("driver two"), catalog.grammar());
+        for (String unknown : List.of("driver 02", "driver 4", "driver 2 or 3", "not driver 2")) {
+            assertNull(unknown, catalog.match(unknown));
+        }
+    }
+
+    @Test public void existingCustomExactPhraseKeepsPriorityOverTheTranscriptAlias() throws Exception {
+        var custom = new VoiceCatalog.Command("custom", "Apps", List.of("driver 2"));
+        VoiceCatalog catalog = new VoiceCatalog(vocabulary("seatTwo\tVehicle\tdriver two\tdriver 2\n"), List.of(custom));
+        assertEquals(custom, catalog.match("driver 2"));
+        assertEquals("seatTwo", catalog.match("driver two").id());
+        assertEquals(Set.of("driver two", "driver 2"), catalog.grammar());
+    }
+
+    @Test public void blankAndAmbiguousTranscriptAliasesAreRejected() {
+        for (String invalid : List.of(
+                "a\tx\tfirst\t\n",
+                "a\tx\tfirst\tdriver 1|\n",
+                "a\tx\tfirst\t\u00a0\n",
+                "a\tx\tfirst\t...\n",
+                "a\tx\tfirst\tdriver 1\nb\tx\tsecond\tDRIVER 1!\n",
+                "a\tx\tfirst\tdriver 1\nb\tx\tdriver 1\n")) {
+            assertThrows(IOException.class, () -> new VoiceCatalog(vocabulary(invalid)));
+        }
+    }
+
+    private static InputStream vocabulary(String lines) {
+        return new ByteArrayInputStream(lines.getBytes(StandardCharsets.UTF_8));
     }
 }

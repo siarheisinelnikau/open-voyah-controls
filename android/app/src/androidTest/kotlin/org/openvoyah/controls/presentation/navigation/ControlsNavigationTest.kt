@@ -12,6 +12,13 @@ import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.MainActivity
 import org.openvoyah.controls.QuickVoiceActivity
 import org.openvoyah.controls.SetupActivity
+import org.openvoyah.controls.data.settings.AppearancePreferences
+import org.openvoyah.controls.domain.apps.AppGridDesktop
+import org.openvoyah.controls.domain.seatmemory.SeatMemoryAction
+import org.openvoyah.controls.domain.seatmemory.SeatMemorySlot
+import org.openvoyah.controls.domain.settings.AppPalette
+import org.openvoyah.controls.domain.settings.LauncherEntry
+import org.openvoyah.controls.presentation.seatmemory.SeatMemoryPrompt
 
 /** Three real activities retain one normal host, protected native entries and a saved back stack. */
 class ControlsNavigationTest : InstrumentationTestCase() {
@@ -74,6 +81,94 @@ class ControlsNavigationTest : InstrumentationTestCase() {
         }
     }
 
+    fun testDriverMemoryIntentValidatesNumber() {
+        for (slot in SeatMemorySlot.entries) {
+            val intent = ControlsNavigation.driverMemoryIntent(app, slot)
+            assertEquals(ControlsRoute.SEAT_MEMORY, ControlsNavigation.route(intent))
+            assertEquals(slot, ControlsNavigation.driverMemorySlot(intent))
+        }
+        val invalid = ControlsNavigation.driverMemoryIntent(app, SeatMemorySlot.ONE)
+            .putExtra("org.openvoyah.controls.extra.DRIVER_MEMORY_SLOT", 4)
+        assertNull(ControlsNavigation.driverMemorySlot(invalid))
+        val apps = ControlsNavigation.driverMemoryIntent(app, SeatMemorySlot.TWO).setAction(ControlsNavigation.OPEN_APPS)
+        assertNull(ControlsNavigation.driverMemorySlot(apps))
+    }
+
+    fun testDriverMemoryGuideBelongsToTheExactLiveEntry() = onMain {
+        val saved = SavedStateHandle()
+        val model = ControlsNavigationViewModel(saved)
+        model.open(ControlsRoute.SETTINGS)
+        model.open(ControlsRoute.VEHICLE)
+        val backStack = model.state.value.stack
+        model.enter(ControlsRoute.SEAT_MEMORY, SeatMemorySlot.ONE)
+        val firstEntry = model.state.value
+        val first = checkNotNull(model.state.value.driverMemoryGuide)
+        assertEquals(SeatMemorySlot.ONE, first.slot)
+        assertEquals(SeatMemoryAction.RESTORE, first.action)
+        assertFalse(first.launchFailed)
+        assertEquals(backStack + ControlsRoute.SEAT_MEMORY, model.state.value.stack)
+        assertNull(ControlsNavigationViewModel(saved).state.value.driverMemoryGuide)
+
+        model.enter(ControlsRoute.SEAT_MEMORY, SeatMemorySlot.TWO)
+        val secondEntry = model.state.value
+        val second = checkNotNull(model.state.value.driverMemoryGuide)
+        assertFalse(model.isSeatMemoryEntryCurrent(firstEntry))
+        assertFalse(model.isDriverMemoryGuideCurrent(first))
+        assertTrue(model.isSeatMemoryEntryCurrent(secondEntry))
+        assertTrue(model.isDriverMemoryGuideCurrent(second))
+        model.finishDriverMemoryGuide(first, launchFailed = false)
+        assertSame(second, model.state.value.driverMemoryGuide)
+        model.finishDriverMemoryGuide(second, launchFailed = true)
+        val failed = checkNotNull(model.state.value.driverMemoryGuide)
+        assertEquals(SeatMemorySlot.TWO, failed.slot)
+        assertEquals(SeatMemoryAction.RESTORE, failed.action)
+        assertTrue(failed.launchFailed)
+        model.finishDriverMemoryGuide(second, launchFailed = false)
+        assertSame(failed, model.state.value.driverMemoryGuide)
+        model.finishDriverMemoryGuide(failed, launchFailed = false)
+        assertNull(model.state.value.driverMemoryGuide)
+
+        model.enter(ControlsRoute.SEAT_MEMORY, SeatMemorySlot.THREE)
+        model.open(ControlsRoute.SERVICE_REMINDER)
+        model.enter(ControlsRoute.SEAT_MEMORY, SeatMemorySlot.THREE)
+        assertEquals(backStack + listOf(ControlsRoute.SERVICE_REMINDER, ControlsRoute.SEAT_MEMORY), model.state.value.stack)
+        model.back()
+        assertEquals(ControlsRoute.SERVICE_REMINDER, model.state.value.route)
+        assertNull(model.state.value.driverMemoryGuide)
+        model.open(ControlsRoute.SEAT_MEMORY)
+        assertNull(model.state.value.driverMemoryGuide)
+    }
+
+    fun testAManualDriverGuideCannotBeReusedOnAnotherVisit() = onMain {
+        val saved = SavedStateHandle()
+        val model = ControlsNavigationViewModel(saved)
+        model.open(ControlsRoute.VEHICLE)
+        model.open(ControlsRoute.SEAT_MEMORY)
+        val first = model.state.value
+        val guide = SeatMemoryPrompt.Factory(SeatMemorySlot.TWO, SeatMemoryAction.SAVE)
+        assertTrue(model.showDriverMemoryGuide(first, guide))
+        assertFalse(model.showDriverMemoryGuide(first, SeatMemoryPrompt.Factory(guide.slot, guide.action)))
+        assertSame(guide, model.state.value.driverMemoryGuide)
+        assertNull(ControlsNavigationViewModel(saved).state.value.driverMemoryGuide)
+        model.finishDriverMemoryGuide(guide, launchFailed = false)
+        assertTrue(model.isSeatMemoryEntryCurrent(first))
+
+        model.back()
+        model.open(ControlsRoute.SEAT_MEMORY)
+        val second = model.state.value
+        assertEquals(first.entry, second.entry)
+        assertNotSame(first.seatMemoryVisit, second.seatMemoryVisit)
+        assertNull(second.driverMemoryGuide)
+        assertFalse(model.showDriverMemoryGuide(first, guide))
+
+        val reopened = SeatMemoryPrompt.Factory(guide.slot, guide.action)
+        assertTrue(model.showDriverMemoryGuide(second, reopened))
+        model.finishDriverMemoryGuide(guide, launchFailed = false)
+        assertSame(reopened, model.state.value.driverMemoryGuide)
+        model.finishDriverMemoryGuide(reopened, launchFailed = false)
+        assertNull(model.state.value.driverMemoryGuide)
+    }
+
     fun testExplicitAppsActionOverridesConflictingRouteExtras() {
         for (route in ControlsRoute.entries) {
             val intent = ControlsNavigation.intent(app, route).setAction(ControlsNavigation.OPEN_APPS)
@@ -92,49 +187,117 @@ class ControlsNavigationTest : InstrumentationTestCase() {
         }
     }
 
+    fun testLauncherTapUsesSavedEntryAndExplicitIntentsKeepTheirRoute() {
+        val appearance = AppearancePreferences(app)
+        val original = appearance.load().launcherEntry
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            .setClass(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            appearance.setLauncherEntry(LauncherEntry.VEHICLE)
+            val launched = instrumentation.startActivitySync(launcherIntent) as MainActivity
+            activity = launched
+            onMain {
+                val navigation = ViewModelProvider(launched)[ControlsNavigationViewModel::class.java]
+                assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.VEHICLE), navigation.state.value.stack)
+                navigation.back()
+                assertEquals(ControlsRoute.APPS, navigation.state.value.route)
+                instrumentation.callActivityOnNewIntent(launched, MainActivity.settingsIntent(app))
+                assertEquals(ControlsRoute.SETTINGS, navigation.state.value.route)
+                instrumentation.callActivityOnNewIntent(launched, MainActivity.appsIntent(app))
+                assertEquals(listOf(ControlsRoute.APPS), navigation.state.value.stack)
+            }
+            appearance.setLauncherEntry(LauncherEntry.SETTINGS)
+            onMain {
+                instrumentation.callActivityOnNewIntent(launched, launcherIntent)
+                val navigation = ViewModelProvider(launched)[ControlsNavigationViewModel::class.java]
+                assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS), navigation.state.value.stack)
+            }
+        } finally {
+            appearance.setLauncherEntry(original)
+        }
+    }
+
     fun testBackAndRepeatedOpenReuseExistingRoutes() = onMain {
         val model = ControlsNavigationViewModel(SavedStateHandle())
-        assertEquals(listOf(ControlsRoute.APPS), model.stack.value)
+        assertEquals(listOf(ControlsRoute.APPS), model.state.value.stack)
         model.open(ControlsRoute.SETTINGS)
         model.open(ControlsRoute.BUTTONS)
+        val opened = model.state.value
         model.open(ControlsRoute.BUTTONS)
-        assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS, ControlsRoute.BUTTONS), model.stack.value)
+        assertSame(opened, model.state.value)
+        assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS, ControlsRoute.BUTTONS), opened.stack)
+        assertEquals(RouteDirection.FORWARD, opened.direction)
         model.back()
-        assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS), model.stack.value)
+        assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS), model.state.value.stack)
+        assertEquals(RouteDirection.BACK, model.state.value.direction)
         model.open(ControlsRoute.VOICE)
         model.open(ControlsRoute.SETTINGS)
-        assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS), model.stack.value)
+        assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS), model.state.value.stack)
+        assertEquals(RouteDirection.BACK, model.state.value.direction)
         model.back()
         model.back()
-        assertEquals(listOf(ControlsRoute.APPS), model.stack.value)
+        assertEquals(listOf(ControlsRoute.APPS), model.state.value.stack)
     }
 
     fun testExplicitEntryResetsTheStackAndNotifiesAnAlreadyOpenRoot() = onMain {
         val model = ControlsNavigationViewModel(SavedStateHandle())
         model.enter(ControlsRoute.SETTINGS)
         model.open(ControlsRoute.VOICE)
-        assertEquals(1L, model.entries.value)
-        model.enter(ControlsRoute.APPS)
-        assertEquals(listOf(ControlsRoute.APPS), model.stack.value)
-        assertEquals(2L, model.entries.value)
-        model.enter(ControlsRoute.APPS)
-        assertEquals(listOf(ControlsRoute.APPS), model.stack.value)
-        assertEquals(3L, model.entries.value)
+        assertEquals(1L, model.state.value.entry)
         model.enter(ControlsRoute.UPDATES)
-        assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.UPDATES), model.stack.value)
+        assertEquals(ControlsNavigationState(listOf(ControlsRoute.APPS, ControlsRoute.UPDATES), 2L, RouteDirection.REPLACE),
+            model.state.value)
+        model.enter(ControlsRoute.APPS)
+        assertEquals(ControlsNavigationState(listOf(ControlsRoute.APPS), 3L, RouteDirection.REPLACE), model.state.value)
+        model.enter(ControlsRoute.APPS)
+        assertEquals(4L, model.state.value.entry)
+        assertEquals(ControlsRoute.APPS, model.state.value.route)
+        model.enter(ControlsRoute.UPDATES)
+        assertEquals(ControlsNavigationState(listOf(ControlsRoute.APPS, ControlsRoute.UPDATES), 5L, RouteDirection.REPLACE),
+            model.state.value)
+    }
+
+    fun testRoutineDesktopAndPaletteAreScopedToTheCurrentEntry() = onMain {
+        val saved = SavedStateHandle()
+        val model = ControlsNavigationViewModel(saved)
+        model.enterFromLauncher(ControlsRoute.APPS, AppGridDesktop.FAVORITES_TWO, AppPalette.DAY)
+        assertEquals(AppGridDesktop.FAVORITES_TWO, model.state.value.entryDesktop)
+        assertEquals(AppPalette.DAY, model.state.value.temporaryPalette)
+        model.open(ControlsRoute.VEHICLE)
+        model.back()
+        assertEquals(AppGridDesktop.FAVORITES_TWO, model.state.value.entryDesktop)
+
+        val restored = ControlsNavigationViewModel(saved)
+        assertEquals(AppGridDesktop.FAVORITES_TWO, restored.state.value.entryDesktop)
+        assertEquals(AppPalette.DAY, restored.state.value.temporaryPalette)
+        restored.enter(ControlsRoute.SETTINGS)
+        assertNull(restored.state.value.entryDesktop)
+        assertEquals(AppPalette.DAY, restored.state.value.temporaryPalette)
+        restored.runRoutine(ControlsRoute.APPS, AppGridDesktop.FAVORITES_ONE, null)
+        assertEquals(AppGridDesktop.FAVORITES_ONE, restored.state.value.entryDesktop)
+        assertEquals(AppPalette.DAY, restored.state.value.temporaryPalette)
+        restored.clearTemporaryPalette()
+        assertNull(restored.state.value.temporaryPalette)
+
+        restored.runRoutine(null, null, AppPalette.DARK)
+        assertEquals(AppPalette.DARK, restored.state.value.temporaryPalette)
+        restored.enterFromLauncher(ControlsRoute.SETTINGS, null, null)
+        assertEquals(ControlsRoute.SETTINGS, restored.state.value.route)
+        assertNull(restored.state.value.entryDesktop)
+        assertNull(restored.state.value.temporaryPalette)
     }
 
     fun testSavedRoutesRestoreWithoutDuplicateOrRemovedDestinations() = onMain {
         val saved = SavedStateHandle(mapOf("routes" to arrayListOf("APPS", "SETTINGS", "VOICE", "VOICE", "REMOVED_ROUTE")))
         val model = ControlsNavigationViewModel(saved)
-        assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS, ControlsRoute.VOICE), model.stack.value)
+        assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS, ControlsRoute.VOICE), model.state.value.stack)
         model.back()
         assertEquals(arrayListOf("APPS", "SETTINGS"), saved.get<ArrayList<String>>("routes"))
-        assertEquals(model.stack.value, ControlsNavigationViewModel(saved).stack.value)
+        assertEquals(model.state.value.copy(direction = RouteDirection.REPLACE), ControlsNavigationViewModel(saved).state.value)
 
         for (invalid in listOf(emptyList(), listOf("SETTINGS", "VOICE"), listOf("REMOVED_ROUTE"))) {
             assertEquals(listOf(ControlsRoute.APPS), ControlsNavigationViewModel(
-                SavedStateHandle(mapOf("routes" to ArrayList(invalid)))).stack.value)
+                SavedStateHandle(mapOf("routes" to ArrayList(invalid)))).state.value.stack)
         }
     }
 
@@ -145,7 +308,7 @@ class ControlsNavigationTest : InstrumentationTestCase() {
         onMain {
             instrumentation.callActivityOnNewIntent(launched, MainActivity.settingsIntent(app))
             instrumentation.callActivityOnNewIntent(launched, MainActivity.settingsIntent(app))
-            assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS), model.stack.value)
+            assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS), model.state.value.stack)
             model.open(ControlsRoute.BUTTONS)
         }
 
@@ -159,9 +322,9 @@ class ControlsNavigationTest : InstrumentationTestCase() {
         onMain {
             val retained = ViewModelProvider(recreated)[ControlsNavigationViewModel::class.java]
             assertSame(model, retained)
-            assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS, ControlsRoute.BUTTONS), retained.stack.value)
+            assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS, ControlsRoute.BUTTONS), retained.state.value.stack)
             instrumentation.callActivityOnNewIntent(recreated, MainActivity.appsIntent(app))
-            assertEquals(listOf(ControlsRoute.APPS), retained.stack.value)
+            assertEquals(listOf(ControlsRoute.APPS), retained.state.value.stack)
             assertEquals(ControlsRoute.APPS, ControlsNavigation.route(recreated.intent))
             assertFalse(recreated.isFinishing)
         }

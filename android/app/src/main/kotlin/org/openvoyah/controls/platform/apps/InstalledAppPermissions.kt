@@ -20,6 +20,8 @@ internal data class AppPermissions(
 
 internal enum class PermissionChange { VERIFIED, PACKAGE_CHANGED, ANDROID_ONLY, UNCONFIRMED }
 
+internal data class AppInstallationInfo(val origin: InstallOrigin, val firstInstallTime: Long? = null)
+
 internal class InstalledAppPermissions(
     private val context: Context,
     private val writer: RootPermissionWriter = RootPermissionWriter(context),
@@ -27,8 +29,12 @@ internal class InstalledAppPermissions(
     private val packages get() = context.packageManager
     private val provenance = AppInstallProvenance(context)
 
-    fun origin(packageName: String): InstallOrigin = provenance.packageInfo(packageName)?.let { provenance.origin(it) }
-        ?: InstallOrigin.UNKNOWN
+    fun origin(packageName: String): InstallOrigin = installInfo(packageName).origin
+
+    fun installInfo(packageName: String): AppInstallationInfo {
+        val info = provenance.packageInfo(packageName) ?: return AppInstallationInfo(InstallOrigin.UNKNOWN)
+        return AppInstallationInfo(provenance.origin(info), info.firstInstallTime.takeIf { it > 0L })
+    }
 
     @Suppress("DEPRECATION")
     fun read(packageName: String): AppPermissions? {

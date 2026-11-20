@@ -6,9 +6,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -22,11 +22,15 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 
-internal enum class CockpitIcon { HOME, APPS, VOICE, DISPLAY, BUTTONS, SETTINGS, ARROW, BACK, DOWNLOAD, LOCK, CAR, LANGUAGE, ENERGY }
+internal enum class CockpitIcon {
+    HOME, APPS, VOICE, DISPLAY, BUTTONS, SETTINGS, ARROW, BACK, DOWNLOAD, LOCK, CAR, LANGUAGE, ENERGY, LIGHT, HIGH_BEAM,
+}
 
 @Composable
 internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier) {
@@ -96,6 +100,18 @@ internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier) {
                     moveTo(14f, 2.5f); lineTo(5.5f, 13.5f); lineTo(11.5f, 13.5f)
                     lineTo(10f, 21.5f); lineTo(18.5f, 10.5f); lineTo(12.5f, 10.5f); close()
                 }
+                CockpitIcon.LIGHT, CockpitIcon.HIGH_BEAM -> {
+                    path {
+                        moveTo(11.5f, 5f)
+                        cubicTo(6.4f, 5f, 3.5f, 8f, 3.5f, 12f)
+                        cubicTo(3.5f, 16f, 6.4f, 19f, 11.5f, 19f)
+                        close()
+                    }
+                    val slant = if (icon == CockpitIcon.LIGHT) 2f else 0f
+                    line(15.5f, 7f, 21f, 7f + slant)
+                    line(15.5f, 11f, 21f, 11f + slant)
+                    line(15.5f, 15f, 21f, 15f + slant)
+                }
             }
         }
     }
@@ -103,25 +119,27 @@ internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier) {
 
 @Composable
 internal fun CockpitHeading(title: String, subtitle: String? = null, back: (() -> Unit)? = null) {
+    val layout = LocalCockpitLayout.current
     Row(
         Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(layout.spacing(14.dp)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (back != null) {
             TextButton(
                 onClick = back,
-                modifier = Modifier.heightIn(min = 52.dp).border(
+                modifier = Modifier.sizeIn(minWidth = 52.dp, minHeight = 52.dp).border(
                     1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium,
                 ),
                 shape = MaterialTheme.shapes.medium,
             ) {
                 CockpitGlyph(CockpitIcon.BACK, Modifier.size(20.dp))
-                Text(UiText.get(R.string.cockpit_back), Modifier.padding(start = 6.dp))
+                Text(UiText.get(R.string.cockpit_back), Modifier.padding(start = layout.spacing(6.dp)))
             }
         }
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.headlineSmall)
+            val style = MaterialTheme.typography.headlineSmall.scaledText(layout.pageTitleScale / layout.textScale)
+            Text(title, modifier = Modifier.semantics { heading() }, style = style)
             if (subtitle != null) {
                 Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

@@ -6,6 +6,7 @@ import android.hardware.display.VirtualDisplay
 import android.view.SurfaceHolder
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -14,10 +15,10 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.openvoyah.controls.R
-import org.openvoyah.controls.UiText
-import org.openvoyah.controls.core.display.DisplayEventBus
 import org.openvoyah.controls.presentation.display.DisplayPreviewScreen
 import org.openvoyah.controls.presentation.display.DisplayPreviewState
+import org.openvoyah.controls.presentation.display.effectivePreviewDpi
+import org.openvoyah.controls.presentation.display.previewCanvasDensity
 import org.openvoyah.controls.presentation.theme.ControlsTheme
 
 /** Owns the private Android display and its native surface while the preview is visible. */
@@ -32,16 +33,19 @@ internal class VirtualDisplayPreview(private val activity: ComponentActivity) : 
     private var display: VirtualDisplay? = null
     private var presentation: Presentation? = null
     private val content = MutableStateFlow(DisplayPreviewState())
-    private var snapshot: DisplayEventBus.Snapshot? = null
+    private val surfaceVisible = MutableStateFlow(false)
+    private val hostFontScale = MutableStateFlow(activity.resources.configuration.fontScale)
+    val previewContent = content.asStateFlow()
+    val visible = surfaceVisible.asStateFlow()
     private var active = false
     private var density = 0
     private val current = MutableStateFlow<Status>(Status.Waiting)
     val status = current.asStateFlow()
 
-    fun start(dpi: Int, data: DisplayEventBus.Snapshot) {
+    fun start(dpi: Int, state: DisplayPreviewState) {
         active = true
         density = dpi
-        snapshot = data
+        update(state)
         rebuild()
     }
 
@@ -57,23 +61,23 @@ internal class VirtualDisplayPreview(private val activity: ComponentActivity) : 
         rebuild()
     }
 
-    fun update(data: DisplayEventBus.Snapshot) {
-        snapshot = data
-        val track = data.media()
-        val trackText = if (track.available()) listOf(track.title(), track.artist()).filter { it.isNotBlank() }.joinToString("\n")
-            else UiText.get(R.string.display_no_media)
-        val navigation = data.navigation()
-        val distance = navigation.meters().takeIf { it >= 0 }?.let { "$it m" }.orEmpty()
-        val detail = listOf(navigation.nextRoad(), distance).filter { it.isNotBlank() }.joinToString(" · ")
-        val routeText = listOf(navigation.road(), detail).filter { it.isNotBlank() }.joinToString("\n")
-        content.value = DisplayPreviewState(trackText, routeText.ifBlank { UiText.get(R.string.display_no_route) })
+    fun update(state: DisplayPreviewState) {
+        content.value = state
+    }
+
+    fun surfaceVisibility(visible: Boolean) {
+        surfaceVisible.value = visible
+    }
+
+    fun fontScale(scale: Float) {
+        hostFontScale.value = scale
     }
 
     private fun rebuild() {
         val target = holder ?: return
         val frame = target.surfaceFrame
         if (!active || !target.surface.isValid || frame.width() <= 0 || frame.height() <= 0) return
-        val dpi = density.takeIf { it > 0 } ?: activity.resources.displayMetrics.densityDpi
+        val dpi = effectivePreviewDpi(density, activity.resources.displayMetrics.densityDpi)
         val ready = Status.Ready(frame.width(), frame.height(), dpi)
         if (display != null && current.value == ready) return
         closeDisplay()
@@ -88,11 +92,20 @@ internal class VirtualDisplayPreview(private val activity: ComponentActivity) : 
                     setViewTreeLifecycleOwner(activity)
                     setViewTreeSavedStateRegistryOwner(activity)
                     setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
-                    setContent { ControlsTheme { DisplayPreviewScreen(content.collectAsStateWithLifecycle().value) } }
+                    setContent {
+                        ControlsTheme {
+                            val fontScale = hostFontScale.collectAsStateWithLifecycle().value
+                            val canvasDensity = remember(ready.dpi, fontScale) { previewCanvasDensity(ready.dpi, fontScale) }
+                            DisplayPreviewScreen(
+                                content.collectAsStateWithLifecycle().value,
+                                surfaceVisible.collectAsStateWithLifecycle().value,
+                                canvasDensity,
+                            )
+                        }
+                    }
                 })
                 show()
             }
-            snapshot?.let(::update)
             current.value = ready
         } catch (_: RuntimeException) {
             closeDisplay()

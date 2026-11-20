@@ -3,12 +3,18 @@ import { android11WindowHook } from './window-android11.js';
 import { systemTasks } from './window-tasks.js';
 import {
     CENTRAL_DISPLAY, CONTROLS, OEM_LAUNCHER, PANEL_CONFIG, PANEL_EDGE, SECONDARY_DISPLAY, WINDOW_CONFIG, WINDOW_REQUEST,
-    componentKey, launchProfile, profileFor, readNavigator, readWindowConfig, readWindowRequest, windowBounds
+    componentKey, launchProfile, profileFor, readNavigator, readWindowConfig, readWindowRequest, rectValues, sameBounds
 } from './window-profiles.js';
 
 const REQUEST = CONTROLS + '.extra.FLOATING_WINDOW';
 const MAIN = 'android.intent.action.MAIN';
 const LAUNCHER = 'android.intent.category.LAUNCHER';
+const failures = new Set(['no_display', 'no_profile', 'no_space', 'no_task', 'unsupported_task', 'unsupported_window',
+    'placement_changed', 'density_rejected', 'rollback_failed']);
+
+function failureStatus(error) {
+    return failures.has(error?.code) ? error.code : 'failed';
+}
 
 export function applyWindowRequest(record, options, mode) {
     if (!record || !options || String(record.launchedFromPackage.value) !== CONTROLS) return false;
@@ -47,13 +53,41 @@ function explicitLaunch(record, options, source, tasks) {
         user: tasks.userOf(record), edge: trusted ? edge : 0};
 }
 
-function readPanelResource(context) {
+function nativeLaunchPlacement(options, source, framework) {
+    const mode = options?.getLaunchWindowingMode() ?? 0;
+    const bounds = options?.getLaunchBounds();
+    if (mode === framework.fullscreen || (mode === 0 && !bounds && source?.getWindowingMode() === framework.fullscreen)) {
+        return {mode:framework.fullscreen, bounds:null};
+    }
+    if (mode === framework.freeform && bounds && !bounds.isEmpty()) return {mode, bounds:rectValues(bounds)};
+    // Android will choose the native placement. Capture the resulting task before resizing it.
+    return null;
+}
+
+function launcherPanelWidth(Java, context) {
+    let resources, dimension;
     try {
-        const resources = context.getPackageManager().getResourcesForApplication(OEM_LAUNCHER);
-        const id = resources.getIdentifier('navigation_bar_width', 'dimen', OEM_LAUNCHER);
-        const pixels = id === 0 ? 0 : resources.getDimensionPixelOffset(id);
-        return pixels > 0 && pixels <= 600 ? pixels : 0;
-    } catch (_) { return 0; }
+        resources = Java.retain(context.getPackageManager().getResourcesForApplication(OEM_LAUNCHER));
+        dimension = resources.getIdentifier('navigation_bar_width', 'dimen', OEM_LAUNCHER);
+    } catch (_) { }
+    let lastBounds = null, lastDensity, width = 0;
+    return (bounds, density, reported) => {
+        if (reported > 0 && reported <= 600) {
+            width = reported;
+        } else if (lastDensity !== density || !sameBounds(bounds, lastBounds)) {
+            // A width measured before a rotation or a density change belongs to the old display frame.
+            width = 0;
+            if (dimension) {
+                try {
+                    const pixels = resources.getDimensionPixelOffset(dimension);
+                    if (pixels > 0 && pixels <= 600) width = pixels;
+                } catch (_) { }
+            }
+        }
+        lastBounds = bounds;
+        lastDensity = density;
+        return width;
+    };
 }
 
 export function installWindowPolicy(Java) {
@@ -73,16 +107,16 @@ export function installWindowPolicy(Java) {
             });
             installLiveWindowPolicy(Java, sdk, early);
         } catch (error) {
-            console.log('OVC_WINDOW_ERROR ' + (error.stack || error));
+            console.log('OVC_WINDOW_ERROR install ' + failureStatus(error));
             if (early) console.log('OVC_WINDOW_READY sdk=' + sdk + ' launch-only');
         }
     });
 }
 
 function installLiveWindowPolicy(Java, sdk, early) {
-    const tasks = systemTasks(Java, sdk);
     const Global = Java.use('android.provider.Settings$Global');
     const context = Java.use('android.app.ActivityThread').currentActivityThread().getSystemContext();
+    const tasks = systemTasks(Java, sdk, launcherPanelWidth(Java, context));
     const resolver = Java.retain(context.getContentResolver());
     const Options = Java.use('android.app.ActivityOptions');
     const Starter = Java.use(sdk === 28 ? 'com.android.server.am.ActivityStarter' : 'com.android.server.wm.ActivityStarter');
@@ -97,44 +131,58 @@ function installLiveWindowPolicy(Java, sdk, early) {
     const late = lateEntries[0];
     const Manager = Java.use('android.app.ActivityManager');
     const started = new Set([Manager.START_SUCCESS.value, Manager.START_TASK_TO_FRONT.value, Manager.START_DELIVERED_TO_TOP.value]);
-    const panelResource = readPanelResource(context);
-    let measuredPanel = 0;
+    const starting = [];
+    const pendingLaunches = new Map();
     let windowRaw, panelRaw, config, navigator, lastId;
     let lastNavigator = "";
     let released = false;
     let loggedError = '';
+    function reportError(phase, error) {
+        const message = phase + ' ' + failureStatus(error);
+        if (message !== loggedError) {
+            loggedError = message;
+            console.log('OVC_WINDOW_ERROR ' + message);
+        }
+    }
     const raw = key => {
         const value = Global.getString(resolver, key);
         return value === null ? '' : String(value);
     };
     const allowed = (launch, screen = CENTRAL_DISPLAY, displayId = launch?.display) =>
         !released && launch && launchProfile(config, navigator, launch, screen, displayId);
-    const panel = launch => Math.max(panelResource, measuredPanel, launch?.edge ?? 0);
 
     const canSetLaunchBounds = (launch, record) => launch.display === 0 && launch.user === tasks.currentUser()
         && tasks.freeformAvailable() && record.isResizeable();
 
     function applyAfterLaunch(launch, taskId, originals, displayId = 0) {
-        Java.scheduleOnMainThread(() => {
+        const key = [launch.user, displayId, taskId, launch.key].join(':');
+        const pending = pendingLaunches.get(key);
+        if (pending) {
+            pending.launch = launch;
+            pending.originals ??= originals;
+            return;
+        }
+        const update = {launch, originals};
+        pendingLaunches.set(key, update);
+        const apply = () => {
+            pendingLaunches.delete(key);
+            if (released) return;
             try {
                 // Read a just-saved default outside ActivityStarter's lock before applying density.
                 refresh();
                 const screen = tasks.screenOf(displayId);
                 if (!screen) return;
-                const current = allowed(launch, screen, displayId);
-                if (current) tasks.apply(current, launch.user, panel(launch), taskId, originals, displayId);
-                else if (!released && config?.enabled && config.user === launch.user && screen === SECONDARY_DISPLAY) {
-                    tasks.releaseSecondary(launch.key, launch.user, taskId, displayId);
+                const current = allowed(update.launch, screen, displayId);
+                if (current) tasks.apply(current, update.launch.user, taskId, update.originals, displayId);
+                else if (!released && config?.enabled && config.user === update.launch.user && screen === SECONDARY_DISPLAY) {
+                    tasks.releaseSecondary(update.launch.key, update.launch.user, taskId, displayId);
                 }
             } catch (error) {
-                if (error.code === 'no_task') return;
-                const message = String(error);
-                if (message !== loggedError) {
-                    console.log('OVC_WINDOW_ERROR launch ' + message);
-                    loggedError = message;
-                }
+                if (error?.code !== 'no_task') reportError('launch', error);
             }
-        });
+        };
+        try { Java.scheduleOnMainThread(apply); }
+        catch (error) { pendingLaunches.delete(key); throw error; }
     }
 
     function refresh() {
@@ -166,7 +214,7 @@ function installLiveWindowPolicy(Java, sdk, early) {
         let result;
         try {
             // Acknowledge consumption before any change. An agent reload must not replay this request.
-            Global.putString(resolver, WINDOW_REQUEST, null);
+            if (!Global.putString(resolver, WINDOW_REQUEST, null)) throw Error('Window request could not be consumed');
             if (command.operation === 'release') {
                 released = true;
                 result = tasks.release(command.user);
@@ -176,12 +224,12 @@ function installLiveWindowPolicy(Java, sdk, early) {
                 if (!profile || released) {
                     throw Object.assign(Error('Inactive configuration'), {code:'no_profile'});
                 }
-                result = tasks.apply(profile, command.user, panel());
+                result = tasks.apply(profile, command.user);
             }
             result.status ??= 'applied';
         } catch (error) {
-            result = {status:error.code || 'failed'};
-            if (!error.code) console.log('OVC_WINDOW_ERROR ' + (error.stack || error));
+            result = {status:failureStatus(error)};
+            if (result.status === 'failed') reportError('request', error);
         }
         console.log('OVC_WINDOW_RESULT ' + command.id + ' ' + JSON.stringify(result));
     }
@@ -195,14 +243,17 @@ function installLiveWindowPolicy(Java, sdk, early) {
             const profile = allowed(launch);
             if (launch?.edge) record.intent.value.removeExtra(PANEL_EDGE);
             // Service launches can omit a source display. Wait for their actual task in that case.
-            if (profile && canSetLaunchBounds(launch, record)) {
-                const bounds = windowBounds(tasks.frame(), profile, panel(launch));
-                if (bounds !== null) {
+            if (profile && launch.display === 0) {
+                const start = starting.find(item => record.equals(item.record));
+                const cold = start && canSetLaunchBounds(launch, record) && nativeLaunchPlacement(options, args[5], tasks.framework);
+                const bounds = (cold || launch.edge) && tasks.boundsFor(profile, launch.edge);
+                if (cold && bounds) {
                     const target = options ?? Options.makeBasic();
                     target.setLaunchDisplayId(0);
                     target.setLaunchBounds(tasks.Rect.$new(...bounds));
                     target.setLaunchWindowingMode(tasks.framework.freeform);
                     args[1] = target;
+                    start.cold = cold;
                 }
             }
         } catch (_) { }
@@ -211,19 +262,20 @@ function installLiveWindowPolicy(Java, sdk, early) {
 
     late.implementation = function (...args) {
         let launch;
-        let profile;
-        let originals;
+        let start;
         try {
             launch = explicitLaunch(args[0], args[6], args[1], tasks);
-            profile = allowed(launch);
-            if (launch?.edge) measuredPanel = launch.edge;
+            const profile = allowed(launch);
             if (profile && canSetLaunchBounds(launch, args[0])) {
                 // Preserve the task before Android consumes the early bounds on a warm start.
-                originals = tasks.captureLaunch(profile, launch.user);
+                start = {record:args[0], tasks:tasks.captureLaunch(profile, launch.user), cold:null};
+                starting.unshift(start);
             }
         } catch (_) { }
-        const result = late.call(this, ...args);
-        if (launch && !released && started.has(result)) {
+        let result;
+        try { result = late.call(this, ...args); }
+        finally { if (start) starting.splice(starting.indexOf(start), 1); }
+        if (launch && (!released || start?.cold) && started.has(result)) {
             try {
                 // Android reports the reused activity separately when a task is brought to the front.
                 const completed = sdk === 28 ? args[8]?.[0] : this.mLastStartActivityRecord.value;
@@ -232,8 +284,12 @@ function installLiveWindowPolicy(Java, sdk, early) {
                 const actualDisplay = record.getDisplayId();
                 if (task && (launch.requestedDisplay < 0 || launch.requestedDisplay === actualDisplay)) {
                     const screen = tasks.screenOf(actualDisplay);
-                    if (screen && (allowed(launch, screen, actualDisplay) || screen === SECONDARY_DISPLAY)) {
-                        applyAfterLaunch(launch, tasks.id(task), actualDisplay === 0 ? originals : null, actualDisplay);
+                    const originals = actualDisplay === 0 && start?.cold
+                        ? tasks.rememberLaunch(task, launch.key, launch.user, start.tasks, start.cold) : null;
+                    if (released) {
+                        if (originals) tasks.release(launch.user);
+                    } else if (screen && (allowed(launch, screen, actualDisplay) || screen === SECONDARY_DISPLAY)) {
+                        applyAfterLaunch(launch, tasks.id(task), originals, actualDisplay);
                     }
                 }
             } catch (_) { }
@@ -242,10 +298,7 @@ function installLiveWindowPolicy(Java, sdk, early) {
     };
 
     setInterval(() => Java.perform(() => {
-        try { request(); } catch (error) {
-            const message = String(error);
-            if (message !== loggedError) { loggedError = message; console.log('OVC_WINDOW_ERROR ' + message); }
-        }
+        try { request(); } catch (error) { reportError('settings', error); }
     }), 400);
     console.log('OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1');
 }

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_info_route">Навигация</string>
+    <string name="desktop_info_route_content">Что показать в карточке навигации</string>
+    <string name="desktop_info_route_next_turn">Ближайший поворот</string>
+    <string name="desktop_info_route_current_and_next">Текущая дорога и поворот</string>
+    <string name="desktop_info_route_waiting">Ожидание данных маршрута</string>
+    <string name="desktop_info_route_current_road">Текущая дорога · %1$s</string>
+    <string name="desktop_info_route_open_target">Нажатие на карточку навигации</string>
+    <string name="desktop_info_route_open_navigator">Назначенный навигатор</string>
+    <string name="desktop_info_route_open_navigator_hint">Выбор в голосовых настройках. Если приложение недоступно, откроется виртуальный экран.</string>
+    <string name="desktop_info_route_open_navigator_action">Открыть назначенный навигатор</string>
+</resources>

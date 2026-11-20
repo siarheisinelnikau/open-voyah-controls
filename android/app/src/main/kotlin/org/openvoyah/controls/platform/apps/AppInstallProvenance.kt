@@ -53,12 +53,9 @@ internal class AppInstallProvenance(context: Context) {
 
     fun identity(info: PackageInfo): InstalledAppIdentity? {
         val app = info.applicationInfo ?: return null
-        val signatures = info.signingInfo?.apkContentsSigners ?: return null
-        if (signatures.isEmpty()) return null
-        val digest = MessageDigest.getInstance("SHA-256")
+        val signatures = info.currentSignerDigests().takeIf { it.isNotEmpty() } ?: return null
         return InstalledAppIdentity(info.packageName, app.uid, info.firstInstallTime, info.lastUpdateTime,
-            info.longVersionCode,
-            signatures.map { digest.digest(it.toByteArray()).joinToString("") { byte -> "%02x".format(byte) } }.toSet())
+            info.longVersionCode, signatures)
     }
 
     fun origin(info: PackageInfo, identity: InstalledAppIdentity? = identity(info)): InstallOrigin {
@@ -76,22 +73,7 @@ internal class AppInstallProvenance(context: Context) {
         val identity = identity(info) ?: return false
         if (!source(packageName).identifies(context.packageName, reportsInitiator)) return false
         val apk = File(app.sourceDir)
-        if (expectedBytes <= 0 || !apk.isFile || apk.length() != expectedBytes) return false
-        val digest = MessageDigest.getInstance("SHA-256")
-        apk.inputStream().use { input ->
-            val buffer = ByteArray(128 * 1024)
-            var bytes = 0L
-            while (true) {
-                coroutineContext.ensureActive()
-                val count = input.read(buffer)
-                if (count == -1) break
-                bytes += count
-                if (bytes > expectedBytes) return false
-                digest.update(buffer, 0, count)
-            }
-            if (bytes != expectedBytes) return false
-        }
-        if (digest.digest().toHexString() != expectedDigest) return false
+        if (apkSha256(apk, expectedBytes) != expectedDigest) return false
         val current = packageInfo(packageName) ?: return false
         if (identity(current) != identity || !source(packageName).identifies(context.packageName, reportsInitiator)) return false
         coroutineContext.ensureActive()
@@ -115,6 +97,31 @@ internal class AppInstallProvenance(context: Context) {
     } catch (_: IllegalArgumentException) {
         AndroidInstallSource(null, null)
     }
+}
+
+internal fun PackageInfo.currentSignerDigests(): Set<String> {
+    val signatures = signingInfo?.apkContentsSigners ?: return emptySet()
+    val digest = MessageDigest.getInstance("SHA-256")
+    return signatures.mapTo(mutableSetOf()) { digest.digest(it.toByteArray()).toHexString() }
+}
+
+internal suspend fun apkSha256(apk: File, expectedBytes: Long): String? {
+    if (expectedBytes <= 0 || !apk.isFile || apk.length() != expectedBytes) return null
+    val digest = MessageDigest.getInstance("SHA-256")
+    apk.inputStream().use { input ->
+        val buffer = ByteArray(128 * 1024)
+        var bytes = 0L
+        while (true) {
+            coroutineContext.ensureActive()
+            val count = input.read(buffer)
+            if (count == -1) break
+            bytes += count
+            if (bytes > expectedBytes) return null
+            digest.update(buffer, 0, count)
+        }
+        if (bytes != expectedBytes) return null
+    }
+    return digest.digest().toHexString()
 }
 
 internal fun ByteArray.toHexString(): String = joinToString("") { "%02x".format(it) }

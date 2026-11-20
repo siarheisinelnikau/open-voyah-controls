@@ -1,0 +1,1635 @@
+{
+  "profiles": {
+    "a": {
+      "appDisplayDpi": {
+        "central": 170,
+        "secondary": 190
+      },
+      "appGrid": {
+        "pinnedApps": [
+          "org.example.navigation/org.example.navigation.NavigationActivity",
+          "org.example.music/org.example.music.MusicActivity"
+        ],
+        "tileSize": "compact",
+        "showSystemApps": false,
+        "desktops": {
+          "enabled": true,
+          "defaultDesktop": "favorites1",
+          "favorites1": [
+            "org.example.navigation/org.example.navigation.NavigationActivity",
+            "org.example.radio/org.example.radio.RadioActivity"
+          ],
+          "favorites2": [
+            "org.example.files/org.example.files.FilesActivity",
+            "org.example.calendar/org.example.calendar.CalendarActivity"
+          ]
+        },
+        "iconStyle": "monochrome",
+        "showAppLabels": true,
+        "showSearchField": true,
+        "sortOrder": "manual",
+        "columns": "4",
+        "visibleShortcuts": [
+          "quickVoice",
+          "display",
+          "vehicle",
+          "androidSettings"
+        ],
+        "desktopNames": {
+          "favorites1": "Commute",
+          "favorites2": "Tools"
+        },
+        "showDesktopCardOutlines": true,
+        "smoothDesktopPaging": true,
+        "desktopCardPlacement": "afterPinnedApps",
+        "favoritesBackBehavior": "mainDesktop",
+        "manualAppOrder": [
+          "org.example.podcasts/org.example.podcasts.PodcastsActivity",
+          "org.example.notes/org.example.notes.NotesActivity",
+          "org.example.weather/org.example.weather.WeatherActivity"
+        ],
+        "hiddenApps": [
+          "org.example.podcasts/org.example.podcasts.PodcastsActivity"
+        ]
+      },
+      "appWindows": [
+        {
+          "component": "org.openvoyah.fixture.apps/org.openvoyah.fixture.apps.MainActivity",
+          "width": 80,
+          "dpi": 180,
+          "keepPanel": true,
+          "panelPx": 60,
+          "inheritDpi": false
+        }
+      ],
+      "appearance": {
+        "animateRoutes": true,
+        "transitionSpeed": "short",
+        "highContrast": true,
+        "launcherEntry": "apps",
+        "textSize": "large",
+        "navigationLabelSize": "extra_large",
+        "pageTitleSize": "standard",
+        "spacing": "compact",
+        "corners": "subtle",
+        "palette": "day",
+        "accent": "teal",
+        "wallpaperDimming": "light",
+        "fontFamily": "golosText",
+        "backgroundTreatment": "solid",
+        "boldText": false,
+        "limitMediaVolumeOnLaunch": true,
+        "launchMediaVolumePercent": 30
+      },
+      "buttons": {
+        "schema": 1,
+        "enabled": false,
+        "holdMs": 550,
+        "debounceMs": 60,
+        "bindings": [
+          {
+            "id": "20000000-0000-4000-8000-000000000001",
+            "label": "Console library",
+            "device": "fixture-control-keys",
+            "keyCode": 188,
+            "enabled": true,
+            "short": {
+              "kind": "CONTROLS_APPS",
+              "component": "",
+              "label": "Controls apps"
+            },
+            "long": {
+              "kind": "CONTROLS_SETTINGS",
+              "component": "",
+              "label": "Controls settings"
+            }
+          }
+        ],
+        "panelEnabled": true,
+        "panelActions": {
+          "mainApps": {
+            "kind": "CONTROLS_APPS",
+            "component": "",
+            "label": "Controls apps"
+          },
+          "navbar01": {
+            "kind": "CONTROLS_SETTINGS",
+            "component": "",
+            "label": "Controls settings"
+          }
+        },
+        "steeringActions": {
+          "customShort": {
+            "kind": "CONTROLS_SETTINGS",
+            "component": "",
+            "label": "Controls settings"
+          },
+          "customLong": {
+            "kind": "CONTROLS_APPS",
+            "component": "",
+            "label": "Controls apps"
+          }
+        }
+      },
+      "desktopInfoCards": {
+        "main": {
+          "clock": "compact",
+          "service": "wide",
+          "media": "wide",
+          "headlights": "compact",
+          "phone": "wide",
+          "mediaStyle": "cover",
+          "preferredMediaPackage": "org.example.music",
+          "mediaOpenTarget": "player",
+          "route": "wide",
+          "routeContent": "currentAndNext",
+          "routeOpenTarget": "navigator",
+          "clockFormat": "24Hour",
+          "phoneFavorites": [
+            "10000000-0000-4000-8000-000000000001",
+            "10000000-0000-4000-8000-000000000002"
+          ],
+          "headlightContent": "lamps"
+        },
+        "favorites1": {
+          "headlights": "wide",
+          "phone": "compact",
+          "mediaStyle": "text",
+          "preferredMediaPackage": "",
+          "clockFormat": "system",
+          "phoneFavorites": [
+            "10000000-0000-4000-8000-000000000002"
+          ],
+          "headlightContent": "switch"
+        },
+        "favorites2": {
+          "clock": "wide",
+          "mediaStyle": "text",
+          "preferredMediaPackage": "",
+          "clockFormat": "12Hour",
+          "phoneFavorites": [],
+          "headlightContent": "switch"
+        }
+      },
+      "desktopLayouts": {
+        "presets": [
+          {
+            "id": "00000000-0000-4000-8000-0000000000a1",
+            "name": "Workday",
+            "appGrid": {
+              "pinnedApps": [
+                "org.example.navigation/org.example.navigation.NavigationActivity",
+                "org.example.music/org.example.music.MusicActivity"
+              ],
+              "tileSize": "standard",
+              "showSystemApps": false,
+              "desktops": {
+                "enabled": true,
+                "defaultDesktop": "main",
+                "favorites1": [
+                  "org.example.navigation/org.example.navigation.NavigationActivity",
+                  "org.example.radio/org.example.radio.RadioActivity"
+                ],
+                "favorites2": [
+                  "org.example.files/org.example.files.FilesActivity",
+                  "org.example.calendar/org.example.calendar.CalendarActivity"
+                ]
+              },
+              "iconStyle": "monochrome",
+              "showAppLabels": true,
+              "sortOrder": "manual",
+              "columns": "4",
+              "visibleShortcuts": [
+                "quickVoice",
+                "display",
+                "vehicle",
+                "androidSettings"
+              ],
+              "desktopNames": {
+                "favorites1": "Commute",
+                "favorites2": "Tools"
+              },
+              "showDesktopCardOutlines": true,
+              "smoothDesktopPaging": true,
+              "desktopCardPlacement": "afterPinnedApps",
+              "favoritesBackBehavior": "mainDesktop",
+              "manualAppOrder": [
+                "org.example.podcasts/org.example.podcasts.PodcastsActivity",
+                "org.example.notes/org.example.notes.NotesActivity",
+                "org.example.weather/org.example.weather.WeatherActivity"
+              ]
+            },
+            "desktopInfoCards": {
+              "main": {
+                "clock": "compact",
+                "service": "wide",
+                "media": "wide",
+                "headlights": "compact",
+                "phone": "wide",
+                "mediaStyle": "cover",
+                "preferredMediaPackage": "org.example.music",
+                "clockFormat": "24Hour",
+                "phoneFavorites": [
+                  "10000000-0000-4000-8000-000000000001",
+                  "10000000-0000-4000-8000-000000000002"
+                ],
+                "headlightContent": "switch"
+              },
+              "favorites1": {
+                "headlights": "wide",
+                "phone": "compact",
+                "mediaStyle": "text",
+                "preferredMediaPackage": "",
+                "clockFormat": "system",
+                "phoneFavorites": [
+                  "10000000-0000-4000-8000-000000000002"
+                ],
+                "headlightContent": "switch"
+              },
+              "favorites2": {
+                "clock": "wide",
+                "mediaStyle": "text",
+                "preferredMediaPackage": "",
+                "clockFormat": "12Hour",
+                "phoneFavorites": [],
+                "headlightContent": "switch"
+              }
+            },
+            "desktopWallpapers": {
+              "main": "f9594236e7cd6ec8bffd37ff60b775d02f664478cdb7493e871c9e50679dee6a",
+              "favorites1": null,
+              "favorites2": "f9594236e7cd6ec8bffd37ff60b775d02f664478cdb7493e871c9e50679dee6a"
+            }
+          }
+        ],
+        "images": {
+          "f9594236e7cd6ec8bffd37ff60b775d02f664478cdb7493e871c9e50679dee6a": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAgb/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCKgEnX/9k="
+        }
+      },
+      "desktopWallpapers": {
+        "main": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAABf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AIqAaGP/2Q==",
+        "favorites1": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAABf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AIqAaGP/2Q==",
+        "favorites2": null
+      },
+      "display": {
+        "density": 200,
+        "clusterMedia": false
+      },
+      "displayPreview": {
+        "showMedia": true,
+        "showNavigation": true,
+        "showPlaybackProgress": true,
+        "showAlbumArtwork": true,
+        "showTransportControls": true,
+        "preferredMediaPackage": "org.openvoyah.controls",
+        "arrangement": "sideBySide",
+        "paneOrder": "routeFirst",
+        "seekStepSeconds": 5,
+        "mediaSubtitle": "album",
+        "showCurrentRoad": true,
+        "showNextRoad": true,
+        "roadNames": "latin",
+        "showTurnDistance": true,
+        "hideEmptyPanes": true,
+        "palette": "daylight",
+        "paneBalance": "media",
+        "distanceUnits": "imperial",
+        "textSize": "standard",
+        "mediaFallback": "automatic"
+      },
+      "headlightMonitoring": {
+        "whileControlsOpen": true
+      },
+      "language": "en",
+      "localization": {
+        "schema": 1,
+        "enabled": true,
+        "products": [
+          "audit-product"
+        ],
+        "packages": {
+          "com.qinggan.app.setting": {
+            "Audit label": "Synthetic translation A"
+          }
+        }
+      },
+      "quickActions": {
+        "enabled": false,
+        "side": "left",
+        "showLabels": true,
+        "area": "apps",
+        "actions": [
+          "seatMemory",
+          "apps",
+          "routines"
+        ],
+        "compactEdge": "top",
+        "collapseAfterUse": true,
+        "highContrastHandle": false,
+        "showCompactHandleLabel": true,
+        "appsDestination": "allApps",
+        "railWidth": "compact",
+        "idleCollapseSeconds": 30,
+        "startState": "expanded",
+        "compactLabels": "icons",
+        "showHeadlightMode": false,
+        "handleSize": "standard",
+        "compactHandleSide": "left",
+        "headlightContent": "headlights",
+        "appShortcuts": [
+          "org.example.navigation/org.example.navigation.NavigationActivity",
+          "org.example.music/org.example.music.MusicActivity"
+        ],
+        "sideRailAlignment": "top",
+        "hideOnVirtualDisplay": true,
+        "keepSideInset": true,
+        "headlightTap": "vehicle",
+        "handleAccent": "amber",
+        "collapsedHandleAlignment": "center",
+        "dimIdleHandle": true,
+        "routineShortcutId": "3580a7b1-ba3a-40b2-9ca7-930df405ca71",
+        "largeActions": ["vehicle", "seatMemory"]
+      },
+      "seatMemory": {
+        "selectedSlot": 1,
+        "slotNames": ["", "", ""],
+        "openFactorySeatsOnTap": true
+      },
+      "routines": {
+        "entries": [
+          {
+            "id": "3580a7b1-ba3a-40b2-9ca7-930df405ca71",
+            "name": "Morning grid",
+            "target": "apps",
+            "palette": "day",
+            "installedApp": "org.example.navigation/org.example.navigation.MainActivity",
+            "desktopLayoutId": "00000000-0000-4000-8000-0000000000a1"
+          },
+          {
+            "id": "6d58f472-1eca-4f39-8080-fcb2a5b94681",
+            "name": "Evening settings",
+            "target": "settings",
+            "palette": "dark",
+            "desktopLayoutId": null
+          }
+        ],
+        "sort": "newest",
+        "startup": "3580a7b1-ba3a-40b2-9ca7-930df405ca71",
+        "startupDays": [
+          1,
+          3,
+          5
+        ],
+        "startupWindow": {
+          "startMinute": 420,
+          "endMinute": 600
+        },
+        "pinnedIds": [
+          "6d58f472-1eca-4f39-8080-fcb2a5b94681"
+        ],
+        "startupFrequency": "every",
+        "startupDelaySeconds": 3,
+        "startupEnabled": true
+      },
+      "serviceReminder": {
+        "enabled": true,
+        "intervalKm": 6000,
+        "currentKm": 40500,
+        "lastServiceKm": 36000,
+        "leadDistanceKm": 100,
+        "calendarIntervalMonths": 6,
+        "lastServiceDate": "2025-08-15",
+        "calendarLeadDays": 7
+      },
+      "updates": {
+        "checkOnStartup": true
+      },
+      "voice": {
+        "schema": 1,
+        "values": {
+          "language": "en",
+          "level.EnableConditionDriverLevelDefault": "1",
+          "level.EnableHeatDriverLevelDefault": "2",
+          "level.EnableMassageDriverLevelDefault": "3",
+          "level.EnableConditionPassengerLevelDefault": "1",
+          "level.EnableHeatPassengerLevelDefault": "2",
+          "level.EnableMassagePassengerLevelDefault": "3",
+          "level.EnableHeatRearLeftLevelDefault": "1",
+          "level.EnableHeatRearRightLevelDefault": "2",
+          "doubleSmoke": "true",
+          "doubleVentilation": "false",
+          "duckMedia": "true",
+          "spokenFeedback": "false",
+          "speechFeedbackStyle": "readback",
+          "speechRatePercent": "75",
+          "speechVolumePercent": "40",
+          "readyCue": "true",
+          "readyCueVolumePercent": "30",
+          "endListeningCue": "soft",
+          "endCueVolumePercent": "32",
+          "offlineVoice.en": "fixture-en-automatic",
+          "offlineVoice.ru": "",
+          "app.Music": "com.example.audit.playerone/.Library",
+          "app.Navigator": "com.example.audit.mapsone/.Map",
+          "contact.10000000-0000-4000-8000-000000000001": "{\"name\":\"atlas\",\"phone\":\"+12025550111\"}",
+          "contact.10000000-0000-4000-8000-000000000002": "{\"name\":\"cedar\",\"phone\":\"+12025550112\"}",
+          "contact.10000000-0000-4000-8000-000000000003": "{\"name\":\"maple\",\"phone\":\"+12025550113\"}",
+          "listeningWindowSeconds": "3",
+          "resultDisplaySeconds": "1",
+          "showRecognizedPhrase": "false",
+          "readyCueStyle": "spoken",
+          "readyPrompt.en": "Go ahead.",
+          "readyPrompt.ru": "Говорите.",
+          "spokenReplyChannel": "assistant"
+        }
+      }
+    },
+    "b": {
+      "appDisplayDpi": {
+        "central": 230,
+        "secondary": 260
+      },
+      "appGrid": {
+        "pinnedApps": [
+          "org.example.music/org.example.music.MusicActivity",
+          "org.example.navigation/org.example.navigation.NavigationActivity"
+        ],
+        "tileSize": "large",
+        "showSystemApps": true,
+        "desktops": {
+          "enabled": false,
+          "defaultDesktop": "favorites2",
+          "favorites1": [
+            "org.example.radio/org.example.radio.RadioActivity",
+            "org.example.navigation/org.example.navigation.NavigationActivity"
+          ],
+          "favorites2": [
+            "org.example.calendar/org.example.calendar.CalendarActivity",
+            "org.example.files/org.example.files.FilesActivity"
+          ]
+        },
+        "iconStyle": "native",
+        "showAppLabels": false,
+        "showSearchField": false,
+        "sortOrder": "recentlyInstalled",
+        "columns": "6",
+        "visibleShortcuts": [
+          "buttons",
+          "voiceSettings",
+          "updates"
+        ],
+        "desktopNames": {
+          "favorites1": "Radio",
+          "favorites2": "Weekend"
+        },
+        "showDesktopCardOutlines": false,
+        "smoothDesktopPaging": false,
+        "desktopCardPlacement": "beforeApps",
+        "favoritesBackBehavior": "system",
+        "manualAppOrder": [
+          "org.example.weather/org.example.weather.WeatherActivity",
+          "org.example.notes/org.example.notes.NotesActivity",
+          "org.example.podcasts/org.example.podcasts.PodcastsActivity"
+        ],
+        "hiddenApps": []
+      },
+      "appWindows": [
+        {
+          "component": "org.openvoyah.fixture.apps/org.openvoyah.fixture.apps.MainActivity",
+          "width": 95,
+          "dpi": 250,
+          "keepPanel": true,
+          "panelPx": 100,
+          "inheritDpi": false
+        }
+      ],
+      "appearance": {
+        "animateRoutes": false,
+        "transitionSpeed": "smooth",
+        "highContrast": false,
+        "launcherEntry": "vehicle",
+        "textSize": "extra_large",
+        "navigationLabelSize": "standard",
+        "pageTitleSize": "large",
+        "spacing": "spacious",
+        "corners": "rounded",
+        "palette": "dark",
+        "accent": "amber",
+        "wallpaperDimming": "strong",
+        "fontFamily": "system",
+        "backgroundTreatment": "ambient",
+        "boldText": true,
+        "limitMediaVolumeOnLaunch": false,
+        "launchMediaVolumePercent": 70
+      },
+      "buttons": {
+        "schema": 1,
+        "enabled": true,
+        "holdMs": 1000,
+        "debounceMs": 240,
+        "bindings": [
+          {
+            "id": "20000000-0000-4000-8000-000000000001",
+            "label": "Dashboard settings",
+            "device": "",
+            "keyCode": 188,
+            "enabled": false,
+            "short": {
+              "kind": "CONTROLS_SETTINGS",
+              "component": "",
+              "label": "Controls settings"
+            },
+            "long": {
+              "kind": "CONTROLS_APPS",
+              "component": "",
+              "label": "Controls apps"
+            }
+          }
+        ],
+        "panelEnabled": false,
+        "panelActions": {
+          "mainApps": {
+            "kind": "CONTROLS_SETTINGS",
+            "component": "",
+            "label": "Controls settings"
+          },
+          "navbar01": {
+            "kind": "CONTROLS_APPS",
+            "component": "",
+            "label": "Controls apps"
+          }
+        },
+        "steeringActions": {
+          "customShort": {
+            "kind": "CONTROLS_APPS",
+            "component": "",
+            "label": "Controls apps"
+          },
+          "customLong": {
+            "kind": "CONTROLS_SETTINGS",
+            "component": "",
+            "label": "Controls settings"
+          }
+        }
+      },
+      "desktopInfoCards": {
+        "main": {
+          "clock": "wide",
+          "media": "compact",
+          "headlights": "wide",
+          "phone": "compact",
+          "mediaStyle": "text",
+          "preferredMediaPackage": "org.example.radio",
+          "mediaOpenTarget": "display",
+          "route": "compact",
+          "routeContent": "nextTurn",
+          "routeOpenTarget": "none",
+          "clockFormat": "12Hour",
+          "phoneFavorites": [
+            "10000000-0000-4000-8000-000000000002",
+            "10000000-0000-4000-8000-000000000001"
+          ],
+          "headlightContent": "switch"
+        },
+        "favorites1": {
+          "media": "wide",
+          "mediaStyle": "text",
+          "preferredMediaPackage": "org.example.podcasts",
+          "clockFormat": "system",
+          "phoneFavorites": [],
+          "headlightContent": "switch"
+        },
+        "favorites2": {
+          "headlights": "compact",
+          "phone": "wide",
+          "mediaStyle": "text",
+          "preferredMediaPackage": "",
+          "clockFormat": "system",
+          "phoneFavorites": [
+            "10000000-0000-4000-8000-000000000001"
+          ],
+          "headlightContent": "lamps"
+        }
+      },
+      "desktopLayouts": {
+        "presets": [
+          {
+            "id": "00000000-0000-4000-8000-0000000000b1",
+            "name": "Road trip",
+            "appGrid": {
+              "pinnedApps": [
+                "org.example.music/org.example.music.MusicActivity",
+                "org.example.navigation/org.example.navigation.NavigationActivity"
+              ],
+              "tileSize": "large",
+              "showSystemApps": true,
+              "desktops": {
+                "enabled": true,
+                "defaultDesktop": "favorites2",
+                "favorites1": [
+                  "org.example.radio/org.example.radio.RadioActivity",
+                  "org.example.navigation/org.example.navigation.NavigationActivity"
+                ],
+                "favorites2": [
+                  "org.example.calendar/org.example.calendar.CalendarActivity",
+                  "org.example.files/org.example.files.FilesActivity"
+                ]
+              },
+              "iconStyle": "native",
+              "showAppLabels": false,
+              "sortOrder": "name",
+              "columns": "6",
+              "visibleShortcuts": [
+                "buttons",
+                "voiceSettings",
+                "updates"
+              ],
+              "desktopNames": {
+                "favorites1": "Radio",
+                "favorites2": "Weekend"
+              },
+              "showDesktopCardOutlines": false,
+              "smoothDesktopPaging": false,
+              "desktopCardPlacement": "beforeApps",
+              "favoritesBackBehavior": "system",
+              "manualAppOrder": [
+                "org.example.weather/org.example.weather.WeatherActivity",
+                "org.example.notes/org.example.notes.NotesActivity",
+                "org.example.podcasts/org.example.podcasts.PodcastsActivity"
+              ]
+            },
+            "desktopInfoCards": {
+              "main": {
+                "clock": "wide",
+                "media": "compact",
+                "headlights": "wide",
+                "phone": "compact",
+                "mediaStyle": "text",
+                "preferredMediaPackage": "org.example.radio",
+                "clockFormat": "12Hour",
+                "phoneFavorites": [
+                  "10000000-0000-4000-8000-000000000002",
+                  "10000000-0000-4000-8000-000000000001"
+                ],
+                "headlightContent": "lamps"
+              },
+              "favorites1": {
+                "media": "wide",
+                "mediaStyle": "text",
+                "preferredMediaPackage": "org.example.podcasts",
+                "clockFormat": "system",
+                "phoneFavorites": [],
+                "headlightContent": "switch"
+              },
+              "favorites2": {
+                "headlights": "compact",
+                "phone": "wide",
+                "mediaStyle": "text",
+                "preferredMediaPackage": "",
+                "clockFormat": "system",
+                "phoneFavorites": [
+                  "10000000-0000-4000-8000-000000000001"
+                ],
+                "headlightContent": "lamps"
+              }
+            },
+            "desktopWallpapers": {
+              "main": "b4e1dd2485a69cd698293d4164cd509da4871f41a5e6c8ab21630350fb4d970e",
+              "favorites1": "b4e1dd2485a69cd698293d4164cd509da4871f41a5e6c8ab21630350fb4d970e",
+              "favorites2": null
+            }
+          }
+        ],
+        "images": {
+          "b4e1dd2485a69cd698293d4164cd509da4871f41a5e6c8ab21630350fb4d970e": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAABf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AIqAaGP/2Q=="
+        }
+      },
+      "desktopWallpapers": {
+        "main": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAgb/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCKgEnX/9k=",
+        "favorites1": null,
+        "favorites2": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAgb/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCKgEnX/9k="
+      },
+      "display": {
+        "density": 240,
+        "clusterMedia": true
+      },
+      "displayPreview": {
+        "showMedia": false,
+        "showNavigation": false,
+        "showPlaybackProgress": false,
+        "showAlbumArtwork": false,
+        "showTransportControls": false,
+        "preferredMediaPackage": "org.openvoyah.fixture.music",
+        "arrangement": "stacked",
+        "paneOrder": "mediaFirst",
+        "seekStepSeconds": 30,
+        "mediaSubtitle": "artist",
+        "showCurrentRoad": false,
+        "showNextRoad": false,
+        "roadNames": "original",
+        "showTurnDistance": false,
+        "hideEmptyPanes": false,
+        "palette": "cockpit",
+        "paneBalance": "navigation",
+        "distanceUnits": "metric",
+        "textSize": "extra_large",
+        "mediaFallback": "preferredOnly"
+      },
+      "headlightMonitoring": {
+        "whileControlsOpen": false
+      },
+      "language": "ru",
+      "localization": {
+        "schema": 1,
+        "enabled": false,
+        "products": [
+          "audit-product"
+        ],
+        "packages": {
+          "com.qinggan.app.setting": {
+            "Audit label": "Synthetic translation B"
+          }
+        }
+      },
+      "quickActions": {
+        "enabled": true,
+        "side": "right",
+        "showLabels": false,
+        "area": "otherScreens",
+        "actions": [
+          "display",
+          "settings",
+          "voiceSettings"
+        ],
+        "compactEdge": "bottom",
+        "collapseAfterUse": false,
+        "highContrastHandle": true,
+        "showCompactHandleLabel": false,
+        "appsDestination": "defaultDesktop",
+        "railWidth": "standard",
+        "idleCollapseSeconds": 10,
+        "startState": "collapsed",
+        "compactLabels": "labels",
+        "showHeadlightMode": true,
+        "handleSize": "large",
+        "compactHandleSide": "right",
+        "headlightContent": "highBeam",
+        "appShortcuts": [],
+        "sideRailAlignment": "bottom",
+        "hideOnVirtualDisplay": false,
+        "keepSideInset": false,
+        "headlightTap": "sources",
+        "handleAccent": "teal",
+        "collapsedHandleAlignment": "bottom",
+        "dimIdleHandle": false,
+        "routineShortcutId": "6d58f472-1eca-4f39-8080-fcb2a5b94681",
+        "largeActions": ["apps"]
+      },
+      "seatMemory": {
+        "selectedSlot": 1,
+        "slotNames": ["", "", ""],
+        "openFactorySeatsOnTap": false
+      },
+      "routines": {
+        "entries": [
+          {
+            "id": "3580a7b1-ba3a-40b2-9ca7-930df405ca71",
+            "name": "Morning shortcuts",
+            "target": "quickActions",
+            "palette": "day",
+            "installedApp": "org.example.media/org.example.media.PlayerActivity",
+            "desktopLayoutId": "00000000-0000-4000-8000-0000000000b1"
+          },
+          {
+            "id": "6d58f472-1eca-4f39-8080-fcb2a5b94681",
+            "name": "Evening settings",
+            "target": "settings",
+            "palette": "day",
+            "desktopLayoutId": null
+          }
+        ],
+        "sort": "name",
+        "startup": "6d58f472-1eca-4f39-8080-fcb2a5b94681",
+        "startupDays": [
+          2,
+          4,
+          6
+        ],
+        "startupWindow": {
+          "startMinute": 1080,
+          "endMinute": 1260
+        },
+        "pinnedIds": [
+          "3580a7b1-ba3a-40b2-9ca7-930df405ca71"
+        ],
+        "startupFrequency": "daily",
+        "startupDelaySeconds": 8,
+        "startupEnabled": false
+      },
+      "serviceReminder": {
+        "enabled": false,
+        "intervalKm": 12000,
+        "currentKm": 40500,
+        "lastServiceKm": 36000,
+        "leadDistanceKm": 1000,
+        "calendarIntervalMonths": 18,
+        "lastServiceDate": "2025-08-15",
+        "calendarLeadDays": 30
+      },
+      "updates": {
+        "checkOnStartup": false
+      },
+      "voice": {
+        "schema": 1,
+        "values": {
+          "language": "ru",
+          "level.EnableConditionDriverLevelDefault": "2",
+          "level.EnableHeatDriverLevelDefault": "3",
+          "level.EnableMassageDriverLevelDefault": "1",
+          "level.EnableConditionPassengerLevelDefault": "2",
+          "level.EnableHeatPassengerLevelDefault": "3",
+          "level.EnableMassagePassengerLevelDefault": "1",
+          "level.EnableHeatRearLeftLevelDefault": "2",
+          "level.EnableHeatRearRightLevelDefault": "3",
+          "doubleSmoke": "false",
+          "doubleVentilation": "true",
+          "duckMedia": "false",
+          "spokenFeedback": "true",
+          "speechFeedbackStyle": "outcome",
+          "speechRatePercent": "125",
+          "speechVolumePercent": "80",
+          "readyCue": "false",
+          "readyCueVolumePercent": "65",
+          "endListeningCue": "standard",
+          "endCueVolumePercent": "77",
+          "offlineVoice.en": "fixture-en-preferred",
+          "offlineVoice.ru": "fixture-ru-automatic",
+          "app.Music": "com.example.audit.playertwo/.Library",
+          "app.Navigator": "com.example.audit.mapstwo/.Map",
+          "contact.10000000-0000-4000-8000-000000000001": "{\"name\":\"indigo\",\"phone\":\"+12025550121\"}",
+          "contact.10000000-0000-4000-8000-000000000002": "{\"name\":\"coral\",\"phone\":\"+12025550122\"}",
+          "contact.10000000-0000-4000-8000-000000000003": "{\"name\":\"slate\",\"phone\":\"+12025550123\"}",
+          "listeningWindowSeconds": "6",
+          "resultDisplaySeconds": "4",
+          "showRecognizedPhrase": "true",
+          "readyCueStyle": "tone",
+          "readyPrompt.en": "I am listening.",
+          "readyPrompt.ru": "Можно говорить.",
+          "spokenReplyChannel": "media"
+        }
+      }
+    }
+  },
+  "families": [
+    {
+      "area": "Buttons",
+      "name": "Bindings enabled",
+      "path": "/buttons/enabled"
+    },
+    {
+      "area": "Buttons",
+      "name": "hold time",
+      "path": "/buttons/holdMs"
+    },
+    {
+      "area": "Buttons",
+      "name": "debounce time",
+      "path": "/buttons/debounceMs"
+    },
+    {
+      "area": "Buttons",
+      "name": "Android key assignments",
+      "path": "/buttons/bindings"
+    },
+    {
+      "area": "Buttons",
+      "name": "panel assignments enabled",
+      "path": "/buttons/panelEnabled"
+    },
+    {
+      "area": "Buttons",
+      "name": "panel assignments",
+      "path": "/buttons/panelActions"
+    },
+    {
+      "area": "Buttons",
+      "name": "steering assignments",
+      "path": "/buttons/steeringActions"
+    },
+    {
+      "area": "Voice",
+      "name": "Voice language",
+      "path": "/voice/values/language"
+    },
+    {
+      "area": "Voice",
+      "name": "default seat levels",
+      "path": "/voice/values/level.EnableHeatDriverLevelDefault"
+    },
+    {
+      "area": "Voice",
+      "name": "extended smoke venting",
+      "path": "/voice/values/doubleSmoke"
+    },
+    {
+      "area": "Voice",
+      "name": "extended cabin venting",
+      "path": "/voice/values/doubleVentilation"
+    },
+    {
+      "area": "Voice",
+      "name": "media ducking",
+      "path": "/voice/values/duckMedia"
+    },
+    {
+      "area": "Voice",
+      "name": "spoken feedback",
+      "path": "/voice/values/spokenFeedback"
+    },
+    {
+      "area": "Voice",
+      "name": "feedback style",
+      "path": "/voice/values/speechFeedbackStyle"
+    },
+    {
+      "area": "Voice",
+      "name": "speech rate",
+      "path": "/voice/values/speechRatePercent"
+    },
+    {
+      "area": "Voice",
+      "name": "speech volume",
+      "path": "/voice/values/speechVolumePercent"
+    },
+    {
+      "area": "Voice",
+      "name": "ready sound",
+      "path": "/voice/values/readyCue"
+    },
+    {
+      "area": "Voice",
+      "name": "ready sound volume",
+      "path": "/voice/values/readyCueVolumePercent"
+    },
+    {
+      "area": "Voice",
+      "name": "end-of-listening sound",
+      "path": "/voice/values/endListeningCue"
+    },
+    {
+      "area": "Voice",
+      "name": "end-of-listening volume",
+      "path": "/voice/values/endCueVolumePercent"
+    },
+    {
+      "area": "Voice",
+      "name": "offline voice",
+      "path": "/voice/values/offlineVoice.en"
+    },
+    {
+      "area": "Voice",
+      "name": "app assignments",
+      "path": "/voice/values/app.Music"
+    },
+    {
+      "area": "Voice",
+      "name": "voice contacts",
+      "path": "/voice/values/contact.10000000-0000-4000-8000-000000000001"
+    },
+    {
+      "area": "Voice",
+      "name": "maximum listening time",
+      "path": "/voice/values/listeningWindowSeconds"
+    },
+    {
+      "area": "Voice",
+      "name": "result popup duration",
+      "path": "/voice/values/resultDisplaySeconds"
+    },
+    {
+      "area": "Voice",
+      "name": "recognized phrase visibility",
+      "path": "/voice/values/showRecognizedPhrase"
+    },
+    {
+      "area": "Voice",
+      "name": "ready signal style",
+      "path": "/voice/values/readyCueStyle"
+    },
+    {
+      "area": "Voice",
+      "name": "spoken ready phrase",
+      "path": "/voice/values/readyPrompt.en"
+    },
+    {
+      "area": "Voice",
+      "name": "spoken reply channel",
+      "path": "/voice/values/spokenReplyChannel"
+    },
+    {
+      "area": "Windows and displays",
+      "name": "Per-app width",
+      "path": "/appWindows/0/width"
+    },
+    {
+      "area": "Windows and displays",
+      "name": "per-app DPI",
+      "path": "/appWindows/0/dpi"
+    },
+    {
+      "area": "Windows and displays",
+      "name": "per-app minimum panel margin",
+      "path": "/appWindows/0/panelPx"
+    },
+    {
+      "area": "Windows and displays",
+      "name": "per-display default DPI",
+      "path": "/appDisplayDpi/central"
+    },
+    {
+      "area": "Windows and displays",
+      "name": "virtual display DPI",
+      "path": "/display/density"
+    },
+    {
+      "area": "Windows and displays",
+      "name": "cluster media",
+      "path": "/display/clusterMedia"
+    },
+    {
+      "area": "Language",
+      "name": "App language",
+      "path": "/language"
+    },
+    {
+      "area": "Language",
+      "name": "factory screen translation",
+      "path": "/localization"
+    },
+    {
+      "area": "Updates",
+      "name": "Check for updates on startup",
+      "path": "/updates/checkOnStartup"
+    },
+    {
+      "area": "App grid",
+      "name": "Ordered app pins",
+      "path": "/appGrid/pinnedApps"
+    },
+    {
+      "area": "App grid",
+      "name": "tile size",
+      "path": "/appGrid/tileSize"
+    },
+    {
+      "area": "App grid",
+      "name": "system-app visibility",
+      "path": "/appGrid/showSystemApps"
+    },
+    {
+      "area": "App grid",
+      "name": "extra desktops",
+      "path": "/appGrid/desktops/enabled"
+    },
+    {
+      "area": "App grid",
+      "name": "default desktop",
+      "path": "/appGrid/desktops/defaultDesktop"
+    },
+    {
+      "area": "App grid",
+      "name": "icon style",
+      "path": "/appGrid/iconStyle"
+    },
+    {
+      "area": "App grid",
+      "name": "app captions",
+      "path": "/appGrid/showAppLabels"
+    },
+    {
+      "area": "App grid",
+      "name": "app sorting",
+      "path": "/appGrid/sortOrder"
+    },
+    {
+      "area": "App grid",
+      "name": "wallpaper",
+      "path": "/desktopWallpapers"
+    },
+    {
+      "area": "App grid",
+      "name": "column count",
+      "path": "/appGrid/columns"
+    },
+    {
+      "area": "App grid",
+      "name": "built-in shortcuts",
+      "path": "/appGrid/visibleShortcuts"
+    },
+    {
+      "area": "App grid",
+      "name": "desktop names",
+      "path": "/appGrid/desktopNames"
+    },
+    {
+      "area": "App grid",
+      "name": "desktop card visibility and width",
+      "path": "/desktopInfoCards/main/clock"
+    },
+    {
+      "area": "App grid",
+      "name": "media card style",
+      "path": "/desktopInfoCards/main/mediaStyle"
+    },
+    {
+      "area": "App grid",
+      "name": "clock card format",
+      "path": "/desktopInfoCards/main/clockFormat"
+    },
+    {
+      "area": "App grid",
+      "name": "card outlines",
+      "path": "/appGrid/showDesktopCardOutlines"
+    },
+    {
+      "area": "App grid",
+      "name": "desktop paging motion",
+      "path": "/appGrid/smoothDesktopPaging"
+    },
+    {
+      "area": "App grid",
+      "name": "card placement",
+      "path": "/appGrid/desktopCardPlacement"
+    },
+    {
+      "area": "App grid",
+      "name": "Back on favorites desktops",
+      "path": "/appGrid/favoritesBackBehavior"
+    },
+    {
+      "area": "App grid",
+      "name": "media card source",
+      "path": "/desktopInfoCards/main/preferredMediaPackage"
+    },
+    {
+      "area": "App grid",
+      "name": "saved desktop layouts",
+      "path": "/desktopLayouts"
+    },
+    {
+      "area": "App grid",
+      "name": "ordered phone favorites",
+      "path": "/desktopInfoCards/main/phoneFavorites"
+    },
+    {
+      "area": "App grid",
+      "name": "manual app order",
+      "path": "/appGrid/manualAppOrder"
+    },
+    {
+      "area": "App grid",
+      "name": "hidden All apps shortcuts",
+      "path": "/appGrid/hiddenApps"
+    },
+    {
+      "area": "App grid",
+      "name": "persistent All apps search field",
+      "path": "/appGrid/showSearchField"
+    },
+    {
+      "area": "App grid",
+      "name": "media card tap target",
+      "path": "/desktopInfoCards/main/mediaOpenTarget"
+    },
+    {
+      "area": "App grid",
+      "name": "headlight card content",
+      "path": "/desktopInfoCards/main/headlightContent"
+    },
+    {
+      "area": "App grid",
+      "name": "navigation card content",
+      "path": "/desktopInfoCards/main/routeContent"
+    },
+    {
+      "area": "App grid",
+      "name": "navigation card tap target",
+      "path": "/desktopInfoCards/main/routeOpenTarget"
+    },
+    {
+      "area": "Appearance",
+      "name": "Screen transitions",
+      "path": "/appearance/animateRoutes"
+    },
+    {
+      "area": "Appearance",
+      "name": "transition speed",
+      "path": "/appearance/transitionSpeed"
+    },
+    {
+      "area": "Appearance",
+      "name": "high contrast",
+      "path": "/appearance/highContrast"
+    },
+    {
+      "area": "Appearance",
+      "name": "launcher start screen",
+      "path": "/appearance/launcherEntry"
+    },
+    {
+      "area": "Appearance",
+      "name": "limit media volume from the launcher",
+      "path": "/appearance/limitMediaVolumeOnLaunch"
+    },
+    {
+      "area": "Appearance",
+      "name": "launcher media volume limit",
+      "path": "/appearance/launchMediaVolumePercent"
+    },
+    {
+      "area": "Appearance",
+      "name": "text size",
+      "path": "/appearance/textSize"
+    },
+    {
+      "area": "Appearance",
+      "name": "navigation label size",
+      "path": "/appearance/navigationLabelSize"
+    },
+    {
+      "area": "Appearance",
+      "name": "page title size",
+      "path": "/appearance/pageTitleSize"
+    },
+    {
+      "area": "Appearance",
+      "name": "spacing",
+      "path": "/appearance/spacing"
+    },
+    {
+      "area": "Appearance",
+      "name": "corner style",
+      "path": "/appearance/corners"
+    },
+    {
+      "area": "Appearance",
+      "name": "day or dark palette",
+      "path": "/appearance/palette"
+    },
+    {
+      "area": "Appearance",
+      "name": "accent color",
+      "path": "/appearance/accent"
+    },
+    {
+      "area": "Appearance",
+      "name": "custom wallpaper dimming",
+      "path": "/appearance/wallpaperDimming"
+    },
+    {
+      "area": "Appearance",
+      "name": "font family",
+      "path": "/appearance/fontFamily"
+    },
+    {
+      "area": "Appearance",
+      "name": "backdrop style",
+      "path": "/appearance/backgroundTreatment"
+    },
+    {
+      "area": "Appearance",
+      "name": "bold text",
+      "path": "/appearance/boldText"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "Media visibility",
+      "path": "/displayPreview/showMedia"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "route visibility",
+      "path": "/displayPreview/showNavigation"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "playback progress visibility",
+      "path": "/displayPreview/showPlaybackProgress"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "album artwork visibility",
+      "path": "/displayPreview/showAlbumArtwork"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "playback controls visibility",
+      "path": "/displayPreview/showTransportControls"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "preferred media app",
+      "path": "/displayPreview/preferredMediaPackage"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "pane arrangement",
+      "path": "/displayPreview/arrangement"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "pane order",
+      "path": "/displayPreview/paneOrder"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "seek interval",
+      "path": "/displayPreview/seekStepSeconds"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "media subtitle",
+      "path": "/displayPreview/mediaSubtitle"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "current-road label",
+      "path": "/displayPreview/showCurrentRoad"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "next-road label",
+      "path": "/displayPreview/showNextRoad"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "road-name lettering",
+      "path": "/displayPreview/roadNames"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "turn distance",
+      "path": "/displayPreview/showTurnDistance"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "empty-pane visibility",
+      "path": "/displayPreview/hideEmptyPanes"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "preview palette",
+      "path": "/displayPreview/palette"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "side-by-side pane balance",
+      "path": "/displayPreview/paneBalance"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "turn distance units",
+      "path": "/displayPreview/distanceUnits"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "preview text size",
+      "path": "/displayPreview/textSize"
+    },
+    {
+      "area": "Virtual display preview",
+      "name": "fallback for a selected player",
+      "path": "/displayPreview/mediaFallback"
+    },
+    {
+      "area": "Maintenance",
+      "name": "Service reminder visibility",
+      "path": "/serviceReminder/enabled"
+    },
+    {
+      "area": "Maintenance",
+      "name": "distance interval",
+      "path": "/serviceReminder/intervalKm"
+    },
+    {
+      "area": "Maintenance",
+      "name": "reminder lead distance",
+      "path": "/serviceReminder/leadDistanceKm"
+    },
+    {
+      "area": "Maintenance",
+      "name": "calendar interval",
+      "path": "/serviceReminder/calendarIntervalMonths"
+    },
+    {
+      "area": "Maintenance",
+      "name": "calendar reminder lead time",
+      "path": "/serviceReminder/calendarLeadDays"
+    },
+    {
+      "area": "Quick actions",
+      "name": "Dock enabled",
+      "path": "/quickActions/enabled"
+    },
+    {
+      "area": "Quick actions",
+      "name": "side on wide screens",
+      "path": "/quickActions/side"
+    },
+    {
+      "area": "Quick actions",
+      "name": "visible shortcut labels",
+      "path": "/quickActions/showLabels"
+    },
+    {
+      "area": "Quick actions",
+      "name": "screen coverage",
+      "path": "/quickActions/area"
+    },
+    {
+      "area": "Quick actions",
+      "name": "ordered shortcuts",
+      "path": "/quickActions/actions"
+    },
+    {
+      "area": "Quick actions",
+      "name": "edge in compact windows",
+      "path": "/quickActions/compactEdge"
+    },
+    {
+      "area": "Quick actions",
+      "name": "collapse after use",
+      "path": "/quickActions/collapseAfterUse"
+    },
+    {
+      "area": "Quick actions",
+      "name": "idle collapse interval",
+      "path": "/quickActions/idleCollapseSeconds"
+    },
+    {
+      "area": "Quick actions",
+      "name": "bar at startup",
+      "path": "/quickActions/startState"
+    },
+    {
+      "area": "Quick actions",
+      "name": "shortcut labels on compact screens",
+      "path": "/quickActions/compactLabels"
+    },
+    {
+      "area": "Quick actions",
+      "name": "show headlight switch mode",
+      "path": "/quickActions/showHeadlightMode"
+    },
+    {
+      "area": "Quick actions",
+      "name": "expand button size",
+      "path": "/quickActions/handleSize"
+    },
+    {
+      "area": "Quick actions",
+      "name": "expand button side on compact screens",
+      "path": "/quickActions/compactHandleSide"
+    },
+    {
+      "area": "Quick actions",
+      "name": "headlight indicator content",
+      "path": "/quickActions/headlightContent"
+    },
+    {
+      "area": "Quick actions",
+      "name": "ordered installed app shortcuts",
+      "path": "/quickActions/appShortcuts"
+    },
+    {
+      "area": "Quick actions",
+      "name": "shortcut position on wide screens",
+      "path": "/quickActions/sideRailAlignment"
+    },
+    {
+      "area": "Quick actions",
+      "name": "hide dock on virtual display",
+      "path": "/quickActions/hideOnVirtualDisplay"
+    },
+    {
+      "area": "Quick actions",
+      "name": "fixed side inset after collapse",
+      "path": "/quickActions/keepSideInset"
+    },
+    {
+      "area": "Quick actions",
+      "name": "headlight indicator tap target",
+      "path": "/quickActions/headlightTap"
+    },
+    {
+      "area": "Seat memory",
+      "name": "Open factory Seats when tapping Save or Restore",
+      "path": "/seatMemory/openFactorySeatsOnTap"
+    },
+    {
+      "area": "Quick actions",
+      "name": "contrast of the collapsed button",
+      "path": "/quickActions/highContrastHandle"
+    },
+    {
+      "area": "Quick actions",
+      "name": "accent of the collapsed button",
+      "path": "/quickActions/handleAccent"
+    },
+    {
+      "area": "Quick actions",
+      "name": "collapsed handle position on wide screens",
+      "path": "/quickActions/collapsedHandleAlignment"
+    },
+    {
+      "area": "Quick actions",
+      "name": "dim idle expand button",
+      "path": "/quickActions/dimIdleHandle"
+    },
+    {
+      "area": "Quick actions",
+      "name": "compact collapsed-button caption",
+      "path": "/quickActions/showCompactHandleLabel"
+    },
+    {
+      "area": "Quick actions",
+      "name": "destination of the Apps shortcut",
+      "path": "/quickActions/appsDestination"
+    },
+    {
+      "area": "Quick actions",
+      "name": "rail width",
+      "path": "/quickActions/railWidth"
+    },
+    {
+      "area": "Quick actions",
+      "name": "routine shortcut assignment",
+      "path": "/quickActions/routineShortcutId"
+    },
+    {
+      "area": "Quick actions",
+      "name": "larger built-in shortcuts",
+      "path": "/quickActions/largeActions"
+    },
+    {
+      "area": "Routines",
+      "name": "Saved routines",
+      "path": "/routines/entries/0/target"
+    },
+    {
+      "area": "Routines",
+      "name": "installed app to open from a routine",
+      "path": "/routines/entries/0/installedApp"
+    },
+    {
+      "area": "Routines",
+      "name": "desktop layout to apply from a routine",
+      "path": "/routines/entries/0/desktopLayoutId"
+    },
+    {
+      "area": "Routines",
+      "name": "list sort",
+      "path": "/routines/sort"
+    },
+    {
+      "area": "Routines",
+      "name": "routine to run from the launcher",
+      "path": "/routines/startup"
+    },
+    {
+      "area": "Routines",
+      "name": "launcher days",
+      "path": "/routines/startupDays/0"
+    },
+    {
+      "area": "Routines",
+      "name": "launcher time range",
+      "path": "/routines/startupWindow/startMinute"
+    },
+    {
+      "area": "Routines",
+      "name": "pinned routines",
+      "path": "/routines/pinnedIds/0"
+    },
+    {
+      "area": "Routines",
+      "name": "launcher frequency",
+      "path": "/routines/startupFrequency"
+    },
+    {
+      "area": "Routines",
+      "name": "launcher delay",
+      "path": "/routines/startupDelaySeconds"
+    },
+    {
+      "area": "Routines",
+      "name": "launcher routine enabled",
+      "path": "/routines/startupEnabled"
+    },
+    {
+      "area": "Headlights",
+      "name": "Observe headlight feedback while Controls is open",
+      "path": "/headlightMonitoring/whileControlsOpen"
+    }
+  ]
+}

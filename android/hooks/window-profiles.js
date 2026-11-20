@@ -51,8 +51,10 @@ export function readWindowConfig(raw) {
     const apps = new Map();
     for (const entry of config.apps) {
         const profile = normalizeProfile(entry);
-        if (!profile || apps.has(profile.component.split('/')[0])) return null;
-        apps.set(profile.component.split('/')[0], profile);
+        if (!profile) return null;
+        const pkg = profile.component.split('/')[0];
+        if (apps.has(pkg)) return null;
+        apps.set(pkg, profile);
     }
     return {enabled: config.enabled, user: config.user, apps, displayDpi, passengerDisplayId};
 }
@@ -93,14 +95,16 @@ export function readWindowRequest(raw, now) {
 /** Width is a percentage of the usable display after excluding the left strip. */
 export function windowBounds(frame, profile, measuredPanel, minWidth = 0, minHeight = 0) {
     const {bounds, stable} = frame;
-    const displayWidth = bounds[2] - bounds[0];
     const panel = Math.max(profile.panelPx, measuredPanel || 145);
-    if (panel > displayWidth / 3) return null;
-    const usableLeft = Math.max(stable[0], bounds[0] + panel);
-    const width = Math.round((stable[2] - usableLeft) * profile.width / 100);
-    const height = stable[3] - stable[1];
-    if (width < Math.max(1, minWidth) || height < Math.max(1, minHeight)) return null;
-    return [stable[2] - width, stable[1], stable[2], stable[3]];
+    const left = Math.max(stable[0], bounds[0] + panel);
+    const top = Math.max(stable[1], bounds[1]);
+    const right = Math.min(stable[2], bounds[2]);
+    const bottom = Math.min(stable[3], bounds[3]);
+    const available = right - left;
+    // Android can widen a narrow profile to its task minimum while the left panel stays clear.
+    const width = Math.max(1, minWidth, Math.round(available * profile.width / 100));
+    if (width > available || bottom - top < Math.max(1, minHeight)) return null;
+    return [right - width, top, right, bottom];
 }
 
 export function rectValues(rect) {

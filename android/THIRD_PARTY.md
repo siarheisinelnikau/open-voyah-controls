@@ -12,6 +12,7 @@ Open Voyah Controls is MIT-licensed. The following build and runtime dependencie
 | Vosk for Android | 0.3.75 | Apache-2.0 |
 | Russian and English Vosk models | 0.22 and 0.15 | Apache-2.0 |
 | Java Native Access | 5.18.1 | Apache-2.0 or LGPL-2.1-or-later. This project uses the Apache-2.0 option. |
+| [Golos Text](https://github.com/google/fonts/tree/main/ofl/golostext) | Google Fonts blob `05ee5ecc570b97818e24e58693662cd8294fdfc9` | [SIL Open Font License 1.1](app/src/main/assets/licenses/Golos-Text-OFL.txt) |
 
 The pinned Java bridge source package and integrity information are in [package-lock.json](package-lock.json). `npm ci` retrieves the source package used to build the hooks. The standalone injector is a separate runtime download pinned in [FRIDA_RUNTIME.json](dist/FRIDA_RUNTIME.json). The voice model download checksums are in [VOICE_MODEL.json](dist/VOICE_MODEL.json) and [VOICE_MODEL_EN.json](dist/VOICE_MODEL_EN.json).
 

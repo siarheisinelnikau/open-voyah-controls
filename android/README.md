@@ -1,6 +1,6 @@
 # Open Voyah Controls for Android
 
-Open Voyah Controls is an offline-first utility for Voyah head units. It opens directly to an app grid with installed apps and Controls shortcuts. Use an assigned **Voice assistant** button for one voice request, or **Virtual display** for media and navigation. The app also supports button assignments, driver seat/mirror memory commands on reviewed firmware, translation, and instrument cluster backup and recovery.
+Open Voyah Controls is an offline-first utility for Voyah head units. It opens directly to an app grid with installed apps and Controls shortcuts. Use an assigned **Voice assistant** button for one voice request, or **Virtual display** for media and navigation. The app also supports button assignments, factory seat and lighting shortcuts, translation, and instrument cluster backup and recovery.
 
 The APK requires Android 9 (API 28) or newer. The firmware adapters require a reviewed head unit build running Android 9 or 11. See [Head unit qualification and recovery](docs/PRODUCTION.md) for release signing, firmware evidence, and PC rollback.
 
@@ -41,11 +41,28 @@ The worker waits for Android and a stable system process before attaching. It re
 ## Apps and displays
 
 - Tap an app tile in the root grid to open it. Touch and hold to open **App settings**, which contains width, DPI, permissions, and display selection. Use the **Settings**, **Buttons**, **Voice settings** and other Controls tiles to open their pages in the same app window. On supported Android 9 and 11 firmware, the window service leaves room for the navigation panel on central display launches, including apps without saved settings. The [firmware guide](docs/FIRMWARE.md#steering-and-display-adapters) describes the launch and display scope.
+- Select **Pin to app grid** in **App settings** to keep an app ahead of the other installed apps. Pinned apps retain their order and appear in search results.
+- **Settings → App grid** controls tile size, columns, shortcuts, app visibility, icon colors, captions and ordering. Select **Manual order** to arrange ordinary apps. The grid can add two named Favorites desktops with independent pins and a saved default. Choose a wallpaper, navigation and other information cards, phone favorites and a preferred media-card source for each desktop. **Desktop layouts** saves and reapplies the grid, cards and wallpapers together. Back can return from Favorites to **All apps**.
+- **Settings → Appearance** controls transitions, text sizes, spacing, corner style, day or dark palette, contrast and the start screen. Navigation labels and page titles can use separate sizes. An optional limit can lower the media volume when you open Controls from its icon.
+- **Settings → Quick actions** configures the optional navigation dock. It reserves space in the Controls window and can keep the page width fixed as the side bar folds. Add **Seat memory**, **Routines**, or installed app shortcuts and choose where **Apps** opens. Use **Larger shortcuts** to give selected Controls buttons more room to tap. **Routine shortcut** runs a chosen routine in one tap. The headlight badge can show its source report over the current page. The Virtual display screen can use the full window.
+- **Settings → Routines** can apply a saved desktop layout, select a Controls page, use a temporary theme, and open an installed app. Pin routines you use often and choose when they run from the launcher icon. Pause automatic launches while keeping the schedule.
 - **Install local APK** opens Android's local file picker. Controls verifies a bounded private copy before submitting the selected package to Android for confirmation. The Controls APK itself must use Updates or the Windows installer.
 - The **Permissions** section shows supported runtime permissions for installations verified by Controls. The authorized local channel can apply and verify an individual grant or revocation. Android stores effective permissions across normal reboots. Installations from Windows or another app use **Android app info**. Supported special accesses open their Android settings screens.
-- **Virtual display** creates a private display with its own DPI. Grant media access to show the current track. Instrument cluster media sharing and the navigation feed are separate opt-in features. The firmware needs the matching OEM cluster service.
+- **Virtual display** creates a private display with its own DPI. Grant media access to show the current track and configure album art, progress and playback controls. Choose the pane arrangement, preferred player and seek interval. Route options include current and next roads, Latin lettering and distance units. Instrument cluster media sharing and navigation require the matching OEM cluster service.
 
-![Display settings and Compose content inside the private preview on Android 9](docs/screenshots/displays.png)
+![App window layout and permissions on an Android 9 emulator](docs/screenshots/app-window-settings.png)
+
+![Favorites desktop with a local wallpaper and one pinned app on Android 9](docs/screenshots/favorites-desktop.png)
+
+![Navigation desktop card showing a test route on a compact Android 11 emulator](docs/screenshots/desktop-route-card.png)
+
+![Routine editor with an installed app selected on Android 9](docs/screenshots/routine-installed-app-editor.png)
+
+![Quick action settings with Calculator pinned to the right dock on an Android 9 emulator](docs/screenshots/quick-actions.png)
+
+![Saved routines and the launcher routine on an Android 9 emulator](docs/screenshots/routines.png)
+
+![Preview album artwork, progress and player controls with a demo media session on Android 9](docs/screenshots/displays.png)
 
 ![Offline voice settings in the signed Android 9 app](docs/screenshots/voice.png)
 
@@ -61,17 +78,25 @@ Open **Settings → Vehicle settings** for the original driving, cabin and infot
 
 **Firmware and OEM profiles** groups compatibility, translation and recovery. The cluster screen separates package inspection, backup, and confirmed installation or restoration. See [Instrument cluster localization](docs/CLUSTER.md).
 
-**Driver 1/2/3** recall saved driver seat and mirror positions. Save those positions with the vehicle's own memory controls; recall requires reviewed firmware, Park and zero speed. See [Driver seat and mirror memory](docs/DRIVER_MEMORY.md) for the voice phrases. The separate [OEM account-record recovery limits](docs/ACCOUNT_RECOVERY.md) appendix describes account A/B/C and the narrower saved-record recovery scope.
+**Vehicle settings → Seat and mirror memory** shows three cards for **Driver 1** through **Driver 3**. Each card has a large seat illustration with **Restore** and **Save** below it. An optional switch opens the dedicated factory Seats screen in one tap where the shortcut is available. Save through the factory seat controls and wait for the car's confirmation. On firmware without reviewed direct recall, saying a driver number opens the instructions for that slot. Direct recall requires individually reviewed firmware, Park and zero speed. See [Driver seat and mirror memory](docs/DRIVER_MEMORY.md).
 
-![Vehicle settings with the factory-panel fallback on an Android 9 emulator](docs/screenshots/vehicle-settings.png)
+The **Headlight mode** card in **Vehicle settings** opens the factory lighting screen where the shortcut is available. Controls can show the selector and its last confirmation. On Android Automotive with the manufacturer's read permission, it also shows and remembers the separate headlamp and high-beam readings. Choose either set of readings for the headlight desktop card. Enable **Monitor while Controls is open** to keep observing on other Controls pages. See [Headlight mode](docs/HEADLIGHT_STATUS.md).
+
+**Vehicle settings → Service reminder** calculates the next service odometer reading and the remaining distance from the mileage and interval you enter. Choose how many kilometers before service to show the reminder. Settings backups include the service plan and readings.
+
+The [OEM account-record recovery limits](docs/ACCOUNT_RECOVERY.md) describe account A/B/C and the narrower saved-record recovery scope.
+
+![Vehicle settings with the headlight monitor switch and seat memory shortcut on an Android 11 emulator](docs/screenshots/vehicle-settings.png)
+
+![Seat memory with three numbered driver cards and six visible buttons on a 1920 × 720 Android emulator](docs/screenshots/seat-memory.png)
+
+![Service reminder with an example odometer plan on an Android 9 emulator](docs/screenshots/service-reminder.png)
 
 ![Saved account-record recovery in the signed Android 9 app](docs/screenshots/account-recovery.png)
 
-The [0.20.1 validation record](dist/VALIDATION_0.20.1.json) covers explicit screen routes, the three real Activity entry points, protected internal voice launch, settings preservation and signed upgrades on Android 9 and 11. See the [local change notes](docs/releases/0.20.1.md). The [0.20.0 record](dist/VALIDATION_0.20.0.json) retains the app-grid, search and rendering checks for that revision. Earlier [0.19.1](dist/VALIDATION_0.19.1.json) and [0.19.0](dist/VALIDATION_0.19.0.json) records retain account recovery, Windows installer 0.6.2, startup and root-channel checks for their listed revisions. The ordinary APK runs as its own application UID; injected JavaScript retains its target process UID. Exact OEM boot permissions, ARM64 injection, physical CAN behavior and complete Oversea account restoration remain unqualified; no vehicle was used.
-
 ## Settings backup
 
-Use **Export app settings** to save button assignments, voice options and contacts, interface language, display preferences, app window profiles, and the localization dictionary in one file. **Import app settings** validates the file before applying it and also accepts earlier button-only exports. If a restore is interrupted, the app rolls back to the previous local settings at the next start. Firmware backups, Android permissions, and Frida connection state are managed separately.
+Use **Export app settings** to save button assignments, voice options and contacts, display settings, app window profiles, desktops and named layouts, appearance, reminders, quick actions, routines and vehicle preferences in one file. **Import app settings** validates the file before applying it and accepts earlier full or button-only exports. Preferences introduced after the file was created keep their current values. If a restore is interrupted, the app restores the previous local settings at the next start. The vehicle stores seat and mirror positions. The app keeps the last confirmed lamp observation in private local storage. See the [saved settings inventory](docs/SETTINGS.md).
 
 ## Code layout
 

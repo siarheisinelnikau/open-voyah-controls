@@ -9,25 +9,63 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.CancellationException;
+import java.util.function.BooleanSupplier;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
+import org.openvoyah.controls.data.apps.AppGridPreferences;
+import org.openvoyah.controls.data.apps.DesktopInfoPreferences;
+import org.openvoyah.controls.data.apps.DesktopLayoutRevision;
+import org.openvoyah.controls.data.apps.DesktopLayoutStores;
+import org.openvoyah.controls.data.apps.DesktopLayoutsPreferences;
+import org.openvoyah.controls.data.apps.DesktopWallpaperPreferences;
 import org.openvoyah.controls.data.display.AppWindowPreferences;
 import org.openvoyah.controls.data.display.DisplayPreferences;
+import org.openvoyah.controls.data.display.DisplayPreviewPreferences;
+import org.openvoyah.controls.data.dock.QuickActionPreferences;
+import org.openvoyah.controls.data.routines.RoutinePreferences;
+import org.openvoyah.controls.data.updates.UpdatePreferences;
+import org.openvoyah.controls.data.vehicle.HeadlightMonitoringPreferences;
+import org.openvoyah.controls.data.vehicle.ServiceReminderPreferences;
 import org.openvoyah.controls.domain.display.AppDisplayDefaults;
 
 /** File format and recoverable restore for the independent local settings stores. */
 public final class LocalSettingsArchive {
-    public static final int MAX_BYTES = 2_097_152;
+    public static final int MAX_BYTES = 3 * 1024 * 1024;
     private static final String FORMAT = "org.openvoyah.controls.settings";
-    private static final String[] STORES = {"controls", "voice", "localization", "ui", "display", "app_windows"};
+    private static final Object ARCHIVE_LOCK = new Object();
+    private static final String ROLLBACK_SCOPE = "scope";
+    private static final String DESKTOP_LAYOUT_SCOPE = "desktopLayout";
+    private static final String[] DESKTOP_LAYOUT_STORES = {
+        AppGridPreferences.STORE, DesktopWallpaperPreferences.STORE, DesktopInfoPreferences.STORE
+    };
+    private static final String[] REQUIRED_STORES = {"controls", "voice", "localization", "ui", "display"};
+    private static final String[] OPTIONAL_STORES = {
+        "app_windows", "updates", AppGridPreferences.STORE, AppearancePreferences.STORE,
+        DisplayPreviewPreferences.STORE, DesktopWallpaperPreferences.STORE, DesktopInfoPreferences.STORE, ServiceReminderPreferences.STORE,
+        QuickActionPreferences.STORE, RoutinePreferences.STORE, SeatMemoryPreferences.STORE, DesktopLayoutsPreferences.STORE,
+        HeadlightMonitoringPreferences.STORE
+    };
     private final Context context;
     private final SettingsStore buttons;
     private final VoiceSettings voice;
     private final LocalizationSettings localization;
     private final DisplayPreferences display;
     private final AppWindowPreferences windows;
+    private final UpdatePreferences updates;
+    private final AppGridPreferences grid;
+    private final DesktopWallpaperPreferences wallpapers;
+    private final DesktopInfoPreferences desktopInfoCards;
+    private final DesktopLayoutsPreferences desktopLayouts;
+    private final AppearancePreferences appearance;
+    private final DisplayPreviewPreferences preview;
+    private final ServiceReminderPreferences serviceReminder;
+    private final QuickActionPreferences quickActions;
+    private final RoutinePreferences routines;
+    private final SeatMemoryPreferences seats;
+    private final HeadlightMonitoringPreferences headlights;
     private final AtomicFile rollback;
 
     public LocalSettingsArchive(Context context) {
@@ -37,19 +75,124 @@ public final class LocalSettingsArchive {
         localization = new LocalizationSettings(context);
         display = new DisplayPreferences(context);
         windows = new AppWindowPreferences(context);
+        updates = new UpdatePreferences(context);
+        grid = new AppGridPreferences(context);
+        wallpapers = new DesktopWallpaperPreferences(context);
+        desktopInfoCards = new DesktopInfoPreferences(context);
+        desktopLayouts = new DesktopLayoutsPreferences(context);
+        appearance = new AppearancePreferences(context);
+        preview = new DisplayPreviewPreferences(context);
+        serviceReminder = new ServiceReminderPreferences(context);
+        quickActions = new QuickActionPreferences(context);
+        routines = new RoutinePreferences(context);
+        seats = new SeatMemoryPreferences(context);
+        headlights = new HeadlightMonitoringPreferences(context);
         rollback = new AtomicFile(new File(context.getFilesDir(), "settings-restore-rollback.json"));
     }
 
     public String exportJson() throws Exception {
-        return new JSONObject().put("format", FORMAT).put("schema", 1)
-            .put("buttons", new JSONObject(buttons.exportJson()))
-            .put("voice", new JSONObject(voice.exportJson()))
-            .put("localization", new JSONObject(localization.exportJson()))
-            .put("language", UiText.language())
-            .put("display", new JSONObject().put("density", display.density()).put("clusterMedia", display.clusterMedia()))
-            .put("appWindows", windows.exportProfiles())
-            .put("appDisplayDpi", windows.exportDefaults())
-            .toString(2);
+        synchronized (ARCHIVE_LOCK) {
+            JSONObject desktop = desktopLayoutSnapshot();
+            return new JSONObject().put("format", FORMAT).put("schema", 1)
+                .put("buttons", new JSONObject(buttons.exportJson()))
+                .put("voice", new JSONObject(voice.exportJson()))
+                .put("localization", new JSONObject(localization.exportJson()))
+                .put("language", UiText.language())
+                .put("display", new JSONObject().put("density", display.density()).put("clusterMedia", display.clusterMedia()))
+                .put("appWindows", windows.exportProfiles())
+                .put("appDisplayDpi", windows.exportDefaults())
+                .put("updates", new JSONObject().put("checkOnStartup", updates.checkOnStartup()))
+                .put("appGrid", desktop.getJSONObject("appGrid"))
+                .put("desktopWallpapers", desktop.getJSONObject("desktopWallpapers"))
+                .put("desktopInfoCards", desktop.getJSONObject("desktopInfoCards"))
+                .put("desktopLayouts", desktopLayouts.exportSettings())
+                .put("appearance", appearance.exportSettings())
+                .put("displayPreview", preview.exportSettings())
+                .put("serviceReminder", serviceReminder.exportSettings())
+                .put("quickActions", quickActions.exportSettings())
+                .put("routines", routines.exportSettings())
+                .put("seatMemory", seats.exportSettings())
+                .put("headlightMonitoring", headlights.exportSettings())
+                .toString(2);
+        }
+    }
+
+    private record OptionalPreferences(JSONArray windowProfiles, AppDisplayDefaults appDisplayDefaults,
+            Boolean checkOnStartup, JSONObject appGrid, JSONObject desktopWallpapers, JSONObject desktopInfoCards,
+            JSONObject desktopLayouts, JSONObject appearance, JSONObject displayPreview, JSONObject serviceReminder,
+            JSONObject quickActions, JSONObject routines, JSONObject seatMemory, JSONObject headlightMonitoring) { }
+
+    public JSONObject captureDesktopLayout() throws Exception {
+        synchronized (ARCHIVE_LOCK) {
+            synchronized (DesktopLayoutStores.WRITE_LOCK) {
+                restoreRollback();
+                return desktopLayoutSnapshot();
+            }
+        }
+    }
+
+    private JSONObject desktopLayoutSnapshot() throws Exception {
+        synchronized (DesktopLayoutStores.WRITE_LOCK) {
+            return new JSONObject().put("appGrid", grid.exportSettings())
+                .put("desktopWallpapers", wallpapers.exportSettings())
+                .put("desktopInfoCards", desktopInfoCards.exportSettings());
+        }
+    }
+
+    public void applyDesktopLayout(JSONObject appGrid, JSONObject desktopWallpapers, JSONObject desktopCards) throws Exception {
+        JSONObject validGrid = AppGridPreferences.validateLayout(appGrid);
+        JSONObject validWallpapers = DesktopWallpaperPreferences.validateLayout(desktopWallpapers);
+        JSONObject validCards = DesktopInfoPreferences.validateLayout(desktopCards);
+        synchronized (ARCHIVE_LOCK) {
+            synchronized (DesktopLayoutStores.WRITE_LOCK) {
+                restoreRollback();
+                writeDesktopLayout(validGrid, validWallpapers, validCards, () -> true);
+            }
+        }
+    }
+
+    @FunctionalInterface
+    public interface LayoutDispatch {
+        /** Run the write once on the calling thread when eligible. Return false to skip it. */
+        boolean tryApply(RestoreAction write) throws Exception;
+    }
+
+    public void applySavedDesktopLayout(String id) throws Exception {
+        applySavedDesktopLayout(id, null, () -> true, write -> {
+            write.run();
+            return true;
+        });
+    }
+
+    /** Calls the final commit guard once after all three stores have been written and the rollback is still available. */
+    public boolean applySavedDesktopLayout(DesktopLayoutRevision expected, BooleanSupplier commitAllowed,
+            LayoutDispatch dispatch) throws Exception {
+        return applySavedDesktopLayout(expected.getId(), expected, commitAllowed, dispatch);
+    }
+
+    private boolean applySavedDesktopLayout(String id, DesktopLayoutRevision expected, BooleanSupplier commitAllowed,
+            LayoutDispatch dispatch) throws Exception {
+        synchronized (ARCHIVE_LOCK) {
+            synchronized (DesktopLayoutStores.WRITE_LOCK) {
+                restoreRollback();
+                return desktopLayouts.withLayout(id, expected, (validGrid, images, validCards) -> {
+                    JSONObject validWallpapers = DesktopWallpaperPreferences.validateLayout(images);
+                    return dispatch.tryApply(() -> writeDesktopLayout(validGrid, validWallpapers, validCards, commitAllowed));
+                });
+            }
+        }
+    }
+
+    private void writeDesktopLayout(JSONObject validGrid, JSONObject validWallpapers, JSONObject validCards,
+            BooleanSupplier commitAllowed) throws Exception {
+        JSONObject previous = new JSONObject().put(ROLLBACK_SCOPE, DESKTOP_LAYOUT_SCOPE);
+        for (String name : DESKTOP_LAYOUT_STORES) snapshot(previous, name);
+        applyWithRollback(previous, () -> {
+            grid.restoreSettings(validGrid);
+            wallpapers.restoreSettings(validWallpapers);
+            desktopInfoCards.restoreSettings(validCards);
+            if (!commitAllowed.getAsBoolean()) throw new CancellationException("Desktop layout selection cancelled");
+        });
     }
 
     public static final class Restore {
@@ -58,31 +201,29 @@ public final class LocalSettingsArchive {
         private final String buttons, voice, localization, language;
         private final int density;
         private final boolean clusterMedia;
-        private final JSONArray windowProfiles;
-        private final AppDisplayDefaults appDisplayDefaults;
+        private final OptionalPreferences optional;
 
         private Restore(String buttons, String voice, String localization, String language,
-                int density, boolean clusterMedia, JSONArray windowProfiles, AppDisplayDefaults appDisplayDefaults,
-                int bindingCount, boolean complete) {
+                int density, boolean clusterMedia, OptionalPreferences optional, int bindingCount, boolean complete) {
             this.buttons = buttons;
             this.voice = voice;
             this.localization = localization;
             this.language = language;
             this.density = density;
             this.clusterMedia = clusterMedia;
-            this.windowProfiles = windowProfiles;
-            this.appDisplayDefaults = appDisplayDefaults;
+            this.optional = optional;
             this.bindingCount = bindingCount;
             this.complete = complete;
         }
     }
 
     public Restore prepare(String raw) throws Exception {
-        if (raw.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES) throw new IOException(UiText.get(R.string.ui_125));
+        if (raw.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES)
+            throw new IOException(UiText.get(R.string.settings_archive_too_large));
         JSONObject root = new JSONObject(raw);
         if (!root.has("format")) {
             SettingsStore.State state = SettingsStore.decode(raw);
-            return new Restore(SettingsStore.encode(state), null, null, null, 0, false, null, null,
+            return new Restore(SettingsStore.encode(state), null, null, null, 0, false, null,
                 state.bindings.size(), false);
         }
         if (!FORMAT.equals(root.getString("format")) || root.getInt("schema") != 1)
@@ -102,59 +243,154 @@ public final class LocalSettingsArchive {
             ? AppWindowPreferences.validateProfiles(root.getJSONArray("appWindows")) : null;
         AppDisplayDefaults appDisplayDefaults = root.has("appDisplayDpi")
             ? AppWindowPreferences.validateDefaults(root.getJSONObject("appDisplayDpi")) : null;
+        Boolean checkOnStartup = null;
+        if (root.has("updates")) {
+            Object option = root.getJSONObject("updates").get("checkOnStartup");
+            if (!(option instanceof Boolean enabled)) throw new IOException(UiText.get(R.string.settings_archive_invalid));
+            checkOnStartup = enabled;
+        }
+        JSONObject appGrid = root.has("appGrid")
+            ? AppGridPreferences.validateSettings(root.getJSONObject("appGrid")) : null;
+        JSONObject desktopWallpapers = root.has("desktopWallpapers")
+            ? DesktopWallpaperPreferences.validateSettings(root.getJSONObject("desktopWallpapers")) : null;
+        JSONObject desktopInfoCards = root.has("desktopInfoCards")
+            ? DesktopInfoPreferences.validateSettings(root.getJSONObject("desktopInfoCards")) : null;
+        JSONObject desktopLayouts = root.has("desktopLayouts")
+            ? DesktopLayoutsPreferences.validateSettings(root.getJSONObject("desktopLayouts")) : null;
+        JSONObject appearance = root.has("appearance")
+            ? AppearancePreferences.validateSettings(root.getJSONObject("appearance")) : null;
+        JSONObject displayPreview = root.has("displayPreview")
+            ? DisplayPreviewPreferences.validateSettings(root.getJSONObject("displayPreview")) : null;
+        JSONObject serviceReminder = root.has("serviceReminder")
+            ? ServiceReminderPreferences.validateSettings(root.getJSONObject("serviceReminder")) : null;
+        JSONObject quickActions = root.has("quickActions")
+            ? QuickActionPreferences.validateSettings(root.getJSONObject("quickActions")) : null;
+        JSONObject routines = root.has("routines")
+            ? RoutinePreferences.validateSettings(root.getJSONObject("routines")) : null;
+        JSONObject seatMemory = root.has("seatMemory")
+            ? SeatMemoryPreferences.validateSettings(root.getJSONObject("seatMemory")) : null;
+        JSONObject headlightMonitoring = root.has("headlightMonitoring")
+            ? HeadlightMonitoringPreferences.validateSettings(root.getJSONObject("headlightMonitoring")) : null;
+        var optional = new OptionalPreferences(windowProfiles, appDisplayDefaults, checkOnStartup,
+            appGrid, desktopWallpapers, desktopInfoCards, desktopLayouts, appearance, displayPreview, serviceReminder,
+            quickActions, routines, seatMemory, headlightMonitoring);
         return new Restore(SettingsStore.encode(state), voiceJson, localizationJson, language,
-            (int) density, (boolean) clusterMedia, windowProfiles, appDisplayDefaults, state.bindings.size(), true);
+            (int) density, (boolean) clusterMedia, optional, state.bindings.size(), true);
     }
 
     public void apply(Restore restore) throws Exception {
-        recoverInterruptedRestore();
+        synchronized (ARCHIVE_LOCK) {
+            synchronized (DesktopLayoutStores.WRITE_LOCK) { applyArchive(restore); }
+        }
+    }
+
+    private void applyArchive(Restore restore) throws Exception {
+        restoreRollback();
         if (!restore.complete) {
             buttons.importJson(restore.buttons);
             return;
         }
+        var optional = restore.optional;
         JSONObject previous = new JSONObject();
-        for (String name : STORES) previous.put(name, new JSONObject(preferences(name).getAll()));
-        writeRollback(previous);
-        try {
+        for (String name : REQUIRED_STORES) snapshot(previous, name);
+        if (optional.windowProfiles() != null || optional.appDisplayDefaults() != null)
+            snapshot(previous, "app_windows");
+        if (optional.checkOnStartup() != null) snapshot(previous, "updates");
+        if (optional.appGrid() != null) snapshot(previous, AppGridPreferences.STORE);
+        if (optional.desktopWallpapers() != null) snapshot(previous, DesktopWallpaperPreferences.STORE);
+        if (optional.desktopInfoCards() != null) snapshot(previous, DesktopInfoPreferences.STORE);
+        if (optional.desktopLayouts() != null) snapshot(previous, DesktopLayoutsPreferences.STORE);
+        if (optional.appearance() != null) snapshot(previous, AppearancePreferences.STORE);
+        if (optional.displayPreview() != null) snapshot(previous, DisplayPreviewPreferences.STORE);
+        if (optional.serviceReminder() != null) snapshot(previous, ServiceReminderPreferences.STORE);
+        if (optional.quickActions() != null) snapshot(previous, QuickActionPreferences.STORE);
+        if (optional.routines() != null) snapshot(previous, RoutinePreferences.STORE);
+        if (optional.seatMemory() != null) snapshot(previous, SeatMemoryPreferences.STORE);
+        if (optional.headlightMonitoring() != null) snapshot(previous, HeadlightMonitoringPreferences.STORE);
+        applyWithRollback(previous, () -> {
             buttons.importJson(restore.buttons);
             voice.importJson(restore.voice);
             localization.importJson(restore.localization);
             UiText.language(restore.language);
             display.restore(restore.density, restore.clusterMedia);
-            if (restore.windowProfiles != null) windows.restoreProfiles(restore.windowProfiles);
-            if (restore.appDisplayDefaults != null) windows.saveDefaults(restore.appDisplayDefaults);
+            if (optional.windowProfiles() != null) windows.restoreProfiles(optional.windowProfiles());
+            if (optional.appDisplayDefaults() != null) windows.saveDefaults(optional.appDisplayDefaults());
+            if (optional.checkOnStartup() != null) updates.checkOnStartup(optional.checkOnStartup());
+            if (optional.appGrid() != null) grid.restoreSettings(optional.appGrid());
+            if (optional.desktopWallpapers() != null) wallpapers.restoreSettings(optional.desktopWallpapers());
+            if (optional.desktopInfoCards() != null) desktopInfoCards.restoreSettings(optional.desktopInfoCards());
+            if (optional.desktopLayouts() != null) desktopLayouts.restoreSettings(optional.desktopLayouts());
+            if (optional.appearance() != null) appearance.restoreSettings(optional.appearance());
+            if (optional.displayPreview() != null) preview.restoreSettings(optional.displayPreview());
+            if (optional.serviceReminder() != null) serviceReminder.restoreSettings(optional.serviceReminder());
+            if (optional.quickActions() != null) quickActions.restoreSettings(optional.quickActions());
+            if (optional.routines() != null) routines.restoreSettings(optional.routines());
+            if (optional.headlightMonitoring() != null) headlights.restoreSettings(optional.headlightMonitoring());
+            if (optional.seatMemory() != null) seats.restoreSettings(optional.seatMemory());
+        });
+    }
+
+    @FunctionalInterface
+    public interface RestoreAction { void run() throws Exception; }
+
+    private void applyWithRollback(JSONObject previous, RestoreAction write) throws Exception {
+        writeRollback(previous);
+        try {
+            write.run();
             rollback.delete();
         } catch (Exception ex) {
-            try { recoverInterruptedRestore(); }
+            try { restoreRollback(); }
             catch (Exception recovery) { ex.addSuppressed(recovery); }
             throw ex;
         }
     }
 
     public void recoverInterruptedRestore() throws Exception {
+        synchronized (ARCHIVE_LOCK) {
+            synchronized (DesktopLayoutStores.WRITE_LOCK) { restoreRollback(); }
+        }
+    }
+
+    private void restoreRollback() throws Exception {
         byte[] saved;
         try { saved = rollback.readFully(); }
         catch (FileNotFoundException ex) { return; }
         JSONObject previous = new JSONObject(new String(saved, StandardCharsets.UTF_8));
-        for (String name : STORES) {
-            if (name.equals("app_windows") && !previous.has(name)) continue;
-            JSONObject values = previous.getJSONObject(name);
-            SharedPreferences.Editor editor = preferences(name).edit().clear();
-            for (var keys = values.keys(); keys.hasNext();) {
-                String key = keys.next();
-                Object value = values.get(key);
-                if (value instanceof String) editor.putString(key, (String) value);
-                else if (value instanceof Integer) editor.putInt(key, (Integer) value);
-                else if (value instanceof Boolean) editor.putBoolean(key, (Boolean) value);
-                else throw new IOException(UiText.get(R.string.settings_archive_invalid));
-            }
-            if (!editor.commit()) throw new IOException(UiText.get(R.string.settings_archive_save_failed));
+        if (previous.has(ROLLBACK_SCOPE)) {
+            if (!DESKTOP_LAYOUT_SCOPE.equals(previous.get(ROLLBACK_SCOPE)) || previous.length() != DESKTOP_LAYOUT_STORES.length + 1)
+                throw new IOException(UiText.get(R.string.settings_archive_invalid));
+            JSONObject[] stores = new JSONObject[DESKTOP_LAYOUT_STORES.length];
+            for (int i = 0; i < stores.length; i++) stores[i] = previous.getJSONObject(DESKTOP_LAYOUT_STORES[i]);
+            for (int i = 0; i < stores.length; i++) recoverStore(DESKTOP_LAYOUT_STORES[i], stores[i]);
+        } else {
+            for (String name : REQUIRED_STORES) recoverStore(name, previous.getJSONObject(name));
+            for (String name : OPTIONAL_STORES) if (previous.has(name)) recoverStore(name, previous.getJSONObject(name));
         }
         rollback.delete();
     }
 
+    private void recoverStore(String name, JSONObject values) throws Exception {
+        SharedPreferences preferences = preferences(name);
+        SharedPreferences.Editor editor = preferences.edit();
+        // Removing absent keys individually also notifies active preference listeners on Android 9.
+        for (String key : preferences.getAll().keySet()) if (!values.has(key)) editor.remove(key);
+        for (var keys = values.keys(); keys.hasNext();) {
+            String key = keys.next();
+            Object value = values.get(key);
+            if (value instanceof String) editor.putString(key, (String) value);
+            else if (value instanceof Integer) editor.putInt(key, (Integer) value);
+            else if (value instanceof Boolean) editor.putBoolean(key, (Boolean) value);
+            else throw new IOException(UiText.get(R.string.settings_archive_invalid));
+        }
+        if (!editor.commit()) throw new IOException(UiText.get(R.string.settings_archive_save_failed));
+    }
+
     private SharedPreferences preferences(String name) {
         return context.getSharedPreferences(name, Context.MODE_PRIVATE);
+    }
+
+    private void snapshot(JSONObject target, String name) throws Exception {
+        target.put(name, new JSONObject(preferences(name).getAll()));
     }
 
     private void writeRollback(JSONObject previous) throws IOException {

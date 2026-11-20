@@ -1,0 +1,28 @@
+<resources>
+    <string name="headlight_sources_title">Источники данных фар</string>
+    <string name="headlight_sources_factory_selector">Штатный переключатель света</string>
+    <string name="headlight_sources_android_selector">Переключатель света в Android</string>
+    <string name="headlight_sources_android_headlamps">Фары в Android</string>
+    <string name="headlight_sources_android_high_beam">Дальний свет в Android</string>
+    <string name="headlight_sources_model_unreviewed">Совместимость модели не подтверждена</string>
+    <string name="headlight_sources_service_absent">Штатная служба недоступна</string>
+    <string name="headlight_sources_service_unreviewed">Совместимость штатной службы не подтверждена</string>
+    <string name="headlight_sources_platform_unavailable">Android Automotive недоступен</string>
+    <string name="headlight_sources_permission_denied">Нет доступа на чтение</string>
+    <string name="headlight_sources_disconnected">Нет соединения со службой</string>
+    <string name="headlight_sources_property_unavailable">Сигнал недоступен на этой системе</string>
+    <string name="headlight_sources_incompatible_property">Формат сигнала не поддерживается</string>
+    <string name="headlight_sources_subscription_rejected">Служба отклонила подписку</string>
+    <string name="headlight_sources_subscribed">Подписка активна</string>
+    <string name="headlight_sources_read_failed">Ошибка чтения</string>
+    <string name="headlight_sources_waiting">Ожидание статуса источника</string>
+    <string name="headlight_sources_last_confirmation">Источники последних подтверждений</string>
+    <string name="headlight_sources_factory">Штатная служба</string>
+    <string name="headlight_sources_android">Android Automotive</string>
+    <string name="headlight_sources_unknown">Источник неизвестен</string>
+    <string name="headlight_sources_copy">Скопировать отчёт</string>
+    <string name="headlight_sources_copied">Отчёт скопирован.</string>
+    <string name="headlight_sources_preparing">Подготовка отчёта…</string>
+    <string name="headlight_sources_copy_failed">Не удалось скопировать отчёт.</string>
+    <string name="headlight_sources_done">Готово</string>
+</resources>

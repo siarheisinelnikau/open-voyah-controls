@@ -15,18 +15,23 @@ const conf = dpi => ({densityDpi:field(dpi)});
 function harness(sdk, options = {}) {
     let displayId = options.displayId ?? 2;
     let mode = options.mode ?? 1;
+    let listed = !options.cold;
     let override = conf(options.dpi ?? 0);
-    let bounds = rect(0, 0, 1920, 720);
-    let placements = 0;
+    let displayBounds = [0, 0, 1920, 720];
+    let density = 240, resourceWidth = 145;
+    let bounds = rect(...displayBounds);
+    let placements = 0, scans = 0, writes = 0, notifications = 0, resourceReads = 0;
     const record = {
         packageName: field('org.example.app'),
         finishing: field(false),
         getDisplayId: () => displayId,
-        ensureActivityConfiguration() { }
+        ensureActivityConfiguration: () => { notifications++; }
     };
+    const records = [record];
+    if (options.shared) records.push({...record, packageName:field('org.example.other')});
     const task = {
-        getChildCount: () => 1,
-        getChildAt: () => record,
+        getChildCount: () => { scans++; return records.length; },
+        getChildAt: index => records[index],
         getWindowingMode: () => mode,
         getBounds: () => bounds,
         isActivityTypeStandardOrUndefined: () => true,
@@ -34,6 +39,8 @@ function harness(sdk, options = {}) {
         getConfiguration: () => conf(override.densityDpi.value || 240)
     };
     const api = {
+        am: {getTasks: () => ({size:()=>listed ? 1 : 0, get:()=>({baseActivity:field({getPackageName:()=>'org.example.app'})})})},
+        runningId: () => 45,
         lock: callback => callback(),
         user: () => 0,
         userOf: () => 0,
@@ -42,7 +49,8 @@ function harness(sdk, options = {}) {
         supportsFreeform: () => true,
         id: () => 45,
         find: id => id === 45 ? task : null,
-        display: () => ({getConfiguration: () => ({windowConfiguration:field({getBounds:()=>rect(0,0,1920,720)})})}),
+        display: () => ({getConfiguration: () => ({windowConfiguration:field({getBounds:()=>rect(...displayBounds)}),
+            densityDpi:field(density)})}),
         androidDisplay: id => id === 2 ? {
             getType: () => options.type ?? 1,
             getFlags: () => options.flags ?? 0,
@@ -50,14 +58,14 @@ function harness(sdk, options = {}) {
         } : null,
         windowManager: {getStableInsets: () => {}},
         requestedBounds: () => bounds,
-        minimum: () => [200, 200],
+        minimum: () => options.minimum ?? [200, 200],
         getOverride: () => override,
         densityConfig: (_, dpi) => conf(dpi),
-        setOverride: (_, value) => { override = value; },
+        setOverride: (_, value) => { override = value; writes++; },
         place: (_, target) => {
             placements++;
             mode = target === null ? 1 : 5;
-            bounds = target ?? rect(0,0,1920,720);
+            bounds = target ?? rect(...displayBounds);
         },
     };
     const classes = {
@@ -73,16 +81,25 @@ function harness(sdk, options = {}) {
         'android.app.ActivityTaskManager': {RESIZE_MODE_SYSTEM:field(0)},
         'java.lang.System': {identityHashCode:()=>22},
     };
-    const Java = {use: name => classes[name], cast: value => value};
-    const agent = vm.runInNewContext(source('window-profiles.js','window-tasks.js') + '\nsystemTasks(Java, sdk)', {
-        Java, sdk, android9Tasks:()=>api, android11Tasks:()=>api,
+    const Java = {use: name => classes[name], cast: value => value, retain:value=>value};
+    const resources = {getIdentifier:()=>1, getDimensionPixelOffset:()=>{ resourceReads++; return resourceWidth; }};
+    const context = {getPackageManager:()=>({getResourcesForApplication:()=>resources})};
+    const agent = vm.runInNewContext(source('window-profiles.js','window-tasks.js','window-policy.js') +
+        '\nsystemTasks(Java, sdk, launcherPanelWidth(Java, context))', {
+        Java, sdk, context, android9Tasks:()=>api, android11Tasks:()=>api,
     });
     return {
-        agent, placements:()=>placements, density:()=>override.densityDpi.value,
+        agent, task, placements:()=>placements, density:()=>override.densityDpi.value,
+        scans:()=>scans, writes:()=>writes, notifications:()=>notifications, resourceReads:()=>resourceReads,
+        configure: (frame, dpi, panel) => { displayBounds = frame; density = dpi; resourceWidth = panel; },
+        mode:()=>mode,
+        bounds:()=>[bounds.left.value, bounds.top.value, bounds.right.value, bounds.bottom.value],
+        markStarted:()=>{ listed = true; },
+        launchAt: frame => { mode = 5; bounds = rect(...frame); },
         move: id => {
             displayId = id;
             mode = 1;
-            bounds = rect(0,0,1920,720);
+            bounds = rect(...displayBounds);
         },
     };
 }
@@ -91,7 +108,7 @@ test('secondary app density is opt-in, reversible and never places a task', () =
     for (const sdk of [28, 30]) {
         const h = harness(sdk, {dpi:180});
         assert.equal(h.agent.screenOf(2), 'secondary');
-        assert.equal(h.agent.apply(profile, 0, 145, 45, null, 2).status, 'density_only');
+        assert.equal(h.agent.apply(profile, 0, 45, null, 2).status, 'density_only');
         assert.equal(h.density(), 200);
         h.agent.releaseSecondary(profile.component, 0, 45, 2);
         assert.equal(h.density(), 180);
@@ -103,7 +120,7 @@ test('virtual and private displays remain outside the app task density policy', 
     for (const options of [{type:5}, {flags:4}, {owner:10023}]) {
         const h = harness(30, options);
         assert.equal(h.agent.screenOf(2), null);
-        assert.throws(() => h.agent.apply(profile, 0, 145, 45, null, 2), {code:'no_display'});
+        assert.throws(() => h.agent.apply(profile, 0, 45, null, 2), {code:'no_display'});
         assert.equal(h.density(), 0);
         assert.equal(h.placements(), 0);
     }
@@ -111,13 +128,71 @@ test('virtual and private displays remain outside the app task density policy', 
 
 test('window release clears tracked density across displays without moving the task', () => {
     const h = harness(30, {displayId:0, dpi:180});
-    const result = h.agent.apply(profile, 0, 145, 45);
+    const result = h.agent.apply(profile, 0, 45);
     assert.equal(result.left, 500);
     assert.equal(h.placements(), 1);
     h.move(2);
     h.agent.release(0);
     assert.equal(h.density(), 180);
     assert.equal(h.placements(), 1);
+});
+
+test('a measured rail follows its display frame and refreshes after rotation or density changes', () => {
+    const fullWidth = {...profile, width:100};
+    for (const sdk of [28, 30]) {
+        const h = harness(sdk, {displayId:0});
+        assert.equal(h.agent.boundsFor(fullWidth, 180)[0], 180);
+        assert.equal(h.agent.apply(fullWidth, 0, 45).left, 180);
+        assert.equal(h.agent.boundsFor(fullWidth, 112)[0], 112);
+        assert.equal(h.agent.apply(fullWidth, 0, 45).left, 112);
+        assert.equal(h.resourceReads(), 0);
+
+        h.configure([24, 40, 744, 1320], 240, 155);
+        assert.equal(h.agent.apply(fullWidth, 0, 45).left, 179);
+        assert.equal(h.agent.apply(fullWidth, 0, 45).left, 179);
+        assert.equal(h.resourceReads(), 1);
+
+        h.configure([24, 40, 744, 1320], 300, 195);
+        assert.equal(h.agent.apply(fullWidth, 0, 45).left, 219);
+        assert.equal(h.resourceReads(), 2);
+    }
+});
+
+test('both task lookup paths validate activities once and skip unchanged resize and density writes', () => {
+    for (const sdk of [28, 30]) {
+        const h = harness(sdk, {displayId:0});
+        assert.equal(h.agent.apply(profile, 0, 45).status, 'applied');
+        assert.equal(h.agent.apply(profile, 0).status, 'applied');
+        assert.equal(h.scans(), 2);
+        assert.equal(h.placements(), 1);
+        assert.equal(h.writes(), 1);
+        assert.equal(h.notifications(), 1);
+        h.agent.release(0);
+        assert.equal(h.density(), 0);
+        assert.equal(h.placements(), 2);
+
+        const shared = harness(sdk, {displayId:0, shared:true});
+        assert.throws(() => shared.agent.apply(profile, 0, 45), {code:'no_task'});
+        assert.throws(() => shared.agent.apply(profile, 0), {code:'no_task'});
+        assert.equal(shared.placements(), 0);
+        assert.equal(shared.writes(), 0);
+    }
+});
+
+test('an impossible warm launch restores the window captured before provisional launch bounds', () => {
+    for (const sdk of [28, 30]) {
+        const h = harness(sdk, {displayId:0, dpi:180, minimum:[800, 500]});
+        h.configure([0, 0, 720, 1280], 240, 180);
+        const prior = h.agent.captureLaunch(profile, 0);
+        h.launchAt(h.agent.boundsFor(profile));
+        const launch = h.agent.rememberLaunch(h.task, profile.component, 0, prior, {mode:1, bounds:null});
+        assert.throws(() => h.agent.apply(profile, 0, 45, launch), {code:'no_space'});
+        assert.equal(h.mode(), 1);
+        assert.equal(h.density(), 180);
+        assert.equal(h.placements(), 1);
+        h.agent.release(0);
+        assert.equal(h.placements(), 1);
+    }
 });
 
 test('native split and trusted adjacent launches are left to Android', () => {
@@ -146,4 +221,134 @@ test('native split and trusted adjacent launches are left to Android', () => {
     flags = tasks.framework.launchAdjacent;
     assert.equal(inspect(activity, null, from(5), tasks), null);
     assert.equal(inspect(activity, null, from(1), tasks).key, profile.component);
+});
+
+function livePolicy(sdk, h) {
+    const prefix = 'org.openvoyah.controls.';
+    const settings = new Map([[prefix + 'windowProfiles', JSON.stringify({schema:1, user:0, enabled:true,
+        apps:[{...profile, keepPanel:true}]})]]);
+    const queue = [], logs = [];
+    let tick, acceptClear = true, sequence = 0;
+    const context = {getContentResolver:()=>({})};
+    const owner = sdk === 28 ? 'com.android.server.am' : 'com.android.server.wm';
+    const types = [owner + '.ActivityRecord', owner + '.ActivityRecord', '', '', '', '',
+        'android.app.ActivityOptions', owner + (sdk === 28 ? '.TaskRecord' : '.Task')];
+    const early = {call(_receiver, _record, options) {
+        const value = options?.getLaunchBounds();
+        if (value && options.getLaunchWindowingMode() === 5) {
+            h.launchAt([value.left.value, value.top.value, value.right.value, value.bottom.value]);
+        }
+    }};
+    const late = {
+        returnType:{className:'int'}, argumentTypes:types.map(className=>({className})),
+        call(receiver, ...args) {
+            early.implementation.call(receiver, args[0], args[6], null, false, 0, args[1]);
+            h.markStarted();
+            args[8][0] = args[0];
+            return 0;
+        },
+    };
+    const classes = {
+        [owner + '.ActivityStarter']:{startActivityUnchecked:{overloads:[late]}},
+        'android.app.ActivityThread':{currentActivityThread:()=>({getSystemContext:()=>context})},
+        'android.provider.Settings$Global':{
+            getString:(_resolver,key)=>settings.get(key) ?? null,
+            putString:(_resolver,key,value)=>{ if (acceptClear) settings.set(key,value); return acceptClear; },
+        },
+        'android.app.ActivityManager':{START_SUCCESS:field(0), START_TASK_TO_FRONT:field(2), START_DELIVERED_TO_TOP:field(3)},
+    };
+    const Java = {use:name=>classes[name], retain:value=>value, perform:fn=>fn(), scheduleOnMainThread:fn=>queue.push(fn)};
+    vm.runInNewContext(source('window-profiles.js','window-policy.js') + '\ninstallLiveWindowPolicy(Java, sdk, early)', {
+        Java, sdk, early, systemTasks:()=>h.agent, setInterval:fn=>{ tick = fn; }, console:{log:line=>logs.push(line)},
+    });
+    return {
+        queue, logs, setClear:value=>{ acceptClear = value; },
+        launch(nativeMode = 0, nativeBounds = null, sourceMode = 1) {
+            let mode = nativeMode, bounds = nativeBounds && rect(...nativeBounds);
+            const options = {
+                getLaunchDisplayId:()=>0, getLaunchWindowingMode:()=>mode, getLaunchBounds:()=>bounds,
+                setLaunchDisplayId() {}, setLaunchWindowingMode:value=>{ mode = value; }, setLaunchBounds:value=>{ bounds = value; },
+            };
+            const record = {
+                launchedFromPackage:field('com.qinggan.app.launcher'), packageName:field('org.example.app'),
+                intent:field({
+                    getAction:()=>'android.intent.action.MAIN', hasCategory:()=>true, getFlags:()=>0, getIntExtra:()=>0,
+                    getComponent:()=>({getPackageName:()=>'org.example.app', flattenToString:()=>profile.component}),
+                }),
+                isActivityTypeStandardOrUndefined:()=>true, isResizeable:()=>true, getDisplayId:()=>0,
+                getTask:()=>h.task, equals:other=>other === record,
+            };
+            const from = {getDisplayId:()=>0, getWindowingMode:()=>sourceMode, isActivityTypeHome:()=>true};
+            return late.implementation.call({mLastStartActivityRecord:field(record)}, record, from, null, null, null,
+                null, options, null, []);
+        },
+        request(operation) {
+            const id = (++sequence).toString(16).padStart(32, '0');
+            settings.set(prefix + 'windowRequest', JSON.stringify({schema:1, id, user:0,
+                expires:Date.now()+4000, operation, component:profile.component}));
+            tick();
+            const marker = 'OVC_WINDOW_RESULT ' + id + ' ';
+            return JSON.parse(logs.find(line=>line.startsWith(marker)).slice(marker.length));
+        },
+    };
+}
+
+test('back-to-back starts schedule one layout and disabling before delivery restores the native launch', () => {
+    for (const sdk of [28, 30]) {
+        const h = harness(sdk, {displayId:0, dpi:180, cold:true});
+        const service = livePolicy(sdk, h);
+        const native = [240, 24, 1790, 710];
+        service.launch(5, native);
+        service.launch();
+        assert.equal(service.queue.length, 1);
+        assert.notDeepEqual(h.bounds(), native);
+        assert.equal(service.request('release').status, 'applied');
+        assert.deepEqual(h.bounds(), native);
+        service.queue.shift()();
+        assert.equal(h.mode(), 5);
+        assert.equal(h.density(), 180);
+        assert.equal(h.placements(), 1);
+    }
+});
+
+test('a cold start too large for the workspace returns to its native placement and density', () => {
+    for (const sdk of [28, 30]) {
+        const h = harness(sdk, {displayId:0, dpi:180, cold:true, minimum:[2000, 500]});
+        const service = livePolicy(sdk, h);
+        service.launch();
+        assert.equal(h.mode(), 5);
+        service.queue.shift()();
+        assert.equal(h.mode(), 1);
+        assert.equal(h.density(), 180);
+        assert.deepEqual(h.bounds(), [0, 0, 1920, 720]);
+        assert.ok(service.logs.includes('OVC_WINDOW_ERROR launch no_space'));
+        service.request('release');
+        assert.equal(h.placements(), 1);
+    }
+});
+
+test('a native freeform launch without explicit bounds waits for Android placement', () => {
+    const h = harness(30, {displayId:0, cold:true});
+    const service = livePolicy(30, h);
+    service.launch(5);
+    assert.equal(h.mode(), 1);
+    h.launchAt([300, 10, 1700, 680]);
+    service.queue.shift()();
+    assert.equal(h.placements(), 1);
+    service.request('release');
+    assert.deepEqual(h.bounds(), [300, 10, 1700, 680]);
+});
+
+test('a failed request acknowledgement precedes any write and diagnostics expose only known outcomes', () => {
+    const h = harness(30, {displayId:0});
+    const service = livePolicy(30, h);
+    service.setClear(false);
+    assert.equal(service.request('apply').status, 'failed');
+    assert.equal(h.placements(), 0);
+    assert.equal(h.writes(), 0);
+    service.setClear(true);
+    h.agent.apply = () => { throw Object.assign(Error('private fixture payload'), {code:'private fixture code'}); };
+    assert.equal(service.request('apply').status, 'failed');
+    assert.ok(service.logs.includes('OVC_WINDOW_ERROR request failed'));
+    assert.equal(service.logs.some(line=>line.includes('private fixture')), false);
 });

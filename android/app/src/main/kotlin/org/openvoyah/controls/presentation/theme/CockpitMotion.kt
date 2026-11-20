@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import org.openvoyah.controls.domain.settings.RouteTransitionSpeed
 
 /** Finite motion only. Compose uses the system animator duration scale, including zero. */
 internal object CockpitMotion {
@@ -20,7 +21,19 @@ internal object CockpitMotion {
     const val CHANGE = 180
     const val ENTER = 240
     const val EXIT = 110
+
+    private val shortRoute = RouteTransitionDurations(120, 75)
+    private val standardRoute = RouteTransitionDurations(CHANGE, EXIT)
+    private val smoothRoute = RouteTransitionDurations(240, 150)
+
+    fun routeDurations(speed: RouteTransitionSpeed): RouteTransitionDurations = when (speed) {
+        RouteTransitionSpeed.SHORT -> shortRoute
+        RouteTransitionSpeed.STANDARD -> standardRoute
+        RouteTransitionSpeed.SMOOTH -> smoothRoute
+    }
 }
+
+internal data class RouteTransitionDurations(val enterMillis: Int, val exitMillis: Int)
 
 internal data class PressMotion(val source: MutableInteractionSource, val modifier: Modifier, val color: Color)
 

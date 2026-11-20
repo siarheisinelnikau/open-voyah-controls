@@ -12,15 +12,23 @@ public final class VoiceCatalog {
     }
     private final Map<String, Command> commands = new LinkedHashMap<>();
     private final Map<String, Command> phrases = new HashMap<>();
+    private final Map<String, Command> transcriptAliases = new HashMap<>();
     public VoiceCatalog(InputStream input) throws IOException { this(input, Collections.emptyList()); }
     public VoiceCatalog(InputStream input, List<Command> extra) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8))) {
             for (String line; (line = reader.readLine()) != null;) {
                 if (isBlank(line) || line.startsWith("#")) continue;
                 String[] parts = line.split("\t", -1);
-                if (parts.length != 3) throw new IOException("Invalid voice catalog");
+                if (parts.length != 3 && parts.length != 4) throw new IOException("Invalid voice catalog");
                 Command command = new Command(parts[0], parts[1], Arrays.asList(parts[2].split("\\|")));
                 add(command);
+                if (parts.length == 4) addTranscriptAliases(command, parts[3]);
+            }
+        }
+        for (var alias : transcriptAliases.entrySet()) {
+            Command spoken = phrases.get(alias.getKey());
+            if (spoken != null && spoken != alias.getValue()) {
+                throw new IOException("Ambiguous transcript alias: " + alias.getKey());
             }
         }
         for(Command command:extra) add(command);
@@ -32,6 +40,16 @@ public final class VoiceCatalog {
             if(previous!=null && !previous.id().equals(command.id())) throw new IOException("Ambiguous phrase: "+phrase);
         }
     }
+    private void addTranscriptAliases(Command command, String aliases) throws IOException {
+        for (String alias : aliases.split("\\|", -1)) {
+            String key = normalize(alias);
+            if (key.codePoints().allMatch(value -> Character.isWhitespace(value) || Character.isSpaceChar(value))) {
+                throw new IOException("Blank transcript alias for " + command.id());
+            }
+            Command previous = transcriptAliases.putIfAbsent(key, command);
+            if (previous != null && previous != command) throw new IOException("Ambiguous transcript alias: " + alias);
+        }
+    }
     public static String normalize(String text) {
         return normalizeSpelling(text).replace('ё', 'е');
     }
@@ -40,7 +58,11 @@ public final class VoiceCatalog {
             .replaceAll("[.,!?;:]", " ").trim().replaceAll("\\s+", " ");
     }
     public static boolean isBlank(String text) { return text.codePoints().allMatch(Character::isWhitespace); }
-    public Command match(String text) { return phrases.get(normalize(text)); }
+    public Command match(String text) {
+        String key = normalize(text);
+        Command spoken = phrases.get(key);
+        return spoken != null ? spoken : transcriptAliases.get(key);
+    }
     public Command byId(String id) { return commands.get(id); }
     public List<Command> all() { return Collections.unmodifiableList(new ArrayList<>(commands.values())); }
     public Set<String> grammar() {

@@ -9,13 +9,13 @@ The app recognizes 138 command IDs in English and Russian. The recognition langu
 
 ![Voice settings and command catalog on Android 9](screenshots/voice.png)
 
-Android asks for microphone permission on the first request. Once the microphone starts, Vosk listens for up to four seconds. Offline actions need a final catalog match that passes the decoder confidence check. Silence and unfinished phrases end the capture. The app keeps the last model warm for 90 seconds between requests.
+Android asks for microphone permission on the first request. Once the microphone starts, Vosk listens for up to four seconds by default. Set the limit to three, four, or six seconds in **Voice audio → Listening and popup**. Offline actions need a final catalog match that passes the decoder confidence check. Silence and unfinished phrases end the capture. The app keeps the last model warm for 90 seconds between requests.
 
 Voice settings shows whether physical vehicle commands have been reviewed for the current build. The shipped approval catalog starts empty. App, media, and dialer commands are available independently. Each physical command requires approval for the exact build, a fresh Park and standstill check, and the current request protocol at both ends.
 
 The result distinguishes a vehicle service acknowledgment from a change confirmed by fresh telemetry. If feedback is partial or the outcome is unknown, the app ends the request and shows that result. Vehicle qualification also checks who can submit requests on the reviewed firmware and what happens when feedback or power is lost during motion.
 
-“Driver one/two/three” (Russian: “водитель один/два/три”) recalls the saved **driver seat and mirror memory** slots 1/2/3. Save the positions through the vehicle's own memory controls. Recall requires approval for the exact firmware, **P (Park)** and zero speed. The current reply confirms service acceptance rather than the final seat/mirror positions. See the [driver-memory guide](DRIVER_MEMORY.md).
+“Driver one/two/three” (Russian: “водитель один/два/три”) selects the corresponding **driver seat and mirror memory** slot 1/2/3. For a reviewed firmware and slot, direct recall requires **P (Park)** and zero speed. The service reply acknowledges the request. On other firmware, the phrase opens the numbered Restore instructions and the recall is finished in the factory seat controls. Save positions through the factory seat controls. See the [driver-memory guide](DRIVER_MEMORY.md).
 
 “Driver A/B/C” concerns separate OEM accounts. Those commands do not select the numbered memory slots. Overseas account switching remains unavailable; see [OEM account-record recovery limits](ACCOUNT_RECOVERY.md) for the distinct account and recovery boundaries.
 
@@ -35,9 +35,13 @@ The free router can return one of four actions: raise volume, lower volume, rest
 
 ## Voice audio and climate
 
-In **Voice audio**, you can lower media while the microphone is listening. Android releases that audio focus when the request ends. You can also have the app read back the command using an installed offline Android voice in the recognition language.
+In **Voice audio**, you can lower media while the microphone is listening. Android releases that audio focus when the request ends. Spoken feedback reads back the command using an installed offline Android voice in the recognition language. Set the rate and volume, or choose a specific installed voice and play a sample. Controls remembers the choice independently for English and Russian. Automatic selection uses a compatible installed voice when the chosen voice is unavailable.
 
-On the inspected H97 branch with front climate on, use **driver temperature**, **passenger temperature**, or **fan speed** with a value. Temperature accepts 16–30 °C, and the fan accepts 1–8. The popup shows the recognized phrase and the result. Other branches need separate verification.
+Choose whether feedback repeats the recognized command or announces its result. The result distinguishes an accepted request from a confirmed vehicle response. **Spoken reply channel** selects Android's Assistant or Media audio channel for feedback and voice samples. The optional **Ready signal** plays a tone or a short spoken prompt before recording. In spoken mode, set a custom ready phrase for the current recognition language or restore its built-in phrase. A tone plays if the offline voice is unavailable. The optional end sound plays after the microphone is released and before spoken feedback, with its own volume. **Listening and popup** controls how long the result stays visible and whether it includes the recognized phrase.
+
+![Custom English ready phrase in Voice audio on an Android 11 emulator](screenshots/voice-ready-phrase.png)
+
+On the inspected H97 branch with front climate on, use **driver temperature**, **passenger temperature**, or **fan speed** with a value. Temperature accepts 16–30 °C, and the fan accepts 1–8. The popup shows the result and, by default, the recognized phrase. Other branches need separate verification.
 
 ## Contacts, backup, and recovery
 
