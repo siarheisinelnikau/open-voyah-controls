@@ -207,8 +207,12 @@ public final class FridaBridge {
     private boolean resumeVerifiedDeployment(SettingsStore.State state) throws IOException {
         String entry = quote(base + "/boot-start.sh");
         String digest = assetDigest("hooks/boot-start.sh");
+        String launcher = quote(base + "/launcher-buttons.js");
+        String launcherDigest = assetDigest("hooks/launcher-buttons.bundle.js");
         String verified = command(activationGuard() + "if [ -f " + base + "/enabled ] && [ ! -L " + entry
-            + " ] && [ \"$(sha256sum " + entry + " | cut -d ' ' -f 1)\" = '" + digest + "' ]; then "
+            + " ] && [ \"$(sha256sum " + entry + " | cut -d ' ' -f 1)\" = '" + digest + "' ] "
+            + "&& [ -f " + launcher + " ] && [ ! -L " + launcher
+            + " ] && [ \"$(sha256sum " + launcher + " | cut -d ' ' -f 1)\" = '" + launcherDigest + "' ]; then "
             + "/system/bin/sh " + entry + " --verify 2>/dev/null || true; fi");
         if (!"OVC_BOOT_VERIFIED".equals(verified)) return false;
         command(activationGuard() + "settings put global " + KEY + " " + quote(deploymentConfig(state)));

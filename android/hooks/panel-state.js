@@ -248,7 +248,8 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         try {
             const app = ActivityThread.currentApplication();
             const changed = app !== null && signature(readConfig(app)).key !== applied;
-            if (!changed && !bars.some(bar => bar.released || bar.owner.get() === null)) return;
+            if (!changed && !lifecycle.startup?.pending() &&
+                !bars.some(bar => bar.released || bar.owner.get() === null)) return;
             queued = true;
             Java.scheduleOnMainThread(() => {
                 try {
@@ -258,7 +259,18 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
                     const config = readConfig(current);
                     const {key, token} = signature(config);
                     const changed = key !== applied;
-                    const complete = visitBars((nav, bar) => changed ? refresh(nav, bar, config) : true);
+                    const complete = visitBars((nav, bar) => {
+                        if (changed && !refresh(nav, bar, config)) return false;
+                        if (config?.enabled === true && nav.mScreenId.value === 0 && lifecycle.startup?.pending()) {
+                            for (const entry of bar.views) {
+                                if (!entry.active) continue;
+                                const view = dereference(entry.view, View);
+                                if (view !== null && ownsView(nav, view, entry.slot) &&
+                                    lifecycle.startup.showIfReady(current, view)) break;
+                            }
+                        }
+                        return true;
+                    });
                     if (changed && complete) {
                         applied = key;
                         if (token) {

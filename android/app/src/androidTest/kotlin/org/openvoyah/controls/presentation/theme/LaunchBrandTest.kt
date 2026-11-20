@@ -62,8 +62,8 @@ class LaunchBrandTest : InstrumentationTestCase() {
             await("Direct settings page") { hasTag(controls, "quickActionsContent") }
             assertFalse(hasTag(controls, LAUNCH_BRAND_TAG))
             withSlowMotion {
-                withActivity(launcherIntent(), LaunchBrandActivity::class.java) { brand ->
-                    await("Brand on the launcher entry") { hasTag(brand, LAUNCH_BRAND_TAG) }
+                withActivity(bootBrandIntent(), LaunchBrandActivity::class.java) { brand ->
+                    await("Brand on the boot entry") { hasTag(brand, LAUNCH_BRAND_TAG) }
                     assertFalse("The brand must have its own task", onMain { brand.taskId == controls.taskId })
                     captureStage(brand, "launch-brand-background.png", ::hasPlainBackground)
                     captureStage(brand, "launch-brand-wings.png", ::hasOnlyWings)
@@ -83,20 +83,23 @@ class LaunchBrandTest : InstrumentationTestCase() {
 
     fun testDirectAndReducedMotionEntriesSkipBrand() = withLauncherSettings { appearance ->
         appearance.setAnimateRoutes(true)
-        withActivity(MainActivity.appsIntent(app), MainActivity::class.java) { activity ->
+        appearance.setLauncherEntry(LauncherEntry.APP_GRID)
+        val launcher = checkNotNull(app.packageManager.getLaunchIntentForPackage(app.packageName))
+        withActivity(launcher, MainActivity::class.java) { activity ->
             assertTrue(onMain {
                 ViewModelProvider(activity)[ControlsNavigationViewModel::class.java].state.value.route == ControlsRoute.APPS
             })
             assertFalse(hasTag(activity, LAUNCH_BRAND_TAG))
             appearance.setAnimateRoutes(false)
-            withActivity(launcherIntent(), LaunchBrandActivity::class.java) { brand ->
+            withActivity(bootBrandIntent(), LaunchBrandActivity::class.java) { brand ->
                 await("reduced-motion launcher to close") { onMain { brand.isFinishing } }
                 assertFalse(hasTag(brand, LAUNCH_BRAND_TAG))
             }
         }
     }
 
-    private fun launcherIntent() = checkNotNull(app.packageManager.getLaunchIntentForPackage(app.packageName))
+    private fun bootBrandIntent() = Intent(app, LaunchBrandActivity::class.java)
+        .setAction(LaunchBrandActivity.SHOW_BOOT_BRAND).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     private fun <T : Activity> withActivity(intent: Intent, type: Class<T>, checkActivity: (T) -> Unit) {
         // Observe the new Activity before startActivitySync would wait for its entry transition.

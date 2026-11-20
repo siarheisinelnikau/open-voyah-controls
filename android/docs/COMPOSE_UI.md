@@ -12,7 +12,7 @@ Normal app screens share `MainActivity` and use Jetpack Compose. The root destin
 
 Normal screens use explicit routes in `MainActivity`. The voice popup and installer handshake require a privileged permission for external callers. The application can open its own screens directly.
 
-Tapping the launcher icon plays the startup animation and returns to the previous screen. Launchers with app shortcut support offer **Open Controls** on a long press. It opens the saved start screen and applies the saved startup settings. With reviewed panel assignments enabled, a short press on the central lower-left menu button opens the root app grid directly. Holding the button keeps the native launcher action. When extra desktops are enabled, fresh grid entries open the saved default desktop. Detail destinations have Back navigation within the shared host.
+Tap the app icon or choose **Open Controls** from the launcher shortcut menu to open the saved start screen and apply startup settings. With reviewed panel assignments enabled, a short press on the central lower-left menu button opens the root app grid directly. Holding the button keeps the native launcher action. When extra desktops are enabled, fresh grid entries open the saved default desktop. Detail destinations have Back navigation within the shared host.
 
 Android owns runtime permission dialogs, file selection, package-install approval, system settings, keyboard and toasts. The display destination embeds a native `SurfaceView` for the virtual display. Its `Presentation` and app dialog windows host `ComposeView` content.
 
@@ -34,7 +34,7 @@ The shared palette uses neutral graphite surfaces, saturated blue actions, cool 
 - App and command lists animate placement and appearance when their data changes. Assignment dialogs animate transitions between their steps.
 - Activity and dialog windows have finite entry/exit transitions. The voice popup also animates recognition-state changes, and the virtual display crossfades changed media/navigation content.
 - Compose honors Android's animator duration scale, including zero. Window transitions honor the corresponding system window/transition scales. There are no permanent decorative animation loops.
-- The launcher animation starts on a solid background. Compose reveals the wings, then the emblem and title. The emblem and title go from silver through ruby and back before the task closes. Disabling screen transitions or the system animator skips the intro.
+- During panel startup, the launcher agent checks for a visible assigned central button and the focused factory home screen. It records one launch request per Android boot before opening the animation. The animation starts on a solid background, reveals the wings and emblem, then closes and returns to home. Disabling screen transitions or the system animator skips the intro.
 
 State collection follows the destination lifecycle. Settings snapshots copy mutable preferences into immutable presentation state. The app grid decodes the selected desktop's saved image on an I/O worker. Playback progress derives from a timed media-session sample and ticks while the visible preview shows a playing track. The main Displays screen owns playback actions. Closing the display route releases its presentation, media-preview listener and virtual display.
 

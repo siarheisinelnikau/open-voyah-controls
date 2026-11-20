@@ -13,7 +13,7 @@ const LAYOUTS = [
 ];
 
 /** Uses the overseas launcher's separate bars, without changing seat or screen-lift policy. */
-export function installOversea(Java, onNavigation = () => {}) {
+export function installOversea(Java, onNavigation = () => {}, startup) {
     Java.perform(() => {
         const scopes = [], holds = [];
         let nativeClick = null, complete = 0;
@@ -72,7 +72,7 @@ export function installOversea(Java, onNavigation = () => {}) {
                 panels[layout.screen] = layout.slots;
                 scope.state = installPanelState(Java, Nav, panels, readConfig, actionFor, buildIntent,
                     (nav, view, slot) => slotFor(scope, nav, view) === slot && nav.equals(ownerOf(scope, view)), {
-                        contextOf, skipRelease:true,
+                        contextOf, skipRelease:true, startup: layout.screen === 0 ? startup : null,
                         restored(token) {
                             restored.set(layout.screen, token);
                             if (scopes.every(item => restored.get(item.layout.screen) === token)) {
