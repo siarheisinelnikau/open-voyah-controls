@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "date": "2026-11-21",
+  "local_source_commit": "03af12dd1c643471b8a43f84bbced25cbdc370f5",
+  "source_tree": "8043219293aab9ceaa1e9a1d277eb1cbd3d4d713",
+  "artifact": "OpenVoyahControls-v0.20.1-session-fix-debug.apk",
+  "artifact_bytes": 169071256,
+  "sha256": "0eb4c3b16be93cf1106c8f94866b06689472c24c712d5e38a6e04b3a0f381293",
+  "emulator_fixture": false,
+  "vehicle_tested": false,
+  "checks": {
+    "gradle": "assembleDebug, assembleDebugAndroidTest, lintDebug, app and core JVM tests passed",
+    "jvm_tests": {
+      "app": 332,
+      "core": 67
+    },
+    "javascript_tests": 184,
+    "android_tests": {
+      "sources": 13,
+      "runtime": 1,
+      "screen": 1
+    },
+    "emulator": "API 30 x86_64, 1920x720, SwiftShader, SELinux Enforcing",
+    "installed_apk_matches": true,
+    "settled_rendering": [
+      {
+        "state": "visible",
+        "pid": 1993,
+        "seconds": 6.0502282,
+        "frames": 0,
+        "guest_cpu_ticks": 3,
+        "guest_cpu_one_core_percent": 0.4958490656600357
+      },
+      {
+        "state": "hidden",
+        "pid": 1993,
+        "seconds": 6.0428734,
+        "frames": 0,
+        "guest_cpu_ticks": 0,
+        "guest_cpu_one_core_percent": 0.0
+      },
+      {
+        "state": "restored",
+        "pid": 1993,
+        "seconds": 6.0807156,
+        "frames": 0,
+        "guest_cpu_ticks": 0,
+        "guest_cpu_one_core_percent": 0.0
+      }
+    ],
+    "regressions": [
+      "Fresh Drive/Park still triggers after the previous gear indication times out",
+      "Source/session loss invalidates the gear baseline and queued action",
+      "A climate operation cannot publish on a replacement session",
+      "An interrupted command group stops before publishing more commands"
+    ]
+  }
+}
