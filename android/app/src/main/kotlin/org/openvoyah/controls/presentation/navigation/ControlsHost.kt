@@ -21,8 +21,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -41,6 +44,7 @@ import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.domain.settings.RouteTransitionSpeed
 import org.openvoyah.controls.presentation.apps.AppsDestination
 import org.openvoyah.controls.presentation.cluster.ClusterDestination
+import org.openvoyah.controls.presentation.climate.SeasonalClimateDestination
 import org.openvoyah.controls.presentation.display.DisplayDestination
 import org.openvoyah.controls.presentation.dock.QuickActionsDestination
 import org.openvoyah.controls.presentation.dock.QuickActionsHost
@@ -49,12 +53,22 @@ import org.openvoyah.controls.presentation.firmware.FirmwareDestination
 import org.openvoyah.controls.presentation.home.AppearanceViewModel
 import org.openvoyah.controls.presentation.home.ControlsSettingsDestination
 import org.openvoyah.controls.presentation.routines.RoutinesDestination
+import org.openvoyah.controls.presentation.rules.ConditionalRulesDestination
 import org.openvoyah.controls.presentation.seatmemory.SeatMemoryDestination
 import org.openvoyah.controls.presentation.theme.CockpitMotion
 import org.openvoyah.controls.presentation.updates.UpdatesDestination
 import org.openvoyah.controls.presentation.vehicle.KeepHeadlightsObserved
 import org.openvoyah.controls.presentation.vehicle.ServiceReminderDestination
 import org.openvoyah.controls.presentation.vehicle.VehicleSettingsDestination
+import org.openvoyah.controls.presentation.vehicle.FactoryAssistanceDestination
+import org.openvoyah.controls.presentation.vehicle.vehicleSettingsViewModel
+import org.openvoyah.controls.platform.ui.VehicleSettingsLauncher
+import org.openvoyah.controls.platform.ui.VehicleSettingsDestination as FactoryVehicleDestination
+import org.openvoyah.controls.presentation.vehicle.automation.ObserveVehicleRoutines
+import org.openvoyah.controls.presentation.vehicle.automation.VehicleAutomationDestination
+import org.openvoyah.controls.presentation.vehicle.automation.VehicleDiagnosticsPopup
+import org.openvoyah.controls.presentation.vehicle.automation.seasonalClimateModel
+import org.openvoyah.controls.presentation.vehicle.automation.vehicleAutomationModel
 import org.openvoyah.controls.presentation.voice.VoiceDestination
 
 @Composable
@@ -64,6 +78,7 @@ internal fun ControlsHost(
     listen: () -> Unit,
     runRoutine: suspend (NamedRoutine, ControlsNavigationState) -> Int?,
     runRoutineShortcut: (NamedRoutine, ControlsNavigationState) -> Boolean,
+    runConditionalRoutine: suspend (NamedRoutine, ControlsNavigationState, () -> Boolean) -> Int?,
 ) {
     val state by navigation.state.collectAsStateWithLifecycle()
     val look by appearance.state.collectAsStateWithLifecycle()
@@ -78,7 +93,18 @@ internal fun ControlsHost(
 
     LaunchedEffect(state.route) { focus.clearFocus(force = true) }
     BackHandler(state.stack.size > 1, onBack = navigation::back)
-    (LocalActivity.current as? ComponentActivity)?.let { KeepHeadlightsObserved(it) }
+    val activity = checkNotNull(LocalActivity.current as? ComponentActivity)
+    KeepHeadlightsObserved(activity)
+    ObserveVehicleRoutines(activity, state.route, { navigation.state.value }, runConditionalRoutine)
+    var showVehicleDiagnostics by remember { mutableStateOf(false) }
+    val factory = remember(activity) { VehicleSettingsLauncher(activity.applicationContext) }
+    fun openFactory(destination: FactoryVehicleDestination) {
+        val intent = runCatching { factory.intent(destination) }.getOrNull() ?: return
+        val lamps = activity.vehicleSettingsViewModel()
+        if (destination == FactoryVehicleDestination.LIGHTING) lamps.beginFactoryLightingVisit()
+        try { activity.startActivity(intent) }
+        catch (_: RuntimeException) { lamps.endFactoryLightingVisit(); lamps.openFailed() }
+    }
     val dockEntry = state
     QuickActionsHost(dockState.settings ?: QuickActionSettings(), dockEntry.route, navigation::open, navigation::enterApps, dock,
         dockState.routineShortcut, runRoutineShortcut = { routine ->
@@ -108,7 +134,21 @@ internal fun ControlsHost(
                         ControlsRoute.VEHICLE -> VehicleSettingsDestination(navigation::back,
                             seatMemory = { navigation.open(ControlsRoute.SEAT_MEMORY) },
                             serviceReminder = { navigation.open(ControlsRoute.SERVICE_REMINDER) },
+                            automation = { navigation.open(ControlsRoute.VEHICLE_AUTOMATION) },
+                            assistance = { navigation.open(ControlsRoute.FACTORY_ASSISTANCE) },
                         )
+                        ControlsRoute.VEHICLE_AUTOMATION -> VehicleAutomationDestination(activity.vehicleAutomationModel(), navigation::back,
+                            climate = { navigation.open(ControlsRoute.SEASONAL_CLIMATE) },
+                            rules = { navigation.open(ControlsRoute.CONDITIONAL_RULES) },
+                            apollo = { navigation.open(ControlsRoute.FACTORY_ASSISTANCE) },
+                            factoryLighting = factory.intent(FactoryVehicleDestination.LIGHTING)?.let { { openFactory(FactoryVehicleDestination.LIGHTING) } },
+                            factoryDriving = factory.intent(FactoryVehicleDestination.VEHICLE)?.let { { openFactory(FactoryVehicleDestination.VEHICLE) } },
+                            diagnostics = { showVehicleDiagnostics = true },
+                        )
+                        ControlsRoute.SEASONAL_CLIMATE -> SeasonalClimateDestination(activity.seasonalClimateModel(), navigation::back)
+                        ControlsRoute.CONDITIONAL_RULES -> ConditionalRulesDestination(navigation::back,
+                            editRoutines = { navigation.open(ControlsRoute.ROUTINES) })
+                        ControlsRoute.FACTORY_ASSISTANCE -> FactoryAssistanceDestination(navigation::back) { showVehicleDiagnostics = true }
                         ControlsRoute.SEAT_MEMORY -> SeatMemoryDestination(destination, navigation, active = destination === state)
                         ControlsRoute.SERVICE_REMINDER -> ServiceReminderDestination(navigation::back)
                         ControlsRoute.QUICK_ACTIONS -> QuickActionsDestination(dock, dockState, navigation::back)
@@ -121,6 +161,7 @@ internal fun ControlsHost(
             }
         }
     }
+    if (showVehicleDiagnostics) VehicleDiagnosticsPopup(activity) { showVehicleDiagnostics = false }
 }
 
 private fun routeTransition(

@@ -395,6 +395,34 @@ class FirmwareEvidenceTest(unittest.TestCase):
         self.assertEqual(expected, window["records"])
         self.assertNotIn("PRIVATE_RECORD_MUST_NOT_APPEAR", result.stdout + result.stderr)
 
+    def test_cockpit_vehicle_workflows_preserve_typed_outcomes_without_private_payloads(self):
+        self.environment["OVC_FIRMWARE_FIXTURE_EVENTS"] = "vehicle_workflows"
+        result = self.collect("-Scope", "Cockpit", "-EventWindowSeconds", "1")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        window = json.loads(result.stdout)["cockpit_events"]
+        self.assertEqual("captured", window["status"])
+        self.assertEqual([
+            {"event": "vehicle_observer", "state": "model_unreviewed", "product": "f6808"},
+            {"event": "vehicle_observer", "outcome": "read_failed", "failure": "SecurityException"},
+            {"event": "vehicle_automation_monitor", "outcome": "started"},
+            {"event": "vehicle_automation_monitor", "outcome": "stopped"},
+            {"event": "vehicle_workflow_runtime", "outcome": "started", "background": True},
+            {"event": "vehicle_workflow_runtime", "outcome": "stopped"},
+            {"event": "conditional_rule_attempt", "rule": "12345678-1234-4234-9234-123456789abc", "outcome": "unconfirmed"},
+            {"event": "conditional_rule_handoff", "rule": "12345678-1234-4234-9234-123456789abc", "outcome": "completed"},
+            {"event": "vehicle_automation_dispatch", "kind": "headlight", "command": "LowBeam", "outcome": "requested"},
+            {"event": "vehicle_automation_dispatch", "kind": "driving_mode", "command": "EcoMode", "outcome": "unconfirmed"},
+            {"event": "seasonal_climate_automatic", "season": "winter", "outcome": "partial", "completed": 2},
+            {"event": "seasonal_climate_automatic", "season": "summer", "outcome": "recent", "completed": 0},
+            {"event": "vehicle_signal", "signal": "gear", "value": "drive", "outcome": "observed", "elapsed_ns": 42,
+             "session": "12345678-1234-4234-9234-123456789abc"},
+            {"event": "vehicle_signal", "signal": "outside_temperature", "value": "-12.5", "outcome": "observed", "elapsed_ns": 43,
+             "session": "12345678-1234-4234-9234-123456789abc"},
+            {"event": "vehicle_signal", "signal": "door_driver", "value": "unknown", "outcome": "unavailable", "elapsed_ns": 44,
+             "session": "12345678-1234-4234-9234-123456789abc"},
+        ], [{k: v for k, v in record.items() if k != "logged_at_ms"} for record in window["records"]])
+        self.assertNotIn("PRIVATE_RECORD_MUST_NOT_APPEAR", result.stdout + result.stderr)
+
     def test_cockpit_event_window_exports_only_typed_events_for_the_verified_process(self):
         result = self.collect("-Scope", "Cockpit", "-EventWindowSeconds", "1")
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)

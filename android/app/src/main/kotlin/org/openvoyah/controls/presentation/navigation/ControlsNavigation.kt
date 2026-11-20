@@ -17,7 +17,7 @@ import org.openvoyah.controls.presentation.seatmemory.SeatMemoryPrompt
 
 internal enum class ControlsRoute {
     APPS, SETTINGS, BUTTONS, VOICE, DISPLAY, VEHICLE, SEAT_MEMORY, SERVICE_REMINDER, QUICK_ACTIONS, ROUTINES,
-    FIRMWARE, CLUSTER, UPDATES,
+    FIRMWARE, CLUSTER, UPDATES, VEHICLE_AUTOMATION, SEASONAL_CLIMATE, CONDITIONAL_RULES, FACTORY_ASSISTANCE,
 }
 
 internal enum class RouteDirection { FORWARD, BACK, REPLACE }

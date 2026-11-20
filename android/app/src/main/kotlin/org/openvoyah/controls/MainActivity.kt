@@ -44,6 +44,7 @@ import org.openvoyah.controls.domain.settings.LauncherEntry
 import org.openvoyah.controls.platform.apps.AppsPlatform
 import org.openvoyah.controls.platform.apps.LauncherShortcuts
 import org.openvoyah.controls.platform.audio.limitLauncherMediaVolume
+import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime
 import org.openvoyah.controls.presentation.home.HomeUpdatesViewModel
 import org.openvoyah.controls.presentation.home.appearanceViewModel
 import org.openvoyah.controls.presentation.navigation.ControlsHost
@@ -95,7 +96,8 @@ class MainActivity : ComponentActivity() {
             ControlsTheme(appearance = look.settings, systemBars = window, temporaryPalette = palette) {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f)) {
-                        ControlsHost(navigation, appearance, ::listen, ::runManualRoutine, ::runRoutineShortcut)
+                        ControlsHost(navigation, appearance, ::listen, ::runManualRoutine, ::runRoutineShortcut,
+                            ::runConditionalRoutine)
                     }
                     pending?.let { launch ->
                         if (launch.request.schedule.delay != RoutineStartupDelay.IMMEDIATE ||
@@ -130,6 +132,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         enter(intent)
+        dispatchVehicleRuleIfReady()
     }
 
     private fun enter(intent: Intent) {
@@ -182,18 +185,22 @@ class MainActivity : ComponentActivity() {
         return true
     }
 
-    private suspend fun runRoutineFromEntry(routine: NamedRoutine, entry: ControlsNavigationState): Int? {
-        if (!routineEntryIsCurrent(entry) || manualRoutineJob != null) throw CancellationException()
+    private suspend fun runRoutineFromEntry(routine: NamedRoutine, entry: ControlsNavigationState): Int? =
+        runConditionalRoutine(routine, entry) { true }
+
+    private suspend fun runConditionalRoutine(routine: NamedRoutine, entry: ControlsNavigationState,
+        stillAllowed: () -> Boolean): Int? {
+        if (!routineEntryIsCurrent(entry) || manualRoutineJob != null || !stillAllowed()) throw CancellationException()
         val job = currentCoroutineContext().job
         manualRoutineJob = job
         cancelStartup()
         routineMessage = null
         val layoutId = routine.plan.desktopLayoutId
-        val permit = layoutId?.let { RoutineLayoutPermit { job.isActive && navigation.state.value === entry } }
+        val permit = layoutId?.let { RoutineLayoutPermit { job.isActive && navigation.state.value === entry && stillAllowed() } }
         manualLayoutPermit = permit
         try {
             val app = routine.plan.installedApp?.let { withContext(Dispatchers.IO) { routineApps.find(it) } }
-            if (!routineEntryIsCurrent(entry)) throw CancellationException()
+            if (!routineEntryIsCurrent(entry) || !stillAllowed()) throw CancellationException()
             if (layoutId == null) {
                 routinePreferences.planFor(routine)
             } else {
@@ -201,7 +208,7 @@ class MainActivity : ComponentActivity() {
                 val applied = routineLayouts.runManual(routine, layout, checkNotNull(permit))
                 if (!applied) return R.string.routines_changed
             }
-            if (!routineEntryIsCurrent(entry)) throw CancellationException()
+            if (!routineEntryIsCurrent(entry) || !stillAllowed()) throw CancellationException()
             dispatchRoutine(routine.plan, app)
             return null
         } catch (cancelled: CancellationException) {
@@ -357,6 +364,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         resumed = true
+        dispatchVehicleRuleIfReady()
         startLauncherWorkIfReady()
     }
 
@@ -384,13 +392,31 @@ class MainActivity : ComponentActivity() {
             cancelManualRoutine()
         }
         focused = hasFocus
-        if (hasFocus) startLauncherWorkIfReady()
+        if (hasFocus) {
+            dispatchVehicleRuleIfReady()
+            startLauncherWorkIfReady()
+        }
     }
 
     override fun onUserInteraction() {
         super.onUserInteraction()
         cancelLauncherMedia()
         cancelStartup()
+    }
+
+    /** No executable data is accepted from the Intent; the runtime consumes one fresh in-memory token. */
+    private fun dispatchVehicleRuleIfReady() {
+        if (!canDispatchInForeground()) return
+        val runtime = VehicleWorkflowRuntime.get(applicationContext)
+        val decision = runtime.claim(intent) ?: return
+        val entry = navigation.state.value
+        lifecycleScope.launch {
+            val outcome = try {
+                if (runConditionalRoutine(decision.routine, entry) { runtime.isCurrent(decision) } == null) "completed" else "failed"
+            } catch (_: CancellationException) { "cancelled" }
+            catch (_: Exception) { "unconfirmed" }
+            Log.i("OpenVoyahControls", "event=conditional_rule_handoff rule=${decision.rule.id} outcome=$outcome")
+        }
     }
 
     private fun listen() = external(QuickVoiceActivity.intent(this))

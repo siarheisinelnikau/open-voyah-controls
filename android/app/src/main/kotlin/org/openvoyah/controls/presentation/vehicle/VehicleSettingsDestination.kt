@@ -28,6 +28,7 @@ import org.openvoyah.controls.domain.vehicle.HeadlightMonitor
 import org.openvoyah.controls.platform.ui.VehicleSettingsLauncher
 import org.openvoyah.controls.platform.ui.VehicleSettingsDestination as StockVehicleDestination
 import org.openvoyah.controls.platform.vehicle.factoryHeadlightFeedback
+import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime
 
 internal const val VEHICLE_SETTINGS_MODEL_KEY = "vehicle.settings.destination"
 
@@ -38,11 +39,13 @@ internal fun ComponentActivity.vehicleSettingsViewModel(
         isAvailable = { destination -> launcher.intent(destination) != null },
         headlightMonitor = HeadlightMonitor(factoryHeadlightFeedback(applicationContext), LocalHeadlightHistory(applicationContext)),
         monitoringStore = HeadlightMonitoringPreferences(applicationContext),
+        sharedHeadlightStatus = VehicleWorkflowRuntime.get(applicationContext).headlights,
     )
 } })[VEHICLE_SETTINGS_MODEL_KEY, VehicleSettingsViewModel::class.java]
 
 @Composable
-internal fun VehicleSettingsDestination(back: () -> Unit, seatMemory: () -> Unit, serviceReminder: () -> Unit) {
+internal fun VehicleSettingsDestination(back: () -> Unit, seatMemory: () -> Unit, serviceReminder: () -> Unit,
+    automation: () -> Unit, assistance: () -> Unit) {
     val context = LocalContext.current
     val activity = remember(context) { context.vehicleSettingsActivity() }
     val launcher = remember(activity) { VehicleSettingsLauncher(activity.applicationContext) }
@@ -97,6 +100,8 @@ internal fun VehicleSettingsDestination(back: () -> Unit, seatMemory: () -> Unit
         inspectLightingSources = {
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) showLightingSources = true
         },
+        automation = automation,
+        assistance = assistance,
     )
     if (showLightingSources) {
         HeadlightSourcesPopup { showLightingSources = false }

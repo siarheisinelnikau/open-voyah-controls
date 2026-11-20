@@ -1,0 +1,19 @@
+<resources>
+    <string name="vehicle_automation_entry">Сценарии автомобиля</string>
+    <string name="vehicle_automation_entry_summary">Фары, климат, режим движения и правила «Если — тогда»</string>
+    <string name="vehicle_diagnostics_title">Отчёт о сигналах автомобиля</string>
+    <string name="vehicle_diagnostics_description">Проверки чтения этой магнитолы. Сохранённая история не запускает действия.</string>
+    <string name="vehicle_diagnostics_copy">Скопировать отчёт чтения</string>
+    <string name="vehicle_diagnostics_preparing">Подготовка локального отчёта…</string>
+    <string name="vehicle_diagnostics_copied">Отчёт скопирован. Сохраните его с наблюдениями на припаркованном автомобиле.</string>
+    <string name="vehicle_diagnostics_failed">Не удалось подготовить отчёт. Повторите попытку.</string>
+    <string name="vehicle_diagnostics_waiting">Ожидание наблюдателя чтения.</string>
+    <string name="vehicle_diagnostics_closed">Для физических действий нужна проверка точной прошивки и каждого сигнала.</string>
+    <string name="vehicle_rules_unavailable">Нужна проверка показаний коробки и дверей на вашей прошивке H97D. Правила сохранены и ждут свежих сигналов.</string>
+    <string name="vehicle_diagnostics_missing">Ещё нужны: %1$s</string>
+    <string name="vehicle_signal_gear">коробка</string>
+    <string name="vehicle_signal_speed">скорость</string>
+    <string name="vehicle_signal_doors">двери</string>
+    <string name="vehicle_signal_outside">наружная температура</string>
+    <string name="vehicle_signal_drive_mode">фактический режим движения</string>
+</resources>
