@@ -6,6 +6,8 @@ import android.content.res.Configuration;
 import java.util.Locale;
 import org.openvoyah.controls.core.display.DisplayEventBus;
 import org.openvoyah.controls.data.settings.LocalSettingsArchive;
+import org.openvoyah.controls.diagnostics.ControlsLog;
+import org.openvoyah.controls.diagnostics.Diagnostics;
 
 /** Resource access also works in services and transport adapters. */
 public final class UiText extends Application {
@@ -17,8 +19,9 @@ public final class UiText extends Application {
     @Override public void onCreate() {
         super.onCreate();
         application = this;
+        Diagnostics.install(this, BuildConfig.DEBUG, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE);
         try { new LocalSettingsArchive(this).recoverInterruptedRestore(); }
-        catch (Exception ex) { android.util.Log.e("OpenVoyahControls", "Could not recover local settings", ex); }
+        catch (Exception ex) { ControlsLog.error("settings_restore_recovery", ex, "outcome", "failed"); }
     }
     public static String language() {
         String deviceLanguage = Locale.getDefault().getLanguage();
