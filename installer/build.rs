@@ -25,10 +25,11 @@ fn main() {
                 let (x, y) = (x * 48 / size, y * 48 / size);
                 let accent = ((12..20).contains(&y) && (10..38).contains(&x))
                     || ((28..36).contains(&y) && ((10..22).contains(&x) || (28..38).contains(&x)));
+                // BGRA: the app's blue accent on its graphite surface, as in the installer window.
                 images.extend(if accent {
-                    [0xC5, 0xDF, 0x71, 255]
+                    [0xFF, 0x89, 0x64, 255]
                 } else {
-                    [0x23, 0x19, 0x10, 255]
+                    [0x1F, 0x16, 0x14, 255]
                 });
             }
         }

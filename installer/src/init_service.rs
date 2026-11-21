@@ -653,10 +653,10 @@ fn parse_file(path: &str, text: &str) -> Result<Parsed> {
         );
         let data_command = matches!(first, "write" | "setprop" | "export" | "setenv");
         if !relevant && (data_command || !pending.contains(BOOT_SCRIPT)) {
-            if first == "on" {
-                if let Some(service) = current.take() {
-                    parsed.services.push(service);
-                }
+            if first == "on"
+                && let Some(service) = current.take()
+            {
+                parsed.services.push(service);
             }
             pending.clear();
             continue;
@@ -937,10 +937,11 @@ mod tests {
             let calls = self.link_calls.entry(path.into()).or_default();
             *calls += 1;
             let mut link = self.links.get(path).cloned();
-            if self.changed_link.as_deref() == Some(path) && *calls > 1 {
-                if let Some(link) = link.as_mut() {
-                    link.identity = "different".into();
-                }
+            if self.changed_link.as_deref() == Some(path)
+                && *calls > 1
+                && let Some(link) = link.as_mut()
+            {
+                link.identity = "different".into();
             }
             Ok(link)
         }

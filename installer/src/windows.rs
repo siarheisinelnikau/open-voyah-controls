@@ -54,22 +54,30 @@ use windows_sys::Win32::{
 
 const TITLE: &str = "Open Voyah Controls Installer";
 const WAKE: u32 = WM_APP + 1;
+/// The ordinal of the application icon that `build.rs` embeds as a resource.
+const APP_ICON_RESOURCE: usize = 1;
 const SS_NOPREFIX: u32 = 0x80;
 const fn rgb(red: u8, green: u8, blue: u8) -> u32 {
     red as u32 | (green as u32) << 8 | (blue as u32) << 16
 }
-const BG: u32 = rgb(240, 245, 244);
-const INK: u32 = rgb(21, 35, 45);
-const MUTED: u32 = rgb(77, 101, 112);
-const SIDEBAR: u32 = rgb(16, 25, 35);
+// The same roles as the Android app: its graphite surface for the sidebar, its blue accent for actions and its
+// daytime palette for the workspace, so the two halves of the product read as one.
+const BG: u32 = rgb(238, 243, 248);
+const INK: u32 = rgb(24, 37, 58);
+const MUTED: u32 = rgb(63, 83, 107);
+const SIDEBAR: u32 = rgb(20, 22, 31);
 const WHITE: u32 = rgb(255, 255, 255);
-const ACCENT: u32 = rgb(113, 223, 197);
-const ACCENT_SOFT: u32 = rgb(225, 248, 240);
-const ACCENT_INK: u32 = rgb(8, 95, 76);
-const LINE: u32 = rgb(215, 227, 225);
-const NAV_BASE: u32 = rgb(26, 42, 54);
-const NAV_TEXT: u32 = rgb(208, 224, 230);
-const DANGER: u32 = rgb(145, 45, 44);
+const ACCENT: u32 = rgb(100, 137, 255);
+const ACCENT_PRESSED: u32 = rgb(78, 112, 224);
+const ACCENT_SOFT: u32 = rgb(216, 231, 255);
+const ACCENT_SOFT_EDGE: u32 = rgb(170, 196, 238);
+const ACCENT_INK: u32 = rgb(23, 55, 101);
+const LINE: u32 = rgb(211, 221, 234);
+const NAV_BASE: u32 = rgb(32, 36, 49);
+const NAV_TEXT: u32 = rgb(186, 197, 238);
+const DISABLED_FILL: u32 = rgb(236, 241, 247);
+const DISABLED_INK: u32 = rgb(109, 130, 156);
+const DANGER: u32 = rgb(161, 38, 50);
 const PANEL_TEXT: u16 = 901;
 const PANEL_MUTED: u16 = 902;
 const WORKSPACE_TEXT: u16 = 903;
@@ -462,6 +470,16 @@ fn run_job(
     result.map(Output::Status)
 }
 
+const LEGACY_LABEL_WIDTH: i32 = 196;
+
+/// Left and top of the row that holds an earlier-firmware name and its code; two columns, 42 px apart.
+fn legacy_origin(index: usize) -> [i32; 2] {
+    [
+        236 + 367 * (index % 2) as i32,
+        473 + 42 * (index / 2) as i32,
+    ]
+}
+
 impl State {
     fn scale(&self, px: i32) -> i32 {
         (px * self.dpi + 48) / 96
@@ -653,7 +671,7 @@ impl State {
         self.button(tab, LAUNCH, "Open on device", [468, 398, 154, 37]);
         self.button(tab, REMOVE, "Remove app", [634, 398, 134, 37]);
         self.button(tab, INSTALL_APK, "APK only", [780, 398, 177, 37]);
-        self.styled_label(tab, WORKSPACE_TEXT, "Other tools", [236, 473, 700, 23], 1);
+        self.styled_label(tab, WORKSPACE_TEXT, "Other tools", [236, 471, 700, 27], 1);
         self.button(tab, BATCH, "Install APK folder…", [236, 502, 183, 36]);
         self.button(tab, RUNTIME, "Install Frida injector…", [431, 502, 198, 36]);
         self.button(tab, INFO, "Device status", [641, 502, 143, 36]);
@@ -680,7 +698,7 @@ impl State {
         for (index, label) in ["Yesterday", "Today", "Tomorrow"].into_iter().enumerate() {
             let left = [250, 505, 760][index];
             let style = if index == 1 { ACCENT_TEXT } else { PANEL_TEXT };
-            self.styled_label(tab, style, label, [left, 286, 200, 24], 1);
+            self.styled_label(tab, style, label, [left, 284, 200, 27], 1);
             self.styled_label(tab, DAILY_DATE[index], "", [left, 312, 200, 20], 3);
             self.control(
                 tab,
@@ -708,9 +726,14 @@ impl State {
         );
         self.button(tab, SAVED_CODES, "Load local codes…", [792, 425, 166, 35]);
         for index in 0..LEGACY_COPY.len() {
-            let left = 236 + 367 * (index % 2) as i32;
-            let top = 473 + 42 * (index / 2) as i32;
-            self.styled_label(tab, LEGACY_LABEL[index], "", [left, top + 8, 196, 33], 5);
+            let [left, top] = legacy_origin(index);
+            self.styled_label(
+                tab,
+                LEGACY_LABEL[index],
+                "",
+                [left, top + 8, LEGACY_LABEL_WIDTH, 20],
+                5,
+            );
             self.control(
                 tab,
                 LEGACY_COPY[index],
@@ -787,12 +810,13 @@ impl State {
         self.button(tab, UPDATE, "Download and install", [605, 324, 198, 35]);
         self.combo(tab, RELEASE, [252, 376, 485, 140]);
         self.button(tab, DOWNLOAD, "Download APK", [750, 373, 207, 36]);
-        self.styled_label(tab, WORKSPACE_TEXT, "Diagnostics", [236, 473, 680, 24], 1);
+        self.styled_label(tab, WORKSPACE_TEXT, "Diagnostics", [236, 471, 680, 27], 1);
         self.button(tab, COLLECT, "Collect logs", [236, 502, 139, 36]);
         self.button(tab, LOGS, "Open logs folder", [387, 502, 166, 36]);
         self.button(tab, ADB_PATH, "Select adb.exe…", [565, 502, 156, 36]);
 
-        self.styled_label(None, PANEL_TEXT, "Activity", [252, 577, 620, 23], 1);
+        // Tall enough for the descender of the heading font; the status box starts right below it.
+        self.styled_label(None, PANEL_TEXT, "Activity", [252, 572, 620, 27], 1);
         self.control(
             None,
             STATUS,
@@ -879,8 +903,48 @@ impl State {
                     ""
                 });
             self.set(LEGACY_LABEL[index], label);
+            self.place_legacy_label(index, label);
             self.set(id, entry.map(|code| code.code.as_str()).unwrap_or("—"));
             self.enable(id, entry.is_some() && !self.demo);
+        }
+    }
+
+    /// A firmware name takes one line or two. A fixed rectangle either cuts the second line or leaves a single
+    /// line above the middle of its code, so each name is measured and centered on its row.
+    fn place_legacy_label(&self, index: usize, text: &str) {
+        let label = self.controls[&LEGACY_LABEL[index]];
+        let [left, top] = legacy_origin(index);
+        let width = self.scale(LEGACY_LABEL_WIDTH);
+        // The code button occupies 34 px starting one pixel below the row origin; two lines need the whole pitch.
+        let (band_top, band, limit) = (self.scale(top + 1), self.scale(34), self.scale(40));
+        unsafe {
+            let dc = GetDC(label);
+            let previous = SelectObject(dc, self.fonts[5] as _);
+            let mut bounds = RECT {
+                left: 0,
+                top: 0,
+                right: width,
+                bottom: 0,
+            };
+            DrawTextW(
+                dc,
+                wide(text).as_ptr(),
+                -1,
+                &mut bounds,
+                DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX,
+            );
+            SelectObject(dc, previous);
+            ReleaseDC(label, dc);
+            let height = bounds.bottom.clamp(self.scale(18), limit);
+            SetWindowPos(
+                label,
+                null_mut(),
+                self.scale(left),
+                band_top + (band - height) / 2,
+                width,
+                height,
+                SWP_NOZORDER | SWP_NOACTIVATE,
+            );
         }
     }
 
@@ -1181,17 +1245,17 @@ impl State {
                 } else {
                     let runtime = setup::portable_runtime().or_else(|| choose_file(self.hwnd,
                         "Verified ARM64 Frida injector\0open-voyah-controls-frida-*\0All files\0*.*\0\0"));
-                    if let Some(runtime) = runtime {
-                        if confirm(
+                    if let Some(runtime) = runtime
+                        && confirm(
                             self.hwnd,
                             "Prepare and install Controls on the selected head unit? Setup requests ADB root, saves the original startup script on this PC, enables local startup access, microphone and button service. The head unit may restart once while preparing its system partition.",
-                        ) {
-                            self.start(Job::Prepare {
-                                path,
-                                expected,
-                                runtime,
-                            });
-                        }
+                        )
+                    {
+                        self.start(Job::Prepare {
+                            path,
+                            expected,
+                            runtime,
+                        });
                     }
                 }
             }
@@ -1205,16 +1269,16 @@ impl State {
                 }
             }
             BATCH => {
-                if let Some(folder) = choose_folder(self.hwnd) {
-                    if confirm(
+                if let Some(folder) = choose_folder(self.hwnd)
+                    && confirm(
                         self.hwnd,
                         &format!(
                             "Install all standalone APKs in {} through ADB? Manage their permissions in Android app settings. Existing data is retained for updates.",
                             folder.display()
                         ),
-                    ) {
-                        self.start(Job::Batch(folder));
-                    }
+                    )
+                {
+                    self.start(Job::Batch(folder));
                 }
             }
             RUNTIME => {
@@ -1693,7 +1757,7 @@ unsafe fn paint_header(hwnd: HWND, dc: HDC) {
             1 => {
                 card([234, 131, 975, 258], WHITE, LINE);
                 card([234, 272, 464, 398], WHITE, LINE);
-                card([489, 272, 719, 398], ACCENT_SOFT, rgb(166, 221, 206));
+                card([489, 272, 719, 398], ACCENT_SOFT, ACCENT_SOFT_EDGE);
                 card([744, 272, 974, 398], WHITE, LINE);
             }
             page => {
@@ -1753,9 +1817,9 @@ unsafe fn paint_button(item: &DRAWITEMSTRUCT) {
             WHITE
         };
         let (fill, stroke, foreground) = if disabled {
-            (rgb(238, 244, 243), LINE, rgb(112, 132, 136))
+            (DISABLED_FILL, LINE, DISABLED_INK)
         } else if active || main {
-            let tint = if pressed { rgb(88, 197, 173) } else { ACCENT };
+            let tint = if pressed { ACCENT_PRESSED } else { ACCENT };
             (tint, tint, SIDEBAR)
         } else if tab.is_some() {
             let tint = if pressed { NAV_BASE } else { SIDEBAR };
@@ -1886,7 +1950,9 @@ pub fn run() {
         let dpi = preview_dpi.unwrap_or(fitted);
         LAYOUT_DPI.store(dpi as u32, Ordering::Relaxed);
         let class = wide("OpenVoyahControlsInstallerWindow");
-        let icon = LoadIconW(instance, 1usize as *const u16);
+        // MAKEINTRESOURCEW(1): Win32 passes a resource ordinal in the pointer argument; it is never dereferenced.
+        #[allow(clippy::manual_dangling_ptr)]
+        let icon = LoadIconW(instance, APP_ICON_RESOURCE as *const u16);
         let window = WNDCLASSW {
             lpfnWndProc: Some(window_proc),
             hInstance: instance,
@@ -1905,7 +1971,15 @@ pub fn run() {
             right: W * dpi / 96,
             bottom: H * dpi / 96,
         };
-        AdjustWindowRectExForDpi(&mut rect, style, 0, WS_EX_CONTROLPARENT, dpi as u32);
+        // The frame is drawn at the system DPI even when the layout was fitted to a smaller one. Sizing it for the
+        // layout DPI would take the difference out of the client area and cut the bottom edge of the page.
+        AdjustWindowRectExForDpi(
+            &mut rect,
+            style,
+            0,
+            WS_EX_CONTROLPARENT,
+            requested_dpi as u32,
+        );
         let hwnd = CreateWindowExW(
             WS_EX_CONTROLPARENT,
             class.as_ptr(),
