@@ -85,7 +85,7 @@ internal fun ControlsHost(
 ) {
     val state by navigation.state.collectAsStateWithLifecycle()
     // A host rebuilt after a language or theme change redraws the page it already showed, without an arrival.
-    val shownBefore = remember { if (restored) navigation.state.value.arrival else -1L }
+    val shownBefore = remember { if (restored) navigation.state.value.arrival.number else -1L }
     val look by appearance.state.collectAsStateWithLifecycle()
     val dock = quickActionsModel()
     val dockState by dock.state.collectAsStateWithLifecycle()
@@ -127,7 +127,7 @@ internal fun ControlsHost(
         ) { destination ->
             val route = destination.route
             // The virtual display hosts a SurfaceView, which a draw-layer fade cannot move on Android 9 and 11.
-            val arrives = destination.direction != RouteDirection.BACK && destination.arrival > shownBefore &&
+            val arrives = destination.direction != RouteDirection.BACK && destination.arrival.number > shownBefore &&
                 route != ControlsRoute.DISPLAY
             DestinationFrame(active = route == state.route, arrives = arrives) {
                 screens.SaveableStateProvider(route.name) {
