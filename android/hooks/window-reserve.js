@@ -160,8 +160,9 @@ export function systemReserve(Java, sdk, options = {}) {
             const released = releaseLocked(api, false);
             if (released.status !== 'released') return released;
         } else if (reclaim && api.cleanupStale(pkg) > 0) {
-            // A previous agent that ended while the mode was on left its registration behind.
-            api.relayout();
+            // A previous agent that ended while the mode was on left its registration behind. Its hooks ended
+            // with it, so the configuration is computed again now; whatever follows starts from the native one.
+            api.reconfigure();
         }
         const panel = locate(api, {pkg, appId, width: reported});
         const before = api.computeConfig();

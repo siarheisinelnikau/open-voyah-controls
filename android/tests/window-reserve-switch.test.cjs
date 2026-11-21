@@ -40,7 +40,7 @@ function fixture(options = {}) {
         active: () => active,
         width: () => (active ? 171 : 0)
     };
-    const state = {guard: options.guard ?? '', writes: [], lines: [], released: [], now: 0, user: 0, writable: true,
+    const state = {guard: options.guard ?? '', writes: [], lines: [], now: 0, clockReads: 0, user: 0, writable: true,
         session: options.session ?? (() => ({boot: BOOT, pid: 900}))};
     const control = module_.reserveSwitch({
         reserve,
@@ -54,9 +54,8 @@ function fixture(options = {}) {
         },
         currentUser: () => state.user,
         panelWidth: () => 171,
-        releaseTasks: user => { state.released.push(user); if (options.tasksFail) throw Error('locked'); },
         announce: line => state.lines.push(line),
-        now: () => state.now
+        now: () => { state.clockReads++; return state.now; }
     });
     const step = (wanted, millis = 400) => { state.now += millis; control.sync(wanted); };
     return {control, reserve, calls, state, step, script, stored: () => module_.readGuard(state.guard)};
@@ -64,7 +63,10 @@ function fixture(options = {}) {
 
 test('the record accepts only a complete, bounded document', () => {
     assert.deepEqual({...module_.readGuard(guardOf('armed'))}, {attempt: 1, boot: BOOT, pid: 900, state: 'armed'});
+    assert.deepEqual({...module_.readGuard(JSON.stringify({schema: 1, attempt: 2, boot: BOOT, pid: 7, state: 'refused', code: 'verify_failed'}))},
+        {attempt: 2, boot: BOOT, pid: 7, state: 'refused', code: 'verify_failed'});
     for (const broken of ['', 'not json', '[]', guardOf('running'), guardOf('armed', -1), guardOf('armed', 1, 'boot id'),
+        guardOf('refused'), JSON.stringify({schema: 1, attempt: 1, boot: BOOT, pid: 900, state: 'refused', code: 'Not A Code'}),
         guardOf('armed', 1, BOOT, 0), JSON.stringify({schema: 2, attempt: 1, boot: BOOT, pid: 900, state: 'armed'}),
         guardOf('armed') + ' '.repeat(300)]) {
         assert.equal(module_.readGuard(broken), null, broken.slice(0, 40));
@@ -83,7 +85,6 @@ test('turning the option on records the attempt, waits for the record to reach t
     assert.deepEqual(f.calls, [['inspect', 171]]);
     f.step(want());
     assert.deepEqual(f.calls[1], ['apply', 171, false]);
-    assert.deepEqual(f.state.released, [0]);
     assert.equal(f.control.width(), 171);
     assert.equal(f.stored().state, 'armed');
     f.step(want(), 1000);
@@ -180,21 +181,28 @@ test('a firmware the reservation was not written for is refused once and left al
     assert.deepEqual(f.calls, [['inspect', 171]]);
 });
 
-test('an attempt that was undone leaves a clear record; one that could not be undone blocks later lifetimes', () => {
+test('an attempt that did not hold is undone and never repeated; the next lifetime answers from the record', () => {
     const undone = fixture({script: {apply: () => ({status: 'verify_failed'})}});
     undone.step(want());
     undone.step(want(), 3000);
-    assert.deepEqual(undone.state.writes, ['armed', 'clear']);
+    assert.deepEqual(undone.state.writes, ['armed', 'refused']);
+    assert.equal(undone.stored().code, 'verify_failed');
     assert.equal(undone.state.lines.at(-1), 'OVC_WINDOW_INSETS status=verify_failed');
-    assert.deepEqual(undone.state.released, []);
     for (let tick = 0; tick < 10; tick++) undone.step(want(), 5000);
     assert.equal(undone.calls.length, 2);
 
-    const stuck = fixture({script: {apply: () => ({status: 'rollback_failed'})}});
-    stuck.step(want());
-    stuck.step(want(), 3000);
-    assert.deepEqual(stuck.state.writes, ['armed', 'failed']);
-    assert.equal(stuck.state.lines.at(-1), 'OVC_WINDOW_INSETS status=rollback_failed');
+    // Applying and undoing restarts activities. After a restart of the head unit the same attempt must not do
+    // that again: the agent answers with the recorded reason and leaves the framework alone.
+    for (const session of [() => ({boot: OTHER_BOOT, pid: 388}), () => ({boot: BOOT, pid: 901}), () => ({boot: BOOT, pid: 900})]) {
+        const later = fixture({guard: undone.state.guard, session});
+        for (let tick = 0; tick < 10; tick++) later.step(want(), 5000);
+        assert.deepEqual(later.calls, []);
+        assert.deepEqual(later.state.writes, []);
+        assert.deepEqual(later.state.lines, ['OVC_WINDOW_INSETS status=verify_failed']);
+        // Turning the option on again is a new attempt.
+        later.step(want(2));
+        assert.deepEqual(later.calls, [['inspect', 171]]);
+    }
 
     // The panel went away while the record was settling: nothing changed, so the wait starts over.
     const script = {apply: () => ({status: 'no_panel'})};
@@ -208,7 +216,28 @@ test('an attempt that was undone leaves a clear record; one that could not be un
     assert.equal(gone.control.width(), 171);
 });
 
-test('a lost panel is waited for again, while a moved one ends the attempt', () => {
+test('an undo that did not complete is final for this process and blocks the following ones', () => {
+    const stuck = fixture({script: {apply: () => ({status: 'rollback_failed'})}});
+    stuck.step(want());
+    stuck.step(want(), 3000);
+    assert.deepEqual(stuck.state.writes, ['armed', 'failed']);
+    assert.equal(stuck.state.lines.at(-1), 'OVC_WINDOW_INSETS status=rollback_failed');
+    // Turning the option off does not make the framework state known again, and a new attempt cannot start on it.
+    stuck.step(null);
+    assert.equal(stuck.control.status().status, 'rollback_failed');
+    assert.equal(stuck.control.stop(), false);
+    const calls = stuck.calls.length;
+    for (let tick = 0; tick < 10; tick++) stuck.step(want(2), 5000);
+    assert.equal(stuck.calls.length, calls);
+    assert.equal(stuck.control.status().status, 'rollback_failed');
+
+    const next = fixture({guard: stuck.state.guard, session: () => ({boot: OTHER_BOOT, pid: 388})});
+    next.step(want());
+    assert.deepEqual(next.calls, []);
+    assert.deepEqual(next.state.lines, ['OVC_WINDOW_INSETS status=blocked']);
+});
+
+test('a lost panel is waited for again, while a moved one ends the attempt for good', () => {
     const script = {};
     const f = fixture({script});
     f.step(want());
@@ -232,7 +261,7 @@ test('a lost panel is waited for again, while a moved one ends the attempt', () 
 
     script.poll = () => ({status: 'panel_moved'});
     f.step(want(), 1000);
-    assert.equal(f.stored().state, 'clear');
+    assert.deepEqual({...f.stored()}, {attempt: 1, boot: BOOT, pid: 900, state: 'refused', code: 'panel_moved'});
     assert.equal(f.state.lines.at(-1), 'OVC_WINDOW_INSETS status=panel_moved');
     const before = f.calls.length;
     for (let tick = 0; tick < 10; tick++) f.step(want(), 5000);
@@ -256,6 +285,7 @@ test('turning the option off releases the strip, and an incomplete release is re
     assert.equal(stuck.control.stop(), false);
     assert.equal(stuck.stored().state, 'failed');
     assert.equal(stuck.state.lines.at(-1), 'OVC_WINDOW_INSETS status=rollback_failed');
+    assert.equal(stuck.control.stop(), false);
 
     // Turned off while the record was still settling: nothing was reserved, so the record is cleared.
     const early = fixture();
@@ -286,6 +316,8 @@ test('with the option off, only a recorded leftover of this very process is remo
     assert.deepEqual(untouched.calls, []);
     assert.deepEqual(untouched.state.writes, []);
     assert.deepEqual(untouched.state.lines, ['OVC_WINDOW_INSETS status=inactive']);
+    // With the option off the agent does not even read the clock.
+    assert.equal(untouched.state.clockReads, 0);
 
     const leftover = fixture({guard: guardOf('verified')});
     leftover.step(null);
@@ -293,16 +325,29 @@ test('with the option off, only a recorded leftover of this very process is remo
     assert.deepEqual(leftover.calls, [['release', true]]);
     assert.deepEqual({...leftover.stored()}, {attempt: 1, boot: BOOT, pid: 900, state: 'clear'});
 
-    // The framework state of an earlier system_server ended with it: only the record is closed.
-    const earlier = fixture({guard: guardOf('armed', 4, BOOT, 412)});
-    earlier.step(null);
-    assert.deepEqual(earlier.calls, []);
-    assert.deepEqual({...earlier.stored()}, {attempt: 4, boot: BOOT, pid: 900, state: 'clear'});
-
     const stuck = fixture({guard: guardOf('verified'), script: {release: () => ({status: 'rollback_failed'})}});
     stuck.step(null);
     assert.equal(stuck.stored().state, 'failed');
     assert.deepEqual(stuck.state.lines, ['OVC_WINDOW_INSETS status=rollback_failed']);
+});
+
+test('a block written by another lifetime survives a start with the option off', () => {
+    // An attempt ended system_server, the next lifetime reported "blocked", and the window service was then turned
+    // off and on. The agent that starts in between sees the option off; it must not rewrite the record, or the
+    // same attempt would run again as soon as the option is back.
+    for (const previous of [guardOf('armed', 4, BOOT, 412), guardOf('failed', 4, OTHER_BOOT, 412),
+        guardOf('verified', 4, BOOT, 412), JSON.stringify({schema: 1, attempt: 4, boot: OTHER_BOOT, pid: 412,
+            state: 'refused', code: 'verify_failed'})]) {
+        const f = fixture({guard: previous});
+        f.step(null);
+        f.step(null);
+        assert.deepEqual(f.calls, []);
+        assert.deepEqual(f.state.writes, []);
+        assert.equal(f.state.guard, previous);
+        f.step(want(4));
+        assert.deepEqual(f.calls, []);
+        assert.notEqual(f.state.lines.at(-1), 'OVC_WINDOW_INSETS status=armed width=171');
+    }
 });
 
 test('the strip follows the configured Android user and a new attempt starts over', () => {
@@ -331,10 +376,14 @@ test('the strip follows the configured Android user and a new attempt starts ove
     assert.equal(again.stored().state, 'armed');
 });
 
-test('a task that cannot be returned to Android does not undo the reservation', () => {
-    const f = fixture({tasksFail: true});
+test('the leftover of an earlier agent is taken over once, not on every later attempt', () => {
+    const script = {apply: () => ({status: 'no_panel'})};
+    const f = fixture({guard: guardOf('verified'), script});
     f.step(want());
-    assert.doesNotThrow(() => f.step(want(), 3000));
-    assert.equal(f.control.width(), 171);
-    assert.equal(f.state.lines.at(-1), 'OVC_WINDOW_INSETS status=applied width=171');
+    f.step(want(), 3000);
+    assert.deepEqual(f.calls.at(-1), ['apply', 171, true]);
+    script.apply = undefined;
+    f.step(want(), 5000);
+    f.step(want(), 3000);
+    assert.deepEqual(f.calls.at(-1), ['apply', 171, false]);
 });

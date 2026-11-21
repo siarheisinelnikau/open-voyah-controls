@@ -182,16 +182,19 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
     };
     // Experimental: Android itself keeps the panel strip clear. The framework side is built on first use, so an
     // agent with the option off touches nothing of it.
+    // Uptime, not the wall clock: a head unit sets its time from the network or GNSS after boot, and a jump must
+    // neither shorten the wait before the first change nor postpone the checks that follow it.
+    let uptime;
+    const monotonic = () => Number((uptime ??= Java.use('android.os.SystemClock')).elapsedRealtime());
     const reservation = reserveSwitch({
-        reserve: systemReserve(Java, sdk),
+        reserve: systemReserve(Java, sdk, {now: monotonic}),
         session: serverSession(Java),
         read: () => raw(RESERVE_GUARD),
         write: document => Global.putString(resolver, RESERVE_GUARD, document) === true,
         currentUser: () => tasks.currentUser(),
         panelWidth: () => panelWidth.declared(),
-        releaseTasks: user => tasks.release(user),
         announce: line => console.log(line),
-        now: () => Date.now(),
+        now: monotonic,
     });
     const reservationWanted = () => !released && config?.enabled === true && config.systemInsets === true
         ? {attempt: config.systemInsetsAttempt, user: config.user} : null;

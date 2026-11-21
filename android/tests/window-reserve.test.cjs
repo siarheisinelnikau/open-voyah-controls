@@ -127,8 +127,9 @@ function android9(options = {}) {
     const windows = [panel, app, ...(options.windows ?? [])];
     const frames = {mDock: field(rect(0, 0, W, H)), mRestricted: field(rect(0, 0, W, H))};
     let applied = null;
+    let reconfigures = 0;
     const policy = object({
-        mScreenDecorWindows: field(decor), mHasNavigationBar: field(false), mNavigationBar: field(null),
+        mScreenDecorWindows: field(decor), mHasNavigationBar: field(options.navBar ?? false), mNavigationBar: field(null),
         getClass: () => ({getName: () => options.policyClass ?? 'com.android.server.policy.PhoneWindowManager'})
     });
     const width = method(['int', 'int', 'int', 'int', 'int', CUTOUT], w => w);
@@ -177,6 +178,7 @@ function android9(options = {}) {
         requestTraversal: layout
     });
     const reconfigure = method(['com.android.server.wm.DisplayContent'], display => {
+        reconfigures++;
         const c = newConfig();
         screen.invoke(display, c);
         applied = c;
@@ -206,6 +208,7 @@ function android9(options = {}) {
     };
     reconfigure.call(wms, dc);
     return {classes, decor, panel, app, windows, frames, policy, wms, dc, width, insets, stableLocked, keep,
+        reconfigures: () => reconfigures,
         hooks: [keep, width, configWidth, insets, stable, screen, stableLocked], applied: () => readConfig(applied)};
 }
 
@@ -360,6 +363,7 @@ test('inspection reports what an attempt would find and changes nothing', () => 
         assert.equal(reserve.inspect(171).status, 'no_panel');
     }
     assert.equal(load(android9({policyClass: 'com.vendor.PolicyEx'}).classes, 28, {now: 0}).reserve.inspect().status, 'oem_policy');
+    assert.equal(load(android9({navBar: true}).classes, 28, {now: 0}).reserve.inspect().status, 'system_nav_bar');
     assert.equal(load(android11({navBar: true}).classes, 30, {now: 0}).reserve.inspect().status, 'system_nav_bar');
 });
 
@@ -409,7 +413,7 @@ test('Android 9 keeps the decor registration across launcher relayouts and drops
 
 test('Android 9 refuses vendor policies and missing framework methods before changing state', () => {
     for (const [options, status] of [[{policyClass: 'com.qinggan.policy.PhoneWindowManagerEx'}, 'oem_policy'],
-        [{noDecorLayout: true}, 'unsupported_framework']]) {
+        [{noDecorLayout: true}, 'unsupported_framework'], [{navBar: true}, 'system_nav_bar']]) {
         const f = android9(options);
         const {reserve} = load(f.classes, 28, {now: 0});
         assert.equal(reserve.apply(171).status, status);
@@ -613,4 +617,51 @@ test('ambiguous panels and unknown SDKs change nothing', () => {
     assert.equal(unknown.apply(171).status, 'unsupported_sdk');
     assert.equal(unknown.inspect().status, 'unsupported_sdk');
     assert.equal(unknown.release().status, 'unsupported_sdk');
+});
+
+test('a replacement that cannot be installed leaves none of the others behind', () => {
+    for (const [fixture, sdk] of [[android9(), 28], [android11(), 30]]) {
+        // The third replacement is refused, as a method the runtime cannot hook would be.
+        const refused = fixture.hooks[2];
+        let value = null;
+        Object.defineProperty(refused, 'implementation', {
+            get: () => value,
+            set(next) { if (next !== null) throw Error('java.lang.IllegalStateException: private detail'); value = next; }
+        });
+        const {reserve} = load(fixture.classes, sdk, {now: 0});
+        assert.equal(reserve.apply(171).status, 'failed');
+        assert.ok(fixture.hooks.every(hook => hook.implementation === null));
+        assert.equal(reserve.active(), false);
+        assert.deepEqual(fixture.applied(), native);
+        assert.equal(fixture.panel.controllable, null);
+        assert.equal(fixture.panel.mAttrs.value.privateFlags.value & DECOR_FLAG, 0);
+    }
+});
+
+test('taking over a leftover recomputes the configuration even when the new attempt is then refused', () => {
+    const f = android9();
+    f.decor.add(f.panel);
+    f.panel.mAttrs.value.privateFlags.value = DECOR_FLAG;
+    f.panel.visible = false;
+    const before = f.reconfigures();
+    const {reserve} = load(f.classes, 28, {now: 0});
+    // The earlier agent's hooks ended with it; without a recomputation its reduced configuration would stay.
+    assert.equal(reserve.apply(171, true).status, 'no_panel');
+    assert.equal(f.decor.size(), 0);
+    assert.equal(f.panel.mAttrs.value.privateFlags.value, 0);
+    assert.equal(f.reconfigures(), before + 1);
+});
+
+test('on Android 9 only a decor window docked like the panel is taken for a leftover', () => {
+    const f = android9();
+    const topBar = windowState({frame: [0, 0, W, 48]});
+    topBar.mAttrs.value.privateFlags.value = DECOR_FLAG;
+    f.decor.add(topBar);
+    f.decor.add(f.panel);
+    f.panel.mAttrs.value.privateFlags.value = DECOR_FLAG;
+    assert.equal(load(f.classes, 28, {now: 0}).reserve.release(true).status, 'released');
+    // The launcher's own bar along the top keeps its registration.
+    assert.deepEqual(f.decor.items, [topBar]);
+    assert.equal(topBar.mAttrs.value.privateFlags.value, DECOR_FLAG);
+    assert.equal(f.panel.mAttrs.value.privateFlags.value, 0);
 });
