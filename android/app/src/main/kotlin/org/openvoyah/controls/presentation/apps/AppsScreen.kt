@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -83,7 +84,6 @@ import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitAction
-import org.openvoyah.controls.presentation.theme.CockpitEmblem
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitMotion
@@ -235,7 +235,9 @@ internal fun AppsScreen(
                     verticalArrangement = Arrangement.spacedBy(layout.spacing(12.dp))) {
                     item(key = "controls-settings") {
                         LauncherTile(text(R.string.app_name), tiles, open = { navigate(ControlsRoute.SETTINGS) }, modifier = gridItemMotion()) {
-                            CockpitEmblem(Modifier.size(tiles.iconSize))
+                            Image(painterResource(R.drawable.ic_controls_art), contentDescription = null,
+                                modifier = Modifier.size(tiles.iconSize).clip(CircleShape),
+                                colorFilter = if (grid.iconStyle == AppGridIconStyle.MONOCHROME) monochromeIcons else null)
                         }
                     }
                     if (appsBeforeCards == 0) desktopInfoCards(cards, gridState, grid.showDesktopCardOutlines, navigate)
