@@ -9,7 +9,7 @@ import org.openvoyah.controls.domain.settings.AppPalette
 /** The arrival counter tells the host which page is new; only such a page plays its cascade. */
 class NavigationArrivalTest {
     private val navigation = ControlsNavigationViewModel(SavedStateHandle())
-    private val arrival get() = navigation.state.value.arrival
+    private val arrival get() = navigation.state.value.arrival.number
 
     @Test fun everyOpenedPageIsANewArrivalAndReturningIsNot() {
         val start = arrival
@@ -31,6 +31,14 @@ class NavigationArrivalTest {
         navigation.enter(ControlsRoute.SETTINGS)
         assertEquals(first + 1, arrival)
         assertEquals(RouteDirection.REPLACE, navigation.state.value.direction)
+    }
+
+    @Test fun theCounterDoesNotMakeEqualPagesDiffer() {
+        navigation.enter(ControlsRoute.UPDATES)
+        val shown = navigation.state.value
+        assertEquals(ControlsNavigationState(listOf(ControlsRoute.APPS, ControlsRoute.UPDATES), shown.entry, RouteDirection.REPLACE),
+            shown)
+        assertEquals(shown, shown.copy(arrival = RouteArrival(shown.arrival.number + 7)))
     }
 
     @Test fun changesWithinAPageDoNotCountAsArrivals() {

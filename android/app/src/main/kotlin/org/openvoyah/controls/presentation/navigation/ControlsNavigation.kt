@@ -22,6 +22,16 @@ internal enum class ControlsRoute {
 
 internal enum class RouteDirection { FORWARD, BACK, REPLACE }
 
+/**
+ * Counts the pages opened in this process, so a rebuilt host can tell a new page from one it redraws. It is left
+ * out of equality on purpose: two states that show the same page are the same state whenever they arrived.
+ */
+internal class RouteArrival(val number: Long) {
+    override fun equals(other: Any?): Boolean = other is RouteArrival
+    override fun hashCode(): Int = 0
+    override fun toString(): String = "RouteArrival($number)"
+}
+
 internal data class ControlsNavigationState(
     val stack: List<ControlsRoute>,
     val entry: Long,
@@ -31,8 +41,7 @@ internal data class ControlsNavigationState(
     // A visit and its read-only guide are kept in memory for the active route.
     val driverMemoryGuide: SeatMemoryPrompt.Factory? = null,
     val seatMemoryVisit: Any? = null,
-    // Counts the pages opened in this process. A restored host compares it to tell a new page from a redrawn one.
-    val arrival: Long = 0,
+    val arrival: RouteArrival = RouteArrival(0),
 ) {
     val route: ControlsRoute get() = stack.last()
 }
@@ -170,7 +179,8 @@ internal class ControlsNavigationViewModel(private val saved: SavedStateHandle) 
         saved["entryDesktop"] = state.entryDesktop?.storedValue
         saved["temporaryPalette"] = state.temporaryPalette?.preferenceId
         val opened = state.route != previous.route || state.entry != previous.entry
-        current.value = state.copy(seatMemoryVisit = visit, arrival = if (opened) previous.arrival + 1 else previous.arrival)
+        current.value = state.copy(seatMemoryVisit = visit,
+            arrival = if (opened) RouteArrival(previous.arrival.number + 1) else previous.arrival)
     }
 
     private fun restore(names: List<String>?): List<ControlsRoute> {
