@@ -69,16 +69,15 @@ fn wait_selected(
                     thread::sleep(Duration::from_millis(500));
                     continue;
                 }
-                if let Some(previous) = previous_boot {
-                    if target
+                if let Some(previous) = previous_boot
+                    && (target
                         .text(["shell", "cat", "/proc/sys/kernel/random/boot_id"], 10)
                         .as_deref()
                         == Ok(previous)
-                        || target.property("sys.boot_completed").as_deref() != Ok("1")
-                    {
-                        thread::sleep(Duration::from_millis(500));
-                        continue;
-                    }
+                        || target.property("sys.boot_completed").as_deref() != Ok("1"))
+                {
+                    thread::sleep(Duration::from_millis(500));
+                    continue;
                 }
                 return Ok(matches[0].clone());
             }
@@ -186,10 +185,13 @@ pub fn prepare(
     let target = adb.target(&device, stop)?;
     target.script(FIND_TELNET, &[], 15)?;
     progress(
-        "Checking the existing init service and its configured user before changing startup…".into(),
+        "Checking the existing init service and its configured user before changing startup…"
+            .into(),
     );
     let boot_service = init_service::preflight(&target, identity.sdk).map_err(|error| {
-        format!("The logcat root-service preflight did not pass. {error} No startup files were changed.")
+        format!(
+            "The logcat root-service preflight did not pass. {error} No startup files were changed."
+        )
     })?;
     identity.recheck(&target)?;
     progress(format!(

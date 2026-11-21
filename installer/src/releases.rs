@@ -410,7 +410,7 @@ mod tests {
             || Ok(Cursor::new(&bytes)),
         );
         assert!(matches!(result, Err(error) if error.contains("canceled")));
-        assert_eq!(contents(&folder), [unknown.clone()]);
+        assert_eq!(contents(&folder), std::slice::from_ref(&unknown));
         assert_eq!(fs::read(unknown).unwrap(), b"preserved");
     }
 
