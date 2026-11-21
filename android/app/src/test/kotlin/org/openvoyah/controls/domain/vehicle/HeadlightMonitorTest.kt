@@ -178,6 +178,24 @@ class HeadlightMonitorTest {
         assertEquals(previous, history.stored)
     }
 
+    @Test fun aReaderExceptionIsReportedAndReadsAsUnavailable() = runBlocking {
+        val reported = mutableListOf<Exception>()
+        val signals = flow<HeadlightFeedback> { throw IOException("fixture disconnected") }
+        val states = HeadlightMonitor(signals, History(previous), Dispatchers.Unconfined) { reported += it }.observe().toList()
+        assertEquals(HeadlightStatus(HeadlightFeedback.Unavailable, previous), states.last())
+        assertEquals(listOf<Class<*>>(IOException::class.java), reported.map { it.javaClass })
+    }
+
+    @Test fun anErrorIsRethrownInsteadOfReadingAsAnUnavailableLamp() = runBlocking {
+        val reported = mutableListOf<Exception>()
+        val signals = flow<HeadlightFeedback> { throw AssertionError("fixture defect") }
+        val failure = runCatching {
+            HeadlightMonitor(signals, History(previous), Dispatchers.Unconfined) { reported += it }.observe().toList()
+        }.exceptionOrNull()
+        assertTrue(failure is AssertionError)
+        assertTrue(reported.isEmpty())
+    }
+
     @Test fun writeFailureKeepsTheOlderDurableRecord() = runBlocking {
         val history = History(previous).apply { fail = true }
         val live = HeadlightFeedback.Confirmed(latest, 2_000L)

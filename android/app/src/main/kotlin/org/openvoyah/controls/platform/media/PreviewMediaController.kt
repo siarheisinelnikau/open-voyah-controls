@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.openvoyah.controls.MediaAccessService
 import org.openvoyah.controls.core.display.DisplayEventBus.Media
 import org.openvoyah.controls.core.display.PlaybackProgress
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.display.DisplayPreviewContent
 import org.openvoyah.controls.domain.display.PreviewMediaAction
 import org.openvoyah.controls.domain.display.PreviewMediaFallback
@@ -56,6 +57,7 @@ internal class PreviewMediaController(context: Context) : AutoCloseable {
     private var track: MediaSessionReading.Track? = null
     private var artwork: Bitmap? = null
     private var revision = 0L
+    private var accessDenied = false
 
     fun configure(content: DisplayPreviewContent) = configure(content, requireSession = false)
 
@@ -85,7 +87,19 @@ internal class PreviewMediaController(context: Context) : AutoCloseable {
             manager.addOnActiveSessionsChangedListener(listener, component, handler)
             sessionsListener = listener
             select(manager.getActiveSessions(component))
-        } catch (_: SecurityException) { close() }
+            accessChanged(null, "start")
+        } catch (failure: SecurityException) {
+            accessChanged(failure, "start")
+            close()
+        }
+    }
+
+    /** Logged on a transition only; each screen configuration restarts the observer. */
+    private fun accessChanged(denied: SecurityException?, stage: String) {
+        if ((denied != null) == accessDenied) return
+        accessDenied = denied != null
+        if (denied != null) ControlsLog.warn("preview_media", denied, "outcome", "access_denied", "stage", stage)
+        else ControlsLog.info("preview_media", "outcome", "access_granted", "stage", stage)
     }
 
     private fun select(available: List<MediaController>, refreshArtwork: Boolean = false) {
@@ -170,7 +184,8 @@ internal class PreviewMediaController(context: Context) : AutoCloseable {
                 return false
             }
             selected.dispatchPreviewAction(action, playback, snapshot.progress(), seekStep)
-        } catch (_: SecurityException) {
+        } catch (failure: SecurityException) {
+            accessChanged(failure, "execute")
             close()
             false
         }

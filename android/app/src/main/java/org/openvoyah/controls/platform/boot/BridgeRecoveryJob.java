@@ -29,7 +29,9 @@ public final class BridgeRecoveryJob {
             boolean retry = false;
             try { recovery.run(); }
             catch (Exception ex) {
-                retry = needed.getAsBoolean();
+                // Corrupt settings fail the same way on every attempt, and each attempt repeats root work.
+                boolean permanent = ex instanceof IllegalStateException || ex instanceof IllegalArgumentException;
+                retry = !permanent && needed.getAsBoolean();
                 ControlsLog.warn("bridge_recovery", ex, "outcome", retry ? "retry_scheduled" : "abandoned");
             }
             boolean reschedule = retry;

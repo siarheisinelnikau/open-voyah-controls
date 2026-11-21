@@ -6,6 +6,7 @@ import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 import java.util.Collections;
 import org.openvoyah.controls.data.settings.SettingsStore;
+import org.openvoyah.controls.diagnostics.ControlsLog;
 import org.openvoyah.controls.platform.input.ButtonInputAdapter;
 import org.openvoyah.controls.platform.ui.ActionExecutor;
 import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime;
@@ -36,7 +37,11 @@ public final class ButtonAccessibilityService extends AccessibilityService {
         try {
             SettingsStore.State state = store.load();
             input.configure(state.bindings, state.enabled, state.holdMs, state.debounceMs);
-        } catch (IllegalStateException ex) { input.configure(Collections.emptyList(), false, 650, 100); }
+        } catch (IllegalStateException ex) {
+            // Every binding stops working here; the stored record stays untouched for export and recovery.
+            ControlsLog.error("button_bindings", ex, "outcome", "invalid_stored_settings");
+            input.configure(Collections.emptyList(), false, 650, 100);
+        }
     }
 
     void beginCapture(ButtonInputAdapter.Capture capture) { input.beginCapture(capture); }

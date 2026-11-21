@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.domain.routines.RoutineLibrary
 import org.openvoyah.controls.domain.routines.RoutineOrder
@@ -43,7 +44,9 @@ internal class RoutinePreferences(context: Context) {
 
     fun startupRequest(at: LocalDateTime = LocalDateTime.now()): RoutineStartupRequest? = try {
         synchronized(lock) { eligible(read(), at) }
-    } catch (_: Exception) {
+    } catch (failure: Exception) {
+        // An unreadable store skips the startup routine; without this entry that looks like "no routine selected".
+        ControlsLog.warn("routine_startup", failure, "outcome", "store_unreadable")
         null
     }
 
@@ -63,7 +66,9 @@ internal class RoutinePreferences(context: Context) {
 
     fun runStartup(expected: RoutineStartupRequest, at: LocalDateTime = LocalDateTime.now(), apply: (RoutinePlan) -> Unit): Boolean =
         synchronized(lock) {
-            val library = runCatching { read() }.getOrNull() ?: return false
+            val library = runCatching { read() }
+                .onFailure { ControlsLog.warn("routine_startup", it, "outcome", "store_unreadable") }
+                .getOrNull() ?: return false
             if (eligible(library, at) != expected) return false
             apply(expected.routine.plan)
             val id = expected.routine.id

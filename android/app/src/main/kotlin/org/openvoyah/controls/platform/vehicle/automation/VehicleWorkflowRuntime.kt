@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -64,7 +65,10 @@ internal data class VehicleRuntimeState(
 /** One process owner. The existing accessibility service holds the background lease; UI is optional. */
 internal class VehicleWorkflowRuntime private constructor(context: Context) {
     private val app = context.applicationContext
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    // An unhandled failure in one workflow must not take down the process and the accessibility service with it.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, failure ->
+        ControlsLog.error("vehicle_runtime", failure, "outcome", "unhandled_failure")
+    })
     private val background = MutableStateFlow<Any?>(null)
     private val foreground = MutableStateFlow(VehicleForegroundLeases<suspend (RuleDecision) -> Int?>())
     private val mutable = MutableStateFlow(VehicleRuntimeState())
@@ -72,8 +76,9 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
     val source = NativeVehicleTelemetryMonitor(app)
     val telemetry = source.observe().withVehicleSignalExpiry(SystemClock::elapsedRealtimeNanos)
         .stateIn(scope, SharingStarted.WhileSubscribed(0, 0), source.unknownTelemetry())
-    val headlights = HeadlightMonitor(factoryHeadlightFeedback(app), LocalHeadlightHistory(app)).observe()
-        .stateIn(scope, SharingStarted.WhileSubscribed(0, 0), HeadlightStatus())
+    val headlights = HeadlightMonitor(factoryHeadlightFeedback(app), LocalHeadlightHistory(app), reportFailure = { failure ->
+        ControlsLog.warn("headlight_monitor", failure, "outcome", "feedback_failed")
+    }).observe().stateIn(scope, SharingStarted.WhileSubscribed(0, 0), HeadlightStatus())
     private val automation = LocalVehicleAutomationPreferences(app)
     private val rules = ConditionalRulesPreferences(app)
     private val routines = RoutinePreferences(app)
@@ -133,7 +138,14 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
 
     /** Public Activity intents never contain executable rule data. Claims are bounded and process local. */
     fun claim(intent: Intent): RuleDecision? {
-        val token = intent.getStringExtra(VehicleRoutineLauncher.HANDOFF) ?: return null
+        val token = try {
+            intent.getStringExtra(VehicleRoutineLauncher.HANDOFF)
+        } catch (failure: RuntimeException) {
+            // Any app can start the exported activity with a Parcelable this process cannot unparcel.
+            ControlsLog.warn("rule_handoff", failure, "outcome", "unreadable_extras")
+            intent.replaceExtras(null as android.os.Bundle?)
+            return null
+        } ?: return null
         intent.removeExtra(VehicleRoutineLauncher.HANDOFF)
         return handoff.claim(token, SystemClock.elapsedRealtimeNanos(), ::isCurrent)
     }

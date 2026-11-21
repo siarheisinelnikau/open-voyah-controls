@@ -67,8 +67,8 @@ internal class LocalVehicleAutomationPreferences(context: Context) : VehicleAuto
                 is Set<*> -> rollback.putStringSet(SETTINGS, previous.filterIsInstance<String>().toSet())
                 else -> error("Unsupported original preference type")
             }
-            rollback.commit()
-            ControlsLog.warn("vehicle_automation_settings", "outcome", "commit_failed")
+            val rolledBack = rollback.commit()
+            ControlsLog.warn("vehicle_automation_settings", "outcome", "commit_failed", "rolledBack", rolledBack)
             error("Could not save vehicle automation settings")
         }
         ControlsLog.info("vehicle_automation_settings", "outcome", "saved")

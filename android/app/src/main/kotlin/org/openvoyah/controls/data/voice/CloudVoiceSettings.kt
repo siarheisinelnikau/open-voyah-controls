@@ -9,6 +9,7 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import org.openvoyah.controls.diagnostics.ControlsLog
 
 /** The optional API key stays in private, device-bound storage outside settings exports. */
 internal class CloudVoiceSettings(context: Context) {
@@ -18,14 +19,19 @@ internal class CloudVoiceSettings(context: Context) {
 
     fun key(): String? = synchronized(lock) {
         val stored = preferences.getString(TOKEN, null) ?: return@synchronized null
+        // configured() stays true while the key cannot be read, so the screen shows "configured" and requests fail.
         try {
             val bytes = Base64.decode(stored, Base64.NO_WRAP)
             require(bytes.size in 29..512)
-            val key = keyStore().getKey(ALIAS, null) as? SecretKey ?: return@synchronized null
+            val key = keyStore().getKey(ALIAS, null) as? SecretKey ?: run {
+                ControlsLog.warn("cloud_voice_key", "outcome", "keystore_entry_missing")
+                return@synchronized null
+            }
             val cipher = Cipher.getInstance(TRANSFORM)
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, bytes, 0, IV_LENGTH))
             cipher.doFinal(bytes, IV_LENGTH, bytes.size - IV_LENGTH).decodeToString().takeIf(::validKey)
-        } catch (_: Exception) {
+        } catch (failure: Exception) {
+            ControlsLog.warn("cloud_voice_key", failure, "outcome", "unreadable")
             null
         }
     }

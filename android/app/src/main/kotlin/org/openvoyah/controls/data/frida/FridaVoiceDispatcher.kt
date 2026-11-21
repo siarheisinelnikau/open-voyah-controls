@@ -14,6 +14,7 @@ import org.openvoyah.controls.core.voice.ClimatePhrases
 import org.openvoyah.controls.core.voice.VoiceCommandUseCase.Destination
 import org.openvoyah.controls.core.voice.VoiceCommandUseCase.Request
 import org.openvoyah.controls.data.settings.VoiceSettings
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.voice.VoiceOutcome
 import org.openvoyah.controls.domain.voice.VoiceResult
 
@@ -25,17 +26,21 @@ internal class FridaVoiceDispatcher(
 ) {
     suspend fun dispatch(request: Request, stillAllowed: (() -> Boolean)? = null): VoiceResult {
         currentCoroutineContext().ensureActive()
-        if (!inFlight.tryLock()) return result(R.string.ui_199, VoiceOutcome.BUSY, failed = true)
+        val command = loggedCommand(request.command().id())
+        if (!inFlight.tryLock()) return logged(command, result(R.string.ui_199, VoiceOutcome.BUSY, failed = true))
         return worker.async {
-            try {
+            val outcome = try {
                 send(request, stillAllowed)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
+                ControlsLog.warn("voice_vehicle_dispatch", error, "command", command, "stage", "dispatch")
                 refusal(error.message.orEmpty()) ?: unknownResult()
             } finally {
                 inFlight.unlock()
             }
+            // Logged by the worker, so a started request is recorded even when its screen stops waiting.
+            logged(command, outcome)
         }.await()
     }
 
@@ -43,8 +48,8 @@ internal class FridaVoiceDispatcher(
         val id = request.command().id()
         val profile = reviewed.profileFor(id)?.takeIf { request.destination() == Destination.VEHICLE }
             ?: return result(R.string.voice_vehicle_approval_required, VoiceOutcome.VEHICLE_APPROVAL_REQUIRED, failed = true)
-        if (id in drivers) return direct { bridge.switchDriver(id.substring(6)) }
-        if (id == "RebootTbox") return direct { bridge.rebootTbox() }
+        if (id in drivers) return direct(id) { bridge.switchDriver(id.substring(6)) }
+        if (id == "RebootTbox") return direct(id) { bridge.rebootTbox() }
         val planPhrase = request.phrase().takeIf { id in phraseDrivenPlans }.orEmpty()
         val options = settings.options(planPhrase).put("profile", profile)
         if (ClimatePhrases.supports(id)) options.put("climateValue", ClimatePhrases.value(id, request.phrase()))
@@ -55,6 +60,7 @@ internal class FridaVoiceDispatcher(
             throw cancelled
         } catch (failure: Exception) {
             // Publishing and reply failures are already reported as unknown by the bridge.
+            ControlsLog.warn("voice_vehicle_dispatch", failure, "command", loggedCommand(id), "stage", "before_publish")
             return refusal(failure.message.orEmpty()) ?: if (failure is ProductionRootAccess.Refused) {
                 refused(R.string.voice_vehicle_blocked)
             } else result(R.string.voice_outcome_unavailable, VoiceOutcome.UNAVAILABLE, failed = true)
@@ -68,16 +74,27 @@ internal class FridaVoiceDispatcher(
         }
     }
 
-    private fun direct(write: () -> Unit): VoiceResult = try {
+    private fun direct(id: String, write: () -> Unit): VoiceResult = try {
         write()
         result(R.string.voice_vehicle_sent, VoiceOutcome.VEHICLE_SENT)
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (error: OverseaProfiles.Refused) {
+        ControlsLog.warn("voice_vehicle_dispatch", error, "command", loggedCommand(id), "stage", "direct")
         refused(error.label)
     } catch (error: Exception) {
+        ControlsLog.warn("voice_vehicle_dispatch", error, "command", loggedCommand(id), "stage", "direct")
         refusal(error.message.orEmpty()) ?: unknownResult()
     }
+
+    private fun logged(command: String, result: VoiceResult): VoiceResult {
+        if (result.failed) ControlsLog.warn("voice_vehicle_dispatch", "command", command, "outcome", result.outcome)
+        else ControlsLog.info("voice_vehicle_dispatch", "command", command, "outcome", result.outcome)
+        return result
+    }
+
+    /** Catalog identifiers only; a generated per-contact identifier is never written to diagnostics. */
+    private fun loggedCommand(id: String): String = id.takeIf { catalogId.matches(it) } ?: "other"
 
     private fun refusal(message: String): VoiceResult? = when {
         "requires Parking gear" in message -> refused(R.string.voice_requires_park)
@@ -110,6 +127,7 @@ internal class FridaVoiceDispatcher(
 
     private companion object {
         val drivers = setOf("DriverA", "DriverB", "DriverC")
+        val catalogId = Regex("[A-Za-z][A-Za-z0-9]{0,63}")
         val phraseDrivenPlans = setOf("OpenSunroofWithPercent", "OpenSunshadeWithPercent", "SaveModeWithSOC")
         val inFlight = Mutex()
         // The caller can cancel its wait. A started write is never replayed or interrupted by the UI.

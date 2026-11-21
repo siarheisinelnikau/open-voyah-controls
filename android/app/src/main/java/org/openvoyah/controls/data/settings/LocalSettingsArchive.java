@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
@@ -32,12 +33,14 @@ import org.openvoyah.controls.data.updates.UpdatePreferences;
 import org.openvoyah.controls.data.vehicle.HeadlightMonitoringPreferences;
 import org.openvoyah.controls.data.vehicle.ServiceReminderPreferences;
 import org.openvoyah.controls.data.vehicle.automation.LocalVehicleAutomationPreferences;
+import org.openvoyah.controls.diagnostics.ControlsLog;
 import org.openvoyah.controls.domain.display.AppDisplayDefaults;
 
 /** File format and recoverable restore for the independent local settings stores. */
 public final class LocalSettingsArchive {
     public static final int MAX_BYTES = 3 * 1024 * 1024;
     private static final String FORMAT = "org.openvoyah.controls.settings";
+    private static final String ROLLBACK_FILE = "settings-restore-rollback.json";
     private static final Object ARCHIVE_LOCK = new Object();
     private static final String ROLLBACK_SCOPE = "scope";
     private static final String DESKTOP_LAYOUT_SCOPE = "desktopLayout";
@@ -97,7 +100,16 @@ public final class LocalSettingsArchive {
         vehicleAutomation = new LocalVehicleAutomationPreferences(context);
         seasonalClimate = new LocalSeasonalClimatePreferences(context);
         conditionalRules = new ConditionalRulesPreferences(context);
-        rollback = new AtomicFile(new File(context.getFilesDir(), "settings-restore-rollback.json"));
+        rollback = new AtomicFile(new File(context.getFilesDir(), ROLLBACK_FILE));
+    }
+
+    /**
+     * Whether an interrupted restore may have left a rollback record. AtomicFile keeps it under the base name, its
+     * ".bak" backup or, on newer releases, a ".new" file; checking all three costs no preference store loads.
+     */
+    public static boolean hasPendingRollback(Context context) {
+        File base = new File(context.getFilesDir(), ROLLBACK_FILE);
+        return base.exists() || new File(base.getPath() + ".bak").exists() || new File(base.getPath() + ".new").exists();
     }
 
     public String exportJson() throws Exception {
@@ -234,6 +246,16 @@ public final class LocalSettingsArchive {
     public Restore prepare(String raw) throws Exception {
         if (raw.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES)
             throw new IOException(UiText.get(R.string.settings_archive_too_large));
+        try {
+            return parse(raw);
+        } catch (JSONException ex) {
+            // org.json messages quote the input ("at character N of ..."), which can hold contacts and phone numbers.
+            ControlsLog.warn("settings_import", ex, "store", "archive", "outcome", "invalid_json");
+            throw new IOException(UiText.get(R.string.settings_archive_invalid), ex);
+        }
+    }
+
+    private Restore parse(String raw) throws Exception {
         JSONObject root = new JSONObject(raw);
         if (!root.has("format")) {
             SettingsStore.State state = SettingsStore.decode(raw);

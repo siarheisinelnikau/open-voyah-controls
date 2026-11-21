@@ -74,7 +74,10 @@ internal object QingganHeadlightReader {
         BINDING_DIED("binding_died", HeadlightInputState.DISCONNECTED),
         SERVICE_CHANGED("subscription_unavailable", HeadlightInputState.SERVICE_UNREVIEWED),
         REGISTRATION_REJECTED("subscription_unavailable", HeadlightInputState.SUBSCRIPTION_REJECTED),
-        WAITING_FOR_CHANGE("waiting_for_change", HeadlightInputState.SUBSCRIBED),
+        WAITING_FOR_CHANGE("waiting_for_change", HeadlightInputState.SUBSCRIBED);
+
+        /** A product outside the reviewed set and a live subscription are expected states, not failures. */
+        val failed: Boolean get() = state != null && state != HeadlightInputState.SUBSCRIBED && this != UNSUPPORTED_PRODUCT
     }
 
     private class BindingLost(val outcome: Outcome) : IOException(outcome.key)
@@ -113,7 +116,7 @@ internal object QingganHeadlightReader {
             is IOException, is IllegalStateException -> Outcome.SUBSCRIPTION_UNAVAILABLE
             else -> throw failure
         }
-        report(outcome, reportState)
+        report(outcome, reportState, failure)
         emit(HeadlightFeedback.Unavailable)
     }
 
@@ -175,7 +178,7 @@ internal object QingganHeadlightReader {
             emitAll(readBinding(app, intent, target, installation, ::verifiedInstallation, reportState, additionalObserver))
         }.retryWhen { failure, attempt ->
             if (failure !is BindingLost && failure !is DeadObjectException) return@retryWhen false
-            report(if (failure is BindingLost) failure.outcome else Outcome.TRANSPORT_LOST, reportState)
+            report(if (failure is BindingLost) failure.outcome else Outcome.TRANSPORT_LOST, reportState, failure)
             emit(HeadlightFeedback.Unavailable)
             if (attempt >= MAX_REBINDS) return@retryWhen false
             report(Outcome.REBIND_SCHEDULED, reportState)
@@ -316,8 +319,12 @@ internal object QingganHeadlightReader {
 
     private fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
-    private fun report(outcome: Outcome, reportState: (HeadlightInputState) -> Unit) {
-        ControlsLog.info("headlight_source", "source", "qinggan", "outcome", outcome.key)
+    private fun report(outcome: Outcome, reportState: (HeadlightInputState) -> Unit, failure: Throwable? = null) {
+        when {
+            !outcome.failed -> ControlsLog.info("headlight_source", "source", "qinggan", "outcome", outcome.key)
+            failure != null -> ControlsLog.warn("headlight_source", failure, "source", "qinggan", "outcome", outcome.key)
+            else -> ControlsLog.warn("headlight_source", "source", "qinggan", "outcome", outcome.key)
+        }
         outcome.state?.let(reportState)
     }
 }

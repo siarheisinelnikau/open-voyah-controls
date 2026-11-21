@@ -85,7 +85,10 @@ internal class DesktopInfoPreferences(context: Context) {
     fun exportSettings(): JSONObject = synchronized(lock) { encode(read()) }
 
     fun restoreSettings(source: JSONObject) = synchronized(lock) {
-        val previous = try { read() } catch (_: JSONException) { DesktopInfoConfiguration() }
+        val previous = try { read() } catch (failure: JSONException) {
+            ControlsLog.warn("store_decode", failure, "store", STORE, "outcome", "defaults_used")
+            DesktopInfoConfiguration()
+        }
         write(decode(source, previous))
     }
 

@@ -39,6 +39,7 @@ import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.ListeningWindow
 import org.openvoyah.controls.data.voice.VoskModels
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.voice.SpeechEvent
 import org.openvoyah.controls.domain.voice.VoiceInput
 import org.openvoyah.controls.domain.voice.VoiceOutcome
@@ -59,11 +60,14 @@ class OfflineVoiceInput(
     private val sampleLimit = listeningWindow.maxSamples(SAMPLE_RATE)
 
     override fun listen(language: String, grammar: Set<String>): Flow<SpeechEvent> = flow {
+        var stage = "microphone_lock"
         try {
             val result = audioLock.withLock {
                 eviction?.cancel()
                 try {
-                    capture(language, grammar) { emit(SpeechEvent.Listening(UiText.get(R.string.voice_listening_action))) }
+                    capture(language, grammar, { stage = it }) {
+                        emit(SpeechEvent.Listening(UiText.get(R.string.voice_listening_action)))
+                    }
                 } finally {
                     eviction = cacheScope.launch {
                         delay(90_000)
@@ -75,8 +79,11 @@ class OfflineVoiceInput(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
+            // The popup shows the text; only this entry says which capture step failed.
+            ControlsLog.warn("voice_capture", failure, "stage", stage)
             emit(error(failure))
         } catch (failure: LinkageError) {
+            ControlsLog.warn("voice_capture", failure, "stage", stage)
             emit(error(failure))
         }
     }.flowOn(Dispatchers.IO)
@@ -85,20 +92,30 @@ class OfflineVoiceInput(
         audioLock.withLock { models.invalidate(context, language) }
     }
 
-    private suspend fun capture(language: String, grammar: Set<String>, listening: suspend () -> Unit): SpeechEvent {
+    private suspend fun capture(
+        language: String,
+        grammar: Set<String>,
+        stage: (String) -> Unit,
+        listening: suspend () -> Unit,
+    ): SpeechEvent {
+        stage("permission")
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             throw IOException(UiText.get(R.string.ui_138))
         }
         val captureContext = currentCoroutineContext()
+        stage("model_load")
         val model = models.load(context, language) { captureContext.isActive }
         captureContext.ensureActive()
         val replay = if (naturalPhrases) ShortArray(sampleLimit) else null
         val focusLost = CompletableDeferred<Unit>()
+        stage("recognizer")
         val captured = Recognizer(model, SAMPLE_RATE.toFloat(), recognitionGrammar(grammar)).use { recognizer ->
+            stage("buffer_size")
             val size = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             if (size <= 0) throw IOException(UiText.get(R.string.ui_140))
             recognizer.setWords(true)
             recognizer.setEndpointerDelays(2.5f, 0.6f, 20f)
+            stage("recorder_init")
             val audio = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(size, 6400))
             val manager = context.getSystemService(AudioManager::class.java)
@@ -106,6 +123,7 @@ class OfflineVoiceInput(
             try {
                 if (audio.state != AudioRecord.STATE_INITIALIZED) throw IOException(UiText.get(R.string.ui_141))
                 captureContext.ensureActive()
+                stage("ready_cue")
                 if (duckMedia && manager != null) focus = requestFocus(manager, focusLost)
                 if (readyCue != null) {
                     if (!focusLost.isCompleted) coroutineScope {
@@ -118,10 +136,12 @@ class OfflineVoiceInput(
                     captureContext.ensureActive()
                 }
                 if (focusLost.isCompleted) return@use Captured(interrupted())
+                stage("start_recording")
                 audio.startRecording()
                 if (audio.recordingState != AudioRecord.RECORDSTATE_RECORDING) throw IOException(UiText.get(R.string.ui_142))
                 val deadline = SystemClock.elapsedRealtime() + listeningWindow.millis()
                 listening()
+                stage("read")
                 read(audio, recognizer, focusLost, replay, deadline)
             } finally {
                 try {
@@ -134,11 +154,13 @@ class OfflineVoiceInput(
         }
         // The recorder is released and the capture lock still excludes a second microphone request.
         if (endCue != null && !focusLost.isCompleted) {
+            stage("end_cue")
             captureContext.ensureActive()
             endCue.invoke()
             captureContext.ensureActive()
         }
         if (replay != null && captured.replaySamples > 0) {
+            stage("natural_phrase")
             captureContext.ensureActive()
             recognizeNatural(model, replay, captured.replaySamples)?.let { return it }
         }

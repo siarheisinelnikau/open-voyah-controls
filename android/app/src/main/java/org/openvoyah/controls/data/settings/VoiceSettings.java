@@ -13,6 +13,7 @@ import org.openvoyah.controls.core.VoiceCatalog;
 import org.openvoyah.controls.core.voice.ClimatePhrases;
 import org.openvoyah.controls.core.voice.VoiceAudioOptions;
 import org.openvoyah.controls.core.voice.VolumePhrases;
+import org.openvoyah.controls.diagnostics.ControlsLog;
 
 /** Voice preferences have independent ownership; a panel failure cannot corrupt them. */
 public final class VoiceSettings {
@@ -255,6 +256,14 @@ public final class VoiceSettings {
     }
     static JSONObject validate(String raw) throws Exception {
         if(raw.length()>1048576) throw new IllegalArgumentException(UiText.get(R.string.ui_154));
+        try { return validateValues(raw); }
+        catch (JSONException ex) {
+            // org.json messages quote the input, and contact entries hold names and phone numbers.
+            ControlsLog.warn("settings_import", ex, "store", "voice", "outcome", "invalid_json");
+            throw new IllegalArgumentException(UiText.get(R.string.ui_213), ex);
+        }
+    }
+    private static JSONObject validateValues(String raw) throws Exception {
         JSONObject root=new JSONObject(raw), values=root.getJSONObject("values");
         if(root.getInt("schema")!=1 || values.length()>MAX_VOICE_VALUES) throw new IllegalArgumentException(UiText.get(R.string.ui_213));
         Set<String> names=new HashSet<>();

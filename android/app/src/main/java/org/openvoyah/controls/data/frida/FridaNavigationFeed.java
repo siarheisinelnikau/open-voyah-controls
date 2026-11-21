@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
 import org.openvoyah.controls.core.display.NavigationFeed;
+import org.openvoyah.controls.diagnostics.ControlsLog;
 
 public final class FridaNavigationFeed implements NavigationFeed {
     private static final ExecutorService WORKER = Executors.newSingleThreadExecutor();
@@ -29,7 +30,10 @@ public final class FridaNavigationFeed implements NavigationFeed {
             try {
                 bridge.setNavigationHook(enabled);
                 result = UiText.get(enabled ? R.string.navigation_feed_on : R.string.navigation_feed_off);
-            } catch (Exception ex) { result = ex.getMessage(); }
+            } catch (Exception ex) {
+                ControlsLog.warn("navigation_feed", ex, "enabled", enabled, "outcome", "failed");
+                result = FridaFailureText.message(ex);
+            }
             String completed = result;
             main.post(() -> done.accept(completed));
         });

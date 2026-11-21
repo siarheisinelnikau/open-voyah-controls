@@ -15,6 +15,7 @@ import org.openvoyah.controls.core.updates.ReleasePolicy
 import org.openvoyah.controls.data.frida.ReviewedFirmware
 import org.openvoyah.controls.data.updates.UpdateException
 import org.openvoyah.controls.data.updates.UpdateProblem
+import org.openvoyah.controls.diagnostics.ControlsLog
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.MessageDigest
@@ -71,7 +72,8 @@ internal class UpdateApkVerifier(context: Context) : UpdateVerifier {
             throw error
         } catch (error: UpdateException) {
             throw error
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            ControlsLog.warn("update_verify", error, "stage", "package", "problem", UpdateProblem.PACKAGE)
             throw UpdateException(UpdateProblem.PACKAGE)
         }
     }
@@ -170,7 +172,8 @@ internal data class UpdateArchiveContents(val runtime: ApkUpdatePolicy.Runtime, 
                 throw error
             } catch (error: UpdateException) {
                 throw error
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                ControlsLog.warn("update_verify", error, "stage", "archive", "problem", UpdateProblem.RUNTIME)
                 throw UpdateException(UpdateProblem.RUNTIME)
             }
         }

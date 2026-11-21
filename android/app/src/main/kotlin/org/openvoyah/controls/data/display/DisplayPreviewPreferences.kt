@@ -4,6 +4,7 @@ import android.content.Context
 import java.io.IOException
 import org.json.JSONException
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.display.DisplayPreviewArrangement
 import org.openvoyah.controls.domain.display.DisplayPreviewContent
 import org.openvoyah.controls.domain.display.DisplayPreviewDistanceUnits
@@ -23,8 +24,16 @@ internal class DisplayPreviewPreferences(context: Context) {
     fun load(): DisplayPreviewContent {
         val defaults = DisplayPreviewContent()
         val value = preferences.all[CONTENT] as? String ?: return defaults
-        return try { JSONObject(value).mergeInto(defaults) }
-        catch (_: JSONException) { defaults }
+        return try {
+            JSONObject(value).mergeInto(defaults).also { unreadableReported = false }
+        } catch (failure: JSONException) {
+            // Every refresh reads the store; record the damaged value once until it is readable again.
+            if (!unreadableReported) {
+                unreadableReported = true
+                ControlsLog.warn("store_decode", failure, "store", STORE, "outcome", "defaults_used")
+            }
+            defaults
+        }
     }
 
     fun update(change: (DisplayPreviewContent) -> DisplayPreviewContent): DisplayPreviewContent = synchronized(lock) {
@@ -72,6 +81,7 @@ internal class DisplayPreviewPreferences(context: Context) {
         private const val TEXT_SIZE = "textSize"
         private const val MEDIA_FALLBACK = "mediaFallback"
         private val lock = Any()
+        @Volatile private var unreadableReported = false
 
         @JvmStatic
         fun validateSettings(value: JSONObject): JSONObject {

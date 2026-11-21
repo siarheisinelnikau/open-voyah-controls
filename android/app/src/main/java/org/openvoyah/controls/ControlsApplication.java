@@ -17,7 +17,8 @@ public final class ControlsApplication extends Application {
         super.onCreate();
         UiText.attach(this);
         Diagnostics.install(this, BuildConfig.DEBUG, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE);
-        try { new LocalSettingsArchive(this).recoverInterruptedRestore(); }
+        // Every process start (boot, jobs, services) passes here; the archive opens about twenty stores.
+        try { if (LocalSettingsArchive.hasPendingRollback(this)) new LocalSettingsArchive(this).recoverInterruptedRestore(); }
         catch (Exception ex) { ControlsLog.error("settings_restore_recovery", ex, "outcome", "failed"); }
     }
 

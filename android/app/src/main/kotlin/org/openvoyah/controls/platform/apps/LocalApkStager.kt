@@ -13,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
@@ -31,6 +32,7 @@ import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.coroutineContext
+import org.openvoyah.controls.diagnostics.ControlsLog
 
 internal enum class LocalApkRefusal { OWN_PACKAGE, INVALID_APK, CHANGED }
 internal class LocalApkStagingFailure(val refusal: LocalApkRefusal) : IOException(refusal.name)
@@ -67,7 +69,7 @@ internal class LocalApkStager(
     suspend fun stage(uri: Uri): StagedLocalApk {
         var owned: File? = null
         try {
-            return withTimeout(300_000) {
+            return try { withTimeout(300_000) {
                 if (uri.scheme != "content") throw LocalApkStagingFailure(LocalApkRefusal.INVALID_APK)
                 ensureDirectory()
                 val file = File(directory, "local-${UUID.randomUUID()}.apk")
@@ -114,7 +116,10 @@ internal class LocalApkStager(
                 if (identity.bytes != bytes) throw LocalApkStagingFailure(LocalApkRefusal.CHANGED)
                 val packageName = try { inspect(file) }
                 catch (cancelled: CancellationException) { throw cancelled }
-                catch (_: Exception) { null }
+                catch (failure: Exception) {
+                    ControlsLog.warn("apk_install", failure, "step", "inspect")
+                    null
+                }
                 if (packageName.isNullOrBlank()) throw LocalApkStagingFailure(LocalApkRefusal.INVALID_APK)
                 if (packageName == context.packageName) throw LocalApkStagingFailure(LocalApkRefusal.OWN_PACKAGE)
                 val staged = StagedLocalApk(file, packageName, bytes, digest.digest().toHexString(), identity)
@@ -122,6 +127,12 @@ internal class LocalApkStager(
                 copy(staged, null)
                 coroutineContext.ensureActive()
                 staged
+            } } catch (timeout: TimeoutCancellationException) {
+                // A stalled document provider is a failed read, not the user's cancellation. A real cancellation of
+                // the caller is still rethrown as one.
+                coroutineContext.ensureActive()
+                ControlsLog.warn("apk_install", timeout, "step", "stage", "outcome", "provider_timeout")
+                throw IOException("The APK document did not finish reading in time", timeout)
             }
         } catch (error: Exception) {
             withContext(NonCancellable + Dispatchers.IO) { owned?.let { discard(it) } }
