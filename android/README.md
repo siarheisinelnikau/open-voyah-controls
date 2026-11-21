@@ -24,6 +24,8 @@ npm test
 
 The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. On Linux or macOS, use `./gradlew`. The Gradle wrapper pins Gradle 8.11.1. The hook build bundles the pinned Frida Java bridge, and the voice preparation scripts verify the upstream Vosk archives. Both voice models and all agents are bundled for offline use.
 
+The separate YouTube app builds with `.\gradlew.bat :youtube-web:assembleDebug :youtube-web:testDebugUnitTest` to `youtube-web/build/outputs/apk/debug/youtube-web-debug.apk`; see [YouTube on the head unit](docs/YOUTUBE.md).
+
 ## Button assignments
 
 - For Android hardware keys, the accessibility service must be connected; setup enables it. **Enable button service** on the Buttons screen enables it again through the installer's local channel, which matters on firmware that has no Accessibility settings screen. Some firmware also drops the service from Android's list on every boot; Controls restores it after boot when setup added it. Then capture the desired key. Assign a tap action before adding a hold action. A missing target or a hold-only mapping leaves the whole gesture to Android. When only a tap is assigned, releasing a held key runs that action.
@@ -49,6 +51,7 @@ The worker waits for Android and a stable system process before attaching. It re
 - **Settings → Quick actions** configures the optional navigation dock. It reserves space in the Controls window and can keep the page width fixed as the side bar folds. Add **Seat memory**, **Routines**, **Vehicle routines**, or installed app shortcuts and choose where **Apps** opens. Use **Larger shortcuts** to give selected Controls buttons more room to tap. **Routine shortcut** runs a chosen routine in one tap. The headlight badge can show its source report over the current page. The Virtual display screen can use the full window.
 - **Settings → Routines** can apply a saved desktop layout, select a Controls page, use a temporary theme, and open an installed app. Pin routines you use often and choose when they run from the **Open Controls** shortcut. Pause automatic launches while keeping the schedule.
 - **Install local APK** opens Android's local file picker. Controls verifies a bounded private copy before submitting the selected package to Android for confirmation. The Controls APK itself must use Updates or the Windows installer.
+- **YouTube** is a separate app built from this repository: YouTube's touch site in the system WebView, for head units without Google services. Once installed it is an ordinary tile with its own window, DPI and **Hide** settings, pauses when its window is hidden and exposes a media session. See [YouTube on the head unit](docs/YOUTUBE.md).
 - The **Permissions** section lists an app's runtime permissions and special accesses. For an app installed on top of the firmware, from Controls, Windows or another store, switches grant or revoke a runtime permission and turn display over other apps, modifying system settings, installing unknown apps, all files access and usage access on or off. The authorized local channel applies each change and reads Android's state back to confirm it, since Android does not tell an ordinary app another app's special access; Android keeps the result across normal reboots. Firmware and maker apps, the launcher, the keyboard and Controls itself are shown read-only. **Android app info** and other Android settings pages appear only where the firmware has them.
 - **Close app** force-stops such an app after a confirmation, the way Android's app info would. It is offered only while Android reports the app as running, and never for firmware apps, the launcher, the keyboard, Controls itself, or an app with an enabled accessibility or notification service, because a force stop would turn that service off for good on a firmware without the settings screen to turn it on again.
 - **Virtual display** creates a private display with its own DPI. Grant media access to show the current track and configure album art, progress and playback controls. Choose the pane arrangement, preferred player and seek interval. Route options include current and next roads, Latin lettering and distance units. Instrument cluster media sharing and navigation require the matching OEM cluster service.
@@ -119,7 +122,7 @@ Use **Export app settings** to save button assignments, voice options and contac
 
 ## Code layout
 
-The existing Gradle modules contain logical MVVM and Clean Architecture layers. `core` owns Android-free command rules, button timing, typed display events and ports. Within `app`, presentation ViewModels expose immutable StateFlow state, data adapters own preferences, document serialization and Frida gateways, and platform adapters handle Android intents, permissions, media, input, audio and job events.
+The existing Gradle modules contain logical MVVM and Clean Architecture layers. `youtube-web` is a separate app with no dependency on the others. `core` owns Android-free command rules, button timing, typed display events and ports. Within `app`, presentation ViewModels expose immutable StateFlow state, data adapters own preferences, document serialization and Frida gateways, and platform adapters handle Android intents, permissions, media, input, audio and job events.
 
 `MainActivity` hosts the app grid and normal Compose routes for Settings, Buttons, voice settings, display, vehicle, firmware, cluster and updates. `QuickVoiceActivity` is the foreground popup; `SetupActivity` handles the installer and first-run handshake. Both have permission-protected external entry points. Android owns file pickers, permission and installation dialogs, system settings and the native virtual-display surface. The injected Qinggan bus adapter lives under `hooks`. See [Compose routes and motion](docs/COMPOSE_UI.md) for lifecycle and rendering boundaries.
 
@@ -135,5 +138,6 @@ The existing Gradle modules contain logical MVVM and Clean Architecture layers. 
 - [Compose screens and motion](docs/COMPOSE_UI.md)
 - [Diagnostics and logging](docs/DIAGNOSTICS.md)
 - [Instrument cluster packages, backup, and recovery](docs/CLUSTER.md)
+- [YouTube on the head unit](docs/YOUTUBE.md)
 - [OEM account-record recovery limits — technical appendix](docs/ACCOUNT_RECOVERY.md)
 - [Third-party dependencies and licenses](THIRD_PARTY.md)

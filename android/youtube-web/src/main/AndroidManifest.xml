@@ -1,0 +1,17 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <application android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:theme="@style/YouTubeTheme"
+        android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules"
+        android:supportsRtl="true">
+        <!-- Size changes come from the window service while the page plays; a density change recreates the page. -->
+        <activity android:name=".YouTubeActivity" android:exported="true" android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
