@@ -1,5 +1,6 @@
 import { createActionIntent, createActionLauncher } from './launcher-buttons.js';
 import { installPanelState } from './panel-state.js';
+import { createReporter } from './report.js';
 
 const LAYOUTS = [
     {name:'com.qinggan.launcher.navigation.NavigationBarMain', screen:0, slots:[
@@ -13,7 +14,7 @@ const LAYOUTS = [
 ];
 
 /** Uses the overseas launcher's separate bars, without changing seat or screen-lift policy. */
-export function installOversea(Java, onNavigation = () => {}, startup) {
+export function installOversea(Java, onNavigation = () => {}, startup, report = createReporter('OVC_PANEL_ERROR')) {
     Java.perform(() => {
         const scopes = [], holds = [];
         let nativeClick = null, complete = 0;
@@ -82,17 +83,23 @@ export function installOversea(Java, onNavigation = () => {}, startup) {
                     });
                 click.implementation = function (view) {
                     if (nativeClick?.equals(view)) return click.call(this, view);
-                    let slot;
+                    let slot, action;
                     try {
                         slot = slotFor(scope, this, view);
-                        const action = slot && actionFor(readConfig(contextOf()), slot);
-                        if (action && scope.state.active(this, view, action) && launch(contextOf(), layout.screen, action)) {
+                        const candidate = slot && actionFor(readConfig(contextOf()), slot);
+                        if (candidate && scope.state.active(this, view, candidate)) action = candidate;
+                        if (action && launch(contextOf(), layout.screen, action)) {
                             if (slot === 'navbar01' && action.kind === 'LAUNCH_APP') {
                                 try { onNavigation(contextOf(), action.component.split('/')[0]); } catch (_) { }
                             }
                             return;
                         }
-                    } catch (_) { if (slot) scope.state.failed(this, slot); }
+                    } catch (error) { report('click', error, slot ? {slot} : {}); }
+                    if (action) {
+                        try { scope.state.failed(this, slot); }
+                        catch (error) { report('restore', error, {slot}); }
+                    }
+                    // Call OEM code exactly once if unmapped, disabled, or the replacement failed.
                     return click.call(this, view);
                 };
                 // Constructors cover a recreated passenger bar after sleep or launcher changes.
@@ -117,11 +124,14 @@ export function installOversea(Java, onNavigation = () => {}, startup) {
                             slot = nav && slotFor(scope, nav, this);
                             action = slot && actionFor(readConfig(contextOf()), slot);
                             if (!action || !scope.state.active(nav, this, action)) continue;
-                        } catch (_) { continue; }
+                        } catch (error) {
+                            report('hold', error, slot ? {slot} : {});
+                            continue;
+                        }
                         const previous = nativeClick;
                         nativeClick = this;
                         try { scope.click.call(nav, this); }
-                        catch (_) { console.log('OVC_PANEL_ERROR original overseas action failed'); }
+                        catch (error) { report('hold', error, {slot}); }
                         finally { nativeClick = previous; }
                         return true;
                     }
@@ -139,13 +149,14 @@ export function installOversea(Java, onNavigation = () => {}, startup) {
                 }
             });
         } catch (error) {
-            for (const scope of scopes) {
-                scope.state?.dispose();
-                scope.click.implementation = null;
-                for (const constructor of scope.constructors) constructor.implementation = null;
+            report('install', error);
+            // Hooks first, so a failing dispose cannot leave them in place.
+            for (const hook of [...scopes.flatMap(scope => [scope.click, ...scope.constructors]), ...holds]) {
+                try { hook.implementation = null; } catch (resetError) { report('rollback', resetError); }
             }
-            for (const hold of holds) hold.implementation = null;
-            console.log('OVC_PANEL_ERROR overseas adapter unavailable: ' + error);
+            for (const scope of scopes) {
+                try { scope.state?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
+            }
         }
     });
 }

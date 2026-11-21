@@ -65,18 +65,25 @@ function steeringHarness(options = {}) {
         getDownTime:method('long'), class:{getClassLoader:()=>({})}});
     if (options.collision) Event.KEYCODE_SWC_AVM.value = Event.KEYCODE_IVOKA.value;
     const Java = {perform: fn => fn(), use(name) {
+        if (name === options.missing) throw Error('java.lang.ClassNotFoundException: ' + name);
         return {
             'android.os.Build$VERSION':{SDK_INT:{value:options.sdk ?? 30}},
             'java.lang.Class':{forName(_name, initialize) { assert.equal(initialize,true); }},
             'android.app.ActivityThread':{currentApplication:()=>({getContentResolver:()=>({})})},
-            'android.provider.Settings$Global':{getString:()=>JSON.stringify(config)},
+            // The read hook runs where the real JNI call would let another thread's callback in.
+            'android.provider.Settings$Global':{getString:()=>{ options.onRead?.(); return options.raw ?? JSON.stringify(config); }},
             'com.qinggan.system.QGKeyEvent':Event,
             'com.qinggan.system.KeyManager$5':{onEvent:{overload:()=>callbacks[0]},onKeyEvent:{overload:()=>callbacks[1]}}
         }[name];
     }};
-    vm.runInNewContext(source('java-types.js', 'steering-qg.js') + '\ninstallSteering(Java);', {
+    vm.runInNewContext(source('report.js', 'java-types.js', 'steering-qg.js') + '\ninstallSteering(Java);', {
         Java, console:{log(line) { logs.push(line); }},
-        createActionLauncher:() => () => { launches++; if (options.fail) throw Error('Unavailable'); return true; }
+        createActionLauncher:() => () => {
+            launches++;
+            options.onLaunch?.();
+            if (options.fail) throw Error('android.content.ActivityNotFoundException: Unable to find {private.app/.Main}');
+            return true;
+        }
     });
     const event = (stamp, gesture, key = 1, canceled = false) => ({
         getKeyCode:()=>key, getAction:()=>gesture, isCanceled:()=>canceled, getDownTime:()=>stamp
@@ -143,5 +150,113 @@ test('a delegated CAN route installs no competing QG consumer', () => {
         const h = steeringHarness({source});
         assert.ok(h.callbacks.every(callback => !callback.implementation));
         assert.ok(h.logs.some(line => line.includes('delegated=can')));
+    }
+});
+
+test('a second callback during the Settings read joins the assigned launch instead of running natively', () => {
+    for (const order of [[0, 1], [1, 0]]) {
+        const options = {};
+        const h = steeringHarness(options), [outer, inner] = order.map(index => h.callbacks[index]);
+        let nested;
+        options.onRead = () => { options.onRead = null; nested = inner.implementation(h.event(100, 4)); };
+        assert.equal(outer.implementation(h.event(100, 4)), true);
+        assert.equal(nested, true);
+        assert.equal(h.launches, 1);
+        assert.equal(h.original, 0);
+    }
+});
+
+test('a second callback during the launch is consumed with it, and a failed launch keeps one native call', () => {
+    const options = {};
+    const h = steeringHarness(options), [first, second] = h.callbacks;
+    let nested;
+    options.onLaunch = () => { options.onLaunch = null; nested = second.implementation(h.event(100, 4)); };
+    assert.equal(first.implementation(h.event(100, 4)), true);
+    assert.equal(nested, true);
+    assert.equal(h.launches, 1);
+    assert.equal(h.original, 0);
+    // A pending launch cannot be awaited; when it then fails the first callback still reaches the OEM.
+    options.fail = true;
+    options.onLaunch = () => { options.onLaunch = null; nested = second.implementation(h.event(200, 4)); };
+    assert.equal(first.implementation(h.event(200, 4)), false);
+    assert.equal(nested, true);
+    assert.equal(h.launches, 2);
+    assert.equal(h.original, 1);
+});
+
+test('a newer press published during the Settings read is never replaced by the older event', () => {
+    const options = {};
+    const h = steeringHarness(options), [first, second] = h.callbacks;
+    let nested;
+    options.onRead = () => { options.onRead = null; nested = second.implementation(h.event(200, 4)); };
+    assert.equal(first.implementation(h.event(100, 4)), false);
+    assert.equal(nested, true);
+    assert.equal(first.implementation(h.event(200, 4)), true);
+    assert.equal(h.launches, 1);
+    assert.equal(h.original, 1);
+});
+
+test('interleaved callbacks for an unassigned or failed gesture both reach the original', () => {
+    const options = {};
+    const h = steeringHarness(options), [first, second] = h.callbacks;
+    let nested;
+    options.onRead = () => { options.onRead = null; nested = second.implementation(h.event(100, 4, 2)); };
+    assert.equal(first.implementation(h.event(100, 4, 2)), false);
+    assert.equal(nested, false);
+    assert.equal(h.launches, 0);
+    assert.equal(h.original, 2);
+    options.fail = true;
+    options.onRead = () => { options.onRead = null; nested = second.implementation(h.event(200, 4)); };
+    assert.equal(first.implementation(h.event(200, 4)), false);
+    assert.equal(nested, false);
+    assert.equal(h.launches, 1);
+    assert.equal(h.original, 4);
+});
+
+test('steering failures are reported once with key and gesture and never with their message', () => {
+    const options = {fail:true};
+    const h = steeringHarness(options), [first, second] = h.callbacks;
+    for (let stamp = 100; stamp < 400; stamp += 100) {
+        assert.equal(first.implementation(h.event(stamp, 5)), false);
+        assert.equal(second.implementation(h.event(stamp, 5)), false);
+    }
+    assert.equal(first.implementation({getKeyCode() { throw Error('java.lang.IllegalStateException: private'); }}), false);
+    assert.equal(h.launches, 3);
+    assert.equal(h.original, 7);
+    assert.deepEqual(h.logs.filter(line => line.startsWith('OVC_STEERING_ERROR')), [
+        'OVC_STEERING_ERROR stage=launch kind=ActivityNotFoundException key=voice gesture=Long',
+        'OVC_STEERING_ERROR stage=event kind=IllegalStateException',
+    ]);
+    assert.equal(h.logs.some(line => line.includes('private')), false);
+});
+
+test('a malformed document is a configuration error, not an unsupported firmware, and stays native', () => {
+    const options = {raw:'{"schema":1,"steering":'};
+    const h = steeringHarness(options), [first, second] = h.callbacks;
+    assert.equal(first.implementation(h.event(100, 4)), false);
+    assert.equal(second.implementation(h.event(100, 4)), false);
+    assert.equal(h.launches, 0);
+    assert.equal(h.original, 2);
+    assert.deepEqual(h.logs, [
+        'OVC_STEERING_ERROR stage=config kind=SyntaxError',
+        'OVC_STEERING_READY protocol=2 sdk=30 voice custom camera',
+        'OVC_STEERING_ERROR stage=config kind=SyntaxError key=voice gesture=Short',
+    ]);
+    options.raw = undefined;
+    assert.equal(first.implementation(h.event(200, 4)), true);
+    assert.equal(second.implementation(h.event(200, 4)), true);
+    assert.equal(h.launches, 1);
+});
+
+test('an unsupported firmware is named by a code or exception class', () => {
+    for (const [options, expected] of [
+        [{sdk:29}, 'OVC_STEERING_UNSUPPORTED unsupported_sdk sdk=29'],
+        [{wrongReturn:true}, 'OVC_STEERING_UNSUPPORTED callback_signature'],
+        [{collision:true}, 'OVC_STEERING_UNSUPPORTED key_constants'],
+        [{missing:'com.qinggan.system.KeyManager$5'}, 'OVC_STEERING_UNSUPPORTED ClassNotFoundException'],
+    ]) {
+        const h = steeringHarness(options);
+        assert.deepEqual(h.logs, [expected]);
+        assert.ok(h.callbacks.every(callback => !callback.implementation));
     }
 });

@@ -27,14 +27,16 @@ export function createCanEdgeRouter({keys, status, readConfig, canLaunch, launch
             const current = currentTime(press);
             if (press.canceled || current === null) { stop(press); return; }
             if (launch(press[gesture]) !== true) report('launch-unavailable');
-        } catch (_) { report('launch-unavailable'); }
+        } catch (error) { report('launch-unavailable', error); }
     }
     function candidate(code, time) {
+        // An unmapped key stays native without a Settings read.
+        const key = keys.get(code);
+        if (!key) return null;
         try {
             const raw = readConfig();
             const config = raw && JSON.parse(String(raw));
-            const key = keys.get(code);
-            if (!key || config?.schema !== 1 || config.steeringSource !== 'can-edges'
+            if (config?.schema !== 1 || config.steeringSource !== 'can-edges'
                 || config.steeringEnabled !== true || held.size > 0
                 || !Number.isInteger(config.steeringHoldMs) || config.steeringHoldMs < 250 || config.steeringHoldMs > 2000
                 || !Number.isInteger(config.steeringDebounceMs) || config.steeringDebounceMs < 0 || config.steeringDebounceMs > 500) return null;

@@ -6,11 +6,11 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../hooks/can-edges.js'), 'utf8').replace(/^export /gm, '');
 
 function harness(options = {}) {
-    let time = 100, id = 0, route;
-    const timers = new Map(), native = [], launched = [], reports = [];
+    let time = 100, id = 0, route, reads = 0;
+    const timers = new Map(), native = [], launched = [], reports = [], causes = [];
     const config = {schema:1, steeringSource:'can-edges', steeringEnabled:true, steeringHoldMs:650,
         steeringDebounceMs:100, steering:{voiceShort:{kind:'short'},voiceLong:{kind:'long'},cameraShort:{kind:'short'},cameraLong:{kind:'long'}}};
-    const raw = () => options.badJson ? '{' : JSON.stringify(config);
+    const raw = () => { reads++; return options.badJson ? '{' : JSON.stringify(config); };
     vm.runInNewContext(source + '\nresult=createCanEdgeRouter(inputs)', {
         inputs:{keys:new Map([[16,'voice'],[76,'camera']]),status:{down:1,up:0,short:3,long:4},readConfig:raw,
             canLaunch:action=>options.unavailable !== action.kind,
@@ -22,7 +22,7 @@ function harness(options = {}) {
             }, now:()=>time, schedule:(run,delay)=>{
                 if(options.schedulerFailure) throw Error('No timer');
                 timers.set(++id,{run,at:time+delay});return id;
-            }, cancel:key=>timers.delete(key), report:reason=>reports.push(reason)},
+            }, cancel:key=>timers.delete(key), report:(reason,...cause)=>{reports.push(reason);causes.push(cause);}},
         set result(value) { route=value; }
     });
     const emit=(code,event)=>{if(!route(code,event))native.push([code,event]);};
@@ -30,7 +30,7 @@ function harness(options = {}) {
         time+=ms;
         if(fire) for(const [key,timer] of timers) if(timer.at<=time){timers.delete(key);timer.run();}
     };
-    return {config,options,timers,native,launched,reports,emit,advance,setTime:value=>time=value};
+    return {config,options,timers,native,launched,reports,causes,emit,advance,setTime:value=>time=value,get reads(){return reads;}};
 }
 
 test('edge tap owns both edges, fires on release once and consumes repeated release',()=>{
@@ -83,6 +83,20 @@ test('late target removal and launch denial are not replayed as physical events'
     }
     const h=harness();h.emit(16,1);h.options.unavailable='short';h.emit(16,0);
     assert.deepEqual(h.launched,[]);assert.deepEqual(h.native,[]);assert.equal(h.reports.length,1);
+});
+test('only a thrown launch failure passes its error to the report callback',()=>{
+    const failing=harness({fail:true});failing.emit(16,1);failing.emit(16,0);
+    assert.deepEqual(failing.reports,['launch-unavailable']);
+    assert.equal(failing.causes[0].length,1);
+    assert.equal(failing.causes[0][0].message,'Unavailable');
+    const refused=harness({accepted:false});refused.emit(16,1);refused.emit(16,0);
+    const removed=harness();removed.emit(16,1);removed.options.unavailable='short';removed.emit(16,0);
+    for(const h of [refused,removed]) {assert.deepEqual(h.reports,['launch-unavailable']);assert.deepEqual(h.causes,[[]]);}
+});
+test('an unmapped key is passed through without reading the settings',()=>{
+    const h=harness();h.emit(99,1);h.emit(99,0);h.emit(99,3);
+    assert.equal(h.reads,0);assert.deepEqual(h.native,[[99,1],[99,0],[99,3]]);
+    h.emit(16,1);assert.ok(h.reads>0);
 });
 test('reentrant release cannot cause a second dispatch',()=>{
     const h=harness({reenter:true});h.emit(16,1);h.emit(16,0);assert.deepEqual(h.launched,['short']);

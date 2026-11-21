@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-const source = fs.readFileSync(__dirname + '/../hooks/startup-brand.js', 'utf8').replace(/^export /gm, '');
+const source = ['report.js', 'startup-brand.js'].map(name => fs.readFileSync(__dirname + '/../hooks/' + name, 'utf8')
+    .replace(/^import .*$/gm, '').replace(/^export /gm, '')).join('\n');
 
 test('startup brand waits for a visible central panel and focused home once per Android boot', () => {
     let boot = 7, saved = -1, clock = 0, focused = false, enabled = true, savedSuccessfully = true;
@@ -44,7 +45,8 @@ test('startup brand waits for a visible central panel and focused home once per 
         callbacks.onMatch(home);
         callbacks.onComplete();
     }};
-    const create = vm.runInNewContext(source + '\ncreateStartupBrand', {console:{log() {}}});
+    const logs = [];
+    const create = vm.runInNewContext(source + '\ncreateStartupBrand', {console:{log: line => logs.push(line)}});
     const startup = create(Java);
     startup.showIfReady(launcher, view(1));
     startup.showIfReady(launcher, view(0, false));
@@ -68,6 +70,8 @@ test('startup brand waits for a visible central panel and focused home once per 
     savedSuccessfully = false;
     create(Java).showIfReady(launcher, view(0));
     assert.equal(launches.length, 1);
+    // The outcome is named by a code; the text of a failure never reaches the hook log.
+    assert.deepEqual(logs, ['OVC_STARTUP_BRAND outcome=requested', 'OVC_STARTUP_BRAND outcome=failed kind=marker_not_saved']);
     savedSuccessfully = true;
     const expired = create(Java);
     assert.equal(expired.pending(), true);

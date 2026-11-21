@@ -11,6 +11,7 @@ function harness(options = {}) {
     const native = [], logs = [];
     const config = {schema:1, steeringSource:'can-terminal', steeringEnabled:true,
         steering:{voiceShort:{kind:'START_VOICE'}, voiceLong:{kind:'SYSTEM_SETTINGS'}, cameraShort:{kind:'START_VOICE'}}};
+    if (options.edges) Object.assign(config, {steeringSource:'can-edges', steeringHoldMs:650, steeringDebounceMs:100});
     const callback = {returnType:{className:options.badSignature ? 'boolean' : 'void'},
         call(_owner, code, event) { native.push([code, event]); }};
     const app = {getPackageName:()=>options.package || 'com.qinggan.canbus.service', getContentResolver:()=>({})};
@@ -31,17 +32,17 @@ function harness(options = {}) {
                 assert.deepEqual(args, ['int','int']); return callback;
             }}}
         };
-        if (!types[name] || name === options.missing) throw Error('Class unavailable');
+        if (!types[name] || name === options.missing) throw Error('java.lang.ClassNotFoundException: ' + name);
         return types[name];
     }};
     let emit;
-    vm.runInNewContext(source('java-types.js') + '\n' + source('can-keys.js') + '\n' + source('can-edges.js') + '\n' + source('can-steering.js') + '\ninstallCanSteering(Java);', {
+    vm.runInNewContext(source('report.js') + '\n' + source('java-types.js') + '\n' + source('can-keys.js') + '\n' + source('can-edges.js') + '\n' + source('can-steering.js') + '\ninstallCanSteering(Java);', {
         Java, console:{log:line=>logs.push(line)},
         createActionIntent:()=>()=>({}), createActionPreflight:()=>()=>true, setTimeout, clearTimeout,
         createActionLauncher:()=>() => {
             launches++;
             if (options.reenter) emit(16, 3);
-            if (options.fail) throw Error('Activity unavailable');
+            if (options.fail) throw Error('android.content.ActivityNotFoundException: Unable to find {private.app/.Main}');
             return options.accepted !== false;
         }
     });
@@ -128,5 +129,40 @@ test('incompatible process, signatures and key constants install no CAN hook', (
         const h=harness(options);
         assert.equal(h.callback.implementation,undefined);
         assert.ok(h.logs.some(s=>s.startsWith('OVC_CAN_ERROR')));
+    }
+});
+
+test('an installation failure names its phase and cause without quoting the error', () => {
+    for (const [options, expected] of [
+        [{sdk:29}, 'OVC_CAN_ERROR stage=process kind=unsupported_process'],
+        [{package:'org.other.app'}, 'OVC_CAN_ERROR stage=process kind=unsupported_process'],
+        [{collision:true}, 'OVC_CAN_ERROR stage=constants kind=ambiguous_constants'],
+        [{missing:'com.qinggan.canbus.CanBoxCommType$KEY_STATUS'}, 'OVC_CAN_ERROR stage=constants kind=ClassNotFoundException'],
+        [{badSignature:true}, 'OVC_CAN_ERROR stage=callback kind=callback_signature'],
+    ]) {
+        const h=harness(options);
+        assert.deepEqual(h.logs,[expected]);
+    }
+});
+
+test('a failing terminal launch keeps native delivery and its route error is reported once', () => {
+    const h=harness({fail:true});
+    for (let press=0; press<3; press++) { h.emit(16,1); h.emit(16,3); h.emit(16,0); h.advance(1000); }
+    assert.equal(h.launches,3);
+    assert.equal(h.native.length,9);
+    assert.deepEqual(h.logs.filter(s=>s.startsWith('OVC_CAN_ERROR')),['OVC_CAN_ERROR stage=route kind=ActivityNotFoundException']);
+    assert.equal(h.logs.some(s=>s.includes('private')),false);
+});
+
+test('an edge launch that fails or is refused is an error line with its cause, not a gesture notice', () => {
+    for (const [options, expected] of [
+        [{edges:true, fail:true}, 'OVC_CAN_ERROR stage=gesture kind=launch_unavailable cause=ActivityNotFoundException'],
+        [{edges:true, accepted:false}, 'OVC_CAN_ERROR stage=gesture kind=launch_unavailable'],
+    ]) {
+        const h=harness(options);
+        h.emit(16,1); h.emit(16,0);
+        assert.equal(h.launches,1);
+        assert.deepEqual(h.native,[]);
+        assert.deepEqual(h.logs.filter(s=>!s.startsWith('OVC_CAN_READY')),[expected]);
     }
 });

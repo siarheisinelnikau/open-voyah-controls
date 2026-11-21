@@ -1,3 +1,5 @@
+import { createReporter } from './report.js';
+
 const APP = 'org.openvoyah.controls';
 const NAVIGATION = APP + '.action.NAVIGATION_EVENT';
 
@@ -12,11 +14,20 @@ export function sendNavigation(Java, context, fields) {
     context.sendBroadcast(intent);
 }
 
-export function installClusterMedia(Java) {
+/** A Java long arrives as an Int64 and a float is not an integer; the receiver reads an int extra. */
+function distance(value, report) {
+    let meters = NaN;
+    try { if (value !== null && value !== undefined) meters = Math.round(Number(value)); }
+    // An unconvertible value is left out, as before, so the rest of the route still reaches the display.
+    catch (error) { report('distance', error); }
+    return Number.isSafeInteger(meters) && meters >= 0 && meters <= 0x7fffffff ? meters : undefined;
+}
+
+export function installClusterMedia(Java, report = createReporter('OVC_CLUSTER_MEDIA_ERROR')) {
     Java.perform(() => {
         try {
             const App = Java.use('android.app.ActivityThread').currentApplication();
-            if (!App) return setTimeout(() => installClusterMedia(Java), 2000);
+            if (!App) return setTimeout(() => installClusterMedia(Java, report), 2000);
             const Manager = Java.use('com.qinggan.cluster.InstrumentClusterManager');
             const Info = Java.use('com.qinggan.cluster.info.MediaSrcInfo');
             const Source = Java.use('com.qinggan.cluster.info.MediaSrcType');
@@ -28,13 +39,19 @@ export function installClusterMedia(Java) {
             let hasPublished = false;
             let published = '', discarded = '';
             setInterval(() => Java.perform(() => {
-                const raw = String(Global.getString(resolver, key) || '');
+                let raw;
+                // The provider can fail while the framework restarts; that must not escape the timer every second.
+                try { raw = String(Global.getString(resolver, key) || ''); }
+                catch (error) {
+                    report('settings', error);
+                    return;
+                }
                 if (!raw || raw === published || raw === discarded) return;
                 let snapshot;
                 try { snapshot = raw.length <= 4096 ? JSON.parse(raw) : null; }
                 catch (error) {
                     discarded = raw;
-                    console.log('OVC_CLUSTER_MEDIA_ERROR ' + error.name);
+                    report('parse', error);
                     return;
                 }
                 const {title, artist, album, playing, expires} = snapshot ?? {};
@@ -63,18 +80,18 @@ export function installClusterMedia(Java) {
                     hasPublished = Boolean(title);
                     // Retry a transient failure only while this snapshot is still valid.
                     published = raw;
-                } catch (error) { console.log('OVC_CLUSTER_MEDIA_ERROR ' + error.name); }
+                } catch (error) { report('publish', error); }
             }), 1000);
             console.log('OVC_CLUSTER_READY');
-        } catch (error) { console.log('OVC_CLUSTER_ERROR ' + error); }
+        } catch (error) { report('install', error); }
     });
 }
 
-export function installNavigationObserver(Java) {
+export function installNavigationObserver(Java, report = createReporter('OVC_NAVIGATION_ERROR')) {
     Java.perform(() => {
         try {
             const app = Java.use('android.app.ActivityThread').currentApplication();
-            if (!app) return setTimeout(() => installNavigationObserver(Java), 2000);
+            if (!app) return setTimeout(() => installNavigationObserver(Java, report), 2000);
             const Cluster = Java.use('com.qinggan.cluster.service.InstrumentClusterService$ClusterManagerService');
             const update = Cluster.updateNaviInfo.overload('com.qinggan.cluster.info.NaviInfo');
             let previous = '';
@@ -88,17 +105,17 @@ export function installNavigationObserver(Java) {
                         event: 'route',
                         road: String(info.getCurrentRoadName() || ''),
                         nextRoad: String(info.getTurnRoadName() || ''),
-                        meters: info.getNextDistance()
+                        meters: distance(info.getNextDistance(), report)
                     } : {event: 'end'};
                     const fingerprint = JSON.stringify(fields);
                     if (fingerprint !== previous) {
                         sendNavigation(Java, app, fields);
                         previous = fingerprint;
                     }
-                } catch (error) { console.log('OVC_NAVIGATION_EVENT_ERROR ' + error.name); }
+                } catch (error) { report('event', error); }
                 return result;
             };
             console.log('OVC_NAVIGATION_READY');
-        } catch (error) { console.log('OVC_NAVIGATION_ERROR ' + error); }
+        } catch (error) { report('install', error); }
     });
 }

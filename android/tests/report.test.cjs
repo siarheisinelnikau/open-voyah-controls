@@ -52,6 +52,13 @@ test('the number of tracked problems is bounded and unsafe values cannot shape a
     assert.deepEqual(unsafe, ['OVC_TEST_ERROR stage=invalid kind=Error invalid=invalid component=org.example/.Main']);
 });
 
+test('a nested exception class keeps its name in the line', () => {
+    const lines = [];
+    load().createReporter('OVC_TEST_ERROR', {write:line=>lines.push(line)})(
+        'icon', Error('android.content.res.Resources$NotFoundException: Resource ID #0x7f080123'));
+    assert.deepEqual(lines, ['OVC_TEST_ERROR stage=icon kind=Resources$NotFoundException']);
+});
+
 test('reporting never throws into the hooked method', () => {
     const report = load().createReporter('OVC_TEST_ERROR', {write() { throw Error('log unavailable'); }});
     assert.doesNotThrow(() => report('click', Error('x')));
