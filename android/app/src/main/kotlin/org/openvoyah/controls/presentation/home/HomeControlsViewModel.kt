@@ -95,6 +95,8 @@ internal class HomeControlsViewModel(
         it.steeringActions[SettingsStore.DEFAULT_STEERING_SLOT] = Action.NONE
     }
     fun binding(id: String): Binding? = settings?.bindings?.firstOrNull { it.id == id }
+    /** The installer's root channel is in use, so the button service can be enabled without Android's settings. */
+    fun rootConfigured(): Boolean = panel.configured()
 
     fun saveBinding(binding: Binding, existingId: String?): String? {
         if (binding.longPress.isAssigned && !binding.shortPress.isAssigned) return UiText.get(R.string.button_tap_required)
@@ -116,7 +118,8 @@ internal class HomeControlsViewModel(
 
     fun run(operation: PanelControls.Operation) {
         if (current.value.busy) return
-        if (operation != PanelControls.Operation.STATUS && !change { it.panelEnabled = operation == PanelControls.Operation.CONNECT }) return
+        val switchesPanel = operation == PanelControls.Operation.CONNECT || operation == PanelControls.Operation.DISCONNECT
+        if (switchesPanel && !change { it.panelEnabled = operation == PanelControls.Operation.CONNECT }) return
         val owner = feedbackOwner
         current.value = current.value.copy(busy = true)
         try {
@@ -124,7 +127,12 @@ internal class HomeControlsViewModel(
                 if (closed) return@completed
                 current.value = current.value.copy(busy = false)
                 refresh()
-                if (owner == feedbackOwner) notice(UiText.get(if (result.successful()) R.string.ui_81 else R.string.ui_82), result.message())
+                val title = when {
+                    operation != PanelControls.Operation.BUTTON_SERVICE -> if (result.successful()) R.string.ui_81 else R.string.ui_82
+                    result.successful() -> R.string.button_service_title
+                    else -> R.string.button_service_failed
+                }
+                if (owner == feedbackOwner) notice(UiText.get(title), result.message())
             }
         } catch (failure: RuntimeException) {
             current.value = current.value.copy(busy = false)

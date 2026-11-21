@@ -24,14 +24,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog as AlertDialog
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import org.openvoyah.controls.presentation.theme.CockpitBackdrop
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,15 +45,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.domain.apps.AppControlRefusal
 import org.openvoyah.controls.domain.display.WindowConnection
 import org.openvoyah.controls.platform.apps.AndroidAppAccess
+import org.openvoyah.controls.platform.apps.AppStop
 import org.openvoyah.controls.platform.apps.AppsPlatform
-import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitHeading
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitReveal
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.theme.CockpitTouch
@@ -58,7 +63,7 @@ import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 
 internal data class AppShortcutGridState(
     val pinned: Boolean?,
-    val showInAll: Boolean?,
+    val hidden: Boolean?,
     val isFavorites: Boolean,
     val working: Boolean,
     val notice: Int?,
@@ -72,11 +77,11 @@ internal fun AppSettingsScreen(
     windowsSupported: () -> Boolean,
     shortcut: AppShortcutGridState?,
     setPinned: (Boolean) -> Unit,
-    setShowInAll: (Boolean) -> Unit,
+    setHidden: (Boolean) -> Unit,
     open: (Int?, Boolean) -> Unit,
     openAdjacent: (Int) -> Unit,
-    appInfo: () -> Unit,
-    specialAccess: (AndroidAppAccess) -> Unit,
+    appInfo: (() -> Unit)?,
+    specialAccess: (AndroidAppAccess) -> (() -> Unit)?,
 ) {
     val app = state.app
     val window = state.window
@@ -85,14 +90,21 @@ internal fun AppSettingsScreen(
     val colors = MaterialTheme.colorScheme
     val layout = LocalCockpitLayout.current
     var choices by remember(app.id) { mutableStateOf<List<AppsPlatform.DisplayChoice>?>(null) }
+    // Not saved across recreation: a confirmation must follow a tap on Close app in this page's lifetime.
+    var confirmStop by remember(app.id) { mutableStateOf(false) }
+    val showStop = state.canStop || state.stop.busy
+    LaunchedEffect(state.canStop) { if (!state.canStop) confirmStop = false }
     val launchActions: @Composable (Modifier) -> Unit = { modifier ->
-        if (app.launchEntry != null) {
+        if (app.launchEntry != null || showStop) {
             FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (shortcut?.showInAll != null) {
-                    val shown = shortcut.showInAll
+                // Closing stays apart from opening: it never takes the primary place at the end of the row.
+                if (showStop) CockpitAction(text(R.string.apps_stop), { confirmStop = true }, enabled = !busy)
+                if (app.launchEntry == null) return@FlowRow
+                if (shortcut?.hidden != null) {
+                    val hidden = shortcut.hidden
                     // The shared switch row fills its parent; among these actions it keeps the width of its own content.
                     Box(Modifier.width(IntrinsicSize.Max)) {
-                        CockpitSwitch(text(R.string.apps_grid_show_in_all), shown, !busy && !shortcut.working, setShowInAll)
+                        CockpitSwitch(text(R.string.apps_hide), hidden, !busy && !shortcut.working, setHidden)
                     }
                 }
                 if (shortcut?.pinned != null) {
@@ -126,6 +138,9 @@ internal fun AppSettingsScreen(
                 (state.notice ?: shortcut?.notice)?.let { message ->
                     Text(text(message), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = colors.error)
                 }
+                // Root work on this page takes a moment; the bar shows it for as long as it runs.
+                if (state.stop.busy || permissions.writing) LinearProgressIndicator(Modifier.fillMaxWidth())
+                StopResult(state.stop.result, app.label)
                 if (wide) {
                     Row(Modifier.weight(1f), horizontalArrangement = spacing) {
                         SettingsPane(R.string.app_window_title, CockpitIcon.DISPLAY,
@@ -134,7 +149,7 @@ internal fun AppSettingsScreen(
                         }
                         SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK,
                             Modifier.weight(1f).fillMaxHeight(), scroll = true) {
-                            PermissionSettings(permissions, app.origin, busy, model::permission,
+                            PermissionSettings(permissions, busy, model::permission, model::specialAccess,
                                 model::refreshPermissions, appInfo, specialAccess)
                         }
                     }
@@ -146,13 +161,25 @@ internal fun AppSettingsScreen(
                             }
                         }
                         SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK, Modifier.fillMaxWidth()) {
-                            PermissionSettings(permissions, app.origin, busy, model::permission,
+                            PermissionSettings(permissions, busy, model::permission, model::specialAccess,
                                 model::refreshPermissions, appInfo, specialAccess)
                         }
                     }
                 }
             }
         }
+    }
+    if (confirmStop && state.canStop) {
+        AlertDialog(
+            onDismissRequest = { confirmStop = false },
+            title = { Text(text(R.string.apps_stop_confirm_title).format(app.label)) },
+            text = { Text(text(R.string.apps_stop_confirm_text)) },
+            confirmButton = {
+                CockpitAction(text(R.string.apps_stop_confirm), { confirmStop = false; model.stopApp() }, enabled = !busy,
+                    primary = true)
+            },
+            dismissButton = { CockpitTextAction(text(R.string.ui_89)) { confirmStop = false } },
+        )
     }
     choices?.let {
         DisplayPicker(it, windowsSupported(), window?.connection == WindowConnection.ENABLED,
@@ -196,40 +223,64 @@ private fun SettingsPane(
     }
 }
 
+/** The last close result. A failure reads like the other errors on the page; a closed app reads like a status. */
+@Composable
+private fun StopResult(result: AppStop?, label: String) {
+    val colors = MaterialTheme.colorScheme
+    // The last result stays while the message shrinks away, so it does not empty first.
+    val previous = remember { mutableStateOf(result) }
+    SideEffect { if (result != null) previous.value = result }
+    val shown = result ?: previous.value
+    CockpitReveal(result != null) {
+        val last = shown ?: return@CockpitReveal
+        val message = when (last) {
+            AppStop.Stopped -> text(R.string.apps_stop_done).format(label)
+            AppStop.Restarted -> text(R.string.apps_stop_restarted).format(label)
+            AppStop.Refused -> text(R.string.apps_stop_refused)
+            AppStop.PackageChanged -> text(R.string.apps_stop_package_changed)
+            is AppStop.Failed -> listOfNotNull(text(R.string.apps_stop_failed), last.reason).joinToString(" ")
+        }
+        Text(message, Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            color = if (last == AppStop.Stopped) colors.onSurfaceVariant else colors.error)
+    }
+}
+
 @Composable
 private fun PermissionSettings(
     panel: AppSettingsViewModel.Permissions,
-    appOrigin: InstallOrigin,
     busy: Boolean,
     set: (String, Boolean) -> Unit,
+    setAccess: (AndroidAppAccess, Boolean) -> Unit,
     refresh: () -> Unit,
-    appInfo: () -> Unit,
-    specialAccess: (AndroidAppAccess) -> Unit,
+    appInfo: (() -> Unit)?,
+    specialAccess: (AndroidAppAccess) -> (() -> Unit)?,
 ) {
     val details = panel.details
     val colors = MaterialTheme.colorScheme
-    val layout = LocalCockpitLayout.current
     val description = when {
-        details == null && panel.busy -> R.string.apps_permission_checking
-        else -> when (details?.origin ?: appOrigin) {
-            InstallOrigin.CONTROLS -> R.string.apps_permission_persisted
-            InstallOrigin.ADB -> R.string.apps_source_adb
-            InstallOrigin.OTHER -> R.string.apps_source_other
-            InstallOrigin.UNKNOWN -> R.string.apps_source_unknown
-            InstallOrigin.UNVERIFIED -> R.string.apps_source_unverified
-            InstallOrigin.SYSTEM -> R.string.apps_permission_stock
+        details == null -> if (panel.busy) R.string.apps_permission_checking else null
+        details.identity == null -> R.string.apps_permission_read_failed
+        else -> when (details.refusal) {
+            null -> R.string.apps_permission_managed
+            AppControlRefusal.CONTROLS -> R.string.apps_permission_controls
+            AppControlRefusal.PREINSTALLED -> R.string.apps_permission_preinstalled
+            AppControlRefusal.CAR_ROLE, AppControlRefusal.BOUND_SERVICE -> R.string.apps_permission_car_role
+            AppControlRefusal.SYSTEM_IDENTITY -> R.string.apps_permission_system_identity
         }
     }
-    Text(text(description), color = colors.onSurfaceVariant)
-    CockpitAction(text(R.string.apps_app_info), appInfo, enabled = !busy)
+    description?.let { Text(text(it), color = colors.onSurfaceVariant) }
     panel.message?.let {
         Text(text(it), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = colors.error)
         CockpitAction(text(R.string.apps_permission_recheck), refresh, enabled = !panel.busy)
     }
     if (details == null) return
+    val manageable = details.refusal == null && details.identity != null
+    val someFixed = details.permissions.any { !it.changeable }
+    // Android's own page only where the firmware has one, and only for what Controls cannot change here.
+    if ((!manageable || someFixed) && appInfo != null) CockpitAction(text(R.string.apps_app_info), appInfo, enabled = !busy)
     if (details.permissions.isEmpty()) {
         Text(text(R.string.apps_permission_empty), color = colors.onSurfaceVariant)
-    } else if (details.origin == InstallOrigin.CONTROLS && details.permissions.any { !it.changeable }) {
+    } else if (manageable && someFixed) {
         Text(text(R.string.apps_permission_android_only), color = colors.onSurfaceVariant)
     }
     if (details.hasUnavailableDeclarations) {
@@ -239,23 +290,39 @@ private fun PermissionSettings(
         HorizontalDivider(color = colors.outlineVariant)
         if (item.changeable) {
             CockpitSwitch(item.label, item.granted, !panel.busy) { set(item.name, it) }
-        } else Row(
-            // The metrics of CockpitSwitch, so read-only rows line up with the switches between them.
-            Modifier.fillMaxWidth().heightIn(min = CockpitTouch),
-            horizontalArrangement = Arrangement.spacedBy(layout.spacing(10.dp)), verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(item.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            Text(text(if (item.granted) R.string.apps_permission_granted else R.string.apps_permission_not_granted),
-                style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-        }
+        } else StatusRow(item.label, if (item.granted) R.string.apps_permission_granted else R.string.apps_permission_not_granted)
     }
     if (details.specialAccess.isNotEmpty()) {
         HorizontalDivider(color = colors.outlineVariant)
         Text(text(R.string.apps_special_access), style = MaterialTheme.typography.titleMedium)
-        Text(text(R.string.apps_special_handoff), color = colors.onSurfaceVariant)
-        details.specialAccess.forEach { access ->
-            CockpitAction(text(access.label()), { specialAccess(access) }, enabled = !busy)
+        val handoffs = details.specialAccess.associate { it.access to if (it.changeable) null else specialAccess(it.access) }
+        if (handoffs.values.any { it != null }) Text(text(R.string.apps_special_handoff), color = colors.onSurfaceVariant)
+        details.specialAccess.forEach { item ->
+            val label = text(item.access.label())
+            val handoff = handoffs[item.access]
+            when {
+                item.changeable -> CockpitSwitch(label, item.allowed == true, !panel.busy) { setAccess(item.access, it) }
+                handoff != null -> CockpitAction(label, handoff, enabled = !busy)
+                else -> StatusRow(label, when (item.allowed) {
+                    true -> R.string.apps_permission_granted
+                    false -> R.string.apps_permission_not_granted
+                    null -> R.string.apps_special_android_only
+                })
+            }
         }
+    }
+}
+
+/** A read-only entry with the metrics of [CockpitSwitch], so it lines up with the switches between rows. */
+@Composable
+private fun StatusRow(label: String, status: Int) {
+    val layout = LocalCockpitLayout.current
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = CockpitTouch),
+        horizontalArrangement = Arrangement.spacedBy(layout.spacing(10.dp)), verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        Text(text(status), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

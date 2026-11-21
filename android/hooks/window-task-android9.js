@@ -13,6 +13,19 @@ export function android9Tasks(Java, framework) {
 
     const getOverride = task => task.getOverrideConfiguration();
     const empty = rect => rect === null || rect.isEmpty();
+    let policyApi;
+    // Looked up once on first use (null: missing). A firmware without these exact members keeps its stable insets.
+    const navigationPolicy = () => {
+        if (policyApi === undefined) {
+            try {
+                const Policy = Java.use('com.android.server.policy.PhoneWindowManager');
+                policyApi = {Policy, insets: Policy.getNonDecorInsetsLw.overload('int', 'int', 'int',
+                    'android.view.DisplayCutout', 'android.graphics.Rect')};
+            } catch (_) { policyApi = null; }
+        }
+        if (policyApi === null) throw Error('Navigation bar policy unavailable');
+        return policyApi;
+    };
     return {
         am,
         lock(fn) {
@@ -21,6 +34,29 @@ export function android9Tasks(Java, framework) {
             return result;
         },
         windowManager: am.mWindowManager.value,
+        /**
+         * Writes into [out] the insets of a navigation bar that display 0 reserves without a window providing it,
+         * and returns true; false when the display has no such bar. Screen decor windows count as bars too: an
+         * automotive system UI of this release reserves its bars that way. Without a cutout, the non-decor insets
+         * are the navigation bar's alone. Takes the window manager's lock after the activity manager's, as Android
+         * does.
+         */
+        unusedNavigationBar(out) {
+            const wm = am.mWindowManager.value;
+            const {Policy, insets} = navigationPolicy();
+            let unused = false;
+            Java.synchronized(wm.mWindowMap.value, () => {
+                const policy = Java.cast(wm.mPolicy.value, Policy);
+                if (!policy.mHasNavigationBar.value || policy.mNavigationBar.value !== null ||
+                    !policy.mScreenDecorWindows.value.isEmpty()) return;
+                const content = wm.mRoot.value.getDisplayContent(0);
+                if (content === null) return;
+                const info = content.getDisplayInfo();
+                insets.call(policy, info.rotation.value, info.logicalWidth.value, info.logicalHeight.value, null, out);
+                unused = true;
+            });
+            return unused;
+        },
         activity,
         display,
         androidDisplay: id => display(id)?.mDisplay.value ?? null,
@@ -35,8 +71,13 @@ export function android9Tasks(Java, framework) {
             return [task.mMinWidth.value > 0 ? task.mMinWidth.value : defaultSize,
                 task.mMinHeight.value > 0 ? task.mMinHeight.value : defaultSize];
         },
-        place(task, bounds) {
-            const mode = bounds === null ? framework.fullscreen : framework.freeform;
+        // Android 9 has no multi-window mode with bounds of its own; placed tasks stay freeform.
+        multiWindowAvailable: () => false,
+        // Android 9 resumes only the focused stack, so starting home always takes the full resume path, which
+        // includes the visibility pass.
+        revealHome: () => false,
+        place(task, bounds, placed = framework.freeform) {
+            const mode = bounds === null ? framework.fullscreen : placed;
             if (task.getWindowingMode() !== mode) {
                 const target = Java.cast(display().getOrCreateStack(mode, task.getActivityType(), false), Stack);
                 reparent.call(task, target, true, Task.REPARENT_KEEP_STACK_AT_FRONT.value, false, false, 'OpenVoyahControls');
@@ -78,6 +119,8 @@ export function android9Tasks(Java, framework) {
             }
             return next;
         },
+        // Android 9 computes the sizes of a placed (freeform) task in densityConfig itself; only density decides.
+        resourcesMatch: (current, wanted) => current.densityDpi.value === wanted.densityDpi.value,
         requestedBounds: task => task.getOverrideBounds(),
         isLeaf: () => true,
         isLocked: () => am.isInLockTaskMode(),

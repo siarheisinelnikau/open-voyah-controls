@@ -9,15 +9,50 @@ The app recognizes 138 command IDs in English and Russian. The recognition langu
 
 ![Voice settings and command catalog on Android 9](screenshots/voice.png)
 
-Android asks for microphone permission on the first request. Once the microphone starts, Vosk listens for up to four seconds by default. Set the limit to three, four, or six seconds in **Voice audio → Listening and popup**. Offline actions need a final catalog match that passes the decoder confidence check. Silence and unfinished phrases end the capture. When the speech is not a confident command, Vosk makes one more local pass over the same audio without the command grammar. The popup then shows what it heard and **No matching command** below it, or a short **Command not recognized** when nothing was heard clearly. A heard phrase is only shown; it never runs an action. The popup keeps one size from listening to the result. The app keeps the last model warm for 90 seconds between requests.
+Android asks for microphone permission on the first request. Once the microphone starts, Vosk listens for up to four seconds by default. Set the limit to three, four, or six seconds in **Voice audio → Listening and popup**. Offline actions need a final catalog match that passes the decoder confidence check. Silence and unfinished phrases end the capture. When the speech is not a confident command, Vosk makes one more local pass over the same audio without the command grammar. The popup then shows what it heard and **No matching command** below it, or a short **Command not recognized** when nothing was heard clearly. A heard phrase is only shown; it never runs an action. The popup keeps one size from listening to the result. The app prepares the speech model and the command recognizer for the selected language in the background when its process starts, for example after boot, and keeps them loaded, so the first press of the voice key starts listening at once. This happens only after the microphone is allowed and never opens the microphone. One model is loaded at a time: changing the language, contacts or restored settings prepares the new set and frees the previous model first. A request made while the model is still loading waits for that load. The diagnostic journal records each step as `event=voice_model_prepare` with `trigger` (`startup`, `settings`, `repair`, `setup` or `request`), `outcome` (`ready`, `reused`, `failed` or `skipped`) and `elapsed_ms`.
 
-Voice settings shows whether physical vehicle commands have been reviewed for the current build. The shipped approval catalog starts empty. App, media, and dialer commands are available independently. Each physical command requires approval for the exact build, a fresh Park and standstill check, and the current request protocol at both ends.
+Voice settings shows whether physical vehicle commands have been reviewed for the current build. The shipped approval catalog starts empty. App, media, and dialer commands are available independently. Each physical command requires approval for the exact build, a fresh Park and standstill check, and the current request protocol at both ends. Until then it answers **Vehicle control requires verification of this head unit and command**; see [Vehicle commands on your own head unit](#vehicle-commands-on-your-own-head-unit).
 
 The result distinguishes a vehicle service acknowledgment from a change confirmed by fresh telemetry. If feedback is partial or the outcome is unknown, the app ends the request and shows that result. Vehicle qualification also checks who can submit requests on the reviewed firmware and what happens when feedback or power is lost during motion.
 
 “Driver one/two/three” (Russian: “водитель один/два/три”) selects the corresponding **driver seat and mirror memory** slot 1/2/3. For a reviewed firmware and slot, direct recall requires **P (Park)** and zero speed. The service reply acknowledges the request. On other firmware, the phrase opens the numbered Restore instructions and the recall is finished in the factory seat controls. Save positions through the factory seat controls. See the [driver-memory guide](DRIVER_MEMORY.md).
 
 “Driver A/B/C” concerns separate OEM accounts. Those commands do not select the numbered memory slots. Overseas account switching remains unavailable; see [OEM account-record recovery limits](ACCOUNT_RECOVERY.md) for the distinct account and recovery boundaries.
+
+## Vehicle commands on your own head unit
+
+The app and the launcher agent each keep a copy of the approved commands, and a vehicle command runs only when both list it for the exact head unit. Both copies come from `app/src/main/assets/voice/verified-commands.json`, which ships empty.
+
+A local-vehicle debug build (`-Povc.localVehicle=<folder>`) also reads an optional `verified-commands.json` from that folder and adds its rows to both copies. Gradle refuses to package such a build as release. The firmware and operation rows in the same folder (`verified-firmware.tsv`, `verified-operations.tsv`) let the app start its agents; they approve no voice command.
+
+```json
+{
+  "schema": 1,
+  "headUnits": [
+    {
+      "product": "f6802h",
+      "fingerprint": "<ro.build.fingerprint, exactly>",
+      "sdk": 30,
+      "abi": "arm64-v8a",
+      "profile": "FREE_REST",
+      "commands": ["GetFromMemoryCellOne"]
+    }
+  ]
+}
+```
+
+- `product`, `fingerprint`, `sdk` and `abi` must equal `Build.PRODUCT`, `ro.build.fingerprint`, the SDK level and the first ABI of the unit. A firmware update changes the fingerprint and locks every command again.
+- `profile` is the app's family for that product (`Firmware.identify`), for example `FREE_REST` for `f6802h`.
+- `commands` uses the command IDs from the first column of the [catalog](../core/src/main/resources/voice-catalog.tsv). List one head unit once. A malformed row or a second row for the same unit stops the build.
+
+Add a command only after it has done the right thing on that car:
+
+1. Add the one command, build the local-vehicle debug APK and install it. Installing revokes boot activation, so provision the unit again afterwards.
+2. With the vehicle in **P**, say the command. Expect **The vehicle accepted the request. Its state is unverified.** and check the physical result yourself. The diagnostic journal records `event=voice_vehicle_dispatch command=<ID> outcome=<result>`, and the launcher worker's `hook.log` the agent's `OVC_VOICE_RESULT`.
+3. Select **D** with the brake held and say it again: it must be refused with **Shift to Park to use this command** and nothing may move.
+4. Keep the command if both results are right. Otherwise remove it and rebuild.
+
+The Park, zero-speed and 500 ms telemetry checks run in the agent before every write whatever the catalog says.
 
 ## Apps and media
 

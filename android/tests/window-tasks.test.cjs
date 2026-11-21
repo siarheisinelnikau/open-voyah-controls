@@ -11,6 +11,7 @@ const field = value => ({value});
 const rect = (left, top, right, bottom) => ({left:field(left),top:field(top),right:field(right),bottom:field(bottom),
     isEmpty:()=>right <= left || bottom <= top});
 const conf = dpi => ({densityDpi:field(dpi)});
+const fill = (out, values) => ['left', 'top', 'right', 'bottom'].forEach((side, index) => { out[side].value = values[index]; });
 
 function harness(sdk, options = {}) {
     let displayId = options.displayId ?? 2;
@@ -20,7 +21,8 @@ function harness(sdk, options = {}) {
     let displayBounds = [0, 0, 1920, 720];
     let density = 240, resourceWidth = 145;
     let bounds = rect(...displayBounds);
-    let placements = 0, scans = 0, writes = 0, notifications = 0, resourceReads = 0;
+    let placements = 0, scans = 0, writes = 0, notifications = 0, resourceReads = 0, reveals = 0;
+    const overrides = [];
     const record = {
         packageName: field('org.example.app'),
         finishing: field(false),
@@ -56,24 +58,37 @@ function harness(sdk, options = {}) {
             getFlags: () => options.flags ?? 0,
             getOwnerUid: () => options.owner ?? 0,
         } : null,
-        windowManager: {getStableInsets: () => {}},
+        windowManager: {getStableInsets: (_, out) => fill(out, options.stableInsets ?? [0, 0, 0, 0])},
+        unusedNavigationBar: out => {
+            if (options.navigationBar instanceof Error) throw options.navigationBar;
+            if (!options.navigationBar) return false;
+            fill(out, options.navigationBar);
+            return true;
+        },
         requestedBounds: () => bounds,
         minimum: () => options.minimum ?? [200, 200],
         getOverride: () => override,
-        densityConfig: (_, dpi) => conf(dpi),
-        setOverride: (_, value) => { override = value; writes++; },
-        place: (_, target) => {
+        densityConfig: (_, dpi, pinned = null) => ({...conf(dpi), pinned}),
+        resourcesMatch: (a, b) => a.densityDpi.value === b.densityDpi.value &&
+            JSON.stringify(a.pinned ?? null) === JSON.stringify(b.pinned ?? null),
+        setOverride: (_, value) => { override = value; writes++; overrides.push({mode, pinned:value.pinned ?? null}); },
+        revealHome: () => { reveals++; return true; },
+        multiWindowAvailable: () => {
+            if (options.multiWindow instanceof Error) throw options.multiWindow;
+            return options.multiWindow === true;
+        },
+        place: (_, target, placed) => {
             placements++;
-            mode = target === null ? 1 : 5;
+            mode = target === null ? 1 : placed;
             bounds = target ?? rect(...displayBounds);
         },
     };
     const classes = {
         'android.graphics.Rect': {$new: (...args) => rect(...(args.length ? args : [0,0,0,0]))},
-        'android.content.res.Configuration': {$new: value => conf(value?.densityDpi.value ?? 0),
+        'android.content.res.Configuration': {$new: value => ({...conf(value?.densityDpi.value ?? 0), pinned:value?.pinned ?? null}),
             SCREENLAYOUT_LONG_YES:field(32),SCREENLAYOUT_SIZE_XLARGE:field(4)},
         'android.app.WindowConfiguration': {
-            WINDOWING_MODE_FULLSCREEN:field(1),WINDOWING_MODE_FREEFORM:field(5),
+            WINDOWING_MODE_FULLSCREEN:field(1),WINDOWING_MODE_FREEFORM:field(5),WINDOWING_MODE_MULTI_WINDOW:field(6),
             WINDOWING_MODE_SPLIT_SCREEN_PRIMARY:field(3),WINDOWING_MODE_SPLIT_SCREEN_SECONDARY:field(4)},
         'android.content.Intent': {FLAG_ACTIVITY_LAUNCH_ADJACENT:field(0x1000)},
         'android.view.Display': {TYPE_BUILT_IN:field(1),TYPE_INTERNAL:field(1),FLAG_PRIVATE:field(4)},
@@ -91,6 +106,7 @@ function harness(sdk, options = {}) {
     return {
         agent, task, placements:()=>placements, density:()=>override.densityDpi.value,
         scans:()=>scans, writes:()=>writes, notifications:()=>notifications, resourceReads:()=>resourceReads,
+        reveals:()=>reveals, overrides, pinned:()=>override.pinned ?? null,
         configure: (frame, dpi, panel) => { displayBounds = frame; density = dpi; resourceWidth = panel; },
         mode:()=>mode,
         bounds:()=>[bounds.left.value, bounds.top.value, bounds.right.value, bounds.bottom.value],
@@ -155,6 +171,126 @@ test('a measured rail follows its display frame and refreshes after rotation or 
         h.configure([24, 40, 744, 1320], 300, 195);
         assert.equal(h.agent.apply(fullWidth, 0, 45).left, 219);
         assert.equal(h.resourceReads(), 2);
+    }
+});
+
+test('a navigation bar that Android reserves without a window does not shorten a placed task', () => {
+    const fullWidth = {...profile, width:100};
+    for (const sdk of [28, 30]) {
+        // The supported head unit: a 50 px status bar on top and a forced, never-added 80 px navigation bar below.
+        const unit = {displayId:0, stableInsets:[0, 50, 0, 80]};
+        const h = harness(sdk, {...unit, navigationBar:[0, 0, 0, 80]});
+        assert.deepEqual(Array.from(h.agent.boundsFor(fullWidth)), [145, 50, 1920, 720]);
+        const applied = h.agent.apply(fullWidth, 0, 45);
+        assert.equal(applied.left, 145);
+        assert.deepEqual(h.bounds(), [145, 50, 1920, 720]);
+
+        // A display cutout keeps its own share of the stable insets.
+        const cutout = harness(sdk, {displayId:0, stableInsets:[0, 50, 0, 104], navigationBar:[0, 0, 0, 80]});
+        assert.deepEqual(Array.from(cutout.agent.boundsFor(fullWidth)), [145, 50, 1920, 696]);
+
+        // A navigation bar that is really there, or a framework the agent cannot read, keeps the stable insets.
+        for (const navigationBar of [null, new Error('signature')]) {
+            const kept = harness(sdk, {...unit, navigationBar});
+            assert.deepEqual(Array.from(kept.agent.boundsFor(fullWidth)), [145, 50, 1920, 640]);
+        }
+    }
+});
+
+test('on Android 11 a placed task moves to multi-window, which has no caption bar, and is restored as it was', () => {
+    const fullWidth = {...profile, width:100};
+    const h = harness(30, {displayId:0, multiWindow:true, stableInsets:[0, 50, 0, 80], navigationBar:[0, 0, 0, 80]});
+    assert.equal(h.agent.apply(fullWidth, 0, 45).status, 'applied');
+    assert.equal(h.mode(), 6);
+    assert.deepEqual(h.bounds(), [145, 50, 1920, 720]);
+    h.agent.apply(fullWidth, 0, 45);
+    assert.equal(h.placements(), 1);
+    h.agent.release(0);
+    assert.equal(h.mode(), 1);
+    assert.equal(h.placements(), 2);
+
+    // A launch arrives in freeform, the only mode that takes launch bounds, and leaves it with the same bounds.
+    const launched = harness(30, {displayId:0, multiWindow:true});
+    launched.launchAt([145, 0, 1920, 720]);
+    launched.agent.apply(fullWidth, 0, 45);
+    assert.equal(launched.mode(), 6);
+    assert.deepEqual(launched.bounds(), [145, 0, 1920, 720]);
+
+    // A task that was freeform before the agent placed it goes back to freeform, with its own bounds.
+    const floating = harness(30, {displayId:0, multiWindow:true});
+    floating.launchAt([300, 100, 1500, 600]);
+    floating.agent.apply(fullWidth, 0, 45);
+    assert.equal(floating.mode(), 6);
+    floating.agent.release(0);
+    assert.equal(floating.mode(), 5);
+    assert.deepEqual(floating.bounds(), [300, 100, 1500, 600]);
+});
+
+test('a multi-window task gets resource sizes fixed to its bounds before its mode changes, and loses them on release', () => {
+    const fullWidth = {...profile, width:100};
+    const h = harness(30, {displayId:0, multiWindow:true});
+    h.launchAt([145, 0, 1920, 720]);
+    h.agent.apply(fullWidth, 0, 45);
+    assert.equal(h.mode(), 6);
+    assert.deepEqual(Array.from(h.pinned()), [145, 0, 1920, 720]);
+    // Written once, while the task was still freeform; applying again writes nothing.
+    assert.deepEqual(h.overrides.map(entry => entry.mode), [5]);
+    h.agent.apply(fullWidth, 0, 45);
+    assert.equal(h.overrides.length, 1);
+    h.agent.release(0);
+    assert.equal(h.mode(), 5);
+    assert.equal(h.pinned(), null);
+
+    // A freeform placement where multi-window is unavailable never fixes the sizes.
+    const freeform = harness(30, {displayId:0});
+    freeform.agent.apply(fullWidth, 0, 45);
+    assert.equal(freeform.mode(), 5);
+    assert.ok(freeform.overrides.every(entry => entry.pinned === null));
+});
+
+test('a multi-window task left by an earlier agent returns to fullscreen, and a foreign one is left alone', () => {
+    const fullWidth = {...profile, width:100};
+    // This agent process never tracked the task: an earlier one placed it.
+    const leftover = harness(30, {displayId:0, multiWindow:true, mode:6});
+    leftover.agent.apply(fullWidth, 0, 45);
+    assert.equal(leftover.mode(), 6);
+    leftover.agent.release(0);
+    assert.equal(leftover.mode(), 1);
+    assert.equal(leftover.pinned(), null);
+
+    // An earlier agent's density goes as well: Android never gives a task a density of its own.
+    const dense = harness(30, {displayId:0, multiWindow:true, mode:6, dpi:320});
+    dense.agent.apply(fullWidth, 0, 45);
+    assert.equal(dense.density(), 200);
+    dense.agent.release(0);
+    assert.equal(dense.mode(), 1);
+    assert.equal(dense.density(), 0);
+
+    // A task this agent placed stays its own when an organizer for that mode appears later.
+    const options = {displayId:0, multiWindow:true};
+    const placed = harness(30, options);
+    placed.agent.apply(fullWidth, 0, 45);
+    assert.equal(placed.mode(), 6);
+    options.multiWindow = false;
+    placed.agent.release(0);
+    assert.equal(placed.mode(), 1);
+
+    // With a task organizer for that mode, multi-window tasks are not this agent's.
+    for (const multiWindow of [false, new Error('organizer')]) {
+        const foreign = harness(30, {displayId:0, multiWindow, mode:6});
+        assert.throws(() => foreign.agent.apply(fullWidth, 0, 45), {code:'unsupported_task'});
+        assert.equal(foreign.placements(), 0);
+    }
+});
+
+test('without a usable multi-window mode a placed task stays freeform', () => {
+    const fullWidth = {...profile, width:100};
+    for (const [sdk, multiWindow] of [[28, true], [30, false], [30, new Error('organizer')]]) {
+        const h = harness(sdk, {displayId:0, multiWindow});
+        h.agent.apply(fullWidth, 0, 45);
+        assert.equal(h.mode(), 5);
+        h.agent.release(0);
+        assert.equal(h.mode(), 1);
     }
 });
 
@@ -298,10 +434,28 @@ function livePolicy(sdk, h) {
                     getAction:()=>'android.intent.action.MAIN', hasCategory:()=>true, getFlags:()=>0, getIntExtra:()=>0,
                     getComponent:()=>({getPackageName:()=>'org.example.app', flattenToString:()=>profile.component}),
                 }),
-                isActivityTypeStandardOrUndefined:()=>true, isResizeable:()=>true, getDisplayId:()=>0,
-                getTask:()=>h.task, equals:other=>other === record,
+                isActivityTypeStandardOrUndefined:()=>true, isActivityTypeHome:()=>false, isResizeable:()=>true,
+                getDisplayId:()=>0, getTask:()=>h.task, equals:other=>other === record,
             };
             const from = {getDisplayId:()=>0, getWindowingMode:()=>sourceMode, isActivityTypeHome:()=>true};
+            return late.implementation.call({mLastStartActivityRecord:field(record)}, record, from, null, null, null,
+                null, options, null, []);
+        },
+        /** The launcher's Home button: its own MAIN intent, delivered to the existing home activity. */
+        home(displayId = 0) {
+            const options = {getLaunchDisplayId:()=>-1, getLaunchWindowingMode:()=>0, getLaunchBounds:()=>null};
+            const record = {
+                launchedFromPackage:field('com.qinggan.app.launcher'), packageName:field('com.qinggan.app.launcher'),
+                intent:field({
+                    getAction:()=>'android.intent.action.MAIN', hasCategory:()=>false, getFlags:()=>0x10000000,
+                    getIntExtra:()=>0, getBooleanExtra:()=>false, getComponent:()=>({
+                        getPackageName:()=>'com.qinggan.app.launcher',
+                        flattenToString:()=>'com.qinggan.app.launcher/com.qinggan.app.launcher.activity.MainActivity'}),
+                }),
+                isActivityTypeStandardOrUndefined:()=>false, isActivityTypeHome:()=>true, isResizeable:()=>false,
+                getDisplayId:()=>displayId, getTask:()=>null, equals:other=>other === record,
+            };
+            const from = {getDisplayId:()=>displayId, getWindowingMode:()=>5, isActivityTypeHome:()=>false};
             return late.implementation.call({mLastStartActivityRecord:field(record)}, record, from, null, null, null,
                 null, options, null, []);
         },
@@ -332,6 +486,30 @@ test('back-to-back starts schedule one layout and disabling before delivery rest
         assert.equal(h.density(), 180);
         assert.equal(h.placements(), 1);
     }
+});
+
+test('on Android 11 Home on the central display hides the placed apps it now covers, once per burst', () => {
+    const h = harness(30, {displayId:0});
+    const service = livePolicy(30, h);
+    service.home();
+    service.home();
+    assert.equal(service.queue.length, 1);
+    service.queue.shift()();
+    assert.equal(h.reveals(), 1);
+    // Another display, an ordinary app start and Android 9 leave visibility to Android.
+    service.home(1);
+    service.launch();
+    for (const run of service.queue.splice(0)) run();
+    assert.equal(h.reveals(), 1);
+    const nine = harness(28, {displayId:0});
+    const older = livePolicy(28, nine);
+    older.home();
+    assert.equal(older.queue.length, 0);
+    // Turning the window service off ends it as well.
+    service.request('release');
+    service.home();
+    assert.equal(service.queue.length, 0);
+    assert.ok(!service.logs.some(line => line.startsWith('OVC_WINDOW_ERROR')));
 });
 
 test('a cold start too large for the workspace returns to its native placement and density', () => {

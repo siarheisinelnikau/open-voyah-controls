@@ -43,32 +43,37 @@ import org.openvoyah.controls.diagnostics.ControlsLog
 internal const val LAUNCH_BRAND_TAG = "launchBrand"
 
 /**
- * The startup intro as fractions of [DURATION_MILLIS]. Every stage is finite: the screen is plain first, the wings
- * open, the emblem and the name follow, the accent charges the metal once and the whole mark leaves.
+ * The startup intro as fractions of [DURATION_MILLIS], each written as its time from the first frame. Every stage is
+ * finite: the screen is plain first, the wings open, the emblem and the name follow, the accent charges the metal
+ * once, the finished mark holds still and then leaves.
+ *
+ * The entrance is over in under 1.8 s. The hold that follows keeps the whole mark on screen for about 2.4 s more:
+ * the intro appears about 40 s after the head unit starts, when the launcher agent is ready, and a mark that left
+ * after one second was easy to miss. A tap closes it at any point.
  */
 internal object LaunchTimeline {
-    const val DURATION_MILLIS = 2200
+    const val DURATION_MILLIS = 4500
 
-    const val WINGS_START = .10f
-    const val WINGS_VISIBLE = .30f
-    const val WINGS_OPEN = .46f
-    const val BODY_START = .20f
-    const val BODY_VISIBLE = .42f
-    const val TITLE_START = .26f
-    const val TITLE_VISIBLE = .42f
-    const val RULE_START = .34f
-    const val RULE_DRAWN = .56f
-    const val CAPTION_START = .40f
-    const val CAPTION_VISIBLE = .56f
-    const val GLINT_START = .24f
-    const val GLINT_END = .80f
-    const val CHARGE_START = .42f
-    const val CHARGE_FULL = .54f
-    const val CHARGE_FADE = .62f
-    const val CHARGE_END = .78f
-    const val PULSE_START = .46f
-    const val PULSE_END = .76f
-    const val EXIT_START = .86f
+    const val WINGS_START = 220f / DURATION_MILLIS
+    const val WINGS_VISIBLE = 660f / DURATION_MILLIS
+    const val WINGS_OPEN = 1012f / DURATION_MILLIS
+    const val BODY_START = 440f / DURATION_MILLIS
+    const val BODY_VISIBLE = 924f / DURATION_MILLIS
+    const val TITLE_START = 572f / DURATION_MILLIS
+    const val TITLE_VISIBLE = 924f / DURATION_MILLIS
+    const val RULE_START = 748f / DURATION_MILLIS
+    const val RULE_DRAWN = 1232f / DURATION_MILLIS
+    const val CAPTION_START = 880f / DURATION_MILLIS
+    const val CAPTION_VISIBLE = 1232f / DURATION_MILLIS
+    const val GLINT_START = 528f / DURATION_MILLIS
+    const val GLINT_END = 1760f / DURATION_MILLIS
+    const val CHARGE_START = 924f / DURATION_MILLIS
+    const val CHARGE_FULL = 1188f / DURATION_MILLIS
+    const val CHARGE_FADE = 1364f / DURATION_MILLIS
+    const val CHARGE_END = 1716f / DURATION_MILLIS
+    const val PULSE_START = 1012f / DURATION_MILLIS
+    const val PULSE_END = 1672f / DURATION_MILLIS
+    const val EXIT_START = 4192f / DURATION_MILLIS
 }
 
 /** The intro uses the cockpit's own roles, so an accent or contrast choice in Appearance also colors the startup. */

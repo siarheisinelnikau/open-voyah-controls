@@ -3,6 +3,7 @@ package org.openvoyah.controls.data.frida
 import android.content.Context
 import android.os.Build
 import org.json.JSONObject
+import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import java.io.IOException
@@ -30,7 +31,7 @@ internal object ReviewedFirmware {
     )
     private val packages = setOf(LAUNCHER, FRAMEWORK, CLUSTER, CAN_SERVICE, LOGIN) + localizationTargets.values
     private val operations = setOf(WINDOW_SERVICE, PASSENGER_WINDOW_DPI, OEM_PROFILES, TBOX_REBOOT, CLUSTER_WRITE, CAN_STEERING, CAN_STEERING_EDGES)
-    private val fingerprint = Regex("[A-Za-z0-9][A-Za-z0-9._:/+\\-]{0,255}")
+    private val fingerprint = Regex("[A-Za-z0-9][A-Za-z0-9._:/+,\\-]{0,255}")
     private val product = Regex("[A-Za-z0-9][A-Za-z0-9_.\\-]{0,63}")
     val sha256 = Regex("[0-9a-f]{64}")
 
@@ -41,8 +42,8 @@ internal object ReviewedFirmware {
 
     fun load(context: Context): Review {
         val device = Device(Build.FINGERPRINT, Build.VERSION.SDK_INT.toString(), Build.SUPPORTED_ABIS.firstOrNull().orEmpty(), Build.PRODUCT)
-        val catalog = text(context, "verified-firmware.tsv")
-        val capabilities = text(context, "verified-operations.tsv")
+        val catalog = text(context, "verified-firmware.tsv") + localRows(context, "verified-firmware.tsv")
+        val capabilities = text(context, "verified-operations.tsv") + localRows(context, "verified-operations.tsv")
         return select(catalog, capabilities, device)
             ?: throw ProductionRootAccess.Refused(UiText.get(R.string.production_unreviewed_firmware))
     }
@@ -82,6 +83,10 @@ internal object ReviewedFirmware {
         require(row[0].matches(fingerprint) && row[1] in setOf("28", "30") && row[2] == "arm64-v8a" && row[3].matches(product))
         return Device(row[0], row[1], row[2], row[3])
     }
+
+    /** Rows for the owner's own head unit, added only by a local-vehicle debug build. */
+    private fun localRows(context: Context, name: String) =
+        if (BuildConfig.DEBUG && BuildConfig.LOCAL_VEHICLE) "\n" + text(context, "local/$name") else ""
 
     private fun rows(table: String) = table.lineSequence().map { it.removeSuffix("\r") }
         .filter { it.isNotEmpty() && !it.startsWith('#') }.map { it.split('\t') }

@@ -3,9 +3,11 @@ package org.openvoyah.controls.data.frida;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import org.openvoyah.controls.ButtonAccessibilityService;
 import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
 import org.openvoyah.controls.core.PanelControls.Operation;
@@ -15,6 +17,7 @@ import org.openvoyah.controls.data.settings.SettingsStore;
 
 public final class FridaPanelControls implements PanelControls {
     private static final ExecutorService WORKER = Executors.newSingleThreadExecutor();
+    private static final long BUTTON_SERVICE_WAIT_MS = 5000;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Context context;
     private final FridaBridge bridge;
@@ -50,7 +53,21 @@ public final class FridaPanelControls implements PanelControls {
                 bridge.disconnect();
                 yield UiText.get(R.string.ui_77);
             }
+            case BUTTON_SERVICE -> {
+                bridge.enableButtonService();
+                yield UiText.get(awaitButtonService() ? R.string.button_service_connected : R.string.button_service_pending);
+            }
         };
+    }
+
+    /** Android binds the service in this process shortly after the setting changes. */
+    private static boolean awaitButtonService() throws InterruptedException {
+        long deadline = SystemClock.elapsedRealtime() + BUTTON_SERVICE_WAIT_MS;
+        while (!ButtonAccessibilityService.isConnected()) {
+            if (SystemClock.elapsedRealtime() >= deadline) return false;
+            Thread.sleep(100);
+        }
+        return true;
     }
 
     @Override public void publish(Consumer<String> error) {

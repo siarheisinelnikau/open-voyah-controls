@@ -26,7 +26,8 @@ check_script() {
 [ "$(id -u)" = 0 ] && private_dir "$base" || fail 'Root-owned private runtime is unavailable.'
 if [ "$fixture" = 0 ]; then
     private_dir /data/adb || fail 'Root private directory failed validation.'
-    [ "$(getenforce)" = Enforcing ] || fail 'SELinux must be Enforcing.'
+    # A firmware booted Permissive by its kernel command line is accepted; a later setenforce 0 is not.
+    { [ "$(getenforce)" = Enforcing ] || { [ "$(getenforce)" = Permissive ] && tr ' ' '\n' < /proc/cmdline | grep -qx androidboot.selinux=permissive; }; } || fail 'SELinux must be Enforcing.'
     receipt="$base/trust.tsv"
     [ -f "$receipt" ] && [ ! -L "$receipt" ] && [ "$(stat -c %u:%a "$receipt")" = 0:600 ] ||
         fail 'A reviewed deployment receipt is required.'

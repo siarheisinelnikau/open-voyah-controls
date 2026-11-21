@@ -19,6 +19,25 @@ def releasePin = releaseSigner.certificate?.toLowerCase(Locale.ROOT)
 def validReleasePin = releasePin != null && (releasePin ==~ /[0-9a-f]{64}/)
 def emulatorFixture = providers.gradleProperty('ovc.emulatorFixture').getOrElse('false') == 'true'
 def runtimeAssets = layout.buildDirectory.dir('generated/runtime-assets')
+// A debug build for one owner's head unit: the review rows and the expected Controls signer come from a folder
+// outside the repository (verified-firmware.tsv, verified-operations.tsv, signer.sha256). Release builds ignore it.
+def localVehiclePath = providers.gradleProperty('ovc.localVehicle').getOrElse('')
+def localVehicleDir = localVehiclePath.isEmpty() ? null : file(localVehiclePath)
+def localSigner = ''
+if (localVehicleDir != null) {
+    if (emulatorFixture) throw new GradleException('ovc.localVehicle and ovc.emulatorFixture cannot be combined.')
+    ['verified-firmware.tsv', 'verified-operations.tsv', 'signer.sha256'].each {
+        if (!new File(localVehicleDir, it).isFile()) throw new GradleException("ovc.localVehicle needs $it.")
+    }
+    localSigner = new File(localVehicleDir, 'signer.sha256').text.trim().toLowerCase(Locale.ROOT)
+    if (!(localSigner ==~ /[0-9a-f]{64}/)) throw new GradleException('signer.sha256 must contain 64 hexadecimal digits.')
+}
+// The voice-command approvals the launcher agent is compiled with, written by tools/voice-approvals.mjs. A local-vehicle
+// folder may add the owner's own rows in an optional verified-commands.json; only commands confirmed on that car belong
+// there. The agent bundle cannot tell a debug build from a release one, so such a build is never packaged as release.
+def voiceApprovals = layout.buildDirectory.dir('generated/voice-approvals')
+def localVoiceApprovals = localVehicleDir == null ? null : new File(localVehicleDir, 'verified-commands.json')
+if (localVoiceApprovals != null && !localVoiceApprovals.isFile()) localVoiceApprovals = null
 
 android {
     namespace 'org.openvoyah.controls'
@@ -35,6 +54,8 @@ android {
         testInstrumentationRunner 'android.test.InstrumentationTestRunner'
         buildConfigField 'String', 'RELEASE_CERT_SHA256', '"' + (validReleasePin ? releasePin : '') + '"'
         buildConfigField 'boolean', 'OVC_EMULATOR_FIXTURE', 'false'
+        buildConfigField 'boolean', 'LOCAL_VEHICLE', 'false'
+        buildConfigField 'String', 'LOCAL_SIGNER_SHA256', '""'
     }
     signingConfigs {
         if (signingReady && validReleasePin) {
@@ -51,10 +72,14 @@ android {
         buildConfig = true
     }
     sourceSets.main.assets.srcDir(runtimeAssets)
+    // Overrides voice/verified-commands.json from main with the merged catalog, for the app side of the same rows.
+    if (localVoiceApprovals != null) sourceSets.debug.assets.srcDir(voiceApprovals)
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     buildTypes {
         debug {
             buildConfigField 'boolean', 'OVC_EMULATOR_FIXTURE', emulatorFixture.toString()
+            buildConfigField 'boolean', 'LOCAL_VEHICLE', (localVehicleDir != null).toString()
+            buildConfigField 'String', 'LOCAL_SIGNER_SHA256', '"' + localSigner + '"'
         }
         release {
             minifyEnabled false
@@ -119,13 +144,26 @@ tasks.register('compileFridaHook', Exec) {
     workingDir rootProject.projectDir
     commandLine(System.getProperty('os.name').toLowerCase().contains('windows') ? 'npm.cmd' : 'npm', 'run', 'build:hook')
     inputs.files(rootProject.fileTree('hooks'), rootProject.file('package-lock.json'), rootProject.file('package.json'),
-        rootProject.file('app/src/main/assets/voice/verified-commands.json'))
+        rootProject.file('app/src/main/assets/voice/verified-commands.json'), rootProject.file('tools/voice-approvals.mjs'))
+    inputs.property('localVoiceApprovals', localVoiceApprovals?.absolutePath ?: '')
+    if (localVoiceApprovals != null) inputs.file(localVoiceApprovals)
+    // Set even when empty, so a variable left in the shell cannot add rows to an ordinary build.
+    environment('OVC_LOCAL_VOICE_APPROVALS', localVoiceApprovals?.absolutePath ?: '')
     outputs.files('src/main/assets/hooks/launcher-buttons.bundle.js', 'src/main/assets/hooks/localization.bundle.js',
         'src/main/assets/hooks/window.bundle.js', 'src/main/assets/hooks/navigation.bundle.js',
         'src/main/assets/hooks/can.bundle.js', 'src/main/assets/hooks/oversea-profiles.bundle.js')
+    outputs.dir(voiceApprovals)
+}
+gradle.taskGraph.whenReady { graph ->
+    if (localVoiceApprovals != null && graph.allTasks.any { it.project == project && it.name ==~ /(package|bundle)Release/ }) {
+        throw new GradleException('A local-vehicle verified-commands.json is for debug builds only. Build release without ovc.localVehicle.')
+    }
 }
 def stageRuntimeMetadata = tasks.register('stageRuntimeMetadata', Sync) {
     from(rootProject.file('dist/FRIDA_RUNTIME.json')) { into 'production' }
+    if (localVehicleDir != null) {
+        from(localVehicleDir) { include 'verified-firmware.tsv', 'verified-operations.tsv'; into 'production/local' }
+    }
     into runtimeAssets
 }
 def verifyVoiceAssets = tasks.register('verifyVoiceAssets', Exec) {

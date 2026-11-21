@@ -1,0 +1,3 @@
+<!-- The winged mark without the launcher icon's plate, for the launcher's left panel. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android" android:src="@drawable/ic_controls_mark_art"
+    android:gravity="fill" android:filter="true" android:antialias="true" android:mipMap="true" />

@@ -11,22 +11,24 @@ start_of() {
     text=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
     printf '%s\n' "${text##*) }" | awk 'NF>=20 && $1!="Z" && $1!="X" {print $20}'
 }
+# Older BusyBox ash builds (1.23) crash on the length of a positional parameter, so copy it first.
+pa_hex() {
+    pa_value=$1
+    [ "${#pa_value}" = "$2" ] || return 1
+    case "$1" in ''|*[!0-9A-Fa-f]*) return 1;; esac
+}
+pa_pair() {
+    case "$1" in *:*) ;; *) return 1;; esac
+    pa_left=${1%%:*}; pa_right=${1#*:}
+    pa_hex "$pa_left" "$2" && pa_hex "$pa_right" "$3"
+}
+pa_address() {
+    case "$1" in *:*) ;; *) return 1;; esac
+    pa_address_host=${1%%:*}
+    case "${#pa_address_host}" in 8|32) ;; *) return 1;; esac
+    pa_pair "$1" "${#pa_address_host}" 4
+}
 port_available() {
-    pa_hex() {
-        [ "${#1}" = "$2" ] || return 1
-        case "$1" in ''|*[!0-9A-Fa-f]*) return 1;; esac
-    }
-    pa_pair() {
-        case "$1" in *:*) ;; *) return 1;; esac
-        pa_left=${1%%:*}; pa_right=${1#*:}
-        pa_hex "$pa_left" "$2" && pa_hex "$pa_right" "$3"
-    }
-    pa_address() {
-        case "$1" in *:*) ;; *) return 1;; esac
-        pa_address_host=${1%%:*}
-        case "${#pa_address_host}" in 8|32) ;; *) return 1;; esac
-        pa_pair "$1" "${#pa_address_host}" 4
-    }
     pa_ifs=$(printf ' \t')
     for pa_file in /proc/net/tcp /proc/net/tcp6; do
         [ -r "$pa_file" ] || return 1
@@ -64,7 +66,8 @@ running() {
     [ "$pid" -gt 1 ] && [ -n "$start" ] && [ "$start" = "$(start_of "$pid")" ] &&
         [ "$boot" = "$(cat /proc/sys/kernel/random/boot_id)" ] || return 1
     [ "$(stat -c %u "/proc/$pid")" = 0 ] || return 1
-    args=$(tr '\000' ' ' < "/proc/$pid/cmdline")
+    # Read through head: toybox tr never returns if the process exits between opening and reading the file.
+    args=$(head -c 4096 "/proc/$pid/cmdline" 2>/dev/null | tr '\000' ' ')
     case "$args" in "$busybox telnetd -F -K -p 2323 -b 127.0.0.1 -l $base/login.sh -f /dev/null ") return 0;; *) return 1;; esac
 }
 file "$base/busybox" 600 || exit 1
@@ -96,7 +99,7 @@ if [ "${1:-}" = --stop ]; then
     rm -f "$base/process"
     exit 0
 fi
-[ "$(getenforce)" = Enforcing ] && [ ! -e "$base/disabled" ] && [ ! -L "$base/disabled" ] || exit 1
+{ [ "$(getenforce)" = Enforcing ] || { [ "$(getenforce)" = Permissive ] && tr ' ' '\n' < /proc/cmdline | grep -qx androidboot.selinux=permissive; }; } && [ ! -e "$base/disabled" ] && [ ! -L "$base/disabled" ] || exit 1
 file "$base/fingerprint" 600 && [ "$(getprop ro.build.fingerprint)" = "$(cat "$base/fingerprint")" ] || exit 1
 file "$base/access-start.sh" 700 && file "$base/login.sh" 700 && file "$base/checksums" 600 || exit 1
 [ "$(wc -l < "$base/checksums")" = 3 ] && sha256sum -c "$base/checksums" >/dev/null || exit 1

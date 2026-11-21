@@ -16,6 +16,7 @@ import java.util.function.BooleanSupplier;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.openvoyah.controls.BuildConfig;
+import org.openvoyah.controls.ButtonAccessibilityService;
 import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
 import org.openvoyah.controls.core.Action;
@@ -221,6 +222,7 @@ public final class FridaBridge {
                         return;
                     }
                     prepareActivation();
+                    restoreButtonServiceAfterBoot();
                     SettingsStore.State state = new SettingsStore(context).load();
                     path = "resume";
                     if (production == null || !resumeVerifiedDeployment(state)) {
@@ -245,6 +247,45 @@ public final class FridaBridge {
         if (production == null) return;
         production.refresh();
         production.requireActivation();
+    }
+
+    /**
+     * Some firmware rewrites Android's enabled accessibility services early in every boot, which disconnects the
+     * button service setup enabled. Restoring it never blocks the agents: the Buttons screen offers the same restore.
+     */
+    private void restoreButtonServiceAfterBoot() {
+        if (production == null) return;
+        try {
+            ButtonServiceGrant.Outcome outcome = ButtonServiceGrant.outcome(command(buttonServiceScript(false)));
+            if (outcome == ButtonServiceGrant.Outcome.RESTORED) {
+                ControlsLog.info("button_service", "path", "boot", "outcome", outcome.getToken());
+            } else {
+                ControlsLog.debug("button_service", "path", "boot", "outcome", outcome.getToken());
+            }
+        } catch (IOException | RuntimeException ex) {
+            ControlsLog.warn("button_service", ex, "path", "boot", "outcome", "failed");
+        }
+    }
+
+    /** Enables the button accessibility service on the owner's request through the provisioned root channel. */
+    public ButtonServiceGrant.Outcome enableButtonService() throws IOException {
+        synchronized (IO_LOCK) {
+            try (ControlsLog.Span span = ControlsLog.span("button_service", "path", "explicit")) {
+                try {
+                    if (!knownAuthorization()) throw new ProductionRootAccess.Refused(UiText.get(R.string.production_connect_required));
+                    ButtonServiceGrant.Outcome outcome = ButtonServiceGrant.outcome(command(buttonServiceScript(true)));
+                    span.outcome(outcome.getToken());
+                    return outcome;
+                } catch (IOException | RuntimeException ex) {
+                    record(span, ex);
+                    throw ex;
+                }
+            }
+        }
+    }
+
+    private String buttonServiceScript(boolean explicit) {
+        return ButtonServiceGrant.script(context.getPackageName(), ButtonAccessibilityService.class.getName(), explicit);
     }
 
     private boolean resumeVerifiedDeployment(SettingsStore.State state) throws IOException {

@@ -18,6 +18,6 @@
     <string name="voice_no_matching_command">No matching command</string>
     <string name="default_levels">Default command levels</string>
     <string name="window_options">Window ventilation settings</string>
-    <string name="double_smoke">Double smoke pulse</string>
+    <string name="double_smoke">Double driver window ventilation pulse</string>
     <string name="double_ventilation">Double ventilation pulse</string>
 </resources>

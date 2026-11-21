@@ -84,7 +84,6 @@ import org.openvoyah.controls.domain.apps.AppGridIconStyle
 import org.openvoyah.controls.domain.apps.AppGridRows
 import org.openvoyah.controls.domain.apps.AppGridShortcut
 import org.openvoyah.controls.domain.apps.AppGridTileSize
-import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitAction
@@ -147,8 +146,9 @@ internal fun AppsScreen(
     }
     val pins = grid.pins(desktop)
     val pinnedApps = remember(pins) { pins.toSet() }
-    val orderedApps = remember(state.apps, pins, grid.showSystemApps, grid.hiddenApps, grid.sortOrder, grid.manualAppOrder, desktop) {
-        grid.arrange(state.apps, LocalApp::id, { it.origin == InstallOrigin.SYSTEM }, desktop, LocalApp::firstInstallTime)
+    val orderedApps = remember(state.apps, pins, grid.hideByDefault, grid.hiddenApps, grid.shownApps, grid.sortOrder,
+        grid.manualAppOrder, desktop) {
+        grid.arrange(state.apps, LocalApp::id, LocalApp::hiddenByDefault, desktop, LocalApp::firstInstallTime)
     }
     val desktopPins = remember(orderedApps, pinnedApps) {
         orderedApps.filter { it.id in pinnedApps && it.launchEntry != null }

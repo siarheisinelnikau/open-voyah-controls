@@ -11,6 +11,7 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.data.settings.SettingsStore
 import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.data.voice.VoskModels
+import org.openvoyah.controls.platform.voice.SpeechModels
 import org.openvoyah.controls.diagnostics.ControlsLog
 
 /** The installer asks the app UID to exercise its own channel and initialize reviewed handlers. */
@@ -30,11 +31,8 @@ internal class FirstRunCheck(private val context: Context) {
             } == "OVC_ROOT_OK")
             phase = "voice"
             progress(R.string.setup_check_voice)
-            runInterruptible(Dispatchers.IO) {
-                val models = VoskModels()
-                try { models.load(context, VoiceSettings(context).language()) { !Thread.currentThread().isInterrupted } }
-                finally { models.release() }
-            }
+            // The model stays prepared for the first voice request instead of being loaded a second time.
+            SpeechModels.prepareForSetup(context, runInterruptible(Dispatchers.IO) { VoiceSettings(context).language() })
             mic = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
             repeat(10) {
                 if (!ButtonAccessibilityService.isConnected()) delay(500)

@@ -61,17 +61,27 @@ internal class AppGridPreferences(context: Context) {
         if (current.tileSize != tileSize) ArchivedSettings(tileSize = tileSize) else null
     }
 
-    suspend fun setShowSystemApps(show: Boolean) = update { current ->
-        if (current.showSystemApps != show) ArchivedSettings(showSystemApps = show) else null
+    suspend fun setHideByDefault(hide: Boolean) = update { current ->
+        if (current.hideByDefault != hide) ArchivedSettings(hideByDefault = hide) else null
     }
 
     suspend fun setShowSearchField(show: Boolean) = update { current ->
         if (current.showSearchField != show) ArchivedSettings(showSearchField = show) else null
     }
 
-    suspend fun setAppHidden(component: String, hidden: Boolean) = update { current ->
-        val next = current.hiddenAppsWith(component, hidden)
-        if (next != current.hiddenApps) ArchivedSettings(hiddenApps = next) else null
+    /** [hiddenByDefault] is the app's default from `AppGridVisibility`, so only a choice that differs is stored. */
+    suspend fun setAppHidden(component: String, hidden: Boolean, hiddenByDefault: Boolean) = update { current ->
+        val next = current.withHidden(component, hidden, hiddenByDefault)
+        if (next.hiddenApps != current.hiddenApps || next.shownApps != current.shownApps) {
+            ArchivedSettings(hiddenApps = next.hiddenApps, shownApps = next.shownApps)
+        } else null
+    }
+
+    /** Forgets every per-app **Hide** choice, so each app follows its default again. */
+    suspend fun resetHiddenApps() = update { current ->
+        if (current.hiddenApps.isNotEmpty() || current.shownApps.isNotEmpty()) {
+            ArchivedSettings(hiddenApps = emptySet(), shownApps = emptySet())
+        } else null
     }
 
     suspend fun setIconStyle(style: AppGridIconStyle) = update { current ->
@@ -88,7 +98,7 @@ internal class AppGridPreferences(context: Context) {
 
     suspend fun moveManualApp(catalog: List<AppGridOrderApp>, source: String, neighbor: String, earlier: Boolean) = update { current ->
         if (current.sortOrder != AppGridSortOrder.MANUAL) return@update null
-        val visible = current.editableManualApps(catalog, AppGridOrderApp::component, AppGridOrderApp::system)
+        val visible = current.editableManualApps(catalog, AppGridOrderApp::component, AppGridOrderApp::hiddenByDefault)
         val order = AppGridManualOrder.move(current.manualAppOrder, visible.map(AppGridOrderApp::component), source, neighbor, earlier)
         if (order != current.manualAppOrder) ArchivedSettings(manualAppOrder = order) else null
     }
@@ -153,7 +163,7 @@ internal class AppGridPreferences(context: Context) {
         return AppGridConfiguration(
             pinnedApps = decodePins(JSONArray(values[PINNED_APPS] as String? ?: "[]")),
             tileSize = (values[TILE_SIZE] as String?)?.let { AppGridTileSize.parse(it) } ?: AppGridTileSize.DEFAULT,
-            showSystemApps = values[SHOW_SYSTEM_APPS] as Boolean? ?: true,
+            hideByDefault = values[HIDE_BY_DEFAULT] as Boolean? ?: true,
             desktops = (values[DESKTOPS] as String?)?.let { decodeDesktops(JSONObject(it)) } ?: AppGridDesktops(),
             iconStyle = (values[ICON_STYLE] as String?)?.let { AppGridIconStyle.parse(it) } ?: AppGridIconStyle.NATIVE,
             showAppLabels = values[SHOW_APP_LABELS] as Boolean? ?: true,
@@ -169,6 +179,7 @@ internal class AppGridPreferences(context: Context) {
                 ?: FavoritesBackBehavior.SYSTEM,
             manualAppOrder = decodeAppIds(JSONArray(values[MANUAL_APP_ORDER] as String? ?: "[]"), AppGridManualOrder.MAX_APPS),
             hiddenApps = decodeHiddenApps(JSONArray(values[HIDDEN_APPS] as String? ?: "[]")),
+            shownApps = decodeHiddenApps(JSONArray(values[SHOWN_APPS] as String? ?: "[]")),
             showSearchField = values[SHOW_SEARCH_FIELD] as Boolean? ?: false,
         )
     }
@@ -196,7 +207,7 @@ internal class AppGridPreferences(context: Context) {
 
         stage(PINNED_APPS, settings.pinnedApps?.let { JSONArray(it).toString() })
         stage(TILE_SIZE, settings.tileSize?.storedValue)
-        stage(SHOW_SYSTEM_APPS, settings.showSystemApps)
+        stage(HIDE_BY_DEFAULT, settings.hideByDefault)
         stage(DESKTOPS, settings.desktops?.let { encodeDesktops(it).toString() })
         stage(ICON_STYLE, settings.iconStyle?.storedValue)
         stage(SHOW_APP_LABELS, settings.showAppLabels)
@@ -211,6 +222,7 @@ internal class AppGridPreferences(context: Context) {
         stage(FAVORITES_BACK_BEHAVIOR, settings.favoritesBackBehavior?.storedValue)
         stage(MANUAL_APP_ORDER, settings.manualAppOrder?.let { JSONArray(it).toString() })
         stage(HIDDEN_APPS, settings.hiddenApps?.let { JSONArray(it).toString() })
+        stage(SHOWN_APPS, settings.shownApps?.let { JSONArray(it).toString() })
         stage(SHOW_SEARCH_FIELD, settings.showSearchField)
         if (changed && !editor.commit()) {
             // A failed disk write may still have updated the in-memory preferences.
@@ -222,7 +234,7 @@ internal class AppGridPreferences(context: Context) {
     private data class ArchivedSettings(
         val pinnedApps: List<String>? = null,
         val tileSize: AppGridTileSize? = null,
-        val showSystemApps: Boolean? = null,
+        val hideByDefault: Boolean? = null,
         val desktops: AppGridDesktops? = null,
         val iconStyle: AppGridIconStyle? = null,
         val showAppLabels: Boolean? = null,
@@ -236,6 +248,7 @@ internal class AppGridPreferences(context: Context) {
         val favoritesBackBehavior: FavoritesBackBehavior? = null,
         val manualAppOrder: List<String>? = null,
         val hiddenApps: Set<String>? = null,
+        val shownApps: Set<String>? = null,
         val showSearchField: Boolean? = null,
     )
 
@@ -245,7 +258,9 @@ internal class AppGridPreferences(context: Context) {
         const val STORE = "app_grid"
         private const val PINNED_APPS = "pinned_apps"
         private const val TILE_SIZE = "tile_size"
-        private const val SHOW_SYSTEM_APPS = "show_system_apps"
+        // "show_system_apps" and the archive field "showSystemApps" belonged to the former Show system apps switch.
+        // Its stored value was mostly the default, so it says nothing about a choice; reads ignore it.
+        private const val HIDE_BY_DEFAULT = "hide_by_default"
         private const val DESKTOPS = "desktops"
         private const val ICON_STYLE = "icon_style"
         private const val SHOW_APP_LABELS = "show_app_labels"
@@ -260,10 +275,11 @@ internal class AppGridPreferences(context: Context) {
         private const val FAVORITES_BACK_BEHAVIOR = "favorites_back_behavior"
         private const val MANUAL_APP_ORDER = "manual_app_order"
         private const val HIDDEN_APPS = "hidden_apps"
+        private const val SHOWN_APPS = "shown_apps"
         private const val SHOW_SEARCH_FIELD = "show_search_field"
         private const val PINNED_FIELD = "pinnedApps"
         private const val TILE_SIZE_FIELD = "tileSize"
-        private const val SHOW_SYSTEM_APPS_FIELD = "showSystemApps"
+        private const val HIDE_BY_DEFAULT_FIELD = "hideByDefault"
         private const val ICON_STYLE_FIELD = "iconStyle"
         private const val SHOW_APP_LABELS_FIELD = "showAppLabels"
         private const val SORT_ORDER_FIELD = "sortOrder"
@@ -275,10 +291,11 @@ internal class AppGridPreferences(context: Context) {
         private const val FAVORITES_BACK_BEHAVIOR_FIELD = "favoritesBackBehavior"
         private const val MANUAL_APP_ORDER_FIELD = "manualAppOrder"
         private const val HIDDEN_APPS_FIELD = "hiddenApps"
+        private const val SHOWN_APPS_FIELD = "shownApps"
         private const val SHOW_SEARCH_FIELD_NAME = "showSearchField"
-        private val OBSERVED_KEYS = setOf(PINNED_APPS, TILE_SIZE, SHOW_SYSTEM_APPS, DESKTOPS, ICON_STYLE, SHOW_APP_LABELS,
+        private val OBSERVED_KEYS = setOf(PINNED_APPS, TILE_SIZE, HIDE_BY_DEFAULT, DESKTOPS, ICON_STYLE, SHOW_APP_LABELS,
             SORT_ORDER, COLUMNS, VISIBLE_SHORTCUTS, FAVORITE_ONE_NAME, FAVORITE_TWO_NAME, DESKTOP_CARD_OUTLINES,
-            SMOOTH_DESKTOP_PAGING, DESKTOP_CARD_PLACEMENT, FAVORITES_BACK_BEHAVIOR, MANUAL_APP_ORDER, HIDDEN_APPS, SHOW_SEARCH_FIELD)
+            SMOOTH_DESKTOP_PAGING, DESKTOP_CARD_PLACEMENT, FAVORITES_BACK_BEHAVIOR, MANUAL_APP_ORDER, HIDDEN_APPS, SHOWN_APPS, SHOW_SEARCH_FIELD)
         private val lock = DesktopLayoutStores.WRITE_LOCK
 
         @JvmStatic
@@ -291,6 +308,8 @@ internal class AppGridPreferences(context: Context) {
             // Older layouts preserve choices introduced after they were saved.
             if (!data.has(MANUAL_APP_ORDER_FIELD)) defaults.remove(MANUAL_APP_ORDER_FIELD)
             if (!data.has(HIDDEN_APPS_FIELD)) defaults.remove(HIDDEN_APPS_FIELD)
+            if (!data.has(SHOWN_APPS_FIELD)) defaults.remove(SHOWN_APPS_FIELD)
+            if (!data.has(HIDE_BY_DEFAULT_FIELD)) defaults.remove(HIDE_BY_DEFAULT_FIELD)
             if (!data.has(SHOW_SEARCH_FIELD_NAME)) defaults.remove(SHOW_SEARCH_FIELD_NAME)
             val names = validated.optJSONObject(DESKTOP_NAMES_FIELD)
             if (names != null) {
@@ -305,7 +324,7 @@ internal class AppGridPreferences(context: Context) {
         private fun encodeComplete(current: AppGridConfiguration): JSONObject = encode(ArchivedSettings(
             pinnedApps = current.pinnedApps,
             tileSize = current.tileSize,
-            showSystemApps = current.showSystemApps,
+            hideByDefault = current.hideByDefault,
             desktops = current.desktops,
             iconStyle = current.iconStyle,
             showAppLabels = current.showAppLabels,
@@ -319,13 +338,14 @@ internal class AppGridPreferences(context: Context) {
             favoritesBackBehavior = current.favoritesBackBehavior,
             manualAppOrder = current.manualAppOrder,
             hiddenApps = current.hiddenApps,
+            shownApps = current.shownApps,
             showSearchField = current.showSearchField,
         ))
 
         private fun decode(data: JSONObject) = ArchivedSettings(
             pinnedApps = decodePins(data.getJSONArray(PINNED_FIELD)),
             tileSize = data.optionalValue<String>(TILE_SIZE_FIELD)?.let { AppGridTileSize.parse(it) },
-            showSystemApps = data.optionalValue<Boolean>(SHOW_SYSTEM_APPS_FIELD),
+            hideByDefault = data.optionalValue<Boolean>(HIDE_BY_DEFAULT_FIELD),
             desktops = data.optionalValue<JSONObject>(DESKTOPS)?.let(::decodeDesktops),
             iconStyle = data.optionalValue<String>(ICON_STYLE_FIELD)?.let { AppGridIconStyle.parse(it) },
             showAppLabels = data.optionalValue<Boolean>(SHOW_APP_LABELS_FIELD),
@@ -340,6 +360,7 @@ internal class AppGridPreferences(context: Context) {
             manualAppOrder = data.optionalValue<JSONArray>(MANUAL_APP_ORDER_FIELD)
                 ?.let { decodeAppIds(it, AppGridManualOrder.MAX_APPS) },
             hiddenApps = data.optionalValue<JSONArray>(HIDDEN_APPS_FIELD)?.let(::decodeHiddenApps),
+            shownApps = data.optionalValue<JSONArray>(SHOWN_APPS_FIELD)?.let(::decodeHiddenApps),
             showSearchField = data.optionalValue<Boolean>(SHOW_SEARCH_FIELD_NAME),
         )
 
@@ -396,7 +417,7 @@ internal class AppGridPreferences(context: Context) {
         private fun encode(settings: ArchivedSettings): JSONObject = JSONObject().apply {
             settings.pinnedApps?.let { put(PINNED_FIELD, JSONArray(it)) }
             settings.tileSize?.let { put(TILE_SIZE_FIELD, it.storedValue) }
-            settings.showSystemApps?.let { put(SHOW_SYSTEM_APPS_FIELD, it) }
+            settings.hideByDefault?.let { put(HIDE_BY_DEFAULT_FIELD, it) }
             settings.desktops?.let { put(DESKTOPS, encodeDesktops(it)) }
             settings.iconStyle?.let { put(ICON_STYLE_FIELD, it.storedValue) }
             settings.showAppLabels?.let { put(SHOW_APP_LABELS_FIELD, it) }
@@ -410,6 +431,7 @@ internal class AppGridPreferences(context: Context) {
             settings.favoritesBackBehavior?.let { put(FAVORITES_BACK_BEHAVIOR_FIELD, it.storedValue) }
             settings.manualAppOrder?.let { put(MANUAL_APP_ORDER_FIELD, JSONArray(it)) }
             settings.hiddenApps?.let { put(HIDDEN_APPS_FIELD, JSONArray(it)) }
+            settings.shownApps?.let { put(SHOWN_APPS_FIELD, JSONArray(it)) }
             settings.showSearchField?.let { put(SHOW_SEARCH_FIELD_NAME, it) }
         }
     }

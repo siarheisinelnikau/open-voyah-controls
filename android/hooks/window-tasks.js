@@ -10,6 +10,10 @@ function error(code) {
     return failure;
 }
 
+function optional(read) {
+    try { return read(); } catch (_) { return null; }
+}
+
 export function systemTasks(Java, sdk, panelWidth) {
     const Rect = Java.use('android.graphics.Rect');
     const Configuration = Java.use('android.content.res.Configuration');
@@ -26,13 +30,23 @@ export function systemTasks(Java, sdk, panelWidth) {
         splitPrimary: WindowConfiguration.WINDOWING_MODE_SPLIT_SCREEN_PRIMARY.value,
         splitSecondary: WindowConfiguration.WINDOWING_MODE_SPLIT_SCREEN_SECONDARY.value,
         launchAdjacent: Java.use('android.content.Intent').FLAG_ACTIVITY_LAUNCH_ADJACENT.value,
-        resizeSystem: ResizeMode.RESIZE_MODE_SYSTEM.value
+        resizeSystem: ResizeMode.RESIZE_MODE_SYSTEM.value,
+        // Android 11: a task with bounds of its own that, unlike freeform, gets no caption bar (maximize and close
+        // buttons) in the app's window. Android 9 has no such mode.
+        multiWindow: sdk === 30 ? optional(() => WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW.value) : null
     };
     const api = (sdk === 28 ? android9Tasks : android11Tasks)(Java, framework);
     const saved = new Map();
     const toRect = bounds => bounds === null ? null : Rect.$new(...bounds);
     const key = task => api.id(task) + ':' + System.identityHashCode(task);
-    const knownMode = mode => mode === framework.fullscreen || mode === framework.freeform;
+    /** Modes that keep bounds of their own: freeform and, on Android 11, multi-window. */
+    const bounded = mode => mode === framework.freeform || (framework.multiWindow !== null && mode === framework.multiWindow);
+    // A multi-window task is this agent's while it uses that mode itself (under a task organizer it is not), and
+    // always when this agent placed it: a release must still find it after an organizer appears.
+    const knownMode = (task, mode = task.getWindowingMode()) =>
+        mode === framework.fullscreen || mode === framework.freeform ||
+        (framework.multiWindow !== null && mode === framework.multiWindow &&
+            (saved.has(key(task)) || placedMode() === framework.multiWindow));
 
     function screenOf(displayId) {
         if (displayId === 0) return CENTRAL_DISPLAY;
@@ -53,9 +67,24 @@ export function systemTasks(Java, sdk, panelWidth) {
         const bounds = rectValues(config.windowConfiguration.value.getBounds());
         const insets = Rect.$new();
         api.windowManager.getStableInsets(0, insets);
-        const [left, top, right, bottom] = rectValues(insets);
+        const unused = unusedNavigationBar();
+        const [left, top, right, bottom] = rectValues(insets).map((value, side) => Math.max(0, value - unused[side]));
         const stable = [bounds[0] + left, bounds[1] + top, bounds[2] - right, bounds[3] - bottom];
         return windowBounds({bounds, stable}, profile, panelWidth(bounds, config.densityDpi.value, reportedPanel), minWidth, minHeight);
+    }
+
+    /**
+     * The edges of a navigation bar that Android reserves on the central display although no window provides it.
+     * The supported Android 11 head unit forces the bar on (`qemu.hw.mainkeys=0`) and never adds one, so its stable
+     * insets keep 80 px at the bottom that nothing covers; a placed task fills that edge instead of leaving it
+     * empty. Anything unexpected keeps Android's stable insets as they are.
+     */
+    function unusedNavigationBar() {
+        try {
+            const bar = Rect.$new();
+            if (api.unusedNavigationBar(bar)) return rectValues(bar);
+        } catch (_) { }
+        return [0, 0, 0, 0];
     }
 
     function activities(task, pkg, user, displayId) {
@@ -91,15 +120,34 @@ export function systemTasks(Java, sdk, panelWidth) {
         }
     }
 
+    /**
+     * The windowing mode of a task this agent places: Android 11's multi-window mode where the release has it and
+     * no task organizer would take such a task over, freeform otherwise (always on Android 9). Only freeform shows
+     * a caption bar, whose maximize button would put the app under the panel and the status bar.
+     */
+    function placedMode() {
+        try {
+            if (framework.multiWindow !== null && api.multiWindowAvailable()) return framework.multiWindow;
+        } catch (_) { }
+        return framework.freeform;
+    }
+
     function geometry(task, mode = task.getWindowingMode()) {
-        if (mode !== framework.freeform) return null;
+        if (!bounded(mode)) return null;
         const bounds = api.requestedBounds(task);
         return bounds && !bounds.isEmpty() ? rectValues(bounds) : null;
     }
 
     function snapshot(task, mode) {
         const override = Configuration.$new(api.getOverride(task));
-        return {mode, bounds:geometry(task, mode), override, dpi:override.densityDpi.value};
+        const dpi = override.densityDpi.value;
+        // Only this agent puts tasks into multi-window. One it does not track was placed by an earlier agent process,
+        // whose record of the original is gone: the task came from Android's fullscreen placement and returns there,
+        // at the display density (Android never gives a task a density of its own).
+        if (mode === framework.multiWindow && !saved.has(key(task))) {
+            return {mode:framework.fullscreen, bounds:null, override:null, dpi:0};
+        }
+        return {mode, bounds:geometry(task, mode), override, dpi};
     }
 
     function captureLaunch(profile, user) {
@@ -107,7 +155,7 @@ export function systemTasks(Java, sdk, panelWidth) {
             const originals = new Map();
             for (const {task} of runningTasks(profile.component.split('/')[0], user)) {
                 const mode = task.getWindowingMode();
-                if (knownMode(mode)) originals.set(key(task), snapshot(task, mode));
+                if (knownMode(task, mode)) originals.set(key(task), snapshot(task, mode));
             }
             return originals;
         });
@@ -130,7 +178,7 @@ export function systemTasks(Java, sdk, panelWidth) {
     function rememberLaunch(task, component, user, previous, cold) {
         return api.lock(() => {
             const pkg = component.split('/')[0];
-            if (api.user() !== user || api.isLocked() || !activities(task, pkg, user, 0) || !knownMode(task.getWindowingMode())) return null;
+            if (api.user() !== user || api.isLocked() || !activities(task, pkg, user, 0) || !knownMode(task)) return null;
             const id = key(task);
             const prior = previous.get(id) ?? {...cold, dpi:api.getOverride(task).densityDpi.value};
             // Release can arrive before the queued density/layout pass. Register the native placement now.
@@ -146,13 +194,16 @@ export function systemTasks(Java, sdk, panelWidth) {
     }
 
     function restore(task, records, prior, geometryAllowed = true, originalDpi = prior.dpi) {
-        if (!knownMode(task.getWindowingMode())) throw error('rollback_failed');
+        if (!knownMode(task)) throw error('rollback_failed');
         const current = geometry(task);
         if (geometryAllowed && (task.getWindowingMode() !== prior.mode ||
             (prior.bounds !== null && !sameBounds(current, prior.bounds)))) {
-            api.place(task, toRect(prior.bounds));
+            api.place(task, toRect(prior.bounds), prior.mode);
         }
-        if (prior.override) api.setOverride(task, prior.override);
+        // A multi-window placement fixed the resource sizes. An original without an override of its own gets the
+        // sizes Android computes back.
+        const original = prior.override ?? api.densityConfig(task, originalDpi);
+        if (prior.override || !api.resourcesMatch(api.getOverride(task), original)) api.setOverride(task, original);
         if (api.getOverride(task).densityDpi.value !== originalDpi) {
             api.setOverride(task, api.densityConfig(task, originalDpi));
         }
@@ -176,7 +227,7 @@ export function systemTasks(Java, sdk, panelWidth) {
             if (!match) throw error('no_task');
             const {task, records} = match;
             const mode = task.getWindowingMode();
-            if (!knownMode(mode)) throw error('unsupported_task');
+            if (!knownMode(task, mode)) throw error('unsupported_task');
             const before = snapshot(task, mode);
             const taskKey = key(task);
             const dpi = profile.dpi;
@@ -191,15 +242,26 @@ export function systemTasks(Java, sdk, panelWidth) {
                 const bounds = canPlace ? boundsFor(profile, 0, ...api.minimum(task)) : null;
                 if (canPlace && bounds === null) throw error('no_space');
                 rollback ??= before;
-                const changeBounds = bounds !== null && (before.mode !== framework.freeform || !sameBounds(before.bounds, bounds));
-                if (changeBounds) api.place(task, toRect(bounds));
-                if (bounds !== null && (task.getWindowingMode() !== framework.freeform || !sameBounds(geometry(task), bounds))) {
+                // Launches start in freeform, the only mode that takes launch bounds; the placed task then moves to
+                // the mode that keeps its bounds without a caption bar where the release has one.
+                const placed = canPlace ? placedMode() : framework.freeform;
+                // Multi-window would size the app's resources like a fullscreen task; they are fixed to the bounds.
+                const pinned = bounds !== null && placed === framework.multiWindow ? bounds
+                    : bounds === null && mode === framework.multiWindow ? geometry(task) : null;
+                const resources = () => {
+                    const wanted = api.densityConfig(task, dpi, pinned);
+                    if (api.resourcesMatch(api.getOverride(task), wanted)) return;
+                    api.setOverride(task, wanted);
+                    notify(records);
+                };
+                const changeBounds = bounds !== null && (before.mode !== placed || !sameBounds(before.bounds, bounds));
+                // Sizes first: the move to multi-window then changes only the windowing mode the app sees.
+                if (changeBounds && pinned !== null) resources();
+                if (changeBounds) api.place(task, toRect(bounds), placed);
+                if (bounds !== null && (task.getWindowingMode() !== placed || !sameBounds(geometry(task), bounds))) {
                     throw error('placement_changed');
                 }
-                if (api.getOverride(task).densityDpi.value !== dpi) {
-                    api.setOverride(task, api.densityConfig(task, dpi));
-                    notify(records);
-                }
+                resources();
                 const actualDpi = task.getConfiguration().densityDpi.value;
                 if (dpi !== 0 && actualDpi !== dpi) throw error('density_rejected');
                 const actual = rectValues(task.getBounds());
@@ -231,7 +293,7 @@ export function systemTasks(Java, sdk, panelWidth) {
             entry.appliedDpi = null;
             return;
         }
-        if (!knownMode(task.getWindowingMode())) throw error('rollback_failed');
+        if (!knownMode(task)) throw error('rollback_failed');
         api.setOverride(task, api.densityConfig(task, entry.dpi));
         notify(records);
         if (api.getOverride(task).densityDpi.value !== entry.dpi) throw error('rollback_failed');
@@ -278,6 +340,8 @@ export function systemTasks(Java, sdk, panelWidth) {
     return {
         Rect, framework, boundsFor, apply, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf,
         freeformAvailable: () => api.supportsFreeform() && !api.isLocked(),
+        /** After a start of home: hides the tasks that home, now on top of display 0, covers. */
+        revealHome: () => api.lock(() => api.revealHome()),
         userOf: api.userOf,
         currentUser: api.user,
         id: api.id

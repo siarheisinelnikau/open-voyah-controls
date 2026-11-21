@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- ManagedAppPermissionsTest grants and revokes these on the test package itself, which Controls manages. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <application>
         <uses-library android:name="android.test.runner" />
         <uses-library android:name="android.test.base" />

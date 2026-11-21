@@ -54,6 +54,7 @@ import org.openvoyah.controls.domain.apps.DesktopCardPlacement
 import org.openvoyah.controls.domain.apps.FavoritesBackBehavior
 import org.openvoyah.controls.platform.apps.AppsCatalog
 import org.openvoyah.controls.platform.apps.InstalledAppPermissions
+import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
@@ -97,11 +98,13 @@ internal class AppGridSettingsViewModel(
 
     fun setDesktopNames(first: String, second: String) = save { preferences.setDesktopNames(first, second) }
 
-    fun setShowSystemApps(show: Boolean) = save { preferences.setShowSystemApps(show) }
+    fun setHideByDefault(hide: Boolean) = save { preferences.setHideByDefault(hide) }
 
     fun setShowSearchField(show: Boolean) = save { preferences.setShowSearchField(show) }
 
-    fun restoreHiddenApp(component: String) = save { preferences.setAppHidden(component, false) }
+    fun setAppHidden(app: LocalApp, hidden: Boolean) = save { preferences.setAppHidden(app.id, hidden, app.hiddenByDefault) }
+
+    fun resetHiddenApps() = save { preferences.resetHiddenApps() }
 
     fun setIconStyle(style: AppGridIconStyle) = save { preferences.setIconStyle(style) }
 
@@ -198,12 +201,8 @@ internal fun AppGridSettingsSection() {
         CockpitSwitch(text(R.string.apps_grid_show_search_field), current?.showSearchField ?: false, enabled = editable) { show ->
             if (active()) model.setShowSearchField(show)
         }
-        CockpitSwitch(text(R.string.apps_grid_show_system), current?.showSystemApps ?: true, enabled = editable) { show ->
-            if (active()) model.setShowSystemApps(show)
-        }
-        CockpitReveal(current?.showSystemApps == false) {
-            Text(text(R.string.apps_grid_keeps_pins), color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium)
+        CockpitSwitch(text(R.string.apps_grid_hide_by_default), current?.hideByDefault ?: true, enabled = editable) { hide ->
+            if (active()) model.setHideByDefault(hide)
         }
         val desktops = current?.desktops
         val desktopNames = current?.desktopNames ?: AppGridDesktopNames()
@@ -272,9 +271,8 @@ internal fun AppGridSettingsSection() {
                 if (active()) model.setShortcutVisible(shortcut, show)
             }
             GridPicker.HIDDEN_APPS -> HiddenAppsDialog(model, current, editable, state.saveError == R.string.apps_grid_settings_save_failed,
-                close = { picker = null }) { component ->
-                if (active()) model.restoreHiddenApp(component)
-            }
+                close = { picker = null }, setHidden = { app, hidden -> if (active()) model.setAppHidden(app, hidden) },
+                reset = { if (active()) model.resetHiddenApps() })
             GridPicker.DEFAULT_DESKTOP -> if (current.desktops.enabled) {
                 GridOptionDialog(R.string.apps_desktop_default, AppGridDesktop.entries, current.desktops.defaultDesktop,
                     label = { it.desktopLabel(current.desktopNames, includeSlot = true) }, close = { picker = null }) { desktop ->

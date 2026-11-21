@@ -18,7 +18,6 @@ import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.apps.AppGridConfiguration
 import org.openvoyah.controls.domain.apps.AppGridManualOrder
 import org.openvoyah.controls.domain.apps.AppGridOrderApp
-import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
@@ -39,8 +38,8 @@ internal fun ManualAppsOrderDialog(
     }
     val catalog by model.launcherApps.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
     val entries = catalog?.getOrNull().orEmpty()
-    val sorted = remember(entries, grid.pinnedApps, grid.showSystemApps, grid.hiddenApps, grid.manualAppOrder) {
-        grid.editableManualApps(entries, LocalApp::id) { it.origin == InstallOrigin.SYSTEM }
+    val sorted = remember(entries, grid.pinnedApps, grid.hideByDefault, grid.hiddenApps, grid.shownApps, grid.manualAppOrder) {
+        grid.editableManualApps(entries, LocalApp::id, LocalApp::hiddenByDefault)
     }
     var confirmReset by remember { mutableStateOf(false) }
 
@@ -81,7 +80,7 @@ internal fun ManualAppsOrderDialog(
                             Text(UiText.get(R.string.apps_grid_manual_order_note), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             AppOrderRows(sorted, grid.iconStyle, enabled, animateMoves = true) { app, neighbor, earlier ->
                                 if (canEdit()) {
-                                    val catalogIds = entries.map { AppGridOrderApp(it.id, it.origin == InstallOrigin.SYSTEM) }
+                                    val catalogIds = entries.map { AppGridOrderApp(it.id, it.hiddenByDefault) }
                                     model.moveManualApp(catalogIds, app.id, neighbor.id, earlier)
                                 }
                             }

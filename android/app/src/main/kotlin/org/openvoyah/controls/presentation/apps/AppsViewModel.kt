@@ -79,7 +79,7 @@ internal class AppsViewModel(
     }
 
     fun setAppHidden(app: LocalApp, hidden: Boolean) = editGrid(app, null, R.string.apps_grid_settings_save_failed) {
-        grid.setAppHidden(app.id, hidden)
+        grid.setAppHidden(app.id, hidden, app.hiddenByDefault)
     }
 
     private fun editGrid(app: LocalApp, desktop: AppGridDesktop?, failure: Int, operation: suspend () -> Unit) {

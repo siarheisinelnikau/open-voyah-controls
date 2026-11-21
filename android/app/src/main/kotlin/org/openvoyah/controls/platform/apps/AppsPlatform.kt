@@ -91,7 +91,10 @@ internal class AppsPlatform(private val activity: Activity) {
     private fun trustedSettings(intent: Intent): Intent? = try {
         val target = activity.packageManager.queryIntentActivities(intent,
             PackageManager.MATCH_DEFAULT_ONLY or PackageManager.MATCH_SYSTEM_ONLY)
-            .firstOrNull { it.activityInfo?.let { handler -> handler.exported && handler.enabled } == true }
+            .firstOrNull { it.activityInfo?.let { handler ->
+                // Car builds answer settings pages they lack with a stub that only shows "not available".
+                handler.exported && handler.enabled && handler.packageName != CAR_SETTINGS_STUBS
+            } == true }
             ?.activityInfo
         target?.let { intent.setClassName(it.packageName, it.name) }
     } catch (_: RuntimeException) {
@@ -103,5 +106,6 @@ internal class AppsPlatform(private val activity: Activity) {
 
     private companion object {
         const val APK_TYPE = "application/vnd.android.package-archive"
+        const val CAR_SETTINGS_STUBS = "com.android.car.frameworkpackagestubs"
     }
 }

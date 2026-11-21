@@ -69,6 +69,19 @@ import org.openvoyah.controls.domain.apps.AppGridPins
 import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.platform.apps.InstalledAppPermissions
+import org.openvoyah.controls.domain.apps.AppControlRefusal
+import org.openvoyah.controls.platform.apps.AndroidAppAccess
+import org.openvoyah.controls.platform.apps.AppPermission
+import org.openvoyah.controls.platform.apps.AppPermissionControl
+import org.openvoyah.controls.platform.apps.AppPermissions
+import org.openvoyah.controls.platform.apps.AppSpecialAccess
+import org.openvoyah.controls.platform.apps.AppStop
+import org.openvoyah.controls.platform.apps.AppStopControl
+import org.openvoyah.controls.platform.apps.InstalledAppIdentity
+import org.openvoyah.controls.platform.apps.LocalApp
+import org.openvoyah.controls.platform.apps.PermissionChange
+import org.openvoyah.controls.presentation.apps.APP_SETTINGS_MODEL_KEY
+import org.openvoyah.controls.presentation.apps.AppSettingsViewModel
 import org.openvoyah.controls.domain.display.AppWindowProfile
 import org.openvoyah.controls.domain.display.DisplayPreviewArrangement
 import org.openvoyah.controls.domain.display.DisplayPreviewContent
@@ -107,6 +120,7 @@ import java.time.format.FormatStyle
 import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 
 /** Real application rendering on an explicitly provisioned, isolated emulator. */
@@ -444,7 +458,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
 
         try {
             preferences.restoreSettings(JSONObject().put("pinnedApps", JSONArray())
-                .put("tileSize", "standard").put("showSystemApps", true))
+                .put("tileSize", "standard").put("hideByDefault", false))
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
             assertAppGrid(activity)
             assertOrder(normal.label(), target.label())
@@ -472,6 +486,141 @@ class ComposeScreensTest : InstrumentationTestCase() {
         } finally {
             preferences.restoreSettings(original)
         }
+    }
+
+    fun testAppSettingsClosesAManagedAppOnlyAfterConfirmation() {
+        val fixture = AppControlFixture(refusal = null)
+        openFixtureAppSettings(fixture)
+        val close = UiText.get(R.string.apps_stop)
+        val title = UiText.get(R.string.apps_stop_confirm_title).format(FIXTURE_LABEL)
+        awaitText(close)
+        capture("app-settings-managed")
+
+        clickText(close)
+        awaitText(title)
+        awaitText(UiText.get(R.string.apps_stop_confirm_text))
+        capture("app-close-confirmation")
+        clickText(UiText.get(R.string.ui_89))
+        awaitNoText(title)
+        assertTrue("Cancel closed the app", fixture.stops.isEmpty())
+
+        clickText(close)
+        awaitText(title)
+        clickText(UiText.get(R.string.apps_stop_confirm))
+        awaitText(UiText.get(R.string.apps_stop_done).format(FIXTURE_LABEL))
+        assertEquals(listOf(fixture.identity), fixture.stops.toList())
+        awaitNoText(close)
+        capture("app-closed")
+    }
+
+    fun testAppSettingsChangesPermissionsAndSpecialAccessOfAManagedApp() {
+        val fixture = AppControlFixture(refusal = null)
+        openFixtureAppSettings(fixture)
+        awaitText(UiText.get(R.string.apps_permission_managed))
+        awaitSwitch(FIXTURE_CAMERA, checked = true)
+        clickText(FIXTURE_CAMERA)
+        awaitSwitch(FIXTURE_CAMERA, checked = false)
+        assertEquals(listOf("android.permission.CAMERA=false"), fixture.changes.toList())
+
+        // A permission Android keeps for its own settings is a status line, not a switch.
+        scrollTo(FIXTURE_BACKGROUND)
+        assertFalse("A restricted permission offered a switch", switchFor(FIXTURE_BACKGROUND)?.isCheckable == true)
+
+        val overlay = UiText.get(R.string.apps_special_overlay)
+        scrollTo(overlay)
+        awaitSwitch(overlay, checked = false)
+        clickText(overlay)
+        awaitSwitch(overlay, checked = true)
+        assertEquals(listOf("android.permission.CAMERA=false", "OVERLAY=true"), fixture.changes.toList())
+        capture("app-permissions-managed")
+    }
+
+    fun testAppSettingsShowsAFirmwareAppWithoutCloseOrSwitches() {
+        val fixture = AppControlFixture(refusal = AppControlRefusal.PREINSTALLED)
+        openFixtureAppSettings(fixture)
+        awaitText(UiText.get(R.string.apps_permission_preinstalled))
+        awaitText(FIXTURE_CAMERA)
+        assertFalse("A firmware app offered a permission switch", switchFor(FIXTURE_CAMERA)?.isCheckable == true)
+        assertNull("A firmware app offered Close", textNode(UiText.get(R.string.apps_stop)))
+        scrollTo(UiText.get(R.string.apps_special_overlay))
+        assertFalse("A firmware app offered a special access switch",
+            switchFor(UiText.get(R.string.apps_special_overlay))?.isCheckable == true)
+        assertTrue(fixture.changes.isEmpty() && fixture.stops.isEmpty())
+        capture("app-permissions-firmware")
+    }
+
+    fun testLongPressOnAFirmwareAppOffersNoCloseAndStartsHidden() {
+        val preferences = AppGridPreferences(app)
+        val original = preferences.exportSettings()
+        val permissions = InstalledAppPermissions(app)
+        val system = InstalledApps.list(app).filter {
+            AppGridPins.supports(it.component().flattenToString()) && permissions.origin(it.component().packageName) == InstallOrigin.SYSTEM
+        }.distinctBy { it.label() }.first()
+        try {
+            preferences.restoreSettings(JSONObject().put("pinnedApps", JSONArray().put(system.component().flattenToString()))
+                .put("tileSize", "standard").put("hideByDefault", true).put("shownApps", JSONArray()))
+            val activity = launch(MainActivity.appsIntent(app)) as MainActivity
+            assertAppGrid(activity)
+            scrollTo(system.label())
+            clickText(system.label(), longPress = true)
+            awaitText(UiText.get(R.string.app_settings_title))
+            scrollTo(UiText.get(R.string.apps_permission_preinstalled))
+            assertNull("A firmware app offered Close", textNode(UiText.get(R.string.apps_stop)))
+            capture("app-settings-firmware")
+            // A firmware app starts hidden; the pin keeps it on the grid. Turning Hide off is the user's own choice.
+            val hide = UiText.get(R.string.apps_hide)
+            scrollTo(hide, towardsStart = true)
+            awaitSwitch(hide, checked = true)
+            clickText(hide)
+            awaitSwitch(hide, checked = false)
+            val component = system.component().flattenToString()
+            val deadline = SystemClock.uptimeMillis() + 5_000
+            while (preferences.exportSettings().getJSONArray("shownApps").length() == 0 && SystemClock.uptimeMillis() < deadline) {
+                SystemClock.sleep(50)
+            }
+            assertEquals(JSONArray(listOf(component)).toString(), preferences.exportSettings().getJSONArray("shownApps").toString())
+        } finally {
+            preferences.restoreSettings(original)
+        }
+    }
+
+    /** Opens the app settings page of [fixture] through the grid's own model slot, with the fixture installed first. */
+    private fun openFixtureAppSettings(fixture: AppControlFixture): MainActivity {
+        val activity = launch(MainActivity.settingsIntent(app)) as MainActivity
+        awaitRoute(activity, ControlsRoute.SETTINGS)
+        lateinit var model: AppSettingsViewModel
+        instrumentation.runOnMainSync {
+            model = AppSettingsViewModel(appWindowConfiguration(app), fixture, fixture)
+            val installed = ViewModelProvider(activity, viewModelFactory { initializer { model } })[
+                APP_SETTINGS_MODEL_KEY, AppSettingsViewModel::class.java
+            ]
+            assertSame("Install the fixture before the grid creates the production model", model, installed)
+            activity.startActivity(MainActivity.appsIntent(activity))
+        }
+        assertAppGrid(activity)
+        instrumentation.runOnMainSync { model.open(fixture.app) }
+        awaitText(UiText.get(R.string.app_settings_title))
+        awaitText(FIXTURE_LABEL)
+        return activity
+    }
+
+    private fun switchFor(label: String): AccessibilityNodeInfo? =
+        generateSequence(textNode(label)) { it.parent }.take(8).firstOrNull { it.refresh() && it.isCheckable }
+
+    private fun awaitSwitch(label: String, checked: Boolean) {
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        while (SystemClock.uptimeMillis() < deadline) {
+            val switch = switchFor(label)
+            if (switch != null && switch.isEnabled && switch.isChecked == checked) return
+            SystemClock.sleep(50)
+        }
+        failWithEvidence("switch-$label", "Expected the switch '$label' to report checked=$checked")
+    }
+
+    private fun awaitNoText(text: String) {
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        while (textNode(text) != null && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(50)
+        if (textNode(text) != null) failWithEvidence("still-$text", "Text still visible: $text")
     }
 
     fun testManualAppOrderFromGridSettings() {
@@ -536,7 +685,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
 
             val fixture = JSONObject(original.toString()).put("pinnedApps", JSONArray()).put("manualAppOrder", JSONArray())
                 .put("sortOrder", "name").put("tileSize", "compact").put("columns", "auto")
-                .put("showAppLabels", true).put("showSystemApps", true).put("visibleShortcuts", JSONArray())
+                .put("showAppLabels", true).put("hideByDefault", false).put("visibleShortcuts", JSONArray())
             fixture.getJSONObject("desktops").put("enabled", false)
             preferences.restoreSettings(fixture)
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
@@ -579,21 +728,22 @@ class ComposeScreensTest : InstrumentationTestCase() {
         val search = UiText.get(R.string.ui_113)
         val allApps = UiText.get(R.string.apps_desktop_all)
         val favorites = UiText.get(R.string.apps_desktop_favorites_one)
-        val showInAll = UiText.get(R.string.apps_grid_show_in_all)
-        val hiddenShortcuts = UiText.get(R.string.apps_grid_hidden_apps)
+        val hide = UiText.get(R.string.apps_hide)
+        val hiddenApps = UiText.get(R.string.apps_grid_hidden_apps)
         try {
             val desktops = JSONObject().put("enabled", true).put("defaultDesktop", "main")
                 .put("favorites1", JSONArray(listOf(component))).put("favorites2", JSONArray())
             preferences.restoreSettings(JSONObject().put("pinnedApps", JSONArray(listOf(component)))
-                .put("showAppLabels", true).put("showSystemApps", true).put("desktops", desktops)
+                .put("showAppLabels", true).put("hideByDefault", false).put("desktops", desktops)
                 .put("hiddenApps", JSONArray()))
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
             assertAppGrid(activity)
             awaitSelectedTab(allApps)
             scrollTo(label)
             clickText(label, longPress = true)
-            scrollTo(showInAll)
-            clickText(showInAll)
+            awaitSwitch(hide, checked = false)
+            clickText(hide)
+            awaitSwitch(hide, checked = true)
             val deadline = SystemClock.uptimeMillis() + 5_000
             while (preferences.exportSettings().getJSONArray("hiddenApps").length() == 0 &&
                 SystemClock.uptimeMillis() < deadline) SystemClock.sleep(50)
@@ -613,12 +763,17 @@ class ComposeScreensTest : InstrumentationTestCase() {
             scrollTo(settings)
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
-            scrollTo(hiddenShortcuts)
-            clickText(hiddenShortcuts)
-            awaitText(label)
+            scrollTo(hiddenApps)
+            clickText(hiddenApps)
+            awaitText(UiText.get(R.string.apps_grid_hidden_intro))
+            awaitSwitch(label, checked = true)
+            awaitText(UiText.get(R.string.apps_hide_choice))
             capture("app-grid-hidden-apps")
-            clickText(UiText.get(R.string.apps_grid_show_app).format(label), contentDescription = true)
-            awaitText(UiText.get(R.string.apps_grid_hidden_empty))
+            clickText(label)
+            awaitSwitch(label, checked = false)
+            val clearDeadline = SystemClock.uptimeMillis() + 5_000
+            while (AppGridPreferences(app).exportSettings().getJSONArray("hiddenApps").length() != 0 &&
+                SystemClock.uptimeMillis() < clearDeadline) SystemClock.sleep(50)
             assertEquals(0, AppGridPreferences(app).exportSettings().getJSONArray("hiddenApps").length())
             assertEquals(component, preferences.exportSettings().getJSONArray("pinnedApps").getString(0))
             clickText(UiText.get(R.string.apps_desktop_done))
@@ -663,7 +818,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
 
         try {
             val fixture = JSONObject(original.toString()).put("pinnedApps", JSONArray(components)).put("tileSize", "standard")
-                .put("columns", "auto").put("showAppLabels", true).put("showSystemApps", true)
+                .put("columns", "auto").put("showAppLabels", true).put("hideByDefault", false)
                 .put("visibleShortcuts", JSONArray(listOf("display")))
             fixture.getJSONObject("desktops").put("enabled", false)
             preferences.restoreSettings(fixture)
@@ -721,7 +876,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         val settings = UiText.get(R.string.app_name)
         val tileSize = UiText.get(R.string.apps_grid_tile_size)
         val compact = UiText.get(R.string.apps_grid_size_compact)
-        val showSystem = UiText.get(R.string.apps_grid_show_system)
+        val hideByDefault = UiText.get(R.string.apps_grid_hide_by_default)
         val search = UiText.get(R.string.ui_113)
 
         fun settingsTileBounds(): Rect {
@@ -733,7 +888,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
 
         try {
             preferences.restoreSettings(JSONObject().put("pinnedApps", JSONArray().put(pinned.component().flattenToString()))
-                .put("tileSize", "standard").put("showSystemApps", true))
+                .put("tileSize", "standard").put("hideByDefault", false))
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
             assertAppGrid(activity)
             awaitText(unpinned.label())
@@ -744,12 +899,15 @@ class ComposeScreensTest : InstrumentationTestCase() {
             scrollTo(tileSize)
             clickText(tileSize)
             clickText(compact)
-            scrollTo(showSystem)
-            clickText(showSystem)
-            awaitText(UiText.get(R.string.apps_grid_keeps_pins))
+            scrollTo(hideByDefault)
+            clickText(hideByDefault)
+            val deadline = SystemClock.uptimeMillis() + 5_000
+            while (!AppGridPreferences(app).exportSettings().getBoolean("hideByDefault") && SystemClock.uptimeMillis() < deadline) {
+                SystemClock.sleep(50)
+            }
             val saved = AppGridPreferences(app).exportSettings()
             assertEquals("compact", saved.getString("tileSize"))
-            assertFalse(saved.getBoolean("showSystemApps"))
+            assertTrue(saved.getBoolean("hideByDefault"))
             scrollTo(UiText.get(R.string.apps_grid_settings))
             capture("app-grid-settings")
 
@@ -758,14 +916,14 @@ class ComposeScreensTest : InstrumentationTestCase() {
             awaitText(pinned.label())
             val compactBounds = settingsTileBounds()
             assertTrue("Compact mode should shrink the settings tile", compactBounds.height() < standardBounds.height())
-            assertNull("An unpinned system app remained in the grid", textNode(unpinned.label()))
+            assertNull("An unpinned firmware app remained in the grid", textNode(unpinned.label()))
             capture("app-grid-compact")
 
             scrollTo(search)
             clickText(search)
             searchGridFor(unpinned.component().packageName)
             scrollTo(UiText.get(R.string.apps_empty))
-            assertNull("Search should follow system visibility", textNode(unpinned.label()))
+            assertNull("Search should leave out hidden apps", textNode(unpinned.label()))
             searchGridFor(pinned.component().packageName)
             scrollTo(pinned.label())
             awaitText(pinned.label())
@@ -803,7 +961,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             val desktops = JSONObject().put("enabled", false).put("defaultDesktop", "main")
                 .put("favorites1", JSONArray()).put("favorites2", JSONArray())
             preferences.restoreSettings(JSONObject().put("pinnedApps", JSONArray()).put("tileSize", "standard")
-                .put("showSystemApps", true).put("desktops", desktops)
+                .put("hideByDefault", false).put("desktops", desktops)
                 .put("desktopNames", JSONObject().put("favorites1", "").put("favorites2", "")))
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
             clickText(settings)
@@ -894,7 +1052,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
                 .put("favorites1", JSONArray().put(pinned.component().flattenToString())).put("favorites2", JSONArray())
             preferences.restoreSettings(JSONObject().put("pinnedApps", JSONArray()).put("desktops", desktops)
                 .put("desktopNames", JSONObject().put("favorites1", "").put("favorites2", ""))
-                .put("showAppLabels", true).put("showSystemApps", true)
+                .put("showAppLabels", true).put("hideByDefault", false)
                 .put("smoothDesktopPaging", false).put("favoritesBackBehavior", "system"))
             val ordinary = launch(MainActivity.appsIntent(app)) as MainActivity
             awaitSelectedTab(favorite)
@@ -1572,7 +1730,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             val desktops = JSONObject().put("enabled", true).put("defaultDesktop", "main")
                 .put("favorites1", JSONArray().put(target.component().flattenToString())).put("favorites2", JSONArray())
             grid.restoreSettings(JSONObject().put("pinnedApps", JSONArray()).put("tileSize", "standard")
-                .put("showSystemApps", true).put("desktops", desktops)
+                .put("hideByDefault", false).put("desktops", desktops)
                 .put("desktopNames", JSONObject().put("favorites1", "").put("favorites2", ""))
                 .put("iconStyle", "native").put("showAppLabels", true).put("sortOrder", "name"))
             wallpapers.set(AppGridDesktop.MAIN, null)
@@ -3403,5 +3561,48 @@ class ComposeScreensTest : InstrumentationTestCase() {
         val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
         File(output, "$name.png").outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
         bitmap.recycle()
+    }
+}
+
+private const val FIXTURE_PACKAGE = "org.openvoyah.fixture.navigator"
+private const val FIXTURE_LABEL = "Fixture Navigator"
+private const val FIXTURE_CAMERA = "Fixture camera"
+private const val FIXTURE_BACKGROUND = "Fixture background location"
+
+/** An app the settings page reads from memory: what Android would report, and a record of every requested change. */
+private class AppControlFixture(refusal: AppControlRefusal?) : AppPermissionControl, AppStopControl {
+    val app = LocalApp(FIXTURE_PACKAGE, FIXTURE_PACKAGE, FIXTURE_LABEL, null, null, InstallOrigin.ADB)
+    val identity = InstalledAppIdentity(FIXTURE_PACKAGE, 10_321, 1L, 2L, 3L, setOf("0".repeat(64)))
+    val changes = CopyOnWriteArrayList<String>()
+    val stops = CopyOnWriteArrayList<InstalledAppIdentity>()
+    @Volatile private var running = refusal == null
+    @Volatile private var details = AppPermissions(identity, InstallOrigin.ADB, refusal,
+        listOf(
+            AppPermission(Manifest.permission.CAMERA, FIXTURE_CAMERA, granted = true, changeable = refusal == null),
+            AppPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION, FIXTURE_BACKGROUND, granted = false, changeable = false),
+        ),
+        listOf(AppSpecialAccess(AndroidAppAccess.OVERLAY, allowed = false, changeable = refusal == null)),
+        hasUnavailableDeclarations = false)
+
+    override fun read(packageName: String): AppPermissions? = details.takeIf { packageName == FIXTURE_PACKAGE }
+
+    override fun set(identity: InstalledAppIdentity, name: String, granted: Boolean): PermissionChange {
+        changes += "$name=$granted"
+        details = details.copy(permissions = details.permissions.map { if (it.name == name) it.copy(granted = granted) else it })
+        return PermissionChange.VERIFIED
+    }
+
+    override fun setSpecialAccess(identity: InstalledAppIdentity, access: AndroidAppAccess, allowed: Boolean): PermissionChange {
+        changes += "${access.name}=$allowed"
+        details = details.copy(specialAccess = details.specialAccess.map { if (it.access == access) it.copy(allowed = allowed) else it })
+        return PermissionChange.VERIFIED
+    }
+
+    override fun canStop(packageName: String): Boolean = running && packageName == FIXTURE_PACKAGE
+
+    override fun stop(identity: InstalledAppIdentity): AppStop {
+        stops += identity
+        running = false
+        return AppStop.Stopped
     }
 }

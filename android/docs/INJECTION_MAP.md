@@ -39,7 +39,7 @@ The code deliberately keeps generic names where a stable semantic label has not 
 
 For an assigned and available target, a tap opens the selected app or supported Controls action on that button's display. A hold invokes the original OEM click once. An unassigned/disabled button or a failed replacement launch calls the original click once. Unsupported signatures or view ownership leave the original path in place.
 
-`panel-state.js` and `panel-icons.js` apply the assigned activity icon and pressed feedback, refresh after theme changes, and restore original appearance/long-click state when an assignment is cleared. The standard `updateSelectedApp(package, activity)` callback also highlights the assigned activity on its own display. This is an in-memory change; it does not replace launcher APK resources.
+`panel-state.js` and `panel-icons.js` apply the assigned activity icon and pressed feedback, refresh after theme changes, and restore original appearance/long-click state when an assignment is cleared. The standard `updateSelectedApp(package, activity)` callback also highlights the assigned activity on its own display by checking its button, so the launcher's own `QGRadioGroup` selection slider (`dock_app_selected`) marks it. The replacement background holds only the icon and the pressed ripple, never a plate of its own, which would stack a second rounded square on the slider. An app can name a plate-free panel glyph with the application meta-data `org.openvoyah.controls.PANEL_ICON`; Open Voyah Controls names `ic_controls_mark`, the winged mark on a transparent background, so its entries show only the mark while its launcher icon keeps the dark plate for the app grid. A glyph's ripple is masked to the button's rounded bounds, because a ripple without a mask shows only where the glyph paints. If the glyph cannot be read, the entry uses the launcher icon. This is an in-memory change; it does not replace launcher APK resources.
 
 ## Oversea launcher (`Build.PRODUCT = f6811`)
 
@@ -71,6 +71,8 @@ The OEM assignment keys are `voiceShort`/`voiceLong`, `customShort`/`customLong`
 Only one reviewed OEM steering route is selected. The launcher adapter delegates when direct CAN is selected. Hardware/vehicle delivery still needs testing to establish that no independent OEM consumer duplicates an action. The camera key can be assigned to an app; this does not alter the camera application itself.
 
 ## Other screens and actions
+
+The factory home screen (cards, the all-apps page, the lowered-screen layout and the pull-down panels) is not an injection target yet; its structure and candidate hook points are in [the home screen map](HOME_SCREEN_MAP.md).
 
 - Voice capture, microphone permission, local speech recognition and the voice popup belong to the ordinary Controls APK. Agents dispatch only the fixed allowed command set through observed OEM APIs. An accepted API call is not proof of a physical state change.
 - Window width/DPI is applied in `system_server`, with separate Android 9 (`com.android.server.am`) and 11 (`com.android.server.wm`) paths. Native placement is retained for unsupported, private, pinned or shared tasks.

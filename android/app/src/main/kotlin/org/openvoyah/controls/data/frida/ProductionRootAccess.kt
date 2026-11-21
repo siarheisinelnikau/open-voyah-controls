@@ -136,10 +136,11 @@ class ProductionRootAccess(context: Context) {
     private fun evidence(): Proof {
         proof?.let { return it }
         val profile = review
-        val expected = BuildConfig.RELEASE_CERT_SHA256.lowercase(Locale.ROOT)
+        val expected = (if (LOCAL_VEHICLE) BuildConfig.LOCAL_SIGNER_SHA256 else BuildConfig.RELEASE_CERT_SHA256)
+            .lowercase(Locale.ROOT)
         val release = when {
-            BuildConfig.DEBUG -> "debug_build"
-            app.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 -> "debuggable"
+            BuildConfig.DEBUG && !LOCAL_VEHICLE -> "debug_build"
+            app.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && !LOCAL_VEHICLE -> "debuggable"
             !expected.matches(ReviewedFirmware.sha256) -> "release_signer_unset"
             Process.myUserHandle() != UserHandle.getUserHandleForUid(0) -> "secondary_user"
             else -> null
@@ -229,12 +230,15 @@ class ProductionRootAccess(context: Context) {
         PATH=/system/bin:/system/xbin
         export PATH
         umask 077
-        test "${'$'}(id -u)" = 0 && test "${'$'}(getenforce)" = Enforcing || exit 77
+        test "${'$'}(id -u)" = 0 || exit 77
+        $SELINUX_GUARD
         test "${'$'}(am get-current-user)" = 0 || exit 77
         test "${'$'}(getprop ro.build.fingerprint)" = ${shell(device.fingerprint)} || exit 77
         test "${'$'}(getprop ro.build.version.sdk)" = ${shell(device.sdk)} || exit 77
         test "${'$'}(getprop ro.product.cpu.abi)" = ${shell(device.abi)} || exit 77
-        test "${'$'}(getprop ro.product.name)" = ${shell(device.product)} || exit 77
+        ovc_product=${'$'}(getprop ro.build.product_3rdparty)
+        test -n "${'$'}ovc_product" || ovc_product=${'$'}(getprop ro.product.name)
+        test "${'$'}ovc_product" = ${shell(device.product)} || exit 77
         for ovc_dir in /data/adb '$BASE'; do
             test ! -L "${'$'}ovc_dir" && test -d "${'$'}ovc_dir" || exit 77
             test "${'$'}(stat -c '%u:%a' "${'$'}ovc_dir")" = 0:700 || exit 77
@@ -271,6 +275,16 @@ class ProductionRootAccess(context: Context) {
             "for ovc_dir in \"\$ovc_old\" \"\$ovc_old/locale-setting\" \"\$ovc_old/locale-vehicle\" " +
             "\"\$ovc_old/locale-bluetooth\" \"\$ovc_old/window\" \"\$ovc_old/navigation\" \"\$ovc_old/can\"; do\n" +
             "test ! -e \"\$ovc_dir/enabled\" && test ! -L \"\$ovc_dir/enabled\" || exit 78\ndone\n"
+        /** A debug build made for the owner's own head unit; see `ovc.localVehicle` in app/build.gradle. */
+        private val LOCAL_VEHICLE = BuildConfig.DEBUG && BuildConfig.LOCAL_VEHICLE
+        // Releases keep requiring Enforcing. A local-vehicle build also accepts a firmware whose kernel command line
+        // boots Permissive; a Permissive state set later with setenforce is still refused.
+        private val SELINUX_GUARD = if (LOCAL_VEHICLE) {
+            "test \"\$(getenforce)\" = Enforcing || { test \"\$(getenforce)\" = Permissive && " +
+                "tr ' ' '\\n' < /proc/cmdline | grep -qx androidboot.selinux=permissive; } || exit 77"
+        } else {
+            "test \"\$(getenforce)\" = Enforcing || exit 77"
+        }
         private val refusals = RepeatedFailureFilter()
         private val artifactPath = Regex("(?:[a-z0-9-]+/)?[a-z0-9.-]+")
         private val apkPath = Regex("/[A-Za-z0-9_./+=~-]{1,511}\\.apk")

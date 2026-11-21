@@ -211,6 +211,23 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
     const canSetLaunchBounds = (launch, record) => launch.display === 0 && launch.user === tasks.currentUser()
         && tasks.freeformAvailable() && record.isResizeable();
 
+    let homePending = false;
+    /**
+     * Android 11, after home was started on the central display: hide the placed apps that home now covers (see
+     * the adapter's revealHome). Runs once the start has left ActivityStarter, like a deferred layout; a burst of
+     * starts shares one pass.
+     */
+    function revealHomeLater() {
+        if (homePending) return;
+        homePending = true;
+        const reveal = () => {
+            homePending = false;
+            try { if (!released) tasks.revealHome(); } catch (error) { reportError('home', error); }
+        };
+        try { setTimeout(() => Java.perform(reveal), 0); }
+        catch (error) { homePending = false; throw error; }
+    }
+
     function applyAfterLaunch(launch, taskId, originals, displayId = 0) {
         const key = [launch.user, displayId, taskId, launch.key].join(':');
         const pending = pendingLaunches.get(key);
@@ -366,6 +383,14 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
                     }
                 }
             } catch (error) { reportError('completion', error); }
+        }
+        if (sdk === 30 && !launch && !released && started.has(result)) {
+            try {
+                // The launcher's Home button starts its own activity again; the Home key starts the home intent.
+                // Both end here with home's existing activity as the reported record.
+                const shown = this.mLastStartActivityRecord.value;
+                if (shown !== null && shown.isActivityTypeHome() && shown.getDisplayId() === 0) revealHomeLater();
+            } catch (error) { reportError('home', error); }
         }
         return result;
     };

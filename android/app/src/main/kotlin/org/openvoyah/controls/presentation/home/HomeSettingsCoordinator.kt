@@ -2,6 +2,7 @@ package org.openvoyah.controls.presentation.home
 
 import android.app.Dialog
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import android.view.KeyEvent
@@ -134,7 +135,7 @@ internal class HomeSettingsCoordinator(
     override fun command(command: HomeCommand) {
         if (!active) return
         when (command) {
-            HomeCommand.ACCESSIBILITY -> external(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            HomeCommand.ACCESSIBILITY -> buttonService()
             HomeCommand.CAPTURE -> learn()
             HomeCommand.MANUAL -> bindings.manual { code -> if (active) edit(code, "", KeyEvent.keyCodeToString(code), null) }
             HomeCommand.STEERING -> steering()
@@ -149,6 +150,28 @@ internal class HomeSettingsCoordinator(
             HomeCommand.STATUS -> model.run(PanelControls.Operation.STATUS)
             HomeCommand.DISCONNECT -> model.run(PanelControls.Operation.DISCONNECT)
         }
+    }
+
+    /**
+     * The root channel set up by the installer enables the button service directly. Without it the owner needs
+     * Android's Accessibility screen, which some head units replace with a stub that only says no app can handle it.
+     */
+    private fun buttonService() {
+        val connected = model.state.value.connected
+        when {
+            !connected && model.rootConfigured() -> model.run(PanelControls.Operation.BUTTON_SERVICE)
+            accessibilitySettingsAvailable() -> external(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            else -> dialogs.message(text(R.string.button_service_title),
+                text(if (connected) R.string.button_service_connected else R.string.button_service_connect_first), text(R.string.ui_83))
+        }
+    }
+
+    private fun accessibilitySettingsAvailable(): Boolean {
+        val target = try {
+            activity.packageManager.resolveActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), PackageManager.MATCH_DEFAULT_ONLY)
+                ?.activityInfo?.packageName
+        } catch (_: RuntimeException) { null }
+        return target != null && target != FRAMEWORK_STUBS
     }
 
     private fun steering() {
@@ -206,4 +229,9 @@ internal class HomeSettingsCoordinator(
     }
     private fun error(message: String) { if (active) dialogs.message(text(R.string.ui_84), message, text(R.string.ui_83)) }
     private fun text(id: Int): String = UiText.get(id)
+
+    private companion object {
+        /** AOSP car package whose activities only show "No application can handle this action". */
+        const val FRAMEWORK_STUBS = "com.android.car.frameworkpackagestubs"
+    }
 }

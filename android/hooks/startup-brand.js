@@ -9,7 +9,10 @@ function visibleOnCentralDisplay(view) {
         && view.getDisplay()?.getDisplayId() === 0;
 }
 
-/** Called on the UI thread once an owned, configured panel button is available. */
+/**
+ * Called on the UI thread once an owned, configured panel button is available. Every attachment ends with one
+ * `OVC_STARTUP_BRAND` line: the launch was requested, failed, or was skipped for a named reason.
+ */
 export function createStartupBrand(Java) {
     const Clock = Java.use('android.os.SystemClock');
     const Global = Java.use('android.provider.Settings$Global');
@@ -18,40 +21,62 @@ export function createStartupBrand(Java) {
     let deadline;
     let finished = false;
     let scanning = false;
+    // The last condition that held the intro back; reported if the startup window closes.
+    let blocker = 'no_panel_button';
+
+    function skip(reason) {
+        finished = true;
+        console.log('OVC_STARTUP_BRAND outcome=skipped reason=' + reason);
+    }
 
     function pending() {
         if (finished || scanning) return false;
         const now = Number(Clock.elapsedRealtime());
         deadline ??= now + STARTUP_WINDOW_MS;
         if (now < deadline) return true;
-        finished = true;
+        skip(blocker);
         return false;
     }
 
     function showIfReady(launcher, button) {
-        if (!pending() || !visibleOnCentralDisplay(button)) return false;
+        if (!pending()) return false;
+        if (!visibleOnCentralDisplay(button)) {
+            blocker = 'panel_hidden';
+            return false;
+        }
         try {
             const boot = Global.getInt(launcher.getContentResolver(), 'boot_count', -1);
             const prefs = launcher.getSharedPreferences(APP + '.startup_brand', 0);
-            if (boot < 0 || prefs.getInt('last_boot', -1) === boot || !Animator.areAnimatorsEnabled()) {
-                finished = true;
+            const early = boot < 0 ? 'boot_count'
+                : prefs.getInt('last_boot', -1) === boot ? 'requested_this_boot'
+                : !Animator.areAnimatorsEnabled() ? 'animators_disabled' : null;
+            if (early) {
+                skip(early);
                 return true;
             }
             const home = Intent.$new('android.intent.action.MAIN');
             home.addCategory('android.intent.category.HOME');
             const info = launcher.getPackageManager().resolveActivity(home, 65536)?.activityInfo.value;
             if (!info || String(info.packageName.value) !== String(launcher.getPackageName())) {
-                finished = true;
+                skip('other_home');
                 return true;
             }
             const homeClass = String(info.targetActivity.value ?? info.name.value);
+            blocker = 'home_missing';
             scanning = true;
             Java.choose(homeClass, {
                 onMatch(activity) {
                     if (finished) return 'stop';
-                    if (Number(Clock.elapsedRealtime()) >= deadline || !visibleOnCentralDisplay(button) ||
-                        activity.isFinishing() || !activity.hasWindowFocus() ||
-                        !visibleOnCentralDisplay(activity.getWindow()?.getDecorView())) return;
+                    if (Number(Clock.elapsedRealtime()) >= deadline) return;
+                    if (!visibleOnCentralDisplay(button)) {
+                        blocker = 'panel_hidden';
+                        return;
+                    }
+                    if (activity.isFinishing() || !activity.hasWindowFocus() ||
+                        !visibleOnCentralDisplay(activity.getWindow()?.getDecorView())) {
+                        blocker = 'home_unfocused';
+                        return;
+                    }
                     finished = true;
                     try {
                         // Persist before launching so repeated attachment cannot interrupt the user again.

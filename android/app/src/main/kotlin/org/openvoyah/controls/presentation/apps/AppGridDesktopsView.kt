@@ -49,7 +49,6 @@ import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.domain.apps.AppGridDesktopNames
 import org.openvoyah.controls.domain.apps.AppGridIconStyle
 import org.openvoyah.controls.domain.apps.AppGridPins
-import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.presentation.dock.ReorderButton
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
@@ -210,11 +209,9 @@ internal fun FavoriteAppsPicker(
     var query by remember(desktop) { mutableStateOf("") }
     val pins = grid.pins(desktop)
     val pinned = remember(pins) { pins.toSet() }
-    val available = remember(state.apps, grid.showSystemApps, pins) {
-        state.apps.filter {
-            it.launchEntry != null && AppGridPins.supports(it.id) &&
-                (grid.showSystemApps || it.origin != InstallOrigin.SYSTEM || it.id in pinned)
-        }
+    // Favorites are explicit pins, so the picker offers every app, including those All apps hides.
+    val available = remember(state.apps) {
+        state.apps.filter { it.launchEntry != null && AppGridPins.supports(it.id) }
     }
     val apps = remember(available, query) {
         val filter = query.trim().lowercase(Locale.ROOT)

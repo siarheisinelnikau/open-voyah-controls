@@ -615,7 +615,7 @@ if ($Scope -eq 'Cockpit') { $factoryProduct = Read-FactoryProduct }
 $model = Read-Model
 if ($Scope -eq 'Firmware') { $serialNumber = Read-Value @('shell', 'getprop', 'ro.serialno') }
 foreach ($value in $identity.Values) {
-    if ($value -notmatch '^[A-Za-z0-9_.:/+-]{1,256}$') { throw 'The selected device reported an invalid build identifier.' }
+    if ($value -notmatch '^[A-Za-z0-9_.:/+,-]{1,256}$') { throw 'The selected device reported an invalid build identifier.' }
 }
 if ($identity.sdk -notmatch '^[1-9][0-9]$') { throw 'The selected device reported an invalid Android API level.' }
 $selinux = Read-Value @('shell', 'getenforce')

@@ -25,7 +25,7 @@ internal class ReviewedVoiceCommands(context: Context) {
     }
 
     companion object {
-        private val fingerprint = Regex("[A-Za-z0-9_.:/+-]{1,256}")
+        private val fingerprint = Regex("[A-Za-z0-9_.:/+,-]{1,256}")
         private val commandId = Regex("[A-Za-z][A-Za-z0-9]{0,63}")
 
         fun parse(raw: String, device: Identity): Approval? {

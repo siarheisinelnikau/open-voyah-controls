@@ -28,8 +28,8 @@ class AppGridHiddenAppsPreferencesTest : AndroidTestCase() {
                 .put("favorites1", JSONArray(listOf(maps))).put("favorites2", JSONArray(listOf(places)))
             preferences.restoreSettings(JSONObject().put("pinnedApps", pins).put("manualAppOrder", manualOrder)
                 .put("desktops", desktops).put("hiddenApps", JSONArray()))
-            preferences.setAppHidden(maps, true)
-            preferences.setAppHidden(maps, true)
+            preferences.setAppHidden(maps, true, hiddenByDefault = false)
+            preferences.setAppHidden(maps, true, hiddenByDefault = false)
             val fresh = AppGridPreferences(context).observeSettings().first().getOrThrow()
             assertEquals(setOf(maps), fresh.hiddenApps)
             assertEquals(listOf(maps, places), fresh.pinnedApps)
@@ -41,12 +41,12 @@ class AppGridHiddenAppsPreferencesTest : AndroidTestCase() {
             val layout = layouts.observe().first().getOrThrow().single()
             val full = archive.exportJson()
             assertEquals(JSONArray(listOf(maps)).toString(), JSONObject(full).getJSONObject("appGrid").getJSONArray("hiddenApps").toString())
-            preferences.setAppHidden(maps, false)
+            preferences.setAppHidden(maps, false, hiddenByDefault = false)
             layouts.apply(layout.id)
             assertEquals(JSONArray(listOf(maps)).toString(), hidden())
 
-            preferences.setAppHidden(maps, false)
-            preferences.setAppHidden(places, true)
+            preferences.setAppHidden(maps, false, hiddenByDefault = false)
+            preferences.setAppHidden(places, true, hiddenByDefault = false)
             val oldArchive = JSONObject(full)
             oldArchive.getJSONObject("appGrid").remove("hiddenApps")
             archive.apply(archive.prepare(oldArchive.toString()))
@@ -64,7 +64,7 @@ class AppGridHiddenAppsPreferencesTest : AndroidTestCase() {
             archive.apply(archive.prepare(empty.toString()))
             assertEquals("[]", hidden())
             layouts.save("All visible")
-            preferences.setAppHidden(places, true)
+            preferences.setAppHidden(places, true, hiddenByDefault = false)
             layouts.apply(layouts.observe().first().getOrThrow().last().id)
             assertEquals("[]", hidden())
             val after = preferences.exportSettings()
@@ -72,6 +72,62 @@ class AppGridHiddenAppsPreferencesTest : AndroidTestCase() {
             assertEquals(manualOrder.toString(), after.getJSONArray("manualAppOrder").toString())
             assertEquals(desktops.getJSONArray("favorites1").toString(),
                 after.getJSONObject("desktops").getJSONArray("favorites1").toString())
+        } finally {
+            archive.apply(original)
+        }
+    }
+
+    fun testShownAppsAndTheDefaultRuleRoundTripAndAnOlderSystemSwitchIsIgnored() = runBlocking {
+        val preferences = AppGridPreferences(context)
+        val archive = LocalSettingsArchive(context)
+        val original = archive.prepare(archive.exportJson())
+        val layouts = DesktopLayoutsPreferences(context)
+        val calendar = "com.android.calendar/com.android.calendar.AllInOneActivity"
+        suspend fun grid() = AppGridPreferences(context).observeSettings().first().getOrThrow()
+        try {
+            layouts.restoreSettings(JSONObject())
+            // An archive from before the Hide default: its showSystemApps value says nothing about a choice.
+            preferences.restoreSettings(JSONObject().put("pinnedApps", JSONArray()).put("showSystemApps", true))
+            assertTrue(grid().hideByDefault)
+            assertFalse(preferences.exportSettings().has("showSystemApps"))
+
+            preferences.setAppHidden(calendar, false, hiddenByDefault = true)
+            preferences.setAppHidden(maps, true, hiddenByDefault = false)
+            assertEquals(setOf(calendar), grid().shownApps)
+            assertEquals(setOf(maps), grid().hiddenApps)
+            preferences.setHideByDefault(false)
+            assertFalse(grid().hideByDefault)
+
+            layouts.save("Choices")
+            val layout = layouts.observe().first().getOrThrow().single()
+            val full = archive.exportJson()
+            val exported = JSONObject(full).getJSONObject("appGrid")
+            assertEquals(JSONArray(listOf(calendar)).toString(), exported.getJSONArray("shownApps").toString())
+            assertFalse(exported.getBoolean("hideByDefault"))
+
+            preferences.resetHiddenApps()
+            preferences.setHideByDefault(true)
+            assertTrue(grid().shownApps.isEmpty() && grid().hiddenApps.isEmpty())
+            layouts.apply(layout.id)
+            assertEquals(setOf(calendar), grid().shownApps)
+            assertFalse(grid().hideByDefault)
+
+            // Archives and layouts from before these fields keep the current choices.
+            preferences.setHideByDefault(true)
+            val older = JSONObject(full)
+            older.getJSONObject("appGrid").apply { remove("shownApps"); remove("hideByDefault") }
+            archive.apply(archive.prepare(older.toString()))
+            assertEquals(setOf(calendar), grid().shownApps)
+            assertTrue(grid().hideByDefault)
+            val oldLayouts = layouts.exportSettings()
+            oldLayouts.getJSONArray("presets").getJSONObject(0).getJSONObject("appGrid").apply {
+                remove("shownApps"); remove("hideByDefault")
+            }
+            layouts.restoreSettings(oldLayouts)
+            preferences.setAppHidden(calendar, true, hiddenByDefault = true)
+            layouts.apply(layout.id)
+            assertTrue(grid().shownApps.isEmpty())
+            assertTrue(grid().hideByDefault)
         } finally {
             archive.apply(original)
         }
@@ -87,12 +143,15 @@ class AppGridHiddenAppsPreferencesTest : AndroidTestCase() {
             JSONArray(listOf("org.example/" + "A".repeat(513))),
             JSONArray(List(AppGridConfiguration.MAX_HIDDEN_APPS + 1) { "org.example.apps/org.example.apps.Shortcut$it" }),
         )
-        for (value in invalid) {
-            val data = JSONObject().put("pinnedApps", JSONArray()).put("hiddenApps", value)
+        for (field in listOf("hiddenApps", "shownApps")) for (value in invalid) {
+            val data = JSONObject().put("pinnedApps", JSONArray()).put(field, value)
             assertTrue(runCatching { AppGridPreferences.validateSettings(data) }.isFailure)
             assertTrue(runCatching { AppGridPreferences.validateLayout(data) }.isFailure)
             assertTrue(runCatching { preferences.restoreSettings(data) }.isFailure)
         }
+        assertTrue(runCatching {
+            AppGridPreferences.validateSettings(JSONObject().put("pinnedApps", JSONArray()).put("hideByDefault", "yes"))
+        }.isFailure)
         assertEquals(original, preferences.exportSettings().toString())
     }
 }
