@@ -10,9 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -50,6 +48,7 @@ import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitModal
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.CockpitTextField
 
 /** Voice configuration stays inside the app's navigation; recording uses the dedicated overlay. */
 @Composable
@@ -186,11 +185,11 @@ internal fun VoiceDestination(back: () -> Unit, tryVoice: () -> Unit) {
     }
     val config = state.configuration
     if (config == null) {
-        CockpitDetail(voiceText(R.string.voice_options_title), "", back) {
+        CockpitDetail(voiceText(R.string.voice_options_title), null, back) {
             Text(state.startupError?.let { voiceText(R.string.ui_164) + it } ?: voiceText(R.string.voice_catalog_loading),
                 style = MaterialTheme.typography.bodyLarge)
             if (state.startupError != null) {
-                Button({ settings.restorePrevious() }, enabled = !state.busy) { Text(voiceText(R.string.ui_165)) }
+                CockpitAction(voiceText(R.string.ui_165), { settings.restorePrevious() }, enabled = !state.busy, primary = true)
             }
         }
         return
@@ -238,7 +237,8 @@ private class VoiceDestinationDialogs(
     private val load: () -> Unit,
     private val mediaAccess: () -> Unit,
 ) {
-    fun showLanguage() = dialogs.choices(voiceText(R.string.voice_language), arrayOf("Русский", "English"), {
+    fun showLanguage() = dialogs.choices(voiceText(R.string.voice_language),
+        arrayOf(voiceText(R.string.language_name_russian), voiceText(R.string.language_name_english)), {
         model.language(if (it == 0) "ru" else "en")
     })
 
@@ -302,7 +302,7 @@ private class VoiceDestinationDialogs(
             command.id().startsWith("Call_") -> { model.message(R.string.ui_190); return }
         }
         dialogs.show { close ->
-            CockpitAppPicker(voiceText(R.string.ui_192) + command.title() + "»", close, { entry ->
+            CockpitAppPicker(voiceText(R.string.voice_app_for_command).format(command.title()), close, { entry ->
                 close()
                 model.app(command.id(), entry?.component()?.flattenToString().orEmpty())
             }, defaultChoice = voiceText(R.string.ui_191), backLabel = voiceText(R.string.ui_89))
@@ -317,9 +317,9 @@ private class VoiceDestinationDialogs(
                 CockpitTextAction(voiceText(R.string.ui_89), close)
                 CockpitAction(voiceText(R.string.ui_104), { close(); model.contact(name, phone) }, primary = true)
             }) {
-                OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(voiceText(R.string.ui_193)) }, singleLine = true)
-                OutlinedTextField(phone, { phone = it }, Modifier.fillMaxWidth(), label = { Text(voiceText(R.string.ui_194)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
+                CockpitTextField(name, { name = it }, voiceText(R.string.ui_193), Modifier.fillMaxWidth())
+                CockpitTextField(phone, { phone = it }, voiceText(R.string.ui_194), Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
             }
         }
     }

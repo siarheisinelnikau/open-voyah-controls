@@ -45,9 +45,9 @@ internal fun HomeSettingsLinks(open: (ControlsRoute) -> Unit, language: () -> Un
             open(ControlsRoute.VEHICLE_AUTOMATION)
         },
         SettingsLink(CockpitIcon.APPS, R.string.quick_actions_title, R.string.quick_actions_summary) { open(ControlsRoute.QUICK_ACTIONS) },
-        SettingsLink(CockpitIcon.ENERGY, R.string.routines_title, R.string.routines_summary) { open(ControlsRoute.ROUTINES) },
-        SettingsLink(CockpitIcon.SETTINGS, R.string.firmware_settings, R.string.cockpit_firmware_description) { open(ControlsRoute.FIRMWARE) },
-        SettingsLink(CockpitIcon.SETTINGS, R.string.ui_61, R.string.cockpit_system_description, systemSettings),
+        SettingsLink(CockpitIcon.ROUTINE, R.string.routines_title, R.string.routines_summary) { open(ControlsRoute.ROUTINES) },
+        SettingsLink(CockpitIcon.FIRMWARE, R.string.firmware_settings, R.string.cockpit_firmware_description) { open(ControlsRoute.FIRMWARE) },
+        SettingsLink(CockpitIcon.SYSTEM, R.string.ui_61, R.string.cockpit_system_description, systemSettings),
         SettingsLink(CockpitIcon.DOWNLOAD, R.string.updates_title, R.string.updates_settings_summary) { open(ControlsRoute.UPDATES) },
         SettingsLink(CockpitIcon.SEARCH, R.string.diagnostics_title, R.string.diagnostics_link_summary) {
             open(ControlsRoute.DIAGNOSTICS)
@@ -65,8 +65,9 @@ internal fun HomeSettingsLinks(open: (ControlsRoute) -> Unit, language: () -> Un
             }
         }
     }
-    HomeActionRow(UiText.get(R.string.cockpit_language), if (UiText.language() == "ru") "Русский" else "English",
-        CockpitIcon.SETTINGS, language)
+    HomeActionRow(UiText.get(R.string.cockpit_language),
+        UiText.get(if (UiText.language() == "ru") R.string.language_name_russian else R.string.language_name_english),
+        CockpitIcon.LANGUAGE, language)
 }
 
 @Composable

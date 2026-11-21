@@ -1,6 +1,5 @@
 package org.openvoyah.controls.presentation.voice
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -8,16 +7,15 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -30,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -50,8 +49,14 @@ import org.openvoyah.controls.core.voice.VoiceAudioOptions.ReadyCueStyle
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.ResultDuration
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.SpokenReplyChannel
 import org.openvoyah.controls.platform.voice.forRecognitionLanguage
+import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitChoice
+import org.openvoyah.controls.presentation.theme.CockpitReveal
+import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.CockpitTextField
+import org.openvoyah.controls.presentation.theme.CockpitTouch
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 
 @Composable
@@ -71,6 +76,8 @@ internal fun VoiceAudioDialog(
     var cueVolume by remember { mutableIntStateOf(options.readyCueVolumePercent()) }
     var feedbackStyle by remember { mutableStateOf(options.feedbackStyle()) }
     var endCue by remember { mutableStateOf(options.endCue()) }
+    // The volume row keeps showing the last audible sound while it collapses after Off, instead of dropping to zero.
+    var audibleCue by remember { mutableStateOf(options.endCue().takeIf { it != EndCue.OFF } ?: EndCue.SOFT) }
     var endCueVolume by remember { mutableStateOf<Int?>(options.endCueVolumePercent()) }
     var listeningWindow by remember { mutableStateOf(options.listeningWindow()) }
     var resultDuration by remember { mutableStateOf(options.resultDuration()) }
@@ -111,15 +118,11 @@ internal fun VoiceAudioDialog(
                     }
                     Text(UiText.get(R.string.voice_result_speech_grace), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    VoiceOptionToggle(UiText.get(R.string.voice_show_recognized_phrase), showPhrase) { showPhrase = it }
+                    CockpitSwitch(UiText.get(R.string.voice_show_recognized_phrase), showPhrase) { showPhrase = it }
                 }
             },
-            confirmButton = {
-                Button(saveDraft, Modifier.heightIn(min = 52.dp)) { Text(UiText.get(R.string.ui_104)) }
-            },
-            dismissButton = {
-                TextButton(back, Modifier.heightIn(min = 52.dp)) { Text(UiText.get(R.string.cockpit_back)) }
-            },
+            confirmButton = { CockpitAction(UiText.get(R.string.ui_104), saveDraft, primary = true) },
+            dismissButton = { CockpitTextAction(UiText.get(R.string.cockpit_back), back) },
         )
         return
     }
@@ -127,8 +130,8 @@ internal fun VoiceAudioDialog(
     val columnsMinimum = LocalCockpitLayout.current.columnsMinimum(580.dp, LocalDensity.current.fontScale)
     val spokenSettings: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            VoiceOptionToggle(UiText.get(R.string.voice_spoken_feedback), feedback) { feedback = it }
-            AnimatedVisibility(feedback) {
+            CockpitSwitch(UiText.get(R.string.voice_spoken_feedback), feedback) { feedback = it }
+            CockpitReveal(feedback) {
                 Column {
                     VoiceAudioLevel(R.string.voice_speech_rate, rate, VoiceAudioOptions.MIN_RATE..VoiceAudioOptions.MAX_RATE) { rate = it }
                     VoiceAudioLevel(R.string.voice_speech_volume, speechVolume, VOICE_VOLUME) { speechVolume = it }
@@ -142,26 +145,33 @@ internal fun VoiceAudioDialog(
     }
     val captureSettings: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            VoiceOptionToggle(UiText.get(R.string.voice_duck_media), duck) { duck = it }
-            VoiceOptionToggle(UiText.get(R.string.voice_ready_cue), readyCue) { readyCue = it }
-            AnimatedVisibility(readyCue) {
+            CockpitSwitch(UiText.get(R.string.voice_duck_media), duck) { duck = it }
+            CockpitSwitch(UiText.get(R.string.voice_ready_cue), readyCue) { readyCue = it }
+            CockpitReveal(readyCue) {
                 Column {
                     VoiceAudioChoice(R.string.voice_ready_style, READY_STYLES, readyStyle, announceGroup = true) { readyStyle = it }
-                    if (readyStyle == ReadyCueStyle.SPOKEN) {
-                        ReadyPromptField(language, readyPrompt, phraseValid) { readyPrompt = it }
-                        Text(UiText.get(R.string.voice_ready_fallback), style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    CockpitReveal(readyStyle == ReadyCueStyle.SPOKEN) {
+                        Column {
+                            ReadyPromptField(language, readyPrompt, phraseValid) { readyPrompt = it }
+                            // Aligned with the field's supporting line above it, which Material indents by 16 dp.
+                            Text(UiText.get(R.string.voice_ready_fallback), Modifier.padding(horizontal = 16.dp),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                     VoiceAudioLevel(R.string.voice_ready_cue_volume, cueVolume, VOICE_VOLUME) { cueVolume = it }
                 }
             }
-            VoiceAudioChoice(R.string.voice_end_listening_cue, END_CUES, endCue) { endCue = it }
-            if (endCue != EndCue.OFF) {
-                val presetVolume = (endCue.gain() * 100).roundToInt()
+            VoiceAudioChoice(R.string.voice_end_listening_cue, END_CUES, endCue) {
+                endCue = it
+                if (it != EndCue.OFF) audibleCue = it
+            }
+            CockpitReveal(endCue != EndCue.OFF) {
+                val presetVolume = (audibleCue.gain() * 100).roundToInt()
                 val resetDescription = UiText.get(R.string.voice_end_cue_preset_volume).format(presetVolume)
                 VoiceAudioLevel(R.string.voice_end_cue_volume, endCueVolume ?: presetVolume, VOICE_VOLUME, steps = 0, trailing = {
-                    TextButton({ endCueVolume = null }, enabled = endCueVolume != null,
-                        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).semantics { contentDescription = resetDescription }) {
+                    TextButton({ endCueVolume = null }, enabled = endCueVolume != null, shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = CockpitTouch)
+                            .semantics { contentDescription = resetDescription }) {
                         Text(UiText.get(R.string.voice_end_cue_reset))
                     }
                 }) { endCueVolume = it }
@@ -192,12 +202,8 @@ internal fun VoiceAudioDialog(
                 }
             }
         },
-        confirmButton = {
-            Button(saveDraft, Modifier.heightIn(min = 52.dp), enabled = canSave) { Text(UiText.get(R.string.ui_104)) }
-        },
-        dismissButton = {
-            TextButton(dismiss, Modifier.heightIn(min = 52.dp)) { Text(UiText.get(R.string.ui_89)) }
-        },
+        confirmButton = { CockpitAction(UiText.get(R.string.ui_104), saveDraft, enabled = canSave, primary = true) },
+        dismissButton = { CockpitTextAction(UiText.get(R.string.ui_89), dismiss) },
     )
 }
 
@@ -207,19 +213,18 @@ private fun ReadyPromptField(language: String, prompt: String, valid: Boolean, c
     val default = remember(context, language) { context.forRecognitionLanguage(language).getString(R.string.voice_ready_prompt) }
     val reset = UiText.get(R.string.voice_ready_phrase_reset)
     val limit = VoiceAudioOptions.MAX_READY_PROMPT_CHARACTERS
-    OutlinedTextField(
-        value = prompt, onValueChange = change, modifier = Modifier.fillMaxWidth(), singleLine = true,
-        label = { Text(UiText.get(R.string.voice_ready_phrase)) },
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), isError = !valid,
+    CockpitTextField(
+        value = prompt, onValueChange = change, label = UiText.get(R.string.voice_ready_phrase), modifier = Modifier.fillMaxWidth(),
+        error = !valid,
+        supporting = if (valid) UiText.get(R.string.voice_ready_phrase_hint).format(limit, default)
+            else UiText.get(R.string.voice_ready_phrase_invalid).format(limit),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         trailingIcon = if (prompt.isEmpty()) null else ({
-            TextButton({ change("") }, modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = reset }) {
+            TextButton({ change("") }, modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = reset },
+                shape = MaterialTheme.shapes.medium) {
                 Text(UiText.get(R.string.voice_end_cue_reset))
             }
         }),
-        supportingText = {
-            Text(if (valid) UiText.get(R.string.voice_ready_phrase_hint).format(limit, default)
-                else UiText.get(R.string.voice_ready_phrase_invalid).format(limit))
-        },
     )
 }
 
@@ -248,18 +253,23 @@ private fun VoiceAudioLevel(label: Int, value: Int, range: IntRange, steps: Int 
                             trailing: (@Composable () -> Unit)? = null, change: (Int) -> Unit) {
     val title = UiText.get(label)
     val percentage = "$value%"
+    val palette = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(percentage, color = MaterialTheme.colorScheme.primary)
+            Text(title, Modifier.weight(1f), color = palette.onSurfaceVariant)
+            Text(percentage, color = palette.primary)
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Slider(
                 value.toFloat(), { change(it.roundToInt()) },
                 modifier = Modifier.weight(1f).semantics { contentDescription = title; stateDescription = percentage },
                 valueRange = range.first.toFloat()..range.last.toFloat(), steps = steps,
-                colors = if (steps == 0) SliderDefaults.colors(inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant)
-                    else SliderDefaults.colors(),
+                // A dot for every 5 % step is noise at arm's length; the value is printed above the track instead.
+                colors = SliderDefaults.colors(
+                    inactiveTrackColor = if (steps == 0) palette.outlineVariant else Color.Unspecified,
+                    activeTickColor = Color.Transparent, inactiveTickColor = Color.Transparent,
+                    disabledActiveTickColor = Color.Transparent, disabledInactiveTickColor = Color.Transparent,
+                ),
             )
             trailing?.invoke()
         }

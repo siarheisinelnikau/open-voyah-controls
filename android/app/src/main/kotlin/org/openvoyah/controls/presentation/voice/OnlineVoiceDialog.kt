@@ -1,6 +1,5 @@
 package org.openvoyah.controls.presentation.voice
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,10 +9,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog as AlertDialog
-import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.voice.CloudVoiceSettings
+import org.openvoyah.controls.presentation.theme.CockpitAction
+import org.openvoyah.controls.presentation.theme.CockpitReveal
+import org.openvoyah.controls.presentation.theme.CockpitSwitch
 
 @Composable
 internal fun OnlineVoiceDialog(
@@ -56,16 +57,17 @@ internal fun OnlineVoiceDialog(
         text = {
             Column(Modifier.heightIn(max = 290.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                AnimatedVisibility(!enabled || !editingKey) {
+                CockpitReveal(!enabled || !editingKey) {
                     Text(UiText.get(R.string.voice_online_explain))
                 }
-                VoiceOptionToggle(UiText.get(R.string.voice_online_switch), enabled, !saving) { enabled = it }
-                if (enabled) {
+                CockpitSwitch(UiText.get(R.string.voice_online_switch), enabled, !saving) { enabled = it }
+                CockpitReveal(enabled) {
+                    // The shared text field has no visual transformation, and the key must stay masked.
                     OutlinedTextField(
                         value = key, onValueChange = { if (it.length <= 220) key = it },
                         modifier = Modifier.fillMaxWidth().onFocusChanged { editingKey = it.isFocused },
                         label = { Text(UiText.get(R.string.voice_online_key)) },
-                        enabled = !saving, singleLine = true,
+                        enabled = !saving, singleLine = true, shape = MaterialTheme.shapes.medium,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { submit() }),
@@ -81,13 +83,8 @@ internal fun OnlineVoiceDialog(
                 if (failed) Text(UiText.get(R.string.voice_online_save_failed))
             }
         },
-        confirmButton = {
-            Button(submit, Modifier.heightIn(min = 50.dp), enabled = valid && !saving) {
-                Text(UiText.get(R.string.ui_104))
-            }
-        },
-        dismissButton = {
-            TextButton(close, Modifier.heightIn(min = 50.dp), enabled = !saving) { Text(UiText.get(R.string.ui_89)) }
-        },
+        confirmButton = { CockpitAction(UiText.get(R.string.ui_104), submit, enabled = valid && !saving, primary = true) },
+        // An outlined action rather than a text one: Cancel must look unavailable while the key is being saved.
+        dismissButton = { CockpitAction(UiText.get(R.string.ui_89), close, enabled = !saving) },
     )
 }

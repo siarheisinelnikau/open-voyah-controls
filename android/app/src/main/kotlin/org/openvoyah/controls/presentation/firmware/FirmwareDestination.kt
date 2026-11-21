@@ -22,7 +22,9 @@ import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.withStarted
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.appWindowConfiguration
@@ -72,6 +74,11 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit) {
             }
         }
     }
+    // Reading the flag parses the stored dictionary (up to 48 KB of JSON), so it stays off the main thread and is read
+    // again only when an operation changes the maintenance state or the route returns to the foreground.
+    val translationEnabled by produceState<Boolean?>(null, active, state) {
+        value = withContext(Dispatchers.IO) { adapter.translationEnabled() }
+    }
     val routeScope = rememberCoroutineScope()
     val importFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) routeScope.launch {
@@ -115,7 +122,7 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit) {
     }
 
     val product = remember { "${Build.PRODUCT} · ${Firmware.identify(Build.PRODUCT)}" }
-    FirmwareScreen(product, adapter.translationEnabled(), windowStatus, state, back, ::select)
+    FirmwareScreen(product, translationEnabled, windowStatus, state, back, ::select)
 }
 
 private tailrec fun Context.componentActivity(): ComponentActivity = when (this) {

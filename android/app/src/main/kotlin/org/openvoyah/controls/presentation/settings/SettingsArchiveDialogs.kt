@@ -3,8 +3,11 @@ package org.openvoyah.controls.presentation.settings
 import android.app.Dialog
 import android.net.Uri
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
@@ -142,6 +145,8 @@ class SettingsArchiveDialogs @JvmOverloads constructor(
                     else -> ""
                 }
                 Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Each state gets its own dialog, so the bar leaves together with the work.
+                if (state is State.Working) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         }
     }

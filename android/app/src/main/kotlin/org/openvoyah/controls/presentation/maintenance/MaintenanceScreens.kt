@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -21,8 +22,9 @@ internal enum class FirmwareAction {
     CLUSTER, WINDOW_SERVICE, RUSSIAN, ENGLISH, DISABLE_TRANSLATION, IMPORT, EXPORT, RESTORE_TRANSLATION, RESTORE_PROFILE,
 }
 
+/** [translationEnabled] is null until the stored dictionary has been read. */
 @Composable
-internal fun FirmwareScreen(product: String, translationEnabled: Boolean, windowStatus: Int?,
+internal fun FirmwareScreen(product: String, translationEnabled: Boolean?, windowStatus: Int?,
                             state: MaintenanceWork.State, back: () -> Unit, select: (FirmwareAction) -> Unit) {
     val enabled = !state.working
     CockpitDetail(label(R.string.firmware_settings), label(R.string.firmware_screen_description), back) {
@@ -35,21 +37,23 @@ internal fun FirmwareScreen(product: String, translationEnabled: Boolean, window
                 }
                 CockpitChoice(label(R.string.cluster_title), enabled = enabled) { select(FirmwareAction.CLUSTER) }
                 state.message?.let { CockpitFeedback(it, state.failed) }
+                if (state.working) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
             CockpitSection(label(R.string.firmware_recovery_heading), CockpitIcon.LOCK, label(R.string.profile_restore_info)) {
                 CockpitAction(label(R.string.profile_restore), { select(FirmwareAction.RESTORE_PROFILE) }, enabled = enabled)
             }
         }, second = {
             CockpitSection(label(R.string.firmware_translation_heading), CockpitIcon.LANGUAGE, label(R.string.firmware_info)) {
-                CockpitFeedback(label(if (translationEnabled) R.string.translation_on else R.string.translation_off))
+                CockpitFeedback(translationEnabled?.let { label(if (it) R.string.translation_on else R.string.translation_off) })
+                // Commands are buttons; rows are kept for the file pickers, which open another screen.
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     CockpitAction(label(R.string.cockpit_dictionary_russian), { select(FirmwareAction.RUSSIAN) }, enabled = enabled)
                     CockpitAction(label(R.string.cockpit_dictionary_english), { select(FirmwareAction.ENGLISH) }, enabled = enabled)
                     CockpitAction(label(R.string.translation_disable), { select(FirmwareAction.DISABLE_TRANSLATION) }, enabled = enabled)
+                    CockpitAction(label(R.string.translation_restore), { select(FirmwareAction.RESTORE_TRANSLATION) }, enabled = enabled)
                 }
                 CockpitChoice(label(R.string.translation_import), enabled = enabled) { select(FirmwareAction.IMPORT) }
                 CockpitChoice(label(R.string.translation_export), enabled = enabled) { select(FirmwareAction.EXPORT) }
-                CockpitChoice(label(R.string.translation_restore), enabled = enabled) { select(FirmwareAction.RESTORE_TRANSLATION) }
             }
         })
     }
@@ -71,10 +75,12 @@ internal fun ClusterScreen(state: MaintenanceWork.State, back: () -> Unit, selec
             }
             CockpitSection(label(R.string.cluster_status_heading), CockpitIcon.SETTINGS) {
                 CockpitFeedback(state.message ?: label(R.string.cluster_initial), state.failed)
+                if (state.working) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         }, second = {
             CockpitSection(label(R.string.cluster_backup_heading), CockpitIcon.DOWNLOAD) {
-                CockpitChoice(label(ClusterAction.PREPARE.label), enabled = enabled) { select(ClusterAction.PREPARE) }
+                // The backup runs as soon as it is tapped, so it is a command; the export row opens the file picker.
+                CockpitAction(label(ClusterAction.PREPARE.label), { select(ClusterAction.PREPARE) }, Modifier.fillMaxWidth(), enabled)
                 CockpitChoice(label(ClusterAction.EXPORT.label), enabled = enabled) { select(ClusterAction.EXPORT) }
             }
             CockpitSection(label(R.string.cluster_install_heading), CockpitIcon.LOCK, label(R.string.cluster_install_description)) {

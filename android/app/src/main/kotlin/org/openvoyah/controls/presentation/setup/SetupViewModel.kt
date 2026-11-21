@@ -13,7 +13,10 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.data.frida.FirstRunCheck
 
 class SetupViewModel(app: Application) : AndroidViewModel(app) {
-    data class State(val message: Int = R.string.setup_check_root, val finished: Boolean = false)
+    data class State(val message: Int = R.string.setup_check_root, val finished: Boolean = false) {
+        /** Read from the result text alone, so the check and its report to the installer stay as they are. */
+        val failed: Boolean get() = finished && message in failures
+    }
     private val mutable = MutableStateFlow(State())
     val state = mutable.asStateFlow()
     private var activeNonce: String? = null
@@ -34,3 +37,6 @@ class SetupViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 }
+
+private val failures = setOf(R.string.setup_failed, R.string.setup_root_failed, R.string.setup_voice_failed,
+    R.string.setup_space_failed, R.string.setup_handlers_failed)

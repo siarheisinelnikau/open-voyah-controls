@@ -12,7 +12,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -31,6 +33,7 @@ import org.openvoyah.controls.presentation.apps.AppGridSettingsSection
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitReveal
 
 @Composable
 internal fun ControlsSettingsDestination(
@@ -79,11 +82,17 @@ internal fun ControlsSettingsDestination(
     }
     LaunchedEffect(state, lifecycleState, coordinator) { coordinator.render(state) }
     BackHandler(onBack = back)
-    CockpitDetail(UiText.get(if (buttons) R.string.cockpit_buttons else R.string.cockpit_settings), "", back) {
-        update.candidate?.let { candidate ->
-            HomeActionRow(UiText.get(R.string.updates_available_version).format(candidate.version),
-                UiText.get(R.string.updates_settings_summary), CockpitIcon.DOWNLOAD,
-                { coordinator.open(ControlsRoute.UPDATES, open) })
+    val candidate = update.candidate
+    // The row keeps its last version while it collapses, so its text does not empty out on the way.
+    var lastCandidate by remember { mutableStateOf(candidate) }
+    SideEffect { if (candidate != null) lastCandidate = candidate }
+    CockpitDetail(UiText.get(if (buttons) R.string.cockpit_buttons else R.string.cockpit_settings), null, back) {
+        CockpitReveal(candidate != null) {
+            (candidate ?: lastCandidate)?.let { shown ->
+                HomeActionRow(UiText.get(R.string.updates_available_version).format(shown.version),
+                    UiText.get(R.string.updates_settings_summary), CockpitIcon.DOWNLOAD,
+                    { coordinator.open(ControlsRoute.UPDATES, open) })
+            }
         }
         if (buttons) HomeButtons(state, coordinator)
         else {

@@ -183,13 +183,12 @@
     <string name="ui_183" formatted="false">"Импорт настроек голоса"</string>
     <string name="ui_184" formatted="false">"Модель будет восстановлена при следующем нажатии «Говорить»"</string>
     <string name="ui_185" formatted="false">"Поиск команды или фразы"</string>
-    <string name="ui_186" formatted="false">"  · приложение"</string>
+    <string name="ui_186" formatted="false">"приложение"</string>
     <string name="ui_187" formatted="false">"Выполнить"</string>
     <string name="ui_188" formatted="false">"Приложение…"</string>
     <string name="ui_189" formatted="false">"Модель автомобиля"</string>
     <string name="ui_190" formatted="false">"Контакт набирается приложением телефона"</string>
     <string name="ui_191" formatted="false">"Штатный обработчик команды"</string>
-    <string name="ui_192" formatted="false">"Приложение для «"</string>
     <string name="ui_193" formatted="false">"Голосовое имя, например мама"</string>
     <string name="ui_194" formatted="false">"Номер телефона"</string>
     <string name="ui_195" formatted="false">"Голосовой контакт"</string>

@@ -76,7 +76,7 @@ class QuickVoiceActivity : ComponentActivity() {
                 val viewModel = model
                 val recover = if (microphoneRecovery) ::openMicrophoneSettings else null
                 val state = if (viewModel == null) startup else viewModel.state.collectAsStateWithLifecycle().value
-                QuickVoicePopup(state, popupOptions.showRecognizedPhrase(), recover)
+                QuickVoicePopup(state, popupOptions.showRecognizedPhrase(), recover, popupOptions.listeningWindow().millis())
             }
         }
         window.setLayout(minOf(px(440), resources.displayMetrics.widthPixels - px(24)).coerceAtLeast(1),

@@ -1,0 +1,5 @@
+<resources>
+    <string name="voice_app_for_command">App for “%1$s”</string>
+    <string name="language_name_russian" translatable="false">Русский</string>
+    <string name="language_name_english" translatable="false">English</string>
+</resources>

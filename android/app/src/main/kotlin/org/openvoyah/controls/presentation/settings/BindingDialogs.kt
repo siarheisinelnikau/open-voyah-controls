@@ -3,13 +3,14 @@ package org.openvoyah.controls.presentation.settings
 import android.app.Dialog
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,8 +36,12 @@ import org.openvoyah.controls.presentation.theme.CockpitColumns
 import org.openvoyah.controls.presentation.theme.CockpitDialogs
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitModal
+import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.theme.CockpitMotionSettings
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.CockpitTextField
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 
 class BindingDialogs(private val dialogs: CockpitDialogs) {
     fun manual(next: IntConsumer): Dialog = dialogs.show { close ->
@@ -97,9 +102,9 @@ private fun BindingEditor(code: Int, descriptor: String, initialName: String, ex
     var error by remember { mutableStateOf<String?>(null) }
     var page by remember { mutableStateOf(BindingPage.FORM) }
     BackHandler(page != BindingPage.FORM) { page = BindingPage.FORM }
+    val motion = LocalCockpitMotion.current
 
-    AnimatedContent(page, transitionSpec = { fadeIn(tween(155)).togetherWith(fadeOut(tween(90))) },
-        label = "button editor step") { current ->
+    AnimatedContent(page, transitionSpec = { stepTransition(motion) }, label = "button editor step") { current ->
         when (current) {
             BindingPage.FORM -> CockpitModal(label(if (existing == null) R.string.ui_102 else R.string.ui_103), footer = {
                 if (existing != null) CockpitTextAction(label(R.string.ui_105)) { page = BindingPage.REMOVE }
@@ -116,8 +121,7 @@ private fun BindingEditor(code: Int, descriptor: String, initialName: String, ex
                     }
                 }, primary = true)
             }) {
-                OutlinedTextField(name, { name = it; error = null }, Modifier.fillMaxWidth(), label = { Text(label(R.string.ui_95)) },
-                    singleLine = true, isError = error != null)
+                CockpitTextField(name, { name = it; error = null }, label(R.string.ui_95), Modifier.fillMaxWidth(), error = error != null)
                 CockpitFeedback(error ?: label(R.string.ui_96) + code, error != null)
                 CockpitColumns(first = {
                     CockpitChoice(label(R.string.oem_short), actionLabel(shortPress)) { page = BindingPage.SHORT }
@@ -134,7 +138,7 @@ private fun BindingEditor(code: Int, descriptor: String, initialName: String, ex
             }
             BindingPage.REMOVE -> CockpitModal(label(R.string.ui_105), footer = {
                 CockpitTextAction(label(R.string.ui_89)) { page = BindingPage.FORM }
-                CockpitAction(label(R.string.ui_105), { close(); remove() }, primary = true)
+                CockpitAction(label(R.string.ui_105), { close(); remove() }, primary = true, destructive = true)
             }) { Text(label(R.string.binding_delete_confirm)) }
         }
     }
@@ -144,7 +148,8 @@ private fun BindingEditor(code: Int, descriptor: String, initialName: String, ex
 private fun ActionPicker(back: () -> Unit, active: Boolean = true, select: (Action) -> Unit) {
     var apps by remember { mutableStateOf(false) }
     BackHandler(apps && active) { apps = false }
-    AnimatedContent(apps, transitionSpec = { fadeIn(tween(155)).togetherWith(fadeOut(tween(90))) }, label = "action picker step") { choosingApp ->
+    val motion = LocalCockpitMotion.current
+    AnimatedContent(apps, transitionSpec = { stepTransition(motion) }, label = "action picker step") { choosingApp ->
         if (choosingApp) CockpitAppPicker(label(R.string.ui_114), { apps = false }, { entry ->
             if (entry != null) select(Action(Action.Kind.LAUNCH_APP, entry.component().flattenToString(), entry.label()))
         }) else CockpitModal(label(R.string.ui_108), footer = { CockpitTextAction(label(R.string.ui_89), back) }) {
@@ -158,10 +163,16 @@ private fun ActionPicker(back: () -> Unit, active: Boolean = true, select: (Acti
     }
 }
 
+/** A short crossfade between the steps of one dialog; the window resizes with it over the same duration. */
+private fun stepTransition(motion: CockpitMotionSettings): ContentTransform = if (motion.enabled) {
+    ContentTransform(fadeIn(CockpitMotion.change()), fadeOut(CockpitMotion.exit()),
+        sizeTransform = SizeTransform { _, _ -> CockpitMotion.change() })
+} else ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
+
 @Composable
 private fun NumberField(title: String, value: String, invalid: Boolean, change: (String) -> Unit) {
-    OutlinedTextField(value, change, Modifier.fillMaxWidth(), label = { Text(title) },
-        singleLine = true, isError = invalid, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+    CockpitTextField(value, change, title, Modifier.fillMaxWidth(), error = invalid,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
 }
 
 private fun actionLabel(action: Action): String = when {
