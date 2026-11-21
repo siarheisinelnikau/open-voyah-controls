@@ -3,7 +3,7 @@ import { install } from './launcher-buttons.js';
 import { installLocalization } from './localization.js';
 import { installVoice } from './voice-commands.js';
 import { installClusterMedia, sendNavigation } from './display-events.js';
-import { installSteering } from './steering-android11.js';
+import { installSteering } from './steering-qg.js';
 import { installOversea } from './navbar-oversea.js';
 import { createStartupBrand } from './startup-brand.js';
 installLocalization(Java);

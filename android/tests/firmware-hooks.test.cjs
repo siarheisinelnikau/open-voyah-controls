@@ -74,7 +74,7 @@ function steeringHarness(options = {}) {
             'com.qinggan.system.KeyManager$5':{onEvent:{overload:()=>callbacks[0]},onKeyEvent:{overload:()=>callbacks[1]}}
         }[name];
     }};
-    vm.runInNewContext(source('java-types.js', 'steering-android11.js') + '\ninstallSteering(Java);', {
+    vm.runInNewContext(source('java-types.js', 'steering-qg.js') + '\ninstallSteering(Java);', {
         Java, console:{log(line) { logs.push(line); }},
         createActionLauncher:() => () => { launches++; if (options.fail) throw Error('Unavailable'); return true; }
     });
