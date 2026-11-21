@@ -14,7 +14,8 @@
     <string name="profile_restore_info">Restores the account record saved before the first guest-profile switch. Other vehicle settings are outside this backup. The OEM system may apply saved seat and mirror positions.</string>
     <string name="translation_saved">Saved. Connect Frida on the main screen.</string>
     <string name="translation_applied">Settings sent. Reopen OEM screens. Hook status is available in Frida diagnostics.</string>
-    <string name="unknown_command">Command not recognized. Try again or choose it from the list.</string>
+    <string name="unknown_command">Command not recognized</string>
+    <string name="voice_no_matching_command">No matching command</string>
     <string name="default_levels">Default command levels</string>
     <string name="window_options">Window ventilation settings</string>
     <string name="double_smoke">Double smoke pulse</string>

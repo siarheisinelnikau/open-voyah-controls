@@ -36,10 +36,12 @@ class VoiceViewModel(
     private val natural: (suspend (String) -> VoiceResult)? = null,
     private val feedbackStyle: FeedbackStyle = FeedbackStyle.READBACK,
 ) : AutoCloseable {
+    /** [unknown] is shown when nothing usable was heard, [noMatch] beside a heard phrase that names no command. */
     data class Labels(
         val preparing: String, val executing: String, val unknown: String, val failed: String,
         val weatherOffline: String,
         val interpreting: String = executing,
+        val noMatch: String = unknown,
     )
 
     enum class Phase { PREPARING, LISTENING, EXECUTING, DONE }
@@ -68,6 +70,7 @@ class VoiceViewModel(
                 when (final) {
                     is SpeechEvent.Recognized -> resolve(final.text)
                     is SpeechEvent.Natural -> interpret(final.text)
+                    is SpeechEvent.Unmatched -> complete(noMatch(), final.text)
                     is SpeechEvent.Failed -> complete(VoiceResult(final.text, failed = true, outcome = final.reason))
                     is SpeechEvent.Listening -> error("Expected a final recognition result")
                 }
@@ -83,7 +86,7 @@ class VoiceViewModel(
         val phrase = VoiceCatalog.normalize(text)
         val command = catalog.match(phrase)
         if (command == null) {
-            complete(unrecognized())
+            complete(noMatch(), phrase)
             return
         }
         val request = commands.prepare(command, phrase)
@@ -99,7 +102,7 @@ class VoiceViewModel(
     private suspend fun interpret(phrase: String) {
         val resolve = natural
         if (resolve == null) {
-            complete(unrecognized())
+            complete(noMatch(), phrase)
             return
         }
         mutableState.value = State(Phase.EXECUTING, labels.interpreting, phrase)
@@ -108,7 +111,7 @@ class VoiceViewModel(
         complete(result, phrase)
     }
 
-    private fun unrecognized() = VoiceResult(labels.unknown, failed = true, outcome = VoiceOutcome.UNRECOGNIZED)
+    private fun noMatch() = VoiceResult(labels.noMatch, failed = true, outcome = VoiceOutcome.UNRECOGNIZED)
 
     private fun complete(result: VoiceResult, phrase: String? = null) {
         if (feedbackStyle == FeedbackStyle.OUTCOME && result.outcome != VoiceOutcome.AUDIO_INTERRUPTED) {

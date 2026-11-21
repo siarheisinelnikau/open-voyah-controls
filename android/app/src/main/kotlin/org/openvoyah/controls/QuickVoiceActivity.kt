@@ -40,6 +40,7 @@ import org.openvoyah.controls.platform.voice.playReadyVoiceCue
 import org.openvoyah.controls.platform.voice.playVoiceCue
 import org.openvoyah.controls.platform.voice.speechText
 import org.openvoyah.controls.presentation.theme.ControlsTheme
+import org.openvoyah.controls.presentation.voice.QUICK_VOICE_WIDTH_DP
 import org.openvoyah.controls.presentation.voice.QuickVoicePopup
 import org.openvoyah.controls.presentation.voice.VoiceViewModel
 import org.openvoyah.controls.presentation.voice.VoiceViewModel.Phase
@@ -85,7 +86,7 @@ class QuickVoiceActivity : ComponentActivity() {
                 QuickVoicePopup(state, popupOptions.showRecognizedPhrase(), recover, popupOptions.listeningWindow().millis())
             }
         }
-        window.setLayout(minOf(px(440), resources.displayMetrics.widthPixels - px(24)).coerceAtLeast(1),
+        window.setLayout(minOf(px(QUICK_VOICE_WIDTH_DP), resources.displayMetrics.widthPixels - px(24)).coerceAtLeast(1),
             ViewGroup.LayoutParams.WRAP_CONTENT)
         if (savedInstanceState != null) {
             finish()
