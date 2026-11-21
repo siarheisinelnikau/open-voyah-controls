@@ -52,6 +52,17 @@ export function android9Reserve(Java) {
 
     function installHooks(state) {
         if (installed) return;
+        // Marked first: if one replacement cannot be installed, removeHooks() still clears the ones that were.
+        installed = true;
+        try {
+            replaceMethods(state);
+        } catch (error) {
+            removeHooks();
+            throw error;
+        }
+    }
+
+    function replaceMethods(state) {
         // getNonDecorInsetsLw has no displayId on this release. The callers that compute per-display values
         // (computeScreenConfiguration, getStableInsetsLocked) mark the current thread. All of them run under
         // mWindowMap, so a marker cannot leak into an unrelated computation.
@@ -129,13 +140,17 @@ export function android9Reserve(Java) {
             } catch (_) { }
             return hooks.keep.call(this, win, attrs, permitted);
         };
-        installed = true;
     }
 
     function removeHooks() {
         if (!installed) return;
-        for (const method of Object.values(hooks)) method.implementation = null;
+        // Every replacement is cleared even if one of them cannot be; the first failure is reported afterwards.
+        let failure = null;
+        for (const method of Object.values(hooks)) {
+            try { method.implementation = null; } catch (error) { failure ??= error; }
+        }
         installed = false;
+        if (failure !== null) throw failure;
     }
 
     return {
@@ -152,6 +167,9 @@ export function android9Reserve(Java) {
             // A vendor subclass may override the layout or the hooked getters; refuse instead of guessing.
             if (policyClass !== POLICY) throw reserveFailure('oem_policy');
             if (display() === null) throw reserveFailure('unsupported_display');
+            // With a system navigation bar the non-decor frames already carry its inset; adding the strip to
+            // them is not reviewed.
+            if (policy.mHasNavigationBar.value || policy.mNavigationBar.value !== null) throw reserveFailure('system_nav_bar');
         },
         display() {
             const info = display().getDisplayInfo();
@@ -209,10 +227,15 @@ export function android9Reserve(Java) {
         /** Removes what an agent that ended while the mode was on left behind. Only called when that is recorded. */
         cleanupStale(pkg) {
             const decor = policy.mScreenDecorWindows.value;
+            const height = display().getDisplayInfo().logicalHeight.value;
             let removed = 0;
             for (let i = decor.size() - 1; i >= 0; i--) {
                 const win = Java.cast(decor.valueAt(i), Window);
                 if (!ownedOnCentralDisplay(win, pkg)) continue;
+                // Only a window docked like the panel can be this agent's: another decor window of the launcher,
+                // such as a bar along the top, is its own.
+                const frame = reserveRect(win.getFrameLw());
+                if (frame === null || frame[0] !== 0 || frame[1] !== 0 || frame[3] !== height) continue;
                 decor.removeAt(i);
                 const attrs = win.mAttrs.value;
                 attrs.privateFlags.value = attrs.privateFlags.value & ~decorFlag;

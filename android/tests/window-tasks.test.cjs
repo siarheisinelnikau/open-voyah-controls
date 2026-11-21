@@ -264,6 +264,7 @@ function livePolicy(sdk, h) {
         'java.io.BufferedReader':{$new:reader=>({readLine:()=>reader.file === '/proc/sys/kernel/random/boot_id'
             ? '5f1c8a9e-0b7d-4c1a-9f5e-2d3c4b5a6978\n' : null, close() { strip.closed++; }})},
         'android.os.Process':{myPid:()=>900},
+        'android.os.SystemClock':{elapsedRealtime:()=>73500},
     };
     // The deferred layout must not use scheduleOnMainThread: it would hook epoll_wait in all of system_server.
     const Java = {use:name=>classes[name], retain:value=>value, perform:fn=>fn(),
@@ -487,6 +488,9 @@ test('the reserved strip follows the profile document, the service switch and it
         service.setClear(true);
         assert.equal(given.panelWidth(), 171);
         assert.equal(given.currentUser(), 0);
+        // Uptime, so that a wall clock set after boot cannot shorten or stretch the waiting.
+        assert.equal(given.now(), 73500);
+        assert.equal(given.releaseTasks, undefined);
         assert.deepEqual({...given.session()}, {boot:'5f1c8a9e-0b7d-4c1a-9f5e-2d3c4b5a6978', pid:900});
         assert.equal(service.strip.closed, 1);
     }

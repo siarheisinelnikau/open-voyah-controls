@@ -69,6 +69,17 @@ export function android11Reserve(Java) {
 
     function installHooks(state) {
         if (installed) return;
+        // Marked first: if one replacement cannot be installed, removeHooks() still clears the ones that were.
+        installed = true;
+        try {
+            replaceMethods(state);
+        } catch (error) {
+            removeHooks();
+            throw error;
+        }
+    }
+
+    function replaceMethods(state) {
         let innerWidth = 0;
         let innerInsets = 0;
         const reserve = () => (state.active && state.width > 0 ? state.width : 0);
@@ -127,13 +138,17 @@ export function android11Reserve(Java) {
             if (skip) return;
             return hooks.control.call(this, target, force);
         };
-        installed = true;
     }
 
     function removeHooks() {
         if (!installed) return;
-        for (const method of Object.values(hooks)) method.implementation = null;
+        // Every replacement is cleared even if one of them cannot be; the first failure is reported afterwards.
+        let failure = null;
+        for (const method of Object.values(hooks)) {
+            try { method.implementation = null; } catch (error) { failure ??= error; }
+        }
         installed = false;
+        if (failure !== null) throw failure;
     }
 
     function detach(win, provider) {
