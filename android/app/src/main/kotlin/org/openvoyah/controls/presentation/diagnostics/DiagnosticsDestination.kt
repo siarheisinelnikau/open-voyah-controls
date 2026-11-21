@@ -214,13 +214,15 @@ private fun DiagnosticRow(entry: DiagnosticEntry) {
         LogLevel.INFO, LogLevel.DEBUG -> colors.outline
     }
     val level = UiText.get(entry.level.label)
-    Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = "$level, ${entry.time}, ${entry.event}" },
+    // Event names are identifiers; with spaces they are words on the screen and for a screen reader alike.
+    val title = entry.event.replace('_', ' ')
+    Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = "$level, ${entry.time}, $title" },
         horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
         Surface(Modifier.padding(top = 7.dp).size(9.dp), shape = CircleShape, color = mark) { }
         Text(entry.time, Modifier.width(74.dp), style = MaterialTheme.typography.bodyMedium, fontFamily = FontFamily.Monospace,
             color = colors.onSurfaceVariant)
         Column(Modifier.weight(1f)) {
-            Text(entry.event.replace('_', ' '), style = MaterialTheme.typography.titleSmall,
+            Text(title, style = MaterialTheme.typography.titleSmall,
                 color = if (entry.level == LogLevel.ERROR) colors.error else colors.onSurface)
             if (entry.fields.isNotEmpty()) {
                 Text(entry.fields, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace,
