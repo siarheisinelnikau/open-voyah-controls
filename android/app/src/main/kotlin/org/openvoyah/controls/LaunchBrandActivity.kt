@@ -1,6 +1,7 @@
 package org.openvoyah.controls
 
 import android.animation.ValueAnimator
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,11 +9,17 @@ import androidx.activity.compose.setContent
 import org.openvoyah.controls.data.settings.AppearancePreferences
 import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.settings.AppPalette
+import org.openvoyah.controls.platform.display.useControlsDensity
 import org.openvoyah.controls.presentation.theme.ControlsTheme
 import org.openvoyah.controls.presentation.theme.LaunchBrand
 
 /** Owns the launcher animation in a separate task from the cockpit. */
 class LaunchBrandActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        useControlsDensity(newBase)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_LAUNCHER)) {

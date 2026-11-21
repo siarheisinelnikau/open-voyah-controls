@@ -1,5 +1,6 @@
 package org.openvoyah.controls
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.openvoyah.controls.platform.display.useControlsDensity
 import org.openvoyah.controls.presentation.setup.SetupViewModel
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitBackdrop
@@ -48,6 +50,11 @@ class SetupActivity : ComponentActivity() {
 
     private fun requestNonce(intent: Intent): String? = intent.getStringExtra("request")
         ?.takeIf { it.matches(Regex("[a-f0-9]{32}")) }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        useControlsDensity(newBase)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

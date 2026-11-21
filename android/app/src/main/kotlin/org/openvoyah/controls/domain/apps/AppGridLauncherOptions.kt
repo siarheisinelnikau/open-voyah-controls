@@ -20,6 +20,20 @@ internal enum class AppGridColumns(val storedValue: String, val requested: Int?)
     }
 }
 
+/**
+ * Whole rows for a tile size that fills the grid's height: as many rows as fit at [minimumTileHeight], each one
+ * stretched so the last visible row ends at the bottom edge and no part of the next row shows below it. A grid too
+ * short for two whole rows keeps the least height and scrolls, rather than showing one stretched row.
+ */
+internal object AppGridRows {
+    fun fittedTileHeight(availableHeight: Int, minimumTileHeight: Int, spacing: Int): Int {
+        require(minimumTileHeight > 0 && spacing >= 0)
+        val rows = (availableHeight.toLong() + spacing) / (minimumTileHeight.toLong() + spacing)
+        if (rows < 2) return minimumTileHeight
+        return maxOf(minimumTileHeight, ((availableHeight - spacing * (rows - 1)) / rows).toInt())
+    }
+}
+
 internal enum class AppGridShortcut(val storedValue: String) {
     QUICK_VOICE("quickVoice"),
     BUTTONS("buttons"),

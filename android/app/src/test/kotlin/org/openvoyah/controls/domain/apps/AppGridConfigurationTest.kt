@@ -9,11 +9,13 @@ import org.junit.Test
 class AppGridConfigurationTest {
     private data class Entry(val component: String, val system: Boolean = false, val installedAt: Long? = null)
 
-    @Test fun defaultsKeepTheStandardSizeAndEntireCatalog() {
+    @Test fun defaultsUseLargeTilesAndTheEntireCatalog() {
         val entries = listOf(Entry("system", system = true), Entry("installed"))
         val grid = AppGridConfiguration()
 
-        assertEquals(AppGridTileSize.STANDARD, grid.tileSize)
+        assertEquals(AppGridTileSize.LARGE, AppGridTileSize.DEFAULT)
+        assertEquals(AppGridTileSize.DEFAULT, grid.tileSize)
+        assertEquals(AppGridColumns.AUTO, grid.columns)
         assertTrue(grid.showSystemApps)
         assertEquals(AppGridIconStyle.NATIVE, grid.iconStyle)
         assertTrue(grid.showAppLabels)

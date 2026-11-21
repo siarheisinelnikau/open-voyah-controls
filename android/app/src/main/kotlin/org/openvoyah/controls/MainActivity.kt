@@ -46,6 +46,7 @@ import org.openvoyah.controls.domain.settings.LauncherEntry
 import org.openvoyah.controls.platform.apps.AppsPlatform
 import org.openvoyah.controls.platform.apps.LauncherShortcuts
 import org.openvoyah.controls.platform.audio.limitLauncherMediaVolume
+import org.openvoyah.controls.platform.display.useControlsDensity
 import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime
 import org.openvoyah.controls.presentation.home.HomeUpdatesViewModel
 import org.openvoyah.controls.presentation.home.appearanceViewModel
@@ -82,6 +83,11 @@ class MainActivity : ComponentActivity() {
     private var startupTimer: Job? = null
     private var launcherMediaEntry: ControlsNavigationState? = null
     private var launcherMediaTask: Job? = null
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        useControlsDensity(newBase)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // The manifest theme is dark. With the Daytime palette saved, the window itself must open light, or every
