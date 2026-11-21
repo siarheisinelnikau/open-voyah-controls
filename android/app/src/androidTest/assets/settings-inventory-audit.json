@@ -119,6 +119,11 @@
           }
         },
         "steeringActions": {
+          "voiceShort": {
+            "kind": "START_VOICE",
+            "component": "",
+            "label": "Voice"
+          },
           "customShort": {
             "kind": "CONTROLS_SETTINGS",
             "component": "",
@@ -617,6 +622,11 @@
           }
         },
         "steeringActions": {
+          "voiceShort": {
+            "kind": "NONE",
+            "component": "",
+            "label": ""
+          },
           "customShort": {
             "kind": "CONTROLS_APPS",
             "component": "",

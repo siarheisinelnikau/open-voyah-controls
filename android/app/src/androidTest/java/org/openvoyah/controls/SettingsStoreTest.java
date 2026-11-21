@@ -33,8 +33,13 @@ public class SettingsStoreTest extends AndroidTestCase {
         for (String slot : PanelSlots.PANEL) {
             if (!slot.equals("mainApps")) assertFalse(slot, state.panelActions.containsKey(slot));
         }
-        assertTrue(state.steeringActions.isEmpty());
+        assertOnlyVoiceKeyDefault(state);
         assertTrue(state.bindings.isEmpty());
+    }
+    private void assertOnlyVoiceKeyDefault(SettingsStore.State state) {
+        assertEquals(1, state.steeringActions.size());
+        assertEquals(Action.Kind.START_VOICE, state.steeringActions.get("voiceShort").kind);
+        assertEquals("", state.steeringActions.get("voiceShort").component);
     }
     public void testNewStateDefaultsOnlyTheInactiveAppMenu() {
         assertOnlyInactiveAppMenuDefault(new SettingsStore.State());
@@ -118,6 +123,28 @@ public class SettingsStoreTest extends AndroidTestCase {
         assertEquals("com.example.player/.Main", actual.panelActions.get("navbar01").component);
         assertEquals("panel", actual.bindings.get(0).device);
         assertEquals(SettingsStore.encode(expected), store.exportJson());
+    }
+    public void testOldSteeringWithoutTheVoiceKeyGetsTheDefaultBesideItsOwnKeys() throws Exception {
+        JSONObject old = new JSONObject(SettingsStore.encode(sample()));
+        old.put("steeringActions", new JSONObject().put("cameraShort", new JSONObject()
+            .put("kind", "SYSTEM_SETTINGS").put("component", "").put("label", "Settings")));
+        SettingsStore.State actual = SettingsStore.decode(old.toString());
+        assertEquals(2, actual.steeringActions.size());
+        assertEquals(Action.Kind.START_VOICE, actual.steeringActions.get("voiceShort").kind);
+        assertEquals(Action.Kind.SYSTEM_SETTINGS, actual.steeringActions.get("cameraShort").kind);
+        assertOnlyVoiceKeyDefault(SettingsStore.decode(new JSONObject(old.toString())
+            .put("steeringActions", new JSONObject()).toString()));
+    }
+    public void testFactoryVoiceKeySurvivesPersistenceAndLeavesTheHookDocument() throws Exception {
+        SettingsStore.State state = new SettingsStore.State();
+        state.steeringActions.put("voiceShort", Action.NONE);
+        store.save(SettingsStore.decode(SettingsStore.encode(state)));
+        SettingsStore.State actual = new SettingsStore(getContext()).load();
+        assertEquals(1, actual.steeringActions.size());
+        assertEquals(Action.Kind.NONE, actual.steeringActions.get("voiceShort").kind);
+        assertEquals(0, new JSONObject(FridaBridge.config(actual)).getJSONObject("steering").length());
+        assertEquals("START_VOICE", new JSONObject(FridaBridge.config(new SettingsStore.State()))
+            .getJSONObject("steering").getJSONObject("voiceShort").getString("kind"));
     }
     public void testExplicitVoiceActionsKeepTheirKindAcrossDecodeAndPersistence() throws Exception {
         SettingsStore.State expected = sample();
