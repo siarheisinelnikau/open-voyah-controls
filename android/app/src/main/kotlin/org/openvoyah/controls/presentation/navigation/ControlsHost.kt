@@ -45,6 +45,7 @@ import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.domain.settings.RouteTransitionSpeed
 import org.openvoyah.controls.presentation.apps.AppsDestination
 import org.openvoyah.controls.presentation.cluster.ClusterDestination
+import org.openvoyah.controls.presentation.diagnostics.DiagnosticsDestination
 import org.openvoyah.controls.presentation.climate.SeasonalClimateDestination
 import org.openvoyah.controls.presentation.display.DisplayDestination
 import org.openvoyah.controls.presentation.dock.QuickActionsDestination
@@ -164,6 +165,7 @@ internal fun ControlsHost(
                         ControlsRoute.FIRMWARE -> FirmwareDestination(navigation::back) { navigation.open(ControlsRoute.CLUSTER) }
                         ControlsRoute.CLUSTER -> ClusterDestination(navigation::back)
                         ControlsRoute.UPDATES -> UpdatesDestination(navigation::back)
+                        ControlsRoute.DIAGNOSTICS -> DiagnosticsDestination(navigation::back)
                     }
                 }
             }

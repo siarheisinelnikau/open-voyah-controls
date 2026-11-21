@@ -49,6 +49,9 @@ internal fun HomeSettingsLinks(open: (ControlsRoute) -> Unit, language: () -> Un
         SettingsLink(CockpitIcon.SETTINGS, R.string.firmware_settings, R.string.cockpit_firmware_description) { open(ControlsRoute.FIRMWARE) },
         SettingsLink(CockpitIcon.SETTINGS, R.string.ui_61, R.string.cockpit_system_description, systemSettings),
         SettingsLink(CockpitIcon.DOWNLOAD, R.string.updates_title, R.string.updates_settings_summary) { open(ControlsRoute.UPDATES) },
+        SettingsLink(CockpitIcon.SEARCH, R.string.diagnostics_title, R.string.diagnostics_link_summary) {
+            open(ControlsRoute.DIAGNOSTICS)
+        },
     )
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val columns = if (maxWidth >= wideEnough) 2 else 1

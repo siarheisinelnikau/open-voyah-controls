@@ -73,6 +73,10 @@ Open **Settings → Updates** to check official releases, see the installed vers
 
 ![Updates settings in the signed Android 9 app](docs/screenshots/updates.png)
 
+## Diagnostic log
+
+Open **Settings → Diagnostic log** to read what Controls recorded on this head unit: connection attempts, update checks, refused operations and failures, newest first. The log can be limited to warnings and errors, copied, saved to a file or cleared; the app sends it nowhere. Entries name operations, outcomes and error types and never contain voice phrases, contacts, media titles or keys. See [Diagnostics and logging](docs/DIAGNOSTICS.md).
+
 ## Vehicle settings and maintenance
 
 Open **Settings → Vehicle settings** for the original driving, cabin and infotainment menus. A shortcut appears when Android offers a public launcher entry from the matching built-in app. Use the factory panel when a shortcut is unavailable. The driver uses the original controls to enable and use driving assistance, including Apollo on applicable models. The page also links to the [VOYAH owner manuals](https://www.voyah-global.com/service).
@@ -126,6 +130,7 @@ The existing Gradle modules contain logical MVVM and Clean Architecture layers. 
 - [Injection targets, screens and button mappings](docs/INJECTION_MAP.md)
 - [JavaScript agents and the root boundary](docs/FRIDA_AGENTS.md)
 - [Compose screens and motion](docs/COMPOSE_UI.md)
+- [Diagnostics and logging](docs/DIAGNOSTICS.md)
 - [Instrument cluster packages, backup, and recovery](docs/CLUSTER.md)
 - [OEM account-record recovery limits — technical appendix](docs/ACCOUNT_RECOVERY.md)
 - [Third-party dependencies and licenses](THIRD_PARTY.md)
