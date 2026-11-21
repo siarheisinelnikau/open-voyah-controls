@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
@@ -31,6 +32,7 @@ import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitModal
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.CockpitTouch
 
 @Composable
 internal fun DisplayPreviewDetails(
@@ -95,7 +97,7 @@ private fun <T> PreviewChoices(
             for (option in options) {
                 val selected = current == option
                 Row(
-                    Modifier.heightIn(min = 50.dp)
+                    Modifier.heightIn(min = CockpitTouch).clip(MaterialTheme.shapes.medium)
                         .selectable(selected = selected, enabled = enabled, role = Role.RadioButton) {
                             choose(option)
                         }

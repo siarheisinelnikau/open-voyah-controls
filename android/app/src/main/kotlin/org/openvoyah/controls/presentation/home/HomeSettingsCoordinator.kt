@@ -6,6 +6,11 @@ import android.net.Uri
 import android.provider.Settings
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import org.openvoyah.controls.ButtonCapture
@@ -19,6 +24,7 @@ import org.openvoyah.controls.platform.ui.ActionExecutor
 import org.openvoyah.controls.presentation.settings.BindingDialogs
 import org.openvoyah.controls.presentation.settings.SettingsArchiveDialogs
 import org.openvoyah.controls.presentation.theme.CockpitDialogs
+import org.openvoyah.controls.presentation.theme.CockpitModal
 
 /** Owns only foreground windows, native handoffs and capture lifetime; settings belong to the model. */
 internal class HomeSettingsCoordinator(
@@ -74,8 +80,13 @@ internal class HomeSettingsCoordinator(
     fun render(state: HomeControlsState) {
         if (!active) return
         if (state.busy) {
-            if (progress == null) progress = dialogs.message(text(R.string.ui_79), text(R.string.ui_80), null,
-                cancelable = false)
+            // The dialog exists only while the command runs, so its indeterminate bar never outlives the work.
+            if (progress == null) progress = dialogs.show(cancelable = false) {
+                CockpitModal(text(R.string.ui_79)) {
+                    Text(text(R.string.ui_80), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+            }
             return
         }
         progress?.dismiss()
@@ -102,7 +113,8 @@ internal class HomeSettingsCoordinator(
 
     fun language() {
         if (!active) return
-        dialogs.choices(text(R.string.cockpit_language), arrayOf("Русский", "English"), { index ->
+        dialogs.choices(text(R.string.cockpit_language),
+            arrayOf(text(R.string.language_name_russian), text(R.string.language_name_english)), { index ->
             if (active) { UiText.language(if (index == 0) "ru" else "en"); activity.recreate() }
         })
     }

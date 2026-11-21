@@ -183,13 +183,12 @@
     <string name="ui_183" formatted="false">"Import voice settings"</string>
     <string name="ui_184" formatted="false">"The model will be restored the next time you press Speak"</string>
     <string name="ui_185" formatted="false">"Search commands or phrases"</string>
-    <string name="ui_186" formatted="false">"  · app"</string>
+    <string name="ui_186" formatted="false">"app"</string>
     <string name="ui_187" formatted="false">"Run"</string>
     <string name="ui_188" formatted="false">"App…"</string>
     <string name="ui_189" formatted="false">"Vehicle model"</string>
     <string name="ui_190" formatted="false">"The contact opens in the phone app"</string>
     <string name="ui_191" formatted="false">"Built-in command handler"</string>
-    <string name="ui_192" formatted="false">"App for “"</string>
     <string name="ui_193" formatted="false">"Voice name, for example mom"</string>
     <string name="ui_194" formatted="false">"Phone number"</string>
     <string name="ui_195" formatted="false">"Voice contact"</string>

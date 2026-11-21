@@ -1,31 +1,10 @@
 package org.openvoyah.controls.presentation.home
 
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
 import java.util.Locale
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
@@ -42,10 +21,11 @@ import org.openvoyah.controls.domain.settings.LAUNCH_MEDIA_VOLUME_PERCENTS
 import org.openvoyah.controls.domain.settings.LauncherEntry
 import org.openvoyah.controls.domain.settings.RouteTransitionSpeed
 import org.openvoyah.controls.domain.settings.WallpaperDimming
-import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitOptionDialog
+import org.openvoyah.controls.presentation.theme.CockpitReveal
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 
@@ -108,7 +88,7 @@ internal fun AppearanceSettings(state: AppearanceUiState, change: (AppearanceCha
         CockpitSwitch(UiText.get(R.string.appearance_limit_media_on_launch), current.limitMediaVolumeOnLaunch, enabled) {
             change(AppearanceChange.LimitMediaVolumeOnLaunch(it))
         }
-        if (current.limitMediaVolumeOnLaunch) {
+        CockpitReveal(current.limitMediaVolumeOnLaunch) {
             val percentFormat = UiText.get(R.string.appearance_media_volume_percent)
             AppearanceChoiceRow(R.string.appearance_launch_media_limit, current.launchMediaVolumePercent,
                 LAUNCH_MEDIA_VOLUME_PERCENTS, enabled, { percentFormat.format(Locale.ROOT, it) },
@@ -133,42 +113,8 @@ private fun <T> AppearanceChoiceRow(
     var choosing by rememberSaveable { mutableStateOf(false) }
     CockpitChoice(UiText.get(title), label(current), enabled) { choosing = true }
     if (!choosing) return
-
-    CockpitAlertDialog(
-        onDismissRequest = { choosing = false },
-        confirmButton = { TextButton(onClick = { choosing = false }) { Text(UiText.get(R.string.ui_89)) } },
-        title = { Text(UiText.get(title)) },
-        text = {
-            Column(
-                Modifier.verticalScroll(rememberScrollState()).selectableGroup(),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                description?.let { Text(UiText.get(it)) }
-                choices.forEach { value ->
-                    val selected = value == current
-                    var focused by remember { mutableStateOf(false) }
-                    val focusRing = if (enabled && focused) {
-                        Modifier.border(2.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.small)
-                    } else Modifier
-                    Row(
-                        Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .onFocusChanged { focused = it.isFocused }
-                            .then(focusRing)
-                            .selectable(selected, enabled = enabled, role = Role.RadioButton) {
-                                choosing = false
-                                if (!selected) change(value)
-                            }
-                            .padding(horizontal = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = selected, enabled = enabled, onClick = null)
-                        Text(label(value))
-                    }
-                }
-            }
-        },
-    )
+    CockpitOptionDialog(UiText.get(title), choices, current, label, change, { choosing = false },
+        description = description?.let { UiText.get(it) }, enabled = enabled)
 }
 
 private val AppTextSize.label: Int get() = when (this) {

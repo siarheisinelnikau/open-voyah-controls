@@ -7,12 +7,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog as AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,7 +23,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.display.AppWindowProfile
+import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitChoice
+import org.openvoyah.controls.presentation.theme.CockpitOptionDialog
 
 @Composable
 internal fun AppDisplayDefaultsControl(model: AppDisplayDefaultsViewModel) {
@@ -52,42 +50,22 @@ internal fun AppDisplayDefaultsControl(model: AppDisplayDefaultsViewModel) {
                 }
                 val message = if (state.working) R.string.ui_80 else state.message
                 message?.let { Text(label(it), Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
+                if (state.working) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
-            Button(model::save, Modifier.heightIn(min = 48.dp), enabled = state.draft != null && !state.working) {
-                Text(label(R.string.ui_104))
-            }
+            CockpitAction(label(R.string.ui_104), model::save, enabled = state.draft != null && !state.working, primary = true)
         },
-        dismissButton = {
-            TextButton(model::close, Modifier.heightIn(min = 48.dp), enabled = !state.working) {
-                Text(label(R.string.app_display_defaults_close))
-            }
-        },
+        // An outlined action rather than a text one: Close must look unavailable while the defaults are written.
+        dismissButton = { CockpitAction(label(R.string.app_display_defaults_close), model::close, enabled = !state.working) },
     )
 }
 
 @Composable
 private fun DensityPicker(title: String, dpi: Int?, choices: List<Int?>, enabled: Boolean, change: (Int?) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(title)
-        OutlinedButton({ expanded = true }, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = enabled) {
-            Text(densityText(dpi))
-        }
-        DropdownMenu(expanded, { expanded = false }, Modifier.heightIn(max = 220.dp)) {
-            choices.forEach { value ->
-                DropdownMenuItem(
-                    text = { Text(densityText(value)) },
-                    onClick = {
-                        expanded = false
-                        change(value)
-                    },
-                    modifier = Modifier.heightIn(min = 48.dp),
-                )
-            }
-        }
-    }
+    var choosing by remember { mutableStateOf(false) }
+    CockpitChoice(title, densityText(dpi), enabled) { choosing = true }
+    if (choosing) CockpitOptionDialog(title, choices, dpi, ::densityText, change, { choosing = false }, enabled = enabled)
 }
 
 private fun densityText(dpi: Int?): String = when (dpi) {

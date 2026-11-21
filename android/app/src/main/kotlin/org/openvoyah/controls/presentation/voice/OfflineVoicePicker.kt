@@ -1,16 +1,14 @@
 package org.openvoyah.controls.presentation.voice
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -19,12 +17,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -41,7 +36,10 @@ import org.openvoyah.controls.platform.voice.OfflineVoiceFeedback
 import org.openvoyah.controls.platform.voice.forRecognitionLanguage
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
+import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.theme.CockpitOptionRow
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 
 @Composable
 internal fun OfflineVoicePicker(
@@ -93,18 +91,27 @@ internal fun OfflineVoicePicker(
     val sample = remember(app, language) {
         app.forRecognitionLanguage(language).getString(R.string.voice_offline_sample_text)
     }
+    val animateList = LocalCockpitMotion.current.enabled
     CockpitAlertDialog(
         onDismissRequest = dismiss,
         title = { Text(UiText.get(R.string.voice_offline_voice)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val listHeight = (LocalConfiguration.current.screenHeightDp * .38f).dp.coerceIn(54.dp, 216.dp)
-                LazyColumn(Modifier.fillMaxWidth().heightIn(max = listHeight).selectableGroup()) {
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = listHeight).selectableGroup(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     item {
-                        OfflineVoiceRow(UiText.get(R.string.voice_offline_automatic), null, selected.isEmpty()) { choose("") }
+                        CockpitOptionRow(UiText.get(R.string.voice_offline_automatic), null, selected.isEmpty()) { choose("") }
                     }
                     items(voices.orEmpty(), key = { it.name }) { voice ->
-                        OfflineVoiceRow(voice.locale.getDisplayName(displayLocale), voice.name, selected == voice.name) { choose(voice.name) }
+                        val placement = if (animateList) {
+                            Modifier.animateItem(CockpitMotion.enter(), CockpitMotion.change(), CockpitMotion.exit())
+                        } else Modifier
+                        Box(placement) {
+                            CockpitOptionRow(voice.locale.getDisplayName(displayLocale), voice.name, selected == voice.name) {
+                                choose(voice.name)
+                            }
+                        }
                     }
                 }
                 val state = when {
@@ -128,19 +135,4 @@ internal fun OfflineVoicePicker(
         confirmButton = { CockpitAction(UiText.get(R.string.voice_offline_use), { engine?.stop(); useVoice(selected) }, primary = true) },
         dismissButton = { CockpitTextAction(UiText.get(R.string.ui_89)) { engine?.stop(); dismiss() } },
     )
-}
-
-@Composable
-private fun OfflineVoiceRow(title: String, name: String?, selected: Boolean, choose: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 52.dp).selectable(selected, role = Role.RadioButton, onClick = choose),
-        horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected, onClick = null)
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            name?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
-    }
 }
