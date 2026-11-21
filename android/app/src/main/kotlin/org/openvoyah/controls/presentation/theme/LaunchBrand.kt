@@ -109,13 +109,6 @@ private val WingEasing = CubicBezierEasing(.22f, 1.18f, .36f, 1f)
 internal fun LaunchBrand(onFinished: () -> Unit) {
     val phase = remember { Animatable(0f) }
     val finish = rememberUpdatedState(onFinished)
-    val title = stringResource(R.string.app_name)
-    val caption = UiText.get(R.string.ui_33)
-    val measureText = rememberTextMeasurer()
-    val colors = MaterialTheme.colorScheme
-    val palette = remember(colors) { launchPalette(colors) }
-    val titleStyle = MaterialTheme.typography.headlineSmall.copy(letterSpacing = 1.6.sp)
-    val captionStyle = MaterialTheme.typography.bodyMedium.copy(letterSpacing = .6.sp)
 
     LaunchedEffect(phase) {
         ControlsLog.debug("launch_brand", "phase", "started")
@@ -124,12 +117,29 @@ internal fun LaunchBrand(onFinished: () -> Unit) {
         finish.value()
     }
 
+    LaunchBrandFrame({ phase.value }, Modifier.pointerInput(Unit) { detectTapGestures(onPress = { finish.value() }) })
+}
+
+/**
+ * The intro at one point of [LaunchTimeline]. [phase] is read while drawing, which keeps composition, layout and
+ * text measurement out of the frame loop; it also lets a test show a single stage for as long as it needs.
+ */
+@Composable
+internal fun LaunchBrandFrame(phase: () -> Float, modifier: Modifier = Modifier) {
+    val title = stringResource(R.string.app_name)
+    val caption = UiText.get(R.string.ui_33)
+    val measureText = rememberTextMeasurer()
+    val colors = MaterialTheme.colorScheme
+    val palette = remember(colors) { launchPalette(colors) }
+    val titleStyle = MaterialTheme.typography.headlineSmall.copy(letterSpacing = 1.6.sp)
+    val captionStyle = MaterialTheme.typography.bodyMedium.copy(letterSpacing = .6.sp)
+
     Spacer(Modifier.fillMaxSize()
         .semantics {
             hideFromAccessibility()
             testTag = LAUNCH_BRAND_TAG
         }
-        .pointerInput(Unit) { detectTapGestures(onPress = { finish.value() }) }
+        .then(modifier)
         .drawWithCache {
             val textWidth = Constraints(maxWidth = (size.width - 32.dp.toPx()).toInt().coerceAtLeast(0))
             val titleLayout = measureText.measure(title, style = titleStyle, maxLines = 1,
@@ -177,8 +187,7 @@ internal fun LaunchBrand(onFinished: () -> Unit) {
             val pulseStroke = Stroke(1.5.dp.toPx())
 
             onDrawBehind {
-                // Reading the phase in draw keeps composition, layout and text measurement out of the frame loop.
-                val progress = phase.value
+                val progress = phase()
                 if (progress <= LaunchTimeline.WINGS_START) return@onDrawBehind
 
                 val out = 1f - ease(progress, LaunchTimeline.EXIT_START, 1f)

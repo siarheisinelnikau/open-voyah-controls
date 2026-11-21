@@ -7,11 +7,14 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.os.Build
-import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.test.InstrumentationTestCase
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ViewRootForTest
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -27,6 +30,7 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.data.settings.AppearancePreferences
 import org.openvoyah.controls.domain.settings.AppAccent
 import org.openvoyah.controls.domain.settings.AppFontFamily
+import org.openvoyah.controls.domain.settings.AppPalette
 import org.openvoyah.controls.domain.settings.AppTextSize
 import org.openvoyah.controls.domain.settings.LauncherEntry
 import org.openvoyah.controls.presentation.navigation.ControlsNavigationViewModel
@@ -59,40 +63,47 @@ class LaunchBrandTest : InstrumentationTestCase() {
         }
     }
 
-    fun testLauncherPlaysEveryStageThenClosesOverExistingControls() = withLauncherSettings { appearance ->
+    fun testLauncherPlaysOnceThenClosesOverExistingControls() = withLauncherSettings { appearance ->
         appearance.setAnimateRoutes(true)
         withActivity(MainActivity.settingsIntent(app), MainActivity::class.java) { controls ->
             await("Direct settings page") { hasTag(controls, "quickActionsContent") }
             assertFalse(hasTag(controls, LAUNCH_BRAND_TAG))
-            withSlowMotion {
-                withActivity(bootBrandIntent(), LaunchBrandActivity::class.java) { brand ->
-                    await("Brand on the boot entry") { hasTag(brand, LAUNCH_BRAND_TAG) }
-                    assertFalse("The brand must have its own task", onMain { brand.taskId == controls.taskId })
-                    captureStage(brand, "launch-brand-background.png", ::hasPlainBackground)
-                    captureStage(brand, "launch-brand-wings.png", ::hasOnlyWings)
-                    captureColorStage(brand, "launch-brand-charge.png", StageColors::isBlueCharge)
-                    captureColorStage(brand, "launch-brand.png", StageColors::isSteel)
-                    await("the launcher animation to close") { onMain { brand.isFinishing } }
-                }
-                await("existing settings to regain focus") {
-                    onMain { controls.lifecycle.currentState == Lifecycle.State.RESUMED && controls.hasWindowFocus() }
-                }
-                assertTrue(onMain {
-                    ViewModelProvider(controls)[ControlsNavigationViewModel::class.java].state.value.route == ControlsRoute.SETTINGS
-                })
+            withActivity(bootBrandIntent(), LaunchBrandActivity::class.java) { brand ->
+                await("Brand on the boot entry") { hasTag(brand, LAUNCH_BRAND_TAG) }
+                assertFalse("The brand must have its own task", onMain { brand.taskId == controls.taskId })
+                await("the launcher animation to close", CLOSE_TIMEOUT_MILLIS) { onMain { brand.isFinishing } }
             }
+            await("existing settings to regain focus") {
+                onMain { controls.lifecycle.currentState == Lifecycle.State.RESUMED && controls.hasWindowFocus() }
+            }
+            assertTrue(onMain {
+                ViewModelProvider(controls)[ControlsNavigationViewModel::class.java].state.value.route == ControlsRoute.SETTINGS
+            })
+        }
+    }
+
+    fun testEveryStageShowsWhatTheTimelinePromises() = withLauncherSettings { appearance ->
+        appearance.setAnimateRoutes(true)
+        withFrames { show ->
+            show(LaunchTimeline.WINGS_START / 2)
+            captureStage("launch-brand-background.png", ::hasPlainBackground)
+            show(WINGS_ONLY)
+            captureStage("launch-brand-wings.png", ::hasOnlyWings)
+            show(CHARGED)
+            captureColorStage("launch-brand-charge.png", StageColors::isBlueCharge)
+            show(AT_REST)
+            captureColorStage("launch-brand.png", StageColors::isSteel)
         }
     }
 
     fun testChargeFollowsTheAccentChosenInAppearance() = withLauncherSettings { appearance ->
         appearance.setAnimateRoutes(true)
         appearance.setAccent(AppAccent.AMBER)
-        withSlowMotion {
-            withActivity(bootBrandIntent(), LaunchBrandActivity::class.java) { brand ->
-                await("Brand on the boot entry") { hasTag(brand, LAUNCH_BRAND_TAG) }
-                captureColorStage(brand, "launch-brand-charge-amber.png", StageColors::isAmberCharge)
-                captureColorStage(brand, "launch-brand-amber.png", StageColors::isSteel)
-            }
+        withFrames { show ->
+            show(CHARGED)
+            captureColorStage("launch-brand-charge-amber.png", StageColors::isAmberCharge)
+            show(AT_REST)
+            captureColorStage("launch-brand-amber.png", StageColors::isSteel)
         }
     }
 
@@ -161,20 +172,26 @@ class LaunchBrandTest : InstrumentationTestCase() {
         }
     }
 
-    private fun withSlowMotion(test: () -> Unit) {
-        val key = "animator_duration_scale"
-        fun shell(command: String): String = ParcelFileDescriptor.AutoCloseInputStream(
-            instrumentation.uiAutomation.executeShellCommand(command)).bufferedReader().use { it.readText().trim() }
-        val original = shell("settings get global $key")
-        check(original == "null" || original.matches(Regex("[0-9]+(?:[.][0-9]+)?")))
-        try {
-            shell("settings put global $key 2.5")
-            check(shell("settings get global $key") == "2.5")
-            SystemClock.sleep(100)
-            test()
-        } finally {
-            if (original == "null") shell("settings delete global $key") else shell("settings put global $key $original")
-            check(shell("settings get global $key") == original)
+    /**
+     * Shows single points of the intro's timeline in the intro's own window. Sampling the running animation for a
+     * stage that lasts a fraction of a second depended on how fast the device takes a screenshot; a frame that
+     * stays until it has been read does not.
+     */
+    private fun withFrames(test: ((Float) -> Unit) -> Unit) {
+        withActivity(bootBrandIntent(), LaunchBrandActivity::class.java) { brand ->
+            var phase by mutableFloatStateOf(0f)
+            val appearance = AppearancePreferences(app).load()
+            instrumentation.runOnMainSync {
+                // Replaces the running intro, which would otherwise finish its activity; the theme is the one it uses.
+                brand.setContent {
+                    ControlsTheme(appearance = appearance, temporaryPalette = AppPalette.DARK) { LaunchBrandFrame({ phase }) }
+                }
+            }
+            await("Brand frame") { hasTag(brand, LAUNCH_BRAND_TAG) }
+            test { point ->
+                instrumentation.runOnMainSync { phase = point }
+                instrumentation.waitForIdleSync()
+            }
         }
     }
 
@@ -188,9 +205,8 @@ class LaunchBrandTest : InstrumentationTestCase() {
         return result
     }
 
-    private fun captureStage(brand: Activity, filename: String, matches: (Bitmap) -> Boolean) {
+    private fun captureStage(filename: String, matches: (Bitmap) -> Boolean) {
         await(filename) {
-            if (!hasTag(brand, LAUNCH_BRAND_TAG)) return@await false
             val bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return@await false
             try {
                 val reachedStage = matches(bitmap)
@@ -227,8 +243,8 @@ class LaunchBrandTest : InstrumentationTestCase() {
         return left > 40 && right > 40 && spine == 0 && title == 0
     }
 
-    private fun captureColorStage(brand: Activity, filename: String, reached: (StageColors, StageColors) -> Boolean) =
-        captureStage(brand, filename) { bitmap ->
+    private fun captureColorStage(filename: String, reached: (StageColors, StageColors) -> Boolean) =
+        captureStage(filename) { bitmap ->
             reached(colorsIn(bitmap, 46 until 54, BODY_ROWS), colorsIn(bitmap, TEXT_COLUMNS, TITLE_ROWS))
         }
 
@@ -252,8 +268,10 @@ class LaunchBrandTest : InstrumentationTestCase() {
         var accentAmber = 0
         var crimson = 0
         var steel = 0
-        for (y in ys) for (x in xs) {
-            val color = bitmap.getPixel(x, y)
+        val width = xs.last - xs.first + 1
+        val pixels = IntArray(width * (ys.last - ys.first + 1))
+        bitmap.getPixels(pixels, 0, width, xs.first, ys.first, width, pixels.size / width)
+        for (color in pixels) {
             val red = Color.red(color)
             val green = Color.green(color)
             val blue = Color.blue(color)
@@ -278,8 +296,8 @@ class LaunchBrandTest : InstrumentationTestCase() {
     private fun SemanticsNode.containsTag(tag: String): Boolean =
         config.getOrNull(SemanticsProperties.TestTag) == tag || children.any { it.containsTag(tag) }
 
-    private fun await(description: String, condition: () -> Boolean) {
-        val stop = SystemClock.uptimeMillis() + 5_000L
+    private fun await(description: String, timeoutMillis: Long = 5_000L, condition: () -> Boolean) {
+        val stop = SystemClock.uptimeMillis() + timeoutMillis
         do {
             if (condition()) return
             SystemClock.sleep(24)
@@ -295,6 +313,12 @@ class LaunchBrandTest : InstrumentationTestCase() {
     }
 
     private companion object {
+        // Points of the timeline at which a stage is complete and the next has not begun.
+        const val WINGS_ONLY = LaunchTimeline.BODY_START - .005f
+        const val CHARGED = (LaunchTimeline.CHARGE_FULL + LaunchTimeline.CHARGE_FADE) / 2
+        const val AT_REST = (LaunchTimeline.CHARGE_END + LaunchTimeline.EXIT_START) / 2
+        // The intro runs 2.2 s at the normal animator scale; a device set to a slower scale still fits.
+        const val CLOSE_TIMEOUT_MILLIS = 15_000L
         val WING_ROWS = 22 until 37
         val BODY_ROWS = 33 until 55
         val SPINE_ROWS = 46 until 56
