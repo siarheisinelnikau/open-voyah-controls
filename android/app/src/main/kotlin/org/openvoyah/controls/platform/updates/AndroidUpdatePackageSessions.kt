@@ -19,6 +19,7 @@ import org.openvoyah.controls.core.updates.ReleasePolicy
 import org.openvoyah.controls.data.updates.UpdateException
 import org.openvoyah.controls.data.updates.UpdateProblem
 import org.openvoyah.controls.diagnostics.ControlsLog
+import org.openvoyah.controls.platform.apps.installStatusCode
 import org.openvoyah.controls.platform.packages.PackageSessionRemoval
 import org.openvoyah.controls.platform.packages.PackageSessionRemoval.Observation
 import java.io.File
@@ -180,12 +181,13 @@ internal class AndroidUpdatePackageSessions(context: Context) : UpdatePackageSes
             val id = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
             if (id < 0) return null
             val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, Int.MIN_VALUE)
-            // Every status at or above FAILURE is handled alike; the raw status and Android's message tell them apart.
-            val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+            // Every status at or above FAILURE is handled alike; the raw status and the code that opens Android's
+            // message tell them apart. The rest of that message quotes paths and package names and is not logged.
+            val statusCode = installStatusCode(intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE))
             if (status == PackageInstaller.STATUS_SUCCESS || status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-                ControlsLog.info("update_session_result", "session", id, "status", status, "status_message", message)
+                ControlsLog.info("update_session_result", "session", id, "status", status, "status_code", statusCode)
             } else {
-                ControlsLog.warn("update_session_result", "session", id, "status", status, "status_message", message)
+                ControlsLog.warn("update_session_result", "session", id, "status", status, "status_code", statusCode)
             }
             val kind = when (status) {
                 PackageInstaller.STATUS_PENDING_USER_ACTION -> UpdateCallbackKind.APPROVAL

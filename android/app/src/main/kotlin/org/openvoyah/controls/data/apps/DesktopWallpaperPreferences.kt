@@ -35,7 +35,10 @@ internal class DesktopWallpaperPreferences(context: Context) {
     private fun decodeImage(desktop: AppGridDesktop, data: String): Bitmap? = try {
         DesktopWallpaperImages.decode(decodeBase64(data))
     } catch (failure: Exception) {
-        ControlsLog.warn("store_decode", failure, "store", STORE, "outcome", "image_unreadable", "desktop", desktop.storedValue)
+        // The stored rendition is decoded again on every return to the grid; a damaged one is reported once.
+        if (reportedUnreadable.add(desktop.storedValue + ':' + data.hashCode())) {
+            ControlsLog.warn("store_decode", failure, "store", STORE, "outcome", "image_unreadable", "desktop", desktop.storedValue)
+        }
         null
     }
 
@@ -86,6 +89,7 @@ internal class DesktopWallpaperPreferences(context: Context) {
         internal const val MAX_ENCODED_BYTES = (DesktopWallpaperImages.MAX_RENDITION_BYTES + 2) / 3 * 4
         private val allowedKeys = AppGridDesktop.entries.mapTo(mutableSetOf()) { it.storedValue }
         private val lock = DesktopLayoutStores.WRITE_LOCK
+        private val reportedUnreadable = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
         @JvmStatic
         fun validateSettings(value: JSONObject): JSONObject = JSONObject().apply {

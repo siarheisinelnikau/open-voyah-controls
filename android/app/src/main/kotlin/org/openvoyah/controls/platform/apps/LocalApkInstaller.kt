@@ -225,12 +225,13 @@ internal class LocalApkInstaller(
             result.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1) != pending.id) return@synchronized false
         if (pending.completedPackage != null) return@synchronized false
         val status = result.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
-        // Every failure status reads as one message on the screen; Android's status and message tell them apart.
-        val statusMessage = result.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+        // Every failure status reads as one message on the screen; Android's status and the code that opens its
+        // message tell them apart. The rest of that message quotes paths and package names and is not logged.
+        val statusCode = installStatusCode(result.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE))
         if (status == PackageInstaller.STATUS_SUCCESS || status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-            ControlsLog.info("apk_install", "step", "result", "session", pending.id, "status", status, "status_message", statusMessage)
+            ControlsLog.info("apk_install", "step", "result", "session", pending.id, "status", status, "status_code", statusCode)
         } else {
-            ControlsLog.warn("apk_install", "step", "result", "session", pending.id, "status", status, "status_message", statusMessage)
+            ControlsLog.warn("apk_install", "step", "result", "session", pending.id, "status", status, "status_code", statusCode)
         }
         when (status) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {

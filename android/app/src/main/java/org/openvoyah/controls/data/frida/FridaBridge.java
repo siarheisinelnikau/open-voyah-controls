@@ -914,8 +914,13 @@ public final class FridaBridge {
     }
     public void disconnect() throws IOException {
         synchronized (IO_LOCK) {
-            configured(false);
-            stopPending(true);
+            // The journal lets a restart repeat a stop that was interrupted. A stop that cannot be journaled is
+            // still carried out: giving up here would leave the agents running behind a bridge that already reads
+            // as disconnected, with no way to stop them while storage keeps failing.
+            if (!context.getSharedPreferences("bridge", Context.MODE_PRIVATE).edit()
+                    .putBoolean("configured", false).putBoolean("stopPending", true).commit()) {
+                ControlsLog.error("bridge_journal", "key", "stopPending", "value", true, "outcome", "commit_failed");
+            }
             RecoveryJobs.cancel(context);
             REVISION.incrementAndGet();
             try { stopLocked(); }
@@ -948,12 +953,21 @@ public final class FridaBridge {
                 clearWindowSettings();
                 command("settings delete global " + KEY + "; settings delete global org.openvoyah.controls.voice; "
                     + "settings delete global org.openvoyah.controls.localization; settings delete global org.openvoyah.controls.clusterMedia");
-                stopPending(false);
                 String outcome = UiText.get(windowsRestored ? (iconsRestored ? R.string.ui_22 : R.string.panel_restore_unconfirmed)
                     : R.string.window_restore_unconfirmed);
+                // The result of the stop is recorded before its journal entry is cleared, so a failure to clear
+                // the entry cannot replace what the driver needs to know about the panel and the windows.
                 health(outcome);
+                IOException unsaved = null;
+                try { stopPending(false); } catch (IOException ex) { unsaved = ex; }
                 // Stopping workers does not prove that their visible changes were restored.
-                if (!iconsRestored || !windowsRestored) throw new ProductionRootAccess.Refused(outcome);
+                if (!iconsRestored || !windowsRestored) {
+                    ProductionRootAccess.Refused refused = new ProductionRootAccess.Refused(outcome);
+                    if (unsaved != null) refused.addSuppressed(unsaved);
+                    throw refused;
+                }
+                // The stop itself is complete; a restart only repeats it, which is harmless.
+                if (unsaved != null) throw unsaved;
                 span.outcome("stopped");
             } catch (IOException | RuntimeException ex) {
                 record(span, ex);
