@@ -1,0 +1,5 @@
+<resources>
+    <string name="page_unavailable">YouTube недоступен. Проверьте подключение.</string>
+    <string name="retry">Повторить</string>
+    <string name="no_browser">Для этой ссылки не установлен браузер.</string>
+</resources>

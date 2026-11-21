@@ -1,0 +1,30 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+// A separate package on purpose: the window service keys width and DPI profiles by package, and Controls lists every
+// launcher app in its grid. The debug build is signed with the local debug key like the Controls debug app.
+android {
+    namespace 'org.openvoyah.youtube'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'org.openvoyah.youtube'
+        minSdk 28
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    buildTypes {
+        release { minifyEnabled false }
+    }
+    lint { abortOnError true }
+}
+kotlin {
+    compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}

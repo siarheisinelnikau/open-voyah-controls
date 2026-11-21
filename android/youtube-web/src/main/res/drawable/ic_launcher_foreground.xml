@@ -1,0 +1,6 @@
+<!-- An original mark for the wrapper: a red screen with a play arrow, on the 108 dp adaptive-icon canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFF2D2D" android:pathData="M34,38h40a6,6 0 0 1 6,6v20a6,6 0 0 1 -6,6h-40a6,6 0 0 1 -6,-6v-20a6,6 0 0 1 6,-6z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M48,45.5v17l14.5,-8.5z" />
+</vector>
