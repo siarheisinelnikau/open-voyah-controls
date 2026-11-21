@@ -3,22 +3,19 @@ package org.openvoyah.controls.presentation.routines
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -63,6 +60,8 @@ import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
+import org.openvoyah.controls.presentation.theme.cockpitSwap
 
 internal val RoutineTarget.route: ControlsRoute? get() = when (this) {
     RoutineTarget.CURRENT -> null
@@ -139,38 +138,55 @@ internal fun RoutinesDestination(back: () -> Unit, run: suspend (NamedRoutine) -
     val draft = state.form.draft
     val schedule = state.form.schedule
     BackHandler(enabled = draft != null || schedule != null, onBack = model::closeEditor)
-    if (schedule != null) {
-        RoutineScheduleEditor(schedule, state, model)
-    } else if (draft != null) {
-        RoutineEditor(draft, state, model, appLabels)
-    } else {
-        CockpitDetail(UiText.get(R.string.routines_title), UiText.get(R.string.routines_summary), back) {
-            if (state.loadFailed) CockpitFeedback(UiText.get(R.string.routines_load_failed), error = true)
-            state.library?.let { library ->
-                val language = UiText.language()
-                val sorted = remember(library, language) { library.ordered(Locale.forLanguageTag(language)) }
-                RoutineToolbar(library, sorted, !state.form.busy, model)
-                if (sorted.isEmpty()) Text(UiText.get(R.string.routines_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (sorted.size == RoutineLibrary.MAX_ROUTINES) Text(UiText.get(R.string.routines_full))
-                if (sorted.isNotEmpty()) Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                ) {
-                    Column {
-                        sorted.forEachIndexed { index, routine -> key(routine.id) {
-                            if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            RoutineRow(routine, library.startupId == routine.id, state, appLabels,
-                                edit = { model.edit(routine) }, run = { runRoutine(routine) })
-                        } }
+    val motion = LocalCockpitMotion.current
+    val offset = with(LocalDensity.current) { 20.dp.roundToPx() }
+    // The whole state is the target so that the view sliding out keeps the content it showed, such as a draft just saved.
+    AnimatedContent(state, transitionSpec = { cockpitSwap(motion, offset, forward = targetState.view != RoutinesView.LIST) },
+        label = "routine views", contentKey = { it.view }) { shown ->
+        val shownSchedule = shown.form.schedule
+        val shownDraft = shown.form.draft
+        if (shownSchedule != null) {
+            RoutineScheduleEditor(shownSchedule, shown, model)
+        } else if (shownDraft != null) {
+            RoutineEditor(shownDraft, shown, model, appLabels)
+        } else {
+            CockpitDetail(UiText.get(R.string.routines_title), UiText.get(R.string.routines_summary), back) {
+                if (shown.loadFailed) CockpitFeedback(UiText.get(R.string.routines_load_failed), error = true)
+                else if (shown.library == null) CockpitFeedback(UiText.get(R.string.flows_loading))
+                shown.library?.let { library ->
+                    val language = UiText.language()
+                    val sorted = remember(library, language) { library.ordered(Locale.forLanguageTag(language)) }
+                    RoutineToolbar(library, sorted, !shown.form.busy, model)
+                    if (sorted.isEmpty()) Text(UiText.get(R.string.routines_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (sorted.size == RoutineLibrary.MAX_ROUTINES) Text(UiText.get(R.string.routines_full))
+                    if (sorted.isNotEmpty()) Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        Column {
+                            sorted.forEachIndexed { index, routine -> key(routine.id) {
+                                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                RoutineRow(routine, library.startupId == routine.id, shown, appLabels,
+                                    edit = { model.edit(routine) }, run = { runRoutine(routine) })
+                            } }
+                        }
                     }
+                    val error = shown.form.error
+                    CockpitFeedback(error?.let(UiText::get) ?: shown.form.ran?.let { UiText.get(R.string.routines_ran).format(it) },
+                        error = error != null)
                 }
-                val error = state.form.error
-                CockpitFeedback(error?.let(UiText::get) ?: state.form.ran?.let { UiText.get(R.string.routines_ran).format(it) },
-                    error = error != null)
             }
         }
     }
+}
+
+private enum class RoutinesView { LIST, EDITOR, SCHEDULE }
+
+private val RoutinesUiState.view: RoutinesView get() = when {
+    form.schedule != null -> RoutinesView.SCHEDULE
+    form.draft != null -> RoutinesView.EDITOR
+    else -> RoutinesView.LIST
 }
 
 private enum class RoutineListDialog { SORT, STARTUP }
@@ -193,10 +209,8 @@ private fun RoutineToolbar(library: RoutineLibrary, sorted: List<NamedRoutine>, 
         }
     }
     library.startupId?.let { id ->
-        Box(Modifier.widthIn(max = 480.dp)) {
-            CockpitSwitch(UiText.get(R.string.routines_startup_enabled), library.startupEnabled, enabled) { runAtStartup ->
-                if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) model.setStartupEnabled(id, runAtStartup)
-            }
+        CockpitSwitch(UiText.get(R.string.routines_startup_enabled), library.startupEnabled, enabled) { runAtStartup ->
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) model.setStartupEnabled(id, runAtStartup)
         }
     }
     when (dialog) {
@@ -265,8 +279,8 @@ private fun RoutineRow(routine: NamedRoutine, startup: Boolean, state: RoutinesU
         FlowRow(horizontalArrangement = Arrangement.spacedBy(layout.spacing(6.dp))) {
             CockpitAction(UiText.get(R.string.routines_run), run, Modifier.semantics { contentDescription = runName },
                 enabled = !state.form.busy)
-            TextButton(onClick = edit, enabled = !state.form.busy,
-                modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = editName }) { Text(UiText.get(R.string.routines_edit)) }
+            CockpitAction(UiText.get(R.string.routines_edit), edit, Modifier.semantics { contentDescription = editName },
+                enabled = !state.form.busy)
         }
     }
     val wide = layout.columnsMinimum(450.dp, LocalDensity.current.fontScale)

@@ -2,14 +2,15 @@ package org.openvoyah.controls.presentation.vehicle
 
 import androidx.activity.ComponentActivity
 import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,8 +22,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
@@ -54,8 +53,12 @@ import org.openvoyah.controls.presentation.theme.CockpitColumns
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.theme.CockpitOptionDialog
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.CockpitTextField
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 
 @Composable
 internal fun rememberServiceReminderViewModel(activity: ComponentActivity): ServiceReminderViewModel = remember(activity) {
@@ -73,7 +76,10 @@ internal fun ServiceReminderDestination(back: () -> Unit) {
     val state by model.state.collectAsStateWithLifecycle()
     val status by model.saveStatus.collectAsStateWithLifecycle()
     CockpitDetail(UiText.get(R.string.service_reminder_title), UiText.get(R.string.service_reminder_summary), back) {
-        state?.let { current ->
+        val current = state
+        if (current == null) {
+            CockpitFeedback(UiText.get(R.string.flows_loading))
+        } else {
             val settings = current.settings
             val saving = status == ServiceReminderViewModel.SaveStatus.SAVING
             CockpitColumns(first = {
@@ -107,8 +113,13 @@ private fun ServiceReminderOverview(
             CockpitFeedback(UiText.get(R.string.service_reminder_missing_readings))
         }
         if (distance != null) {
-            Text(serviceDistance(R.string.service_reminder_distance, distance.nextServiceKm),
-                style = MaterialTheme.typography.headlineLarge)
+            val animate = LocalCockpitMotion.current.enabled
+            AnimatedContent(distance.nextServiceKm, transitionSpec = {
+                if (animate) ContentTransform(fadeIn(CockpitMotion.change()), fadeOut(CockpitMotion.exit()), sizeTransform = null)
+                else ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
+            }, label = "next service") { kilometers ->
+                Text(serviceDistance(R.string.service_reminder_distance, kilometers), style = MaterialTheme.typography.headlineLarge)
+            }
             CockpitFeedback(distance.serviceSummary(), error = distance.urgency == ServiceUrgency.OVERDUE)
         }
         if (calendar != null) {
@@ -134,25 +145,11 @@ private fun <T> ServiceReminderChoice(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val state by lifecycle.currentStateAsState()
     val interactive = enabled && state.isAtLeast(Lifecycle.State.RESUMED)
-    Box {
-        CockpitChoice(UiText.get(title), summary, enabled = interactive) {
-            open = true
-        }
-        DropdownMenu(expanded = open && interactive, onDismissRequest = { open = false }) {
-            for (option in options) {
-                val active = option == value
-                DropdownMenuItem(
-                    text = { Text(optionLabel(option)) },
-                    onClick = {
-                        open = false
-                        if (!active && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) choose(option)
-                    },
-                    modifier = Modifier.semantics { selected = active },
-                    leadingIcon = { RadioButton(active, onClick = null) },
-                )
-            }
-        }
+    CockpitChoice(UiText.get(title), summary, enabled = interactive) {
+        open = true
     }
+    if (open && interactive) CockpitOptionDialog(UiText.get(title), options, value, optionLabel, onDismiss = { open = false },
+        onSelect = { option -> if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) choose(option) })
 }
 
 private fun ServiceReminderLead.label(): String = kilometers?.let { serviceDistance(R.string.service_reminder_distance, it) }
@@ -195,10 +192,9 @@ private fun ServiceScheduleEditor(schedule: ServiceSchedule, saving: Boolean, sa
 private fun ServiceNumberField(
     @StringRes title: Int, text: String, enabled: Boolean, maxDigits: Int = 7, change: (String) -> Unit,
 ) {
-    OutlinedTextField(text, { input ->
+    CockpitTextField(text, { input ->
         if (input.length <= maxDigits && input.all(Char::isDigit)) change(input)
-    }, Modifier.fillMaxWidth(), enabled = enabled,
-        label = { Text(UiText.get(title)) }, singleLine = true,
+    }, UiText.get(title), Modifier.fillMaxWidth(), enabled = enabled,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
 }
 
@@ -214,11 +210,10 @@ private fun ServiceReminderCalendarEditor(
     CockpitSection(UiText.get(R.string.service_reminder_calendar_title), CockpitIcon.SETTINGS,
         UiText.get(R.string.service_reminder_calendar_summary)) {
         ServiceNumberField(R.string.service_reminder_calendar_interval, months, !saving, maxDigits = 3) { months = it }
-        OutlinedTextField(lastDate, { input ->
+        CockpitTextField(lastDate, { input ->
             if (input.length <= 10 && input.all { it in '0'..'9' || it == '-' }) lastDate = input
-        }, Modifier.fillMaxWidth(), enabled = !saving,
-            label = { Text(UiText.get(R.string.service_reminder_calendar_last_date)) }, singleLine = true,
-            supportingText = { Text(UiText.get(R.string.service_reminder_calendar_date_format)) },
+        }, UiText.get(R.string.service_reminder_calendar_last_date), Modifier.fillMaxWidth(), enabled = !saving,
+            supporting = UiText.get(R.string.service_reminder_calendar_date_format),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii))
         if (plan == null) CockpitFeedback(UiText.get(R.string.service_reminder_calendar_invalid), error = true)
         CockpitAction(UiText.get(R.string.service_reminder_calendar_save), {

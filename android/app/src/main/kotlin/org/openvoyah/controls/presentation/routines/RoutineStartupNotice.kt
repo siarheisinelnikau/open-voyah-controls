@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.presentation.theme.CockpitTextAction
 
 /** Local virtual-view actions can bypass Activity.onUserInteraction. Forward all events normally. */
 internal class RoutineInteractionFrame(context: Context, private val interacted: () -> Unit) : FrameLayout(context) {
@@ -63,7 +62,7 @@ private fun RoutineNotice(message: String, action: Int, onAction: () -> Unit, an
             val textModifier = Modifier.weight(1f).then(if (announce) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier)
             Text(message, textModifier,
                 maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
-            TextButton(onAction, Modifier.heightIn(min = 48.dp)) { Text(UiText.get(action)) }
+            CockpitTextAction(UiText.get(action), onAction)
         }
     }
 }

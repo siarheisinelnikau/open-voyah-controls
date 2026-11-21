@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="flows_loading">Загрузка…</string>
+    <string name="flows_rules_saved">Сохранённые правила</string>
+    <string name="flows_rule_routine">Сценарий: %1$s</string>
+    <string name="flows_rule_delete_prompt">Удалить «%1$s»?</string>
+    <string name="flows_rule_delete_detail">Правило перестанет срабатывать и будет удалено из Controls. Сам сценарий останется.</string>
+</resources>

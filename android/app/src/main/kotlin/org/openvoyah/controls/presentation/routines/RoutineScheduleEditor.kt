@@ -4,6 +4,7 @@ import android.app.TimePickerDialog
 import android.text.format.DateFormat
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
@@ -43,6 +44,7 @@ import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitColumns
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
+import org.openvoyah.controls.presentation.theme.CockpitReveal
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 
@@ -110,11 +112,13 @@ internal fun RoutineScheduleEditor(draft: RoutineScheduleDraft, state: RoutinesU
             CockpitChoice(UiText.get(R.string.routines_delay), draft.delay.label(), enabled) { choosingDelay = true }
         }, second = {
             CockpitSwitch(UiText.get(R.string.routines_limit_hours), draft.limited, enabled, model::limitTime)
-            if (draft.limited) {
-                CockpitChoice(UiText.get(R.string.routines_time_start), clock.minute(draft.start), enabled) { editingStart = true }
-                CockpitChoice(UiText.get(R.string.routines_time_end), clock.minute(draft.end), enabled) { editingStart = false }
-                Text(UiText.get(if (draft.start > draft.end) R.string.routines_overnight else R.string.routines_local_clock),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            CockpitReveal(draft.limited) {
+                Column(verticalArrangement = Arrangement.spacedBy(LocalCockpitLayout.current.spacing(14.dp))) {
+                    CockpitChoice(UiText.get(R.string.routines_time_start), clock.minute(draft.start), enabled) { editingStart = true }
+                    CockpitChoice(UiText.get(R.string.routines_time_end), clock.minute(draft.end), enabled) { editingStart = false }
+                    Text(UiText.get(if (draft.start > draft.end) R.string.routines_overnight else R.string.routines_local_clock),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }, minimumWidth = 640.dp)
         val error = when {

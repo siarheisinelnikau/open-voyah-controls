@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -176,27 +175,18 @@ private fun DriverMemoryActions(
     action: (SeatMemorySlot, SeatMemoryAction) -> Unit,
 ) {
     val title = driverTitle(slot)
-    val colors = MaterialTheme.colorScheme
     val buttons: @Composable (Modifier, Modifier) -> Unit = { restore, save ->
         CockpitAction(
             UiText.get(R.string.seat_memory_recall), { action(slot, SeatMemoryAction.RESTORE) },
             restore.semantics { contentDescription = seatMemoryText(R.string.seat_memory_restore_driver, title) },
             enabled = enabled, primary = true,
             contentPadding = padding, labelStyle = labelStyle,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = lerp(colors.primaryContainer, colors.primary, 0.18f),
-                contentColor = colors.onPrimaryContainer,
-            ),
         )
         CockpitAction(
             UiText.get(R.string.seat_memory_save_position), { action(slot, SeatMemoryAction.SAVE) },
             save.semantics { contentDescription = seatMemoryText(R.string.seat_memory_save_driver, title) },
             enabled = enabled,
             contentPadding = padding, labelStyle = labelStyle,
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = colors.surfaceContainerHigh,
-                contentColor = colors.onSurface,
-            ),
         )
     }
     if (restoreShare != null) {

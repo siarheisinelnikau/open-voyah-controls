@@ -1,23 +1,12 @@
 package org.openvoyah.controls.presentation.routines
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,7 +15,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -42,8 +30,10 @@ import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitColumns
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
+import org.openvoyah.controls.presentation.theme.CockpitOptionDialog
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.CockpitTextField
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 
 private enum class EditorDialog { PAGE, LAYOUT, THEME, APP, DELETE }
@@ -64,9 +54,8 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
     }
     val title = if (draft.original == null) R.string.routines_create else R.string.routines_edit_title
     CockpitDetail(UiText.get(title), null, model::closeEditor) {
-        OutlinedTextField(draft.name, model::name, Modifier.fillMaxWidth(), singleLine = true, enabled = enabled,
-            label = { Text(UiText.get(R.string.routines_name)) },
-            isError = draft.name.isNotEmpty() && !draft.validName || state.form.error == R.string.routines_duplicate_name,
+        CockpitTextField(draft.name, model::name, UiText.get(R.string.routines_name), Modifier.fillMaxWidth(), enabled = enabled,
+            error = draft.name.isNotEmpty() && !draft.validName || state.form.error == R.string.routines_duplicate_name,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }))
         CockpitColumns(first = {
@@ -104,10 +93,8 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
             val gap = LocalCockpitLayout.current.spacing(8.dp)
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap, Alignment.End),
                 verticalArrangement = Arrangement.spacedBy(gap)) {
-                if (draft.original != null) TextButton(onClick = { focus.clearFocus(); dialog = EditorDialog.DELETE }, enabled = enabled,
-                    modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text(UiText.get(R.string.routines_delete), color = MaterialTheme.colorScheme.error)
-                }
+                if (draft.original != null) CockpitAction(UiText.get(R.string.routines_delete),
+                    { focus.clearFocus(); dialog = EditorDialog.DELETE }, enabled = enabled, destructive = true)
                 CockpitAction(UiText.get(R.string.routines_save), model::save,
                     enabled = enabled && draft.validName && draft.hasAction, primary = true)
             }
@@ -147,40 +134,25 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
         EditorDialog.DELETE -> CockpitAlertDialog(onDismissRequest = { dialog = null },
             title = { Text(UiText.get(R.string.routines_delete_prompt).format(draft.original?.name)) },
             text = { Text(UiText.get(R.string.routines_delete_detail)) },
-            confirmButton = { CockpitTextAction(UiText.get(R.string.routines_delete)) { dialog = null; model.remove() } },
+            confirmButton = {
+                CockpitAction(UiText.get(R.string.routines_delete), { dialog = null; model.remove() }, primary = true, destructive = true)
+            },
             dismissButton = { CockpitTextAction(UiText.get(R.string.ui_89)) { dialog = null } })
         null -> Unit
     }
 }
 
+/** [choose] runs only for a value other than [selected]; the dialog closes on any choice. */
 @Composable
 internal fun <T> RoutinePicker(
     title: Int,
     choices: List<T>,
-    selected: T,
+    selected: T?,
     label: (T) -> String,
     hint: Int? = null,
     dismiss: () -> Unit,
     choose: (T) -> Unit,
 ) {
-    val layout = LocalCockpitLayout.current
-    CockpitAlertDialog(onDismissRequest = dismiss, title = { Text(UiText.get(title)) },
-        confirmButton = { CockpitTextAction(UiText.get(R.string.ui_89), dismiss) },
-        text = {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                hint?.let { Text(UiText.get(it), Modifier.padding(bottom = layout.spacing(8.dp)),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                Column(Modifier.fillMaxWidth().selectableGroup()) {
-                    choices.forEach { choice ->
-                        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(selected == choice, role = Role.RadioButton) {
-                            choose(choice)
-                        }.padding(vertical = layout.spacing(4.dp)), verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(layout.spacing(10.dp))) {
-                            RadioButton(selected == choice, onClick = null)
-                            Text(label(choice))
-                        }
-                    }
-                }
-            }
-        })
+    CockpitOptionDialog(UiText.get(title), choices, selected, label, onSelect = choose, onDismiss = dismiss,
+        description = hint?.let(UiText::get))
 }

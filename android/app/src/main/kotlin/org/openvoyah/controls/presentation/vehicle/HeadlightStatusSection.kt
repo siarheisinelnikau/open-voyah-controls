@@ -1,14 +1,24 @@
 package org.openvoyah.controls.presentation.vehicle
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -28,9 +38,11 @@ import org.openvoyah.controls.domain.vehicle.LampStatus
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitMotion
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 
 @Composable
 internal fun HeadlightStatusSection(
@@ -57,8 +69,18 @@ internal fun HeadlightStatusSection(
                 if (hasLampReports) {
                     Text(UiText.get(R.string.headlight_selector_label), style = type.labelLarge, color = colors.onSurfaceVariant)
                 }
-                Text(UiText.get(headlightModeLabel(mode)), Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    style = type.headlineSmall, color = if (current == null) colors.onSurfaceVariant else colors.primary)
+                val animate = LocalCockpitMotion.current.enabled
+                val modeColor by animateColorAsState(if (current == null) colors.onSurfaceVariant else colors.primary,
+                    if (animate) CockpitMotion.change<Color>() else snap<Color>(), label = "headlight mode color")
+                // Keyed by the mode alone, so a reading that only becomes confirmed recolours in place instead of a new live-region node
+                // announcing the same mode again.
+                AnimatedContent(mode, transitionSpec = {
+                    if (animate) ContentTransform(fadeIn(CockpitMotion.change()), fadeOut(CockpitMotion.exit()), sizeTransform = null)
+                    else ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
+                }, label = "headlight mode") { shown ->
+                    Text(UiText.get(headlightModeLabel(shown)), Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        style = type.headlineSmall, color = modeColor)
+                }
                 LightReportTime(reportedAt, lightReportLabel(current != null, confirmed != null))
             }
             if (current == null && (mode == null || unavailable)) {
