@@ -1,6 +1,6 @@
 # Compose routes and motion
 
-Normal app screens share `MainActivity` and use Jetpack Compose. The root destination is the app grid: installed apps and Controls shortcuts appear directly, without a Back button, sidebar or page header. Settings, Buttons, voice settings, display, vehicle shortcuts, firmware maintenance, cluster maintenance and updates are destinations in the same host.
+Normal app screens share `MainActivity` and use Jetpack Compose. The root destination is the app grid: the **Open Voyah Controls** tile and installed apps appear directly, without a Back button, sidebar or page header. Settings, Buttons, voice settings, display, vehicle shortcuts, firmware maintenance, cluster maintenance and updates are destinations in the same host.
 
 | Host | Responsibility |
 | --- | --- |
@@ -12,7 +12,7 @@ Normal app screens share `MainActivity` and use Jetpack Compose. The root destin
 
 Normal screens use explicit routes in `MainActivity`. The voice popup and installer handshake require a privileged permission for external callers. The application can open its own screens directly.
 
-Tap the Android launcher icon to open Controls Settings. With reviewed panel assignments enabled, a short press on the central lower-left menu button opens the root app grid. The first tile, **Open Voyah Controls**, shows the app's own artwork and opens Settings on every desktop. Holding the panel button keeps the native launcher action. When extra desktops are enabled, fresh grid entries open the saved default desktop. Detail destinations have Back navigation within the shared host.
+Tap the Android launcher icon to open Controls Settings. With reviewed panel assignments enabled, a short press on the central lower-left menu button opens the root app grid. The first tile, **Open Voyah Controls**, shows the app's own artwork and opens Settings on every desktop. It is the only Controls tile on a new grid; **App grid → Built-in shortcuts** adds shortcuts to individual Controls screens. Holding the panel button keeps the native launcher action. When extra desktops are enabled, fresh grid entries open the saved default desktop. Detail destinations have Back navigation within the shared host.
 
 Android owns runtime permission dialogs, file selection, package-install approval, system settings, keyboard and toasts. The display destination embeds a native `SurfaceView` for the virtual display. Its `Presentation` and app dialog windows host `ComposeView` content.
 
