@@ -3277,7 +3277,9 @@ class ComposeScreensTest : InstrumentationTestCase() {
     }
 
     private fun scrollTo(text: String, towardsStart: Boolean = false) {
-        val deadline = SystemClock.uptimeMillis() + 8_000
+        // One step scrolls a viewport and takes about 1.3 s to settle. The Settings page grew by a row of links with
+        // the Diagnostic log, which put its last sections one step beyond what the former 8 s allowed at 1920 x 720.
+        val deadline = SystemClock.uptimeMillis() + 14_000
         val observations = ArrayDeque<String>()
         val visited = mutableSetOf<Pair<Int, String>>()
         val showAttempts = mutableSetOf<String>()
