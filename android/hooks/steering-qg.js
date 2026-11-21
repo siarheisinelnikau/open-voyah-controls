@@ -5,6 +5,9 @@ import { createReporter, errorKind } from './report.js';
 const EVENT = 'com.qinggan.system.QGKeyEvent';
 const CONFIG = 'org.openvoyah.controls.panel';
 const CAN_ROUTES = ['can-terminal', 'can-edges'];
+// The KeyManager service delivers one event to both callbacks back to back. Two real presses of one key
+// with the same gesture are further apart than this, counted from the end of the previous attempt.
+const DUPLICATE_MS = 100;
 
 function unsupported(code) {
     return Object.assign(Error(code), {code});
@@ -64,6 +67,8 @@ export function installSteering(Java, retries = 10, report = createReporter('OVC
                 requireReturn(Callback.onKeyEvent.overload(EVENT), 'boolean')
             ];
             const launch = createActionLauncher(Java);
+            const SystemClock = Java.use('android.os.SystemClock');
+            const uptime = () => Number(SystemClock.uptimeMillis());
             const keys = new Map([[voice, 'voice'], [custom, 'custom'], [camera, 'camera']]);
             const gestures = new Map([[short, 'Short'], [long, 'Long']]);
             const handled = new Map();
@@ -79,29 +84,51 @@ export function installSteering(Java, retries = 10, report = createReporter('OVC
                 }
             }
 
+            /**
+             * The answer of an earlier attempt when this callback carries the same event, false for an older event,
+             * and undefined for a new one.
+             */
+            function earlier(previous, stamp, exact, gesture) {
+                if (!previous || previous.exact !== exact) return undefined;
+                if (exact) {
+                    if (previous.stamp === stamp) return previous.consumed || previous.pending;
+                    return stamp < previous.stamp ? false : undefined;
+                }
+                if (previous.gesture !== gesture) return undefined;
+                if (previous.pending) return true;
+                return stamp >= previous.stamp - DUPLICATE_MS && stamp <= previous.settled + DUPLICATE_MS
+                    ? previous.consumed : undefined;
+            }
+
             /** True when an assigned action owns this event, so the OEM callback must not run. */
             function consumed(event) {
                 const key = event && keys.get(event.getKeyCode());
                 const gesture = key && gestures.get(event.getAction());
                 if (!gesture || event.isCanceled()) return false;
-                // Both OEM paths need the same down time before replacing a physical gesture.
-                const stamp = Number(event.getDownTime());
+                // Firmware that keeps the down time lets both OEM paths name the same physical gesture. The
+                // reviewed H97 parcel carries only code, action, flags, data and display, so every event reaches
+                // the launcher with a zero down time; its arrival time then tells a repeat from a new press.
+                const down = Number(event.getDownTime());
+                const exact = down !== 0;
+                const stamp = exact ? down : uptime();
                 if (!Number.isSafeInteger(stamp) || stamp <= 0) return false;
-                const previous = handled.get(key);
-                if (previous?.stamp === stamp) return previous.consumed || previous.pending;
-                if (previous && stamp < previous.stamp) return false;
+                const previous = earlier(handled.get(key), stamp, exact, gesture);
+                if (previous !== undefined) return previous;
                 // The Settings read is a JNI call that lets the other callback for this event run. It must not
                 // find an attempt that looks like a native decision while this one may still launch.
                 const action = assigned(key, gesture);
-                const current = handled.get(key);
-                if (current?.stamp === stamp) return current.consumed || current.pending;
-                if (current && stamp < current.stamp) return false;
-                const attempt = {stamp, consumed: false, pending: action !== null};
+                const current = earlier(handled.get(key), stamp, exact, gesture);
+                if (current !== undefined) return current;
+                const attempt = {stamp, exact, gesture, settled: stamp, consumed: false, pending: action !== null};
                 handled.set(key, attempt);
                 if (action === null) return false;
                 try { attempt.consumed = launch(app, 0, action) === true; }
                 catch (error) { report('launch', error, {key, gesture}); }
-                finally { attempt.pending = false; }
+                finally {
+                    attempt.pending = false;
+                    // A repeat arrives only after this callback returns, so its window starts here.
+                    if (!exact) try { attempt.settled = Math.max(stamp, uptime()); } catch (_) {}
+                }
                 return attempt.consumed;
             }
 
