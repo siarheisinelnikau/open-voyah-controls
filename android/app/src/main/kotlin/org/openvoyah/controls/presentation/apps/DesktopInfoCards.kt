@@ -72,9 +72,11 @@ import org.openvoyah.controls.domain.vehicle.ServiceUrgency
 import org.openvoyah.controls.platform.apps.openDesktopMediaPlayer
 import org.openvoyah.controls.platform.apps.openDesktopNavigator
 import org.openvoyah.controls.presentation.display.formatDistance
+import org.openvoyah.controls.presentation.dock.LiveReading
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 import org.openvoyah.controls.presentation.vehicle.HeadlightReadingFreshness
 import org.openvoyah.controls.presentation.vehicle.activityLabel
 import org.openvoyah.controls.presentation.vehicle.headlightModeLabel
@@ -114,7 +116,8 @@ internal fun LazyGridScope.desktopInfoCards(
                 DesktopRouteOpenTarget.NAVIGATOR -> R.string.desktop_info_route_open_navigator_action
                 DesktopRouteOpenTarget.NONE -> null
             } else null
-            val modifier = Modifier.fillMaxWidth().heightIn(min = 116.dp)
+            // A card hidden by a search leaves at once, so the results take its place without waiting for it to fade.
+            val modifier = gridItemMotion(leave = false).fillMaxWidth().heightIn(min = 116.dp)
                 .semantics {
                     testTagsAsResourceId = true
                     routeAction?.let { onClick(label = UiText.get(it), action = null) }
@@ -287,7 +290,8 @@ private fun DesktopInfoContent(tile: DesktopInfoTile, details: TileDetails, clic
     val heading = if (card == DesktopInfoCard.HEADLIGHTS && tile.headlightContent == DesktopHeadlightContent.LAMP_ACTIVITY) {
         R.string.desktop_info_headlights_content_lamps
     } else card.label()
-    val padding = Modifier.padding(horizontal = 13.dp, vertical = 10.dp)
+    val layout = LocalCockpitLayout.current
+    val padding = Modifier.padding(horizontal = layout.spacing(13.dp), vertical = layout.spacing(10.dp))
     val artwork = details.artwork
     if (artwork == null) {
         Column(padding, verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -345,14 +349,23 @@ private fun DesktopInfoText(card: DesktopInfoCard, details: TileDetails, mediaAc
             lamp.caption?.let { Text(it, style = type.bodySmall, color = if (lamp.saveFailed) colors.error else colors.onSurfaceVariant) }
         }
     }
+    // A new minute or track blends in. Headlight and service readings change at once: a caption that lingered while fading
+    // would still claim a state the car has already left.
+    val blend = card == DesktopInfoCard.CLOCK || card == DesktopInfoCard.MEDIA
     details.value?.let { value ->
-        Text(value, style = if (card == DesktopInfoCard.CLOCK) type.headlineSmall else type.titleMedium,
-            color = if (details.attention) colors.error else colors.onSurface, maxLines = 2,
-            overflow = TextOverflow.Ellipsis)
+        val reading: @Composable (String) -> Unit = { shown ->
+            Text(shown, style = if (card == DesktopInfoCard.CLOCK) type.headlineSmall else type.titleMedium,
+                color = if (details.attention) colors.error else colors.onSurface, maxLines = 2,
+                overflow = TextOverflow.Ellipsis)
+        }
+        if (blend) LiveReading(value, content = reading) else reading(value)
     }
     details.caption?.let { caption ->
-        Text(caption, style = type.bodySmall, color = colors.onSurfaceVariant, maxLines = 2,
-            overflow = TextOverflow.Ellipsis)
+        val note: @Composable (String) -> Unit = { shown ->
+            Text(shown, style = type.bodySmall, color = colors.onSurfaceVariant, maxLines = 2,
+                overflow = TextOverflow.Ellipsis)
+        }
+        if (blend) LiveReading(caption, content = note) else note(caption)
     }
     mediaActionLabel?.let {
         Text(UiText.get(it), style = type.labelMedium, color = colors.primary)
@@ -363,20 +376,29 @@ private fun DesktopInfoText(card: DesktopInfoCard, details: TileDetails, mediaAc
 private fun DesktopRouteText(route: RouteTileDetails?) {
     val type = MaterialTheme.typography
     val colors = MaterialTheme.colorScheme
-    if (route == null) {
-        Text(UiText.get(R.string.desktop_info_route_waiting), style = type.bodyMedium,
-            color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        return
-    }
-    route.distance?.let { Text(it, style = type.titleMedium, color = colors.primary, maxLines = 1) }
-    route.nextRoad?.let {
-        Text(it, style = if (route.distance == null) type.titleMedium else type.bodyMedium,
-            color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-    route.currentRoad?.let {
-        Text(UiText.get(R.string.desktop_info_route_current_road).format(it),
-            style = if (route.distance == null && route.nextRoad == null) type.bodyMedium else type.bodySmall,
-            color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    // A route that starts or ends and a road that changes blend; the distance counts down in place while driving.
+    LiveReading(route, contentKey = { it == null }) { shown ->
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (shown == null) {
+                Text(UiText.get(R.string.desktop_info_route_waiting), style = type.bodyMedium,
+                    color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            } else {
+                shown.distance?.let { Text(it, style = type.titleMedium, color = colors.primary, maxLines = 1) }
+                shown.nextRoad?.let { road ->
+                    LiveReading(road) {
+                        Text(it, style = if (shown.distance == null) type.titleMedium else type.bodyMedium,
+                            color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                shown.currentRoad?.let { road ->
+                    LiveReading(road) {
+                        Text(UiText.get(R.string.desktop_info_route_current_road).format(it),
+                            style = if (shown.distance == null && shown.nextRoad == null) type.bodyMedium else type.bodySmall,
+                            color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
     }
 }
 

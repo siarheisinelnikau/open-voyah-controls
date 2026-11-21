@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,6 +47,7 @@ import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.CockpitTextField
 
 private sealed interface LayoutPage {
     data object Library : LayoutPage
@@ -222,7 +222,10 @@ private fun DesktopLayoutsDialog(
     CockpitAlertDialog(
         onDismissRequest = ::back,
         title = { Text(title) },
-        confirmButton = { CockpitAction(UiText.get(primary), ::proceed, enabled = enabled, primary = true) },
+        confirmButton = {
+            CockpitAction(UiText.get(primary), ::proceed, enabled = enabled, primary = true,
+                destructive = page is LayoutPage.Confirm && page.action == LayoutAction.DELETE)
+        },
         dismissButton = {
             val label = when (page) {
                 LayoutPage.Library -> R.string.apps_desktop_done
@@ -265,9 +268,8 @@ private fun DesktopLayoutsDialog(
                             if (full) Text(UiText.get(R.string.desktop_layouts_full).format(DesktopLayoutPreset.MAX_PRESETS),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        is LayoutPage.Name -> OutlinedTextField(page.value, model::name, Modifier.fillMaxWidth(),
-                            enabled = available, isError = state.form.error, singleLine = true,
-                            label = { Text(UiText.get(R.string.desktop_layouts_name)) })
+                        is LayoutPage.Name -> CockpitTextField(page.value, model::name, UiText.get(R.string.desktop_layouts_name),
+                            Modifier.fillMaxWidth(), enabled = available, error = state.form.error)
                         is LayoutPage.Confirm -> Text(UiText.get(page.action.description).format(page.preset.name),
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }

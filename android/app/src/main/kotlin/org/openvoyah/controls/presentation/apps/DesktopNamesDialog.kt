@@ -4,13 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +25,7 @@ import org.openvoyah.controls.domain.apps.AppGridDesktopNames
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.CockpitTextField
 
 @Composable
 internal fun DesktopNamesDialog(names: AppGridDesktopNames, close: () -> Unit, save: (String, String) -> Unit) {
@@ -57,10 +55,8 @@ private fun DesktopNameField(desktop: AppGridDesktop, value: String, change: (St
     val label = desktop.desktopLabel()
     val reset = UiText.get(R.string.apps_grid_names_reset_for).format(label)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(value, { if (AppGridDesktopNames.validInput(it)) change(it) }, Modifier.weight(1f),
-            singleLine = true, label = { Text(label) })
-        TextButton({ change("") }, Modifier.heightIn(min = 48.dp).semantics { contentDescription = reset }, enabled = value.isNotEmpty()) {
-            Text(UiText.get(R.string.apps_grid_names_reset))
-        }
+        CockpitTextField(value, { if (AppGridDesktopNames.validInput(it)) change(it) }, label, Modifier.weight(1f))
+        CockpitAction(UiText.get(R.string.apps_grid_names_reset), { change("") }, Modifier.semantics { contentDescription = reset },
+            enabled = value.isNotEmpty(), destructive = true)
     }
 }

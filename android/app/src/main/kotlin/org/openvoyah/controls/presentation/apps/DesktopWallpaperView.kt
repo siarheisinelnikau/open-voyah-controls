@@ -144,7 +144,7 @@ internal fun DesktopWallpaperSettings(extraDesktops: Boolean, desktopName: (AppG
                                 val resetDescription = text(R.string.apps_wallpaper_reset_desktop).format(name)
                                 CockpitAction(text(R.string.apps_wallpaper_reset),
                                     { if (owner.lifecycle.currentState == Lifecycle.State.RESUMED) model.reset(desktop) },
-                                    Modifier.semantics { contentDescription = resetDescription }, enabled = available)
+                                    Modifier.semantics { contentDescription = resetDescription }, enabled = available, destructive = true)
                             }
                         }
                     }

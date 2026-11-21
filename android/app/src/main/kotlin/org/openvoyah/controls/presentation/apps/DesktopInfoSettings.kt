@@ -3,14 +3,10 @@ package org.openvoyah.controls.presentation.apps
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,7 +16,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
@@ -60,6 +55,7 @@ import org.openvoyah.controls.platform.media.PreviewMediaSources
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
+import org.openvoyah.controls.presentation.theme.CockpitOptionDialog
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
 
 private class DesktopInfoSettingsViewModel(
@@ -167,47 +163,51 @@ internal fun DesktopInfoSettings(
             Column(Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (extraDesktops) {
-                    DesktopCardChoice(R.string.desktop_info_desktop, desktopName(desktop), !state.saving,
+                    DesktopCardChoice(R.string.desktop_info_desktop, desktopName(desktop), desktop, !state.saving,
                         AppGridDesktop.entries, desktopName) { selected = it }
                 }
                 for (card in DesktopInfoCard.entries) {
                     val size = configuration?.sizeOf(desktop, card)
-                    DesktopCardChoice(card.label(), configuration?.let { UiText.get(size.label()) }, canEdit, layoutOptions,
+                    DesktopCardChoice(card.label(), configuration?.let { UiText.get(size.label()) }, size, canEdit, layoutOptions,
                         { UiText.get(it.label()) }) { if (canSave()) model.set(desktop, card, it) }
                     when (card) {
-                        DesktopInfoCard.CLOCK -> DesktopCardChoice(R.string.desktop_info_clock_format,
-                            configuration?.clockFormatOf(desktop)?.let { UiText.get(it.label()) }, canEdit,
-                            DesktopClockFormat.entries, { UiText.get(it.label()) }) { if (canSave()) model.clockFormat(desktop, it) }
+                        DesktopInfoCard.CLOCK -> {
+                            val format = configuration?.clockFormatOf(desktop)
+                            DesktopCardChoice(R.string.desktop_info_clock_format, format?.let { UiText.get(it.label()) }, format, canEdit,
+                                DesktopClockFormat.entries, { UiText.get(it.label()) }) { if (canSave()) model.clockFormat(desktop, it) }
+                        }
                         DesktopInfoCard.MEDIA -> {
-                            DesktopCardChoice(R.string.desktop_info_media_style,
-                                configuration?.mediaStyleOf(desktop)?.let { UiText.get(it.label()) }, canEdit,
+                            val style = configuration?.mediaStyleOf(desktop)
+                            DesktopCardChoice(R.string.desktop_info_media_style, style?.let { UiText.get(it.label()) }, style, canEdit,
                                 DesktopMediaStyle.entries, { UiText.get(it.label()) }) { if (canSave()) model.mediaStyle(desktop, it) }
                             DesktopMediaSourceChoice(model, configuration?.mediaPackageOf(desktop), canEdit) {
                                 if (canSave()) model.mediaPackage(desktop, it)
                             }
-                            DesktopCardChoice(R.string.desktop_info_media_open_target,
-                                configuration?.mediaOpenTargetOf(desktop)?.let { UiText.get(it.label()) }, canEdit,
-                                DesktopMediaOpenTarget.entries, { UiText.get(it.label()) }) {
+                            val target = configuration?.mediaOpenTargetOf(desktop)
+                            DesktopCardChoice(R.string.desktop_info_media_open_target, target?.let { UiText.get(it.label()) }, target,
+                                canEdit, DesktopMediaOpenTarget.entries, { UiText.get(it.label()) }) {
                                 if (canSave()) model.mediaOpenTarget(desktop, it)
                             }
                         }
-                        DesktopInfoCard.HEADLIGHTS -> DesktopCardChoice(R.string.desktop_info_headlights_content,
-                            configuration?.headlightContentOf(desktop)?.let { UiText.get(it.label()) }, canEdit,
-                            DesktopHeadlightContent.entries, { UiText.get(it.label()) }) {
-                            if (canSave()) model.headlightContent(desktop, it)
+                        DesktopInfoCard.HEADLIGHTS -> {
+                            val content = configuration?.headlightContentOf(desktop)
+                            DesktopCardChoice(R.string.desktop_info_headlights_content, content?.let { UiText.get(it.label()) }, content,
+                                canEdit, DesktopHeadlightContent.entries, { UiText.get(it.label()) }) {
+                                if (canSave()) model.headlightContent(desktop, it)
+                            }
                         }
                         DesktopInfoCard.PHONE -> CockpitChoice(UiText.get(R.string.desktop_info_phone_edit), enabled = canEdit) {
                             editingPhoneFavorites = true
                         }
                         DesktopInfoCard.ROUTE -> if (size != null) {
-                            DesktopCardChoice(R.string.desktop_info_route_content,
-                                configuration?.routeContentOf(desktop)?.let { UiText.get(it.label()) }, canEdit,
-                                DesktopRouteContent.entries, { UiText.get(it.label()) }) {
+                            val content = configuration?.routeContentOf(desktop)
+                            DesktopCardChoice(R.string.desktop_info_route_content, content?.let { UiText.get(it.label()) }, content,
+                                canEdit, DesktopRouteContent.entries, { UiText.get(it.label()) }) {
                                 if (canSave()) model.routeContent(desktop, it)
                             }
-                            DesktopCardChoice(R.string.desktop_info_route_open_target,
-                                configuration?.routeOpenTargetOf(desktop)?.let { UiText.get(it.label()) }, canEdit,
-                                DesktopRouteOpenTarget.entries, { UiText.get(it.label()) },
+                            val target = configuration?.routeOpenTargetOf(desktop)
+                            DesktopCardChoice(R.string.desktop_info_route_open_target, target?.let { UiText.get(it.label()) }, target,
+                                canEdit, DesktopRouteOpenTarget.entries, { UiText.get(it.label()) },
                                 supporting = {
                                     if (it == DesktopRouteOpenTarget.NAVIGATOR) UiText.get(R.string.desktop_info_route_open_navigator_hint)
                                     else null
@@ -239,8 +239,9 @@ private fun DesktopMediaSourceChoice(
     val automatic = UiText.get(R.string.desktop_info_media_source_automatic)
     val options = remember(players, automatic) { listOf(PreviewMediaSource("", automatic)) + players }
     val labelCounts = remember(options) { options.groupingBy { it.label }.eachCount() }
-    val selected = preferredPackage?.let { saved -> options.firstOrNull { it.packageName == saved }?.label ?: saved }
-    DesktopCardChoice(R.string.desktop_info_media_source, selected, enabled, options, PreviewMediaSource::label,
+    val current = preferredPackage?.let { saved -> options.firstOrNull { it.packageName == saved } }
+    val selected = preferredPackage?.let { saved -> current?.label ?: saved }
+    DesktopCardChoice(R.string.desktop_info_media_source, selected, current, enabled, options, PreviewMediaSource::label,
         supporting = { source ->
             source.packageName.takeIf { it.isNotEmpty() && it != source.label && (labelCounts[source.label] ?: 0) > 1 }
         }) { select(it.packageName) }
@@ -248,27 +249,13 @@ private fun DesktopMediaSourceChoice(
 
 @Composable
 private fun <T> DesktopCardChoice(
-    title: Int, value: String?, enabled: Boolean, options: List<T>, label: (T) -> String,
+    title: Int, value: String?, current: T?, enabled: Boolean, options: List<T>, label: (T) -> String,
     supporting: (T) -> String? = { null }, select: (T) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        CockpitChoice(UiText.get(title), value, enabled = enabled) { expanded = true }
-        DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
-            for (option in options) DropdownMenuItem(text = {
-                Column {
-                    Text(label(option))
-                    supporting(option)?.let {
-                        Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
-                            maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-            }, onClick = {
-                expanded = false
-                select(option)
-            })
-        }
-    }
+    var choosing by remember { mutableStateOf(false) }
+    CockpitChoice(UiText.get(title), value, enabled = enabled) { choosing = true }
+    if (choosing) CockpitOptionDialog(UiText.get(title), options, current, label, onSelect = select, onDismiss = { choosing = false },
+        enabled = enabled, detail = supporting)
 }
 
 private val layoutOptions = listOf(null, DesktopInfoSize.COMPACT, DesktopInfoSize.WIDE)

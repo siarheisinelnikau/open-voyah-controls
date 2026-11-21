@@ -1,9 +1,17 @@
 package org.openvoyah.controls.presentation.dock
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
@@ -13,9 +21,15 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -25,6 +39,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.dock.QuickActionHeadlightContent
@@ -34,6 +49,9 @@ import org.openvoyah.controls.domain.vehicle.HeadlightMode
 import org.openvoyah.controls.domain.vehicle.LampActivity
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
+import org.openvoyah.controls.presentation.theme.rememberPressMotion
 import org.openvoyah.controls.presentation.vehicle.HeadlightReadingFreshness
 import org.openvoyah.controls.presentation.vehicle.activityLabel
 import org.openvoyah.controls.presentation.vehicle.headlightModeLabel
@@ -72,10 +90,15 @@ internal fun DockHeadlightIndicator(
         freshness == HeadlightReadingFreshness.CURRENT -> colors.primary
         else -> colors.onSurfaceVariant
     }
-    val hit = modifier.widthIn(min = 48.dp).heightIn(min = 48.dp).clip(shape)
-        .background(if (selected) colors.primaryContainer else colors.surfaceContainerHigh)
-        .border(1.dp, if (selected) colors.primary else colors.outlineVariant, shape)
-        .clickable(role = Role.Button, onClick = open)
+    val press = rememberPressMotion()
+    val spec = if (LocalCockpitMotion.current.enabled) CockpitMotion.change<Color>() else snap<Color>()
+    val fill by animateColorAsState(if (selected) colors.primaryContainer else colors.surfaceContainerHigh, spec, label = "indicator fill")
+    val edge by animateColorAsState(if (selected) colors.primary else colors.outlineVariant, spec, label = "indicator edge")
+    val ink by animateColorAsState(emphasis, spec, label = "indicator reading")
+    val hit = modifier.then(press.modifier).widthIn(min = 48.dp).heightIn(min = 48.dp).clip(shape)
+        .background(fill)
+        .border(1.dp, edge, shape)
+        .clickable(interactionSource = press.source, indication = LocalIndication.current, role = Role.Button, onClick = open)
         .semantics {
             contentDescription = title
             stateDescription = state
@@ -83,12 +106,13 @@ internal fun DockHeadlightIndicator(
         .then(if (enlargedRail) Modifier.enlargeDockShortcut(rail = true) else Modifier)
         .padding(horizontal = if (stacked) 3.dp else 8.dp, vertical = if (stacked) 4.dp else 2.dp)
     val reading: @Composable () -> Unit = {
-        Column(Modifier.heightIn(min = readingHeight).clearAndSetSemantics {}, horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center) {
-            Text(shortReading, style = typography.labelLarge, color = emphasis, maxLines = 1,
-                overflow = TextOverflow.Ellipsis)
-            if (shortCaption != null) Text(shortCaption, style = captionStyle, color = emphasis, maxLines = 1,
-                overflow = TextOverflow.Ellipsis)
+        // The state description of the button carries the reading; its drawn text stays out of the accessibility tree.
+        LiveReading(shortReading to shortCaption, Modifier.heightIn(min = readingHeight).clearAndSetSemantics {},
+            contentAlignment = Alignment.Center) { (text, caption) ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text(text, style = typography.labelLarge, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (caption != null) Text(caption, style = captionStyle, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
     if (stacked) Column(hit, horizontalAlignment = Alignment.CenterHorizontally,
@@ -100,6 +124,32 @@ internal fun DockHeadlightIndicator(
         CockpitGlyph(icon, Modifier.size(20.dp))
         reading()
     }
+}
+
+/**
+ * Crossfades a reading when it changes; with transitions off it changes at once. Readings that arrive just after the
+ * block appeared change at once too: its source is still delivering the first value, and fading a placeholder out on
+ * every visit would only delay the real reading.
+ */
+@Composable
+internal fun <T> LiveReading(
+    value: T,
+    modifier: Modifier = Modifier,
+    contentAlignment: Alignment = Alignment.TopStart,
+    contentKey: (T) -> Any? = { it },
+    content: @Composable (T) -> Unit,
+) {
+    var settled by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(CockpitMotion.ENTER.toLong())
+        settled = true
+    }
+    if (!settled || !LocalCockpitMotion.current.enabled) {
+        Box(modifier, contentAlignment = contentAlignment) { content(value) }
+        return
+    }
+    AnimatedContent(value, modifier, transitionSpec = { fadeIn(CockpitMotion.change()).togetherWith(fadeOut(CockpitMotion.exit())) },
+        contentAlignment = contentAlignment, label = "live reading", contentKey = contentKey) { content(it) }
 }
 
 private data class DockLightReading(val description: String, val shortReading: String, val freshness: HeadlightReadingFreshness)

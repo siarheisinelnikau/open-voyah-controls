@@ -5,6 +5,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -25,12 +26,13 @@ import kotlinx.coroutines.launch
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.platform.apps.AppsPlatform
+import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 
 @Composable
-internal fun DockAppButtons(model: QuickActionsViewModel, components: List<String>, showLabels: Boolean, rail: Boolean,
-                            modifier: Modifier, afterUse: () -> Unit) {
+internal fun DockAppButtons(model: QuickActionsViewModel, components: List<String>, route: ControlsRoute, showLabels: Boolean,
+                            rail: Boolean, modifier: Modifier, afterUse: () -> Unit) {
     val activity = checkNotNull(LocalActivity.current)
     val platform = remember(activity) { AppsPlatform(activity) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -39,6 +41,8 @@ internal fun DockAppButtons(model: QuickActionsViewModel, components: List<Strin
     var opening by remember { mutableStateOf<Job?>(null) }
     val onOpened by rememberUpdatedState(afterUse)
     LifecycleResumeEffect(lifecycle) { onPauseOrDispose { opening?.cancel() } }
+    // A launch that is still resolving belongs to the page it was started from.
+    LaunchedEffect(route) { opening?.cancel() }
 
     for (component in components) {
         val app = resolved?.get(component) ?: continue

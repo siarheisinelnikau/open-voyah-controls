@@ -39,7 +39,9 @@ import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 @Composable
 internal fun DesktopPhoneFavoritesCard(ids: List<String>, visible: Boolean) {
     val colors = MaterialTheme.colorScheme
-    Column(Modifier.padding(horizontal = 13.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    val layout = LocalCockpitLayout.current
+    Column(Modifier.padding(horizontal = layout.spacing(13.dp), vertical = layout.spacing(10.dp)),
+        verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(UiText.get(R.string.desktop_info_phone), style = MaterialTheme.typography.labelLarge,
             color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
         if (visible) {

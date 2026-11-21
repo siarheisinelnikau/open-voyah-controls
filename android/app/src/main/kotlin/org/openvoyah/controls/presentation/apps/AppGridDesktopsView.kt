@@ -1,6 +1,7 @@
 package org.openvoyah.controls.presentation.apps
 
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -23,10 +25,8 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,10 +35,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
@@ -49,10 +51,13 @@ import org.openvoyah.controls.domain.apps.AppGridIconStyle
 import org.openvoyah.controls.domain.apps.AppGridPins
 import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.platform.apps.LocalApp
+import org.openvoyah.controls.presentation.dock.ReorderButton
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitMotion
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.CockpitTextField
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 import java.util.Locale
 
 @Composable
@@ -60,6 +65,7 @@ internal fun DesktopSwitcher(desktop: AppGridDesktop, showDesktops: Boolean, nam
                              findApps: () -> Unit, reorder: (() -> Unit)?) {
     val colors = MaterialTheme.colorScheme
     val spacing = Arrangement.spacedBy(8.dp)
+    val tabMotion = if (LocalCockpitMotion.current.enabled) CockpitMotion.change<Color>() else snap<Color>()
     FlowRow(horizontalArrangement = spacing, verticalArrangement = spacing) {
         if (showDesktops) {
             FlowRow(Modifier.selectableGroup(), horizontalArrangement = spacing, verticalArrangement = spacing) {
@@ -69,12 +75,17 @@ internal fun DesktopSwitcher(desktop: AppGridDesktop, showDesktops: Boolean, nam
                     val accessibility = if (name != option.desktopLabel()) Modifier.semantics {
                         contentDescription = option.desktopLabel(names, includeSlot = true)
                     } else Modifier
+                    val fill by animateColorAsState(if (selected) colors.primaryContainer else colors.surface, tabMotion, label = "desktop tab")
+                    val ink by animateColorAsState(if (selected) colors.onPrimaryContainer else colors.onSurface, tabMotion,
+                        label = "desktop tab label")
+                    val edge by animateColorAsState(if (selected) colors.primary else colors.outlineVariant, tabMotion,
+                        label = "desktop tab edge")
                     Surface(
                         Modifier.heightIn(min = 48.dp).selectable(selected, role = Role.Tab) { select(option) }.then(accessibility),
                         shape = MaterialTheme.shapes.medium,
-                        color = if (selected) colors.primaryContainer else colors.surface,
-                        contentColor = if (selected) colors.onPrimaryContainer else colors.onSurface,
-                        border = BorderStroke(1.dp, if (selected) colors.primary else colors.outlineVariant),
+                        color = fill,
+                        contentColor = ink,
+                        border = BorderStroke(1.dp, edge),
                     ) {
                         Box(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
                             Text(name, Modifier.widthIn(max = 172.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -111,7 +122,7 @@ internal fun PinnedAppsOrderDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (failed) CockpitFeedback(text(R.string.apps_pin_save_failed), error = true)
-                AppOrderRows(apps, iconStyle, enabled) { app, neighbor, _ -> swap(app, neighbor) }
+                AppOrderRows(apps, iconStyle, enabled, animateMoves = true) { app, neighbor, _ -> swap(app, neighbor) }
             }
         },
     )
@@ -142,22 +153,29 @@ internal fun AppOrderRows(
         move(app, neighbor, to < from)
     }
 
+    val slide = animateMoves && LocalCockpitMotion.current.enabled
     LazyColumn(Modifier.heightIn(max = 260.dp), state = listState) {
         itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
-            val placement = if (animateMoves) Modifier.animateItem(fadeInSpec = null,
-                placementSpec = tween(CockpitMotion.CHANGE), fadeOutSpec = null) else Modifier
+            val placement = if (slide) Modifier.animateItem(fadeInSpec = null,
+                placementSpec = CockpitMotion.change<IntOffset>(), fadeOutSpec = null) else Modifier
             Row(placement.fillMaxWidth().heightIn(min = 52.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(app, Modifier.size(28.dp), iconStyle)
                 Text(app.label, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                AppOrderButton(R.string.apps_grid_reorder_up, R.string.apps_grid_reorder_up_for,
-                    app, enabled && index > 0) { moveRow(index, index - 1) }
-                AppOrderButton(R.string.apps_grid_reorder_down, R.string.apps_grid_reorder_down_for,
-                    app, enabled && index < apps.lastIndex) { moveRow(index, index + 1) }
+                ReorderButton(text(R.string.apps_grid_reorder_up_for).format(app.label), earlier = true,
+                    enabled = enabled && index > 0) { moveRow(index, index - 1) }
+                ReorderButton(text(R.string.apps_grid_reorder_down_for).format(app.label), earlier = false,
+                    enabled = enabled && index < apps.lastIndex) { moveRow(index, index + 1) }
             }
         }
     }
 }
+
+/** List rows arrive, move and leave like the tiles of the app grid; with transitions off they change at once. */
+@Composable
+internal fun LazyItemScope.listItemMotion(): Modifier =
+    if (!LocalCockpitMotion.current.enabled) Modifier
+    else Modifier.animateItem(CockpitMotion.enter<Float>(), CockpitMotion.change<IntOffset>(), CockpitMotion.exit<Float>())
 
 private data class AppOrderReveal(
     val app: LocalApp,
@@ -179,16 +197,6 @@ private fun LazyListState.revealAfterMove(app: LocalApp, neighbor: LocalApp, fro
         return AppOrderReveal(app, neighbor, from, to, first, firstVisibleItemScrollOffset + clipped)
     }
     return null
-}
-
-@Composable
-private fun AppOrderButton(label: Int, announcement: Int, app: LocalApp, enabled: Boolean, move: () -> Unit) {
-    val description = text(announcement).format(app.label)
-    TextButton(move,
-        Modifier.heightIn(min = 48.dp).widthIn(min = 48.dp).semantics { contentDescription = description },
-        enabled = enabled) {
-        Text(text(label))
-    }
 }
 
 @Composable
@@ -219,8 +227,7 @@ internal fun FavoriteAppsPicker(
         confirmButton = { CockpitTextAction(text(R.string.apps_desktop_done), close) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
-                    label = { Text(text(R.string.ui_113)) })
+                CockpitTextField(query, { query = it }, text(R.string.ui_113), Modifier.fillMaxWidth())
                 edit?.error?.let { CockpitFeedback(text(it), error = true) }
                 if (apps.isEmpty()) {
                     val message = when {
@@ -235,7 +242,7 @@ internal fun FavoriteAppsPicker(
                             val checked = app.id in pinned
                             val enabled = state.gridEdit?.working != true
                             Row(
-                                Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                                listItemMotion().fillMaxWidth().heightIn(min = 52.dp)
                                     .toggleable(checked, enabled = enabled, role = Role.Checkbox) { changePin(app, it) }
                                     .padding(horizontal = 4.dp, vertical = 6.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),

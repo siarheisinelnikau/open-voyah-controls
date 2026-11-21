@@ -9,6 +9,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -43,6 +46,8 @@ import org.openvoyah.controls.platform.apps.InstalledAppPermissions
 import org.openvoyah.controls.platform.apps.LocalApkInstaller
 import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
+import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 
 @Composable
 internal fun AppsDestination(
@@ -129,9 +134,14 @@ internal fun AppsDestination(
     }
     val saved = rememberSaveableStateHolder()
     val desktop = state.desktopFor(entry, entryDesktop)
+    val motion = LocalCockpitMotion.current
     BackHandler(selected != null, onBack = settings::close)
     AnimatedContent(selected, contentKey = { it?.app?.id },
-        transitionSpec = { fadeIn(tween(170)).togetherWith(fadeOut(tween(110))) }, label = "app details") { current ->
+        transitionSpec = {
+            if (!motion.enabled) ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
+            else fadeIn(tween(motion.route.enterMillis, easing = CockpitMotion.Arrive))
+                .togetherWith(fadeOut(tween(motion.route.exitMillis, easing = CockpitMotion.Leave)))
+        }, label = "app details") { current ->
         if (current == null) saved.SaveableStateProvider("apps-grid") {
             AppsScreen(state, entry, desktop, navigate, listen, animateDesktopPaging,
                 gridActive = selected == null && lifecycle == Lifecycle.State.RESUMED,

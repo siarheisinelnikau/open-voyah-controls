@@ -1,6 +1,10 @@
 package org.openvoyah.controls.presentation.dock
 
 import android.view.accessibility.AccessibilityManager
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.ScrollState
@@ -36,11 +40,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
@@ -50,6 +50,7 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +64,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
@@ -107,7 +110,10 @@ import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitMotion
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
+import org.openvoyah.controls.presentation.theme.rememberPressMotion
 import org.openvoyah.controls.presentation.vehicle.HeadlightSourcesPopup
 
 @Composable
@@ -152,10 +158,13 @@ internal fun QuickActionsHost(
         }
     }
     val activate = remember { { action: QuickAction -> runAction(action) } }
+    val ime = WindowInsets.ime
+    // Read as a flag, so a keyboard animation recomposes the host when the keyboard shows or hides, not on every frame.
+    val imeShown by remember(ime, density) { derivedStateOf { ime.getBottom(density) > 0 } }
 
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).then(insets)) {
         // Legacy decor can consume the IME inset while resizing the Compose content.
-        val keyboardOpen = wantsDock && (WindowInsets.ime.getBottom(density) > 0 ||
+        val keyboardOpen = wantsDock && (imeShown ||
             ViewCompat.getRootWindowInsets(view)?.isVisible(WindowInsetsCompat.Type.ime()) == true)
         LaunchedEffect(keyboardOpen) { if (keyboardOpen) opened = false }
         val expanded = !settings.canCollapse || opened
@@ -194,6 +203,7 @@ private fun QuickActionBar(settings: QuickActionSettings, route: ControlsRoute, 
                            model: QuickActionsViewModel, routineShortcut: NamedRoutine?,
                            runRoutineShortcut: (NamedRoutine) -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val layout = LocalCockpitLayout.current
     val rail = edge == DockEdge.LEFT || edge == DockEdge.RIGHT
     val showLabels = if (rail) settings.showLabels else settings.compactLabelsVisible
     if (BuildConfig.DEBUG) LaunchedEffect(edge, settings.canCollapse, expanded) {
@@ -206,6 +216,11 @@ private fun QuickActionBar(settings: QuickActionSettings, route: ControlsRoute, 
     val timeout = if (expanded) settings.idleCollapse.seconds * 1_000L else 0L
     val barModifier = modifier.testTag("quickActionsBar").background(colors.surfaceContainerLow).border(1.dp, colors.outlineVariant)
         .collapseDockWhenIdle(timeout, route, showLabels, scroll) { changeExpanded(false) }
+    // Opening the bar fades its shortcuts in. A bar that appears already open shows them at once, and closing removes them
+    // in the same frame as the reserved space shrinks, so they are never squeezed into the handle's narrower slot.
+    var reopened by remember { mutableStateOf(false) }
+    LaunchedEffect(expanded) { if (!expanded) reopened = true }
+    val fade = reopened && LocalCockpitMotion.current.enabled
     // Pass current settings into the expanded content so edits reach it after reopening the bar.
     if (rail) Column(
         barModifier,
@@ -218,10 +233,12 @@ private fun QuickActionBar(settings: QuickActionSettings, route: ControlsRoute, 
                 DockHandle(edge, expanded, settings, changeExpanded)
             }
         }
+        // The cross-axis padding stays fixed: QuickActionLayout reserves the rail width for 48 dp targets.
         if (expanded) Column(
-            Modifier.fillMaxWidth().weight(1f).verticalScroll(scroll).selectableGroup()
-                .padding(horizontal = if (settings.railWidth == QuickActionRailWidth.COMPACT) 4.dp else 8.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp, settings.sideRailAlignment.alignment),
+            Modifier.fillMaxWidth().weight(1f).dockArrival(fade).verticalScroll(scroll).selectableGroup()
+                .padding(horizontal = if (settings.railWidth == QuickActionRailWidth.COMPACT) 4.dp else 8.dp,
+                    vertical = layout.spacing(8.dp)),
+            verticalArrangement = Arrangement.spacedBy(layout.spacing(6.dp), settings.sideRailAlignment.alignment),
         ) {
             DockShortcuts(settings, route, rail, showLabels, maxButtonWidth, activate, model, routineShortcut, runRoutineShortcut,
                 changeExpanded)
@@ -236,9 +253,9 @@ private fun QuickActionBar(settings: QuickActionSettings, route: ControlsRoute, 
         }
         if (settings.canCollapse && atStart) handle()
         if (expanded) Row(
-            Modifier.weight(1f).horizontalScroll(scroll).selectableGroup()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            Modifier.weight(1f).dockArrival(fade).horizontalScroll(scroll).selectableGroup()
+                .padding(horizontal = layout.spacing(8.dp), vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(layout.spacing(6.dp), Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             DockShortcuts(settings, route, rail, showLabels, maxButtonWidth, activate, model, routineShortcut, runRoutineShortcut,
@@ -246,6 +263,15 @@ private fun QuickActionBar(settings: QuickActionSettings, route: ControlsRoute, 
         }
         if (settings.canCollapse && !atStart) handle()
     }
+}
+
+/** A short fade of the draw layer for shortcuts the handle has just revealed. It ends, and nothing is measured again. */
+@Composable
+private fun Modifier.dockArrival(fade: Boolean): Modifier {
+    if (!fade) return this
+    val arrival = remember { Animatable(0f) }
+    LaunchedEffect(arrival) { arrival.animateTo(1f, CockpitMotion.enter<Float>()) }
+    return graphicsLayer { alpha = arrival.value }
 }
 
 @Composable
@@ -286,13 +312,13 @@ private fun DockShortcuts(
     }
     if (routineShortcut != null) key(routineShortcut.id) {
         DockButton(routineShortcut.name, routineShortcut.name.takeIf { showLabels }, rail, button,
-            glyph = { Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            glyph = { CockpitGlyph(CockpitIcon.PLAY) },
             actionDescription = UiText.get(R.string.quick_actions_run_routine).format(routineShortcut.name)) {
             runRoutineShortcut(routineShortcut)
         }
     }
-    if (settings.appShortcuts.isNotEmpty()) key(route) {
-        DockAppButtons(model, settings.appShortcuts, showLabels, rail, button) {
+    if (settings.appShortcuts.isNotEmpty()) {
+        DockAppButtons(model, settings.appShortcuts, route, showLabels, rail, button) {
             if (settings.collapseAfterUse) changeExpanded(false)
         }
     }
@@ -364,6 +390,7 @@ private fun DockHandle(edge: DockEdge, expanded: Boolean, settings: QuickActionS
                        arrowAtStart: Boolean = true) {
     val colors = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.medium
+    val animate = LocalCockpitMotion.current.enabled
     val name = UiText.get(if (expanded) R.string.quick_actions_collapse else R.string.quick_actions_expand)
     val label = UiText.get(R.string.quick_actions_bar)
     val stateLabel = UiText.get(if (expanded) R.string.quick_actions_expanded else R.string.quick_actions_collapsed)
@@ -381,7 +408,12 @@ private fun DockHandle(edge: DockEdge, expanded: Boolean, settings: QuickActionS
         if (expanded || focused || pressed) fullColors
         else remember(colors, fullColors, highContrast) { fullColors.dimmedForIdle(colors, highContrast) }
     } else fullColors
-    val outline = handleColors.outline?.let { Modifier.border(1.dp, it, shape) } ?: Modifier
+    // Opening and closing swap the colors at once, in step with the reserved space; dimming, focus and accent changes blend.
+    val shown = key(expanded) {
+        QuickActionHandleColors(handleColor(handleColors.fill, animate, "handle fill"), handleColor(handleColors.ink, animate, "handle ink"),
+            handleColors.outline?.let { handleColor(it, animate, "handle outline") })
+    }
+    val outline = shown.outline?.let { Modifier.border(1.dp, it, shape) } ?: Modifier
     val tintArrow = !expanded && (highContrast || settings.dimIdleHandle || settings.handleAccent != QuickActionHandleAccent.THEME)
     val intoPage = when (edge) {
         DockEdge.LEFT -> 0f
@@ -390,11 +422,13 @@ private fun DockHandle(edge: DockEdge, expanded: Boolean, settings: QuickActionS
         DockEdge.BOTTOM -> -90f
         DockEdge.HIDDEN -> return
     }
+    val turn by animateFloatAsState(if (expanded) intoPage + 180f else intoPage,
+        if (animate) CockpitMotion.change<Float>() else snap<Float>(), label = "handle arrow")
     TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
         tooltip = { PlainTooltip { Text(name) } }, state = tip, focusable = false, enableUserInput = false) {
         // One named Android accessibility node handles both touch and accessibility activation.
         Row(Modifier.testTag("quickActionsHandle").widthIn(min = size).heightIn(min = size).clip(shape)
-            .background(handleColors.fill).then(outline)
+            .background(shown.fill).then(outline)
             .combinedClickable(interactionSource = interaction, indication = LocalIndication.current,
                 role = Role.Button, onClickLabel = name, onClick = { changeExpanded(!expanded) },
                 onLongClick = if (showText) null else { { scope.launch { tip.show() } } })
@@ -405,21 +439,23 @@ private fun DockHandle(edge: DockEdge, expanded: Boolean, settings: QuickActionS
             }, verticalAlignment = Alignment.CenterVertically) {
             val arrow: @Composable () -> Unit = {
                 Box(Modifier.size(size), contentAlignment = Alignment.Center) {
-                    if (tintArrow) Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null,
-                        modifier = Modifier.size(24.dp).rotate(intoPage - 90f), tint = handleColors.ink)
-                    else CockpitGlyph(CockpitIcon.ARROW, Modifier.rotate(if (expanded) intoPage + 180f else intoPage))
+                    CockpitGlyph(CockpitIcon.ARROW, Modifier.rotate(turn), tint = if (tintArrow) shown.ink else Color.Unspecified)
                 }
             }
             if (arrowAtStart) arrow()
             if (showText) {
                 val padding = if (arrowAtStart) Modifier.padding(end = 12.dp) else Modifier.padding(start = 12.dp)
                 Text(name, Modifier.weight(1f, fill = false).then(padding).clearAndSetSemantics {},
-                    style = MaterialTheme.typography.labelLarge, color = handleColors.ink)
+                    style = MaterialTheme.typography.labelLarge, color = shown.ink)
             }
             if (!arrowAtStart) arrow()
         }
     }
 }
+
+@Composable
+private fun handleColor(target: Color, animate: Boolean, label: String): Color =
+    animateColorAsState(target, if (animate) CockpitMotion.change<Color>() else snap<Color>(), label = label).value
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -430,20 +466,26 @@ internal fun DockButton(title: String, label: String?, rail: Boolean, modifier: 
     val shape = MaterialTheme.shapes.medium
     val active = selected == true
     val name = actionDescription ?: UiText.get(if (selected == null) R.string.quick_actions_open_app else R.string.quick_actions_open).format(title)
+    val press = rememberPressMotion()
+    val spec = if (LocalCockpitMotion.current.enabled) CockpitMotion.change<Color>() else snap<Color>()
+    // The selection blends between pages in one hue: the unselected state is the same color, fully transparent.
+    val selection by animateColorAsState(colors.primaryContainer.copy(alpha = if (active) 1f else 0f), spec, label = "dock selection")
+    val selectionEdge by animateColorAsState(colors.primary.copy(alpha = if (active) 1f else 0f), spec, label = "dock selection edge")
+    val ink by animateColorAsState(if (active) colors.onPrimaryContainer else colors.onSurface, spec, label = "dock label")
     val button: @Composable () -> Unit = {
-        val selection = if (active) Modifier.background(colors.primaryContainer, shape)
-            .border(1.dp, colors.primary, shape) else Modifier
-        val action = if (selected == null) Modifier.clickable(role = role, onClick = click)
-            else Modifier.selectable(selected, role = role, onClick = click)
-        val hit = modifier.widthIn(min = 48.dp).heightIn(min = 48.dp).clip(shape).then(selection).then(action)
+        val action = if (selected == null) {
+            Modifier.clickable(interactionSource = press.source, indication = LocalIndication.current, role = role, onClick = click)
+        } else Modifier.selectable(selected, interactionSource = press.source, indication = LocalIndication.current, role = role,
+            onClick = click)
+        val hit = modifier.then(press.modifier).widthIn(min = 48.dp).heightIn(min = 48.dp).clip(shape)
+            .background(selection, shape).border(1.dp, selectionEdge, shape).then(action)
             .semantics { contentDescription = name }
             .then(if (enlarged) Modifier.enlargeDockShortcut(rail) else Modifier)
             .padding(horizontal = if (rail) 4.dp else 10.dp, vertical = 6.dp)
         val caption: @Composable () -> Unit = {
             if (label != null) Text(label, Modifier.clearAndSetSemantics {},
                 maxLines = if (selected == null) 2 else Int.MAX_VALUE, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center,
-                color = if (active) colors.onPrimaryContainer else colors.onSurface)
+                style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, color = ink)
         }
         if (rail) Column(hit, horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)) {

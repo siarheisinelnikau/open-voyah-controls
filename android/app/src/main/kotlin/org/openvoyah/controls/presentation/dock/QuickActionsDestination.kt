@@ -3,22 +3,18 @@ package org.openvoyah.controls.presentation.dock
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -27,8 +23,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -54,6 +50,7 @@ import org.openvoyah.controls.domain.dock.QuickActionRailWidth
 import org.openvoyah.controls.domain.dock.QuickActionSettings
 import org.openvoyah.controls.domain.dock.QuickActionSide
 import org.openvoyah.controls.domain.dock.QuickActionStartState
+import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitColumns
@@ -61,8 +58,11 @@ import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitOptionDialog
+import org.openvoyah.controls.presentation.theme.CockpitReveal
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 
 @Composable
@@ -81,7 +81,7 @@ internal fun QuickActionsDestination(model: QuickActionsViewModel, state: QuickA
                 if (current.enabled) {
                     DockChoice(R.string.quick_actions_area, current.area, QuickActionArea.entries, editable,
                         { it.title }) { area -> edit { model.setArea(area) } }
-                    if (current.area.includes(apps = false)) {
+                    CockpitReveal(current.area.includes(apps = false)) {
                         CockpitSwitch(UiText.get(R.string.quick_actions_hide_on_virtual_display), current.hideOnVirtualDisplay, editable) { hide ->
                             edit { model.setHideOnVirtualDisplay(hide) }
                         }
@@ -89,13 +89,13 @@ internal fun QuickActionsDestination(model: QuickActionsViewModel, state: QuickA
                     CockpitSwitch(UiText.get(R.string.quick_actions_headlight_indicator), current.showHeadlightMode, editable) { show ->
                         edit { model.setShowHeadlightMode(show) }
                     }
-                    if (current.showHeadlightMode) {
+                    RevealedRows(current.showHeadlightMode) {
                         DockChoice(R.string.quick_actions_headlight_content, current.headlightContent, QuickActionHeadlightContent.entries,
                             editable, { it.title }) { content -> edit { model.setHeadlightContent(content) } }
                         DockChoice(R.string.quick_actions_headlight_tap, current.headlightTap, QuickActionHeadlightTap.entries,
                             editable, { it.title }) { target -> edit { model.setHeadlightTap(target) } }
                     }
-                    if (QuickAction.APPS in current.actions) {
+                    CockpitReveal(QuickAction.APPS in current.actions) {
                         DockChoice(R.string.quick_actions_apps_destination, current.appsDestination, QuickActionAppsDestination.entries, editable,
                             { it.title }) { destination -> edit { model.setAppsDestination(destination) } }
                     }
@@ -119,7 +119,7 @@ internal fun QuickActionsDestination(model: QuickActionsViewModel, state: QuickA
                     }
                     DockChoice(R.string.quick_actions_idle_collapse, current.idleCollapse, QuickActionIdleCollapse.entries, editable,
                         { it.title }) { timeout -> edit { model.setIdleCollapse(timeout) } }
-                    if (current.canCollapse) {
+                    RevealedRows(current.canCollapse) {
                         CockpitSwitch(UiText.get(R.string.quick_actions_keep_side_inset), current.keepSideInset, editable) { keep ->
                             edit { model.setKeepSideInset(keep) }
                         }
@@ -235,14 +235,12 @@ private fun LargerShortcutsChoice(settings: QuickActionSettings, editable: Boole
             }
         },
         confirmButton = {
-            Button({
+            CockpitAction(UiText.get(R.string.ui_104), {
                 draft?.let { save(it.toSet()) }
                 close()
-            }, Modifier.heightIn(min = 48.dp), enabled = editable) {
-                Text(UiText.get(R.string.ui_104))
-            }
+            }, enabled = editable, primary = true)
         },
-        dismissButton = { TextButton(close, Modifier.heightIn(min = 48.dp)) { Text(UiText.get(R.string.ui_89)) } },
+        dismissButton = { CockpitTextAction(UiText.get(R.string.ui_89), close) },
     )
 }
 
@@ -269,8 +267,25 @@ private fun RoutineShortcutChoice(state: QuickActionsUiState, editable: Boolean,
 @Composable
 internal fun OrderButton(title: String, earlier: Boolean, enabled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val description = UiText.get(if (earlier) R.string.quick_actions_earlier else R.string.quick_actions_later).format(title)
+    ReorderButton(description, earlier, enabled, modifier, onClick)
+}
+
+/** The one reorder control of the app: a chevron pointing the way the row moves, named for the row and direction. */
+@Composable
+internal fun ReorderButton(description: String, earlier: Boolean, enabled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     IconButton(onClick = onClick, enabled = enabled, modifier = modifier.size(48.dp).semantics { contentDescription = description }) {
-        CockpitGlyph(CockpitIcon.ARROW, Modifier.rotate(if (earlier) -90f else 90f).alpha(if (enabled) 1f else .38f))
+        CockpitGlyph(CockpitIcon.ARROW, Modifier.rotate(if (earlier) -90f else 90f),
+            tint = if (enabled) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = .38f))
+    }
+}
+
+/** Rows that depend on another setting grow into place instead of appearing at once and pushing the rest down. */
+@Composable
+private fun RevealedRows(visible: Boolean, rows: @Composable ColumnScope.() -> Unit) {
+    CockpitReveal(visible) {
+        // The gap between the rows of a CockpitSection.
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(LocalCockpitLayout.current.spacing(11.dp)),
+            content = rows)
     }
 }
 
@@ -283,24 +298,7 @@ private fun <T> DockChoice(title: Int, current: T, choices: List<T>, enabled: Bo
 private fun <T> DockChoice(heading: String, current: T, choices: List<T>, enabled: Boolean, label: (T) -> String, choose: (T) -> Unit) {
     var opened by rememberSaveable { mutableStateOf(false) }
     CockpitChoice(heading, label(current), enabled) { opened = true }
-    if (opened) CockpitAlertDialog(
-        onDismissRequest = { opened = false }, title = { Text(heading) },
-        confirmButton = { TextButton({ opened = false }, Modifier.heightIn(min = 48.dp)) { Text(UiText.get(R.string.ui_89)) } },
-        text = {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).selectableGroup()) {
-                choices.forEach { option ->
-                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(option == current, enabled = enabled,
-                        role = Role.RadioButton) {
-                        opened = false
-                        if (option != current) choose(option)
-                    }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        RadioButton(option == current, onClick = null, enabled = enabled)
-                        Text(label(option))
-                    }
-                }
-            }
-        },
-    )
+    if (opened) CockpitOptionDialog(heading, choices, current, label, onSelect = choose, onDismiss = { opened = false }, enabled = enabled)
 }
 
 private val QuickActionSide.title: Int get() = when (this) {

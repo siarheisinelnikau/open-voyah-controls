@@ -23,8 +23,6 @@
     <string name="apps_grid_shortcuts">Built-in shortcuts</string>
     <string name="apps_grid_always_available">Open Voyah Controls and Search are always available.</string>
     <string name="apps_grid_reorder_pins">Reorder pinned apps</string>
-    <string name="apps_grid_reorder_up">Up</string>
-    <string name="apps_grid_reorder_down">Down</string>
     <string name="apps_grid_reorder_up_for">Move %1$s up</string>
     <string name="apps_grid_reorder_down_for">Move %1$s down</string>
     <string name="apps_grid_desktop_names">Desktop names</string>
