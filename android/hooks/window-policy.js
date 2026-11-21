@@ -2,9 +2,12 @@ import { android9WindowHook } from './window-android9.js';
 import { android11WindowHook } from './window-android11.js';
 import { createReporter, errorKind } from './report.js';
 import { systemTasks } from './window-tasks.js';
+import { systemReserve } from './window-reserve.js';
+import { RESERVE_GUARD, reserveSwitch } from './window-reserve-switch.js';
 import {
     CENTRAL_DISPLAY, CONTROLS, OEM_LAUNCHER, PANEL_CONFIG, PANEL_EDGE, SECONDARY_DISPLAY, WINDOW_CONFIG, WINDOW_REQUEST,
-    componentKey, launchProfile, profileFor, readNavigator, readWindowConfig, readWindowRequest, rectValues, sameBounds
+    componentKey, fitsReservedStrip, launchProfile, profileFor, readNavigator, readWindowConfig, readWindowRequest,
+    rectValues, sameBounds
 } from './window-profiles.js';
 
 const REQUEST = CONTROLS + '.extra.FLOATING_WINDOW';
@@ -78,23 +81,41 @@ function launcherPanelWidth(Java, context) {
         resources = Java.retain(context.getPackageManager().getResourcesForApplication(OEM_LAUNCHER));
         dimension = resources.getIdentifier('navigation_bar_width', 'dimen', OEM_LAUNCHER);
     } catch (_) { }
+    /** The width the launcher's own resources state for its panel at the present density, or 0. */
+    const declared = () => {
+        if (!dimension) return 0;
+        try {
+            const pixels = resources.getDimensionPixelOffset(dimension);
+            return pixels > 0 && pixels <= 600 ? pixels : 0;
+        } catch (_) {
+            return 0;
+        }
+    };
     let lastBounds = null, lastDensity, width = 0;
-    return (bounds, density, reported) => {
+    const measured = (bounds, density, reported) => {
         if (reported > 0 && reported <= 600) {
             width = reported;
         } else if (lastDensity !== density || !sameBounds(bounds, lastBounds)) {
             // A width measured before a rotation or a density change belongs to the old display frame.
-            width = 0;
-            if (dimension) {
-                try {
-                    const pixels = resources.getDimensionPixelOffset(dimension);
-                    if (pixels > 0 && pixels <= 600) width = pixels;
-                } catch (_) { }
-            }
+            width = declared();
         }
         lastBounds = bounds;
         lastDensity = density;
         return width;
+    };
+    return Object.assign(measured, {declared});
+}
+
+/** Names this kernel boot and this system_server process, for the record that guards the reserved strip. */
+function serverSession(Java) {
+    return () => {
+        const reader = Java.use('java.io.BufferedReader').$new(
+            Java.use('java.io.FileReader').$new('/proc/sys/kernel/random/boot_id'));
+        try {
+            return {boot: String(reader.readLine()).trim(), pid: Java.use('android.os.Process').myPid()};
+        } finally {
+            reader.close();
+        }
     };
 }
 
@@ -134,7 +155,8 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         Options: Java.use('android.app.ActivityOptions'),
         Manager: Java.use('android.app.ActivityManager'),
     }));
-    const tasks = step('tasks_api', () => systemTasks(Java, sdk, launcherPanelWidth(Java, context)));
+    const panelWidth = launcherPanelWidth(Java, context);
+    const tasks = step('tasks_api', () => systemTasks(Java, sdk, panelWidth));
     const resolver = Java.retain(context.getContentResolver());
     const late = step('completion_signature', () => {
         const Starter = Java.use(sdk === 28 ? 'com.android.server.am.ActivityStarter' : 'com.android.server.wm.ActivityStarter');
@@ -158,8 +180,30 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         const value = Global.getString(resolver, key);
         return value === null ? '' : String(value);
     };
-    const allowed = (launch, screen = CENTRAL_DISPLAY, displayId = launch?.display) =>
-        !released && launch && launchProfile(config, navigator, launch, screen, displayId);
+    // Experimental: Android itself keeps the panel strip clear. The framework side is built on first use, so an
+    // agent with the option off touches nothing of it.
+    const reservation = reserveSwitch({
+        reserve: systemReserve(Java, sdk),
+        session: serverSession(Java),
+        read: () => raw(RESERVE_GUARD),
+        write: document => Global.putString(resolver, RESERVE_GUARD, document) === true,
+        currentUser: () => tasks.currentUser(),
+        panelWidth: () => panelWidth.declared(),
+        releaseTasks: user => tasks.release(user),
+        announce: line => console.log(line),
+        now: () => Date.now(),
+    });
+    const reservationWanted = () => !released && config?.enabled === true && config.systemInsets === true
+        ? {attempt: config.systemInsetsAttempt, user: config.user} : null;
+    /** Whether this agent still has to place the task itself, beside the panel. */
+    const places = (profile, screen = CENTRAL_DISPLAY) =>
+        screen !== CENTRAL_DISPLAY || !fitsReservedStrip(profile, reservation.width());
+
+    const allowed = (launch, screen = CENTRAL_DISPLAY, displayId = launch?.display) => {
+        const profile = !released && launch && launchProfile(config, navigator, launch, screen, displayId);
+        // In the reserved strip a full-width task at the display density is already where it belongs.
+        return profile && !places(profile, screen) && profile.dpi === 0 ? null : profile;
+    };
 
     const canSetLaunchBounds = (launch, record) => launch.display === 0 && launch.user === tasks.currentUser()
         && tasks.freeformAvailable() && record.isResizeable();
@@ -183,7 +227,10 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
                 const screen = tasks.screenOf(displayId);
                 if (!screen) return;
                 const current = allowed(update.launch, screen, displayId);
-                if (current) tasks.apply(current, update.launch.user, taskId, update.originals, displayId);
+                if (current) {
+                    tasks.apply(current, update.launch.user, taskId, update.originals, displayId,
+                        screen === CENTRAL_DISPLAY ? reservation.width() : 0);
+                }
                 else if (!released && config?.enabled && config.user === update.launch.user && screen === SECONDARY_DISPLAY) {
                     tasks.releaseSecondary(update.launch.key, update.launch.user, taskId, displayId);
                 }
@@ -232,7 +279,14 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
             if (!Global.putString(resolver, WINDOW_REQUEST, null)) throw Error('Window request could not be consumed');
             if (command.operation === 'release') {
                 released = true;
+                // The display returns to its native layout first; the tasks are then restored into it.
+                const native = reservation.stop();
                 result = tasks.release(command.user);
+                if (!native) throw Object.assign(Error('The reserved strip was not released'), {code:'rollback_failed'});
+            } else if (command.operation === 'insets') {
+                // Answers from memory: the app asks this when it shows the option, and must not change anything.
+                const strip = reservation.status();
+                result = {insets:strip.status, width:strip.width};
             } else {
                 const profile = profileFor(config, command.component, command.user, true, CENTRAL_DISPLAY,
                     command.operation === 'reset');
@@ -282,7 +336,7 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         try {
             launch = explicitLaunch(args[0], args[6], args[1], tasks);
             const profile = allowed(launch);
-            if (profile && canSetLaunchBounds(launch, args[0])) {
+            if (profile && places(profile) && canSetLaunchBounds(launch, args[0])) {
                 // Preserve the task before Android consumes the early bounds on a warm start.
                 start = {record:args[0], tasks:tasks.captureLaunch(profile, launch.user), cold:null};
                 starting.unshift(start);
@@ -315,6 +369,7 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
 
     setInterval(() => Java.perform(() => {
         try { request(); } catch (error) { reportError('settings', error); }
+        try { reservation.sync(reservationWanted()); } catch (error) { reportError('reserve', error); }
     }), 400);
-    console.log('OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1');
+    console.log('OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1 systemInsets=1');
 }

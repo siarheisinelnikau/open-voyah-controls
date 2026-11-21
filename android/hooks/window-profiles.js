@@ -48,6 +48,11 @@ export function readWindowConfig(raw) {
         !(displayDpi.secondary === null || validDensity(displayDpi.secondary))) return null;
     const passengerDisplayId = config.passengerDisplayId ?? null;
     if (passengerDisplayId !== null && passengerDisplayId !== 1) return null;
+    // Experimental: let Android reserve the panel strip. The attempt number rises each time the driver turns
+    // the option on, which is what allows a new try after an earlier one was blocked.
+    const systemInsets = config.systemInsets ?? false;
+    const systemInsetsAttempt = config.systemInsetsAttempt ?? 0;
+    if (typeof systemInsets !== 'boolean' || !Number.isInteger(systemInsetsAttempt) || systemInsetsAttempt < 0) return null;
     const apps = new Map();
     for (const entry of config.apps) {
         const profile = normalizeProfile(entry);
@@ -56,7 +61,15 @@ export function readWindowConfig(raw) {
         if (apps.has(pkg)) return null;
         apps.set(pkg, profile);
     }
-    return {enabled: config.enabled, user: config.user, apps, displayDpi, passengerDisplayId};
+    return {enabled: config.enabled, user: config.user, apps, displayDpi, passengerDisplayId, systemInsets, systemInsetsAttempt};
+}
+
+/**
+ * With [reservedPx] of the left edge kept clear by Android itself, a profile that fills the usable width needs no
+ * placement of its own: its task can stay where Android puts it. A density override may still be due.
+ */
+export function fitsReservedStrip(profile, reservedPx) {
+    return reservedPx > 0 && profile.width === 100 && profile.panelPx <= reservedPx;
 }
 
 export function readNavigator(raw) {
@@ -86,7 +99,10 @@ export function readWindowRequest(raw, now) {
     if (!value || value.schema !== 1 || !/^[a-f0-9]{32}$/.test(value.id ?? '') ||
         !Number.isInteger(value.user) || value.user < 0 || !Number.isInteger(value.expires) ||
         value.expires < now || value.expires > now + 10000) return null;
-    if (value.operation === 'release') return {id:value.id, user:value.user, operation:value.operation};
+    // Neither releasing the service nor asking for the state of the reserved strip names an app.
+    if (value.operation === 'release' || value.operation === 'insets') {
+        return {id:value.id, user:value.user, operation:value.operation};
+    }
     const component = componentKey(value.component);
     if (!component || (value.operation !== 'apply' && value.operation !== 'reset')) return null;
     return {id:value.id, user:value.user, operation:value.operation, component};

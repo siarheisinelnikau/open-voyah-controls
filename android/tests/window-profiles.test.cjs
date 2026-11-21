@@ -6,7 +6,8 @@ const path = require('node:path');
 
 const js = fs.readFileSync(path.join(__dirname, '../hooks/window-profiles.js'), 'utf8')
     .replace(/^export /gm, '');
-const policy = vm.runInNewContext(js + '\n({componentKey, launchProfile, profileFor, readNavigator, readWindowConfig, readWindowRequest, windowBounds})');
+const policy = vm.runInNewContext(js + '\n({componentKey, fitsReservedStrip, launchProfile, profileFor, readNavigator, ' +
+    'readWindowConfig, readWindowRequest, windowBounds})');
 const target = 'org.example.navigator/org.example.navigator.MainActivity';
 const external = 'org.example.player/org.example.player.MainActivity';
 const profile = {component:target, width:80, dpi:180, keepPanel:true, panelPx:0};
@@ -74,6 +75,11 @@ test('the window protocol validates profiles and bounds request lifetime', () =>
     assert.equal(policy.readWindowRequest(JSON.stringify({...request,expires:now+20000}),now),null);
     assert.equal(policy.readWindowRequest(JSON.stringify({...request,component:'com.android.systemui/.Main'}),now),null);
     assert.equal(policy.readWindowRequest(JSON.stringify({...request,component:target+'; id'}),now),null);
+    for (const operation of ['release', 'insets']) {
+        assert.deepEqual({...policy.readWindowRequest(JSON.stringify({...request,operation,component:''}),now)},
+            {id:request.id, user:0, operation});
+    }
+    assert.equal(policy.readWindowRequest(JSON.stringify({...request,operation:'status',component:''}),now),null);
     assert.equal(policy.readWindowConfig(config([profile, profile])),null);
     assert.equal(policy.readWindowConfig(config([{...profile,dpi:1800}])),null);
     assert.equal(policy.readWindowConfig(config([{...profile,width:'80'}])),null);
@@ -107,6 +113,30 @@ test('secondary defaults are opt-in and the profile protocol validates them inde
     assert.equal(policy.readWindowConfig(config([profile],{displayDpi:{central:181,secondary:null}})), null);
     assert.equal(policy.readWindowConfig(config([profile],{displayDpi:{central:0,secondary:'180'}})), null);
     assert.equal(policy.readWindowConfig(config([{...profile,inheritDpi:true}])), null);
+});
+
+test('the experimental system strip is off unless the document turns it on with valid fields', () => {
+    const plain = policy.readWindowConfig(config());
+    assert.equal(plain.systemInsets, false);
+    assert.equal(plain.systemInsetsAttempt, 0);
+    const on = policy.readWindowConfig(config([profile], {systemInsets:true, systemInsetsAttempt:7}));
+    assert.equal(on.systemInsets, true);
+    assert.equal(on.systemInsetsAttempt, 7);
+    assert.equal(policy.readWindowConfig(config([profile], {systemInsets:true})).systemInsetsAttempt, 0);
+    for (const extra of [{systemInsets:1}, {systemInsets:'true'}, {systemInsets:null, systemInsetsAttempt:1.5},
+        {systemInsets:true, systemInsetsAttempt:-1}, {systemInsets:true, systemInsetsAttempt:'2'}]) {
+        assert.equal(policy.readWindowConfig(config([profile], extra)), null, JSON.stringify(extra));
+    }
+});
+
+test('only a profile that fills the usable width is left to the strip Android reserves', () => {
+    const full = {...profile, width:100};
+    assert.equal(policy.fitsReservedStrip(full, 171), true);
+    assert.equal(policy.fitsReservedStrip({...full, dpi:0}, 171), true);
+    assert.equal(policy.fitsReservedStrip({...full, panelPx:171}, 171), true);
+    assert.equal(policy.fitsReservedStrip({...full, panelPx:172}, 171), false);
+    assert.equal(policy.fitsReservedStrip(profile, 171), false);
+    assert.equal(policy.fitsReservedStrip(full, 0), false);
 });
 
 test('reviewed passenger scaling follows only the approved display ID', () => {

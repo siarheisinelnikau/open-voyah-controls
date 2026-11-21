@@ -229,7 +229,10 @@ function livePolicy(sdk, h) {
         apps:[{...profile, keepPanel:true}]})]]);
     const queue = [], logs = [];
     let tick, acceptClear = true, sequence = 0;
-    const context = {getContentResolver:()=>({})};
+    // The reserved strip is replaced by a recorder: what the policy asks of it and what it answers.
+    const strip = {width:0, wanted:[], stops:0, stopped:true, dependencies:null, closed:0};
+    const context = {getContentResolver:()=>({}), getPackageManager:()=>({getResourcesForApplication:()=>({
+        getIdentifier:()=>1, getDimensionPixelOffset:()=>171})})};
     const owner = sdk === 28 ? 'com.android.server.am' : 'com.android.server.wm';
     const types = [owner + '.ActivityRecord', owner + '.ActivityRecord', '', '', '', '',
         'android.app.ActivityOptions', owner + (sdk === 28 ? '.TaskRecord' : '.Task')];
@@ -257,6 +260,10 @@ function livePolicy(sdk, h) {
             putString:(_resolver,key,value)=>{ if (acceptClear) settings.set(key,value); return acceptClear; },
         },
         'android.app.ActivityManager':{START_SUCCESS:field(0), START_TASK_TO_FRONT:field(2), START_DELIVERED_TO_TOP:field(3)},
+        'java.io.FileReader':{$new:file=>({file})},
+        'java.io.BufferedReader':{$new:reader=>({readLine:()=>reader.file === '/proc/sys/kernel/random/boot_id'
+            ? '5f1c8a9e-0b7d-4c1a-9f5e-2d3c4b5a6978\n' : null, close() { strip.closed++; }})},
+        'android.os.Process':{myPid:()=>900},
     };
     // The deferred layout must not use scheduleOnMainThread: it would hook epoll_wait in all of system_server.
     const Java = {use:name=>classes[name], retain:value=>value, perform:fn=>fn(),
@@ -266,9 +273,17 @@ function livePolicy(sdk, h) {
         '\ninstallLiveWindowPolicy(Java, sdk, early, hooks, createReporter("OVC_WINDOW_ERROR"))', {
         Java, sdk, early, hooks, systemTasks:()=>h.agent, setInterval:fn=>{ tick = fn; }, setTimeout:fn=>queue.push(fn),
         console:{log:line=>logs.push(line)},
+        systemReserve:(_java, level)=>({level}), RESERVE_GUARD:prefix + 'windowInsetsGuard',
+        reserveSwitch:dependencies=>{
+            strip.dependencies = dependencies;
+            return {sync:want=>strip.wanted.push(want), width:()=>strip.width,
+                status:()=>({status:strip.width > 0 ? 'verified' : 'inactive', width:strip.width}),
+                stop() { strip.stops++; strip.width = 0; return strip.stopped; }};
+        },
     });
     return {
-        queue, logs, hooks, late, setClear:value=>{ acceptClear = value; }, setProfiles:value=>settings.set(prefix + 'windowProfiles', value),
+        queue, logs, hooks, late, strip, settings,
+        setClear:value=>{ acceptClear = value; }, setProfiles:value=>settings.set(prefix + 'windowProfiles', value),
         tick:()=>tick(),
         launch(nativeMode = 0, nativeBounds = null, sourceMode = 1) {
             let mode = nativeMode, bounds = nativeBounds && rect(...nativeBounds);
@@ -433,8 +448,138 @@ test('a complete installation announces the request protocol after both hooks ar
     for (const sdk of [28, 30]) {
         const h = harness(sdk, {displayId:0});
         const service = livePolicy(sdk, h);
-        assert.deepEqual(service.logs, ['OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1']);
+        assert.deepEqual(service.logs, ['OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1 systemInsets=1']);
         assert.equal(service.hooks.length, 2);
         assert.ok(service.hooks.every(hook=>typeof hook.implementation === 'function'));
+    }
+});
+
+const documentWith = (apps, extra = {}) => JSON.stringify({schema:1, user:0, enabled:true, apps, ...extra});
+
+test('the reserved strip follows the profile document, the service switch and its own record', () => {
+    for (const sdk of [28, 30]) {
+        const h = harness(sdk, {displayId:0});
+        const service = livePolicy(sdk, h);
+        service.tick();
+        assert.equal(service.strip.wanted.at(-1), null);
+        service.setProfiles(documentWith([], {systemInsets:true, systemInsetsAttempt:3}));
+        service.tick();
+        assert.deepEqual({...service.strip.wanted.at(-1)}, {attempt:3, user:0});
+        service.setProfiles(documentWith([], {systemInsets:true}));
+        service.tick();
+        assert.deepEqual({...service.strip.wanted.at(-1)}, {attempt:0, user:0});
+        for (const off of [documentWith([]), documentWith([], {systemInsets:true, enabled:false}),
+            documentWith([], {systemInsets:'yes'}), documentWith([], {systemInsets:true, systemInsetsAttempt:-1})]) {
+            service.setProfiles(off);
+            service.tick();
+            assert.equal(service.strip.wanted.at(-1), null, off);
+        }
+
+        // What the switch is given: the framework side for this release, the record and the launcher's own width.
+        const given = service.strip.dependencies;
+        assert.equal(given.reserve.level, sdk);
+        assert.equal(given.read(), '');
+        assert.equal(given.write('{"state":"armed"}'), true);
+        assert.equal(service.settings.get('org.openvoyah.controls.windowInsetsGuard'), '{"state":"armed"}');
+        assert.equal(given.read(), '{"state":"armed"}');
+        service.setClear(false);
+        assert.equal(given.write('{"state":"clear"}'), false);
+        service.setClear(true);
+        assert.equal(given.panelWidth(), 171);
+        assert.equal(given.currentUser(), 0);
+        assert.deepEqual({...given.session()}, {boot:'5f1c8a9e-0b7d-4c1a-9f5e-2d3c4b5a6978', pid:900});
+        assert.equal(service.strip.closed, 1);
+    }
+});
+
+test('turning the window service off releases the reserved strip before the tasks and reports what is left', () => {
+    const h = harness(30, {displayId:0});
+    const service = livePolicy(30, h);
+    service.setProfiles(documentWith([], {systemInsets:true, systemInsetsAttempt:1}));
+    service.tick();
+    service.strip.width = 171;
+    assert.equal(service.request('release').status, 'applied');
+    assert.equal(service.strip.stops, 1);
+    // A released service asks for nothing any more, whatever the document still says.
+    assert.equal(service.strip.wanted.at(-1), null);
+
+    const stuck = livePolicy(30, harness(30, {displayId:0}));
+    stuck.strip.stopped = false;
+    assert.equal(stuck.request('release').status, 'rollback_failed');
+    assert.equal(stuck.strip.stops, 1);
+});
+
+test('the app can ask for the state of the reserved strip without changing anything', () => {
+    const h = harness(30, {displayId:0});
+    const service = livePolicy(30, h);
+    assert.deepEqual(service.request('insets'), {insets:'inactive', width:0, status:'applied'});
+    service.strip.width = 171;
+    assert.deepEqual(service.request('insets'), {insets:'verified', width:171, status:'applied'});
+    assert.equal(h.placements(), 0);
+    assert.equal(h.writes(), 0);
+    assert.equal(service.strip.stops, 0);
+    // It is answered after the service was released as well: the option's page still needs to say "off".
+    service.request('release');
+    assert.deepEqual(service.request('insets'), {insets:'inactive', width:0, status:'applied'});
+});
+
+test('in the reserved strip a full-width launch keeps the placement Android gives it', () => {
+    for (const sdk of [28, 30]) {
+        const h = harness(sdk, {displayId:0, cold:true});
+        const service = livePolicy(sdk, h);
+        service.setProfiles(documentWith([], {systemInsets:true}));
+        service.tick();
+        service.strip.width = 171;
+        assert.equal(service.launch(), 0);
+        assert.equal(service.queue.length, 0);
+        assert.equal(h.mode(), 1);
+        assert.equal(h.placements(), 0);
+        assert.equal(h.writes(), 0);
+
+        // Until Android has the strip, and again once it gives it up, this agent places the task itself.
+        service.strip.width = 0;
+        service.launch();
+        assert.equal(h.mode(), 5);
+        service.queue.shift()();
+        assert.deepEqual(h.bounds(), [145, 0, 1920, 720]);
+    }
+});
+
+test('a profile that asks for more than the reserved strip gives is still placed beside it', () => {
+    for (const [app, left] of [[{...profile, dpi:0}, 500], [{...profile, dpi:0, width:100, panelPx:300}, 300]]) {
+        const h = harness(30, {displayId:0, cold:true});
+        const service = livePolicy(30, h);
+        service.setProfiles(documentWith([{...app, keepPanel:true}], {systemInsets:true}));
+        service.tick();
+        service.strip.width = 171;
+        service.launch();
+        assert.equal(h.mode(), 5);
+        service.queue.shift()();
+        assert.equal(h.bounds()[0], left);
+        assert.equal(h.mode(), 5);
+    }
+});
+
+test('in the reserved strip a full-width profile with its own density receives the density only', () => {
+    for (const sdk of [28, 30]) {
+        const h = harness(sdk, {displayId:0, cold:true});
+        const service = livePolicy(sdk, h);
+        service.setProfiles(documentWith([], {systemInsets:true, displayDpi:{central:200, secondary:null}}));
+        service.tick();
+        service.strip.width = 171;
+        service.launch();
+        assert.equal(h.mode(), 1);
+        assert.equal(service.queue.length, 1);
+        service.queue.shift()();
+        assert.equal(h.density(), 200);
+        assert.equal(h.mode(), 1);
+        assert.equal(h.placements(), 0);
+        assert.deepEqual(service.logs.filter(line=>line.startsWith('OVC_WINDOW_ERROR')), []);
+        // An explicit request from the app still places the running task, as it always did.
+        assert.equal(service.request('apply').status, 'applied');
+        assert.equal(h.mode(), 5);
+        assert.equal(service.request('release').status, 'applied');
+        assert.equal(h.mode(), 1);
+        assert.equal(h.density(), 0);
     }
 });
