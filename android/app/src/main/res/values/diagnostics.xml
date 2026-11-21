@@ -1,0 +1,23 @@
+<resources>
+    <string name="diagnostics_title">Diagnostic log</string>
+    <string name="diagnostics_subtitle">Events recorded on this head unit. Nothing leaves the car unless you copy or save it.</string>
+    <string name="diagnostics_link_summary">Recent events, warnings and errors</string>
+    <string name="diagnostics_refresh">Refresh</string>
+    <string name="diagnostics_copy">Copy</string>
+    <string name="diagnostics_save">Save to file</string>
+    <string name="diagnostics_clear">Clear log</string>
+    <string name="diagnostics_problems_only">Warnings and errors only (%d)</string>
+    <string name="diagnostics_loading">Reading the log…</string>
+    <string name="diagnostics_empty">No events have been recorded yet.</string>
+    <string name="diagnostics_no_problems">No warnings or errors.</string>
+    <string name="diagnostics_copied">Log copied.</string>
+    <string name="diagnostics_saved">Log saved.</string>
+    <string name="diagnostics_save_failed">Could not save the log.</string>
+    <string name="diagnostics_cleared">Log cleared.</string>
+    <string name="diagnostics_clear_failed">Could not clear the log.</string>
+    <string name="diagnostics_clear_title">Clear the diagnostic log?</string>
+    <string name="diagnostics_clear_message">The stored events will be removed from this head unit. This cannot be undone.</string>
+    <string name="diagnostics_level_error">Error</string>
+    <string name="diagnostics_level_warning">Warning</string>
+    <string name="diagnostics_level_info">Event</string>
+</resources>

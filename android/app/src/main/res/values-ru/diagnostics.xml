@@ -1,0 +1,23 @@
+<resources>
+    <string name="diagnostics_title">Журнал диагностики</string>
+    <string name="diagnostics_subtitle">События, записанные на этом головном устройстве. Данные остаются в автомобиле, пока вы сами не скопируете или не сохраните их.</string>
+    <string name="diagnostics_link_summary">Недавние события, предупреждения и ошибки</string>
+    <string name="diagnostics_refresh">Обновить</string>
+    <string name="diagnostics_copy">Копировать</string>
+    <string name="diagnostics_save">Сохранить в файл</string>
+    <string name="diagnostics_clear">Очистить журнал</string>
+    <string name="diagnostics_problems_only">Только предупреждения и ошибки (%d)</string>
+    <string name="diagnostics_loading">Чтение журнала…</string>
+    <string name="diagnostics_empty">Событий пока нет.</string>
+    <string name="diagnostics_no_problems">Предупреждений и ошибок нет.</string>
+    <string name="diagnostics_copied">Журнал скопирован.</string>
+    <string name="diagnostics_saved">Журнал сохранён.</string>
+    <string name="diagnostics_save_failed">Не удалось сохранить журнал.</string>
+    <string name="diagnostics_cleared">Журнал очищен.</string>
+    <string name="diagnostics_clear_failed">Не удалось очистить журнал.</string>
+    <string name="diagnostics_clear_title">Очистить журнал диагностики?</string>
+    <string name="diagnostics_clear_message">Сохранённые события будут удалены с этого головного устройства. Отменить это действие нельзя.</string>
+    <string name="diagnostics_level_error">Ошибка</string>
+    <string name="diagnostics_level_warning">Предупреждение</string>
+    <string name="diagnostics_level_info">Событие</string>
+</resources>
