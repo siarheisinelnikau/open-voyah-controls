@@ -16,4 +16,10 @@
     <color name="cockpit_outline">#7B849D</color>
     <color name="cockpit_surface_highest">#2B3345</color>
     <color name="cockpit_ripple">#296489FF</color>
+    <!-- The window colors of the Daytime palette; the Compose roles are defined in DayCockpitColors.kt. -->
+    <color name="cockpit_day_background">#EEF3F8</color>
+    <color name="cockpit_day_surface">#F8FAFD</color>
+    <color name="cockpit_day_text">#18253A</color>
+    <color name="cockpit_day_muted">#3F536B</color>
+    <color name="cockpit_day_accent">#20529E</color>
 </resources>
