@@ -88,6 +88,16 @@ class DiagnosticJournal internal constructor(
     }
 
     private fun append(record: LogRecord) {
+        try {
+            appendChecked(record)
+        } catch (_: RuntimeException) {
+            // For example an unknown time zone id. An escaping exception would end the writer thread and, through
+            // the default handler, the process: diagnostics must never do that.
+            failed()
+        }
+    }
+
+    private fun appendChecked(record: LogRecord) {
         if (failures >= MAX_FAILURES) return
         val minute = Math.floorDiv(record.wallClockMillis, 60_000L)
         if (minute != windowMinute) {
