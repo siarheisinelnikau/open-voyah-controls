@@ -44,6 +44,7 @@ internal object VoiceScreenFactory {
         val labels = VoiceViewModel.Labels(
             UiText.get(R.string.ui_139), UiText.get(R.string.voice_executing), UiText.get(R.string.unknown_command),
             UiText.get(R.string.ui_205), UiText.get(R.string.weather_offline), UiText.get(R.string.voice_online_checking),
+            UiText.get(R.string.voice_no_matching_command),
         )
         val cloudSettings = CloudVoiceSettings(application)
         val enabled = cloudSettings.configured()
@@ -51,7 +52,7 @@ internal object VoiceScreenFactory {
         val natural: (suspend (String) -> VoiceResult)? = if (enabled) { phrase ->
             when (val result = interpreter.interpret(phrase)) {
                 is Interpretation.Command -> android.runNatural(result.action)
-                Interpretation.Unknown -> VoiceResult(labels.unknown, failed = true, outcome = VoiceOutcome.UNRECOGNIZED)
+                Interpretation.Unknown -> VoiceResult(labels.noMatch, failed = true, outcome = VoiceOutcome.UNRECOGNIZED)
                 Interpretation.Unavailable -> VoiceResult(UiText.get(R.string.voice_online_unavailable), failed = true,
                     outcome = VoiceOutcome.ONLINE_UNAVAILABLE)
             }

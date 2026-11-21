@@ -23,6 +23,7 @@ import org.openvoyah.controls.domain.voice.SpeechEvent
 import org.openvoyah.controls.domain.voice.VoiceOutcome
 import org.openvoyah.controls.platform.voice.OfflineVoiceInput
 import org.openvoyah.controls.platform.voice.decodeEndpoint
+import org.openvoyah.controls.platform.voice.heardText
 
 /** Requires microphone permission on the isolated emulator. */
 class OfflineVoiceInputTest : AndroidTestCase() {
@@ -148,5 +149,12 @@ class OfflineVoiceInputTest : AndroidTestCase() {
         assertTrue(endpoint("massage", "0.41") is SpeechEvent.Failed)
         assertTrue(endpoint("[unk] massage", "0.99") is SpeechEvent.Failed)
         assertTrue(decodeEndpoint("""{"text":"massage"}""") is SpeechEvent.Failed)
+    }
+
+    fun testTranscriptForDisplayDropsUnknownWordsAndSilence() {
+        assertEquals("open the sunroof", heardText("""{"text":"open [unk] the sunroof"}"""))
+        assertNull(heardText("""{"text":"[unk]"}"""))
+        assertNull(heardText("""{"text":"  "}"""))
+        assertTrue(heardText("""{"text":"${"word ".repeat(40)}"}""")!!.length <= 120)
     }
 }

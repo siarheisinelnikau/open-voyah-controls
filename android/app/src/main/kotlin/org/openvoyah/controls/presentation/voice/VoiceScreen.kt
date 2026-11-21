@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.snap
@@ -191,46 +190,53 @@ internal fun QuickVoicePopup(
         colorSpec, label = "voice microphone glyph",
     )
     val rise = with(LocalDensity.current) { 7.dp.roundToPx() }
+    // One frame for every phase: the popup does not grow or shrink while it listens, runs and answers.
     Surface(
+        Modifier.fillMaxWidth().height(QUICK_VOICE_HEIGHT_DP.dp),
         shape = MaterialTheme.shapes.large,
         color = colors.surface,
         border = BorderStroke(1.dp, border),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 11.dp)
+            Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 16.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
-            horizontalArrangement = Arrangement.spacedBy(13.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                Modifier.size(41.dp).background(tile, MaterialTheme.shapes.medium),
+                Modifier.size(64.dp).background(tile, MaterialTheme.shapes.medium),
                 contentAlignment = Alignment.Center,
             ) {
-                CockpitGlyph(CockpitIcon.VOICE, tint = glyph)
+                CockpitGlyph(CockpitIcon.VOICE, Modifier.size(34.dp), tint = glyph)
             }
             // Keyed on the phase: a new status or phrase within one phase updates in place instead of animating again.
             AnimatedContent(
-                state, Modifier.weight(1f),
+                state, Modifier.weight(1f).fillMaxHeight(),
                 transitionSpec = {
                     if (motion.enabled) {
                         (fadeIn(CockpitMotion.change()) + slideInVertically(CockpitMotion.change()) { rise })
-                            .togetherWith(fadeOut(CockpitMotion.exit())) using SizeTransform { _, _ -> CockpitMotion.change() }
+                            .togetherWith(fadeOut(CockpitMotion.exit())) using null
                     } else ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
                 },
                 label = "voice response",
                 contentKey = { it.phase },
             ) { current ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(current.status, style = MaterialTheme.typography.titleMedium,
-                        color = if (current.failed) colors.error else colors.onSurface,
-                        maxLines = 3, overflow = TextOverflow.Ellipsis)
+                val phrase = current.phrase?.takeIf { showRecognizedPhrase }
+                val statusColor = if (current.failed) colors.error else if (phrase != null) colors.onSurfaceVariant else colors.onSurface
+                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)) {
+                    // What was heard leads, so the result or the error below it reads as the answer to that phrase.
+                    if (phrase != null) {
+                        Text(phrase, style = MaterialTheme.typography.headlineSmall, color = colors.onSurface,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    val statusStyle = when {
+                        phrase != null -> MaterialTheme.typography.titleMedium
+                        recoverMicrophone != null -> MaterialTheme.typography.titleLarge
+                        else -> MaterialTheme.typography.headlineSmall
+                    }
+                    Text(current.status, style = statusStyle, color = statusColor, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     if (current.phase == VoiceViewModel.Phase.LISTENING && listeningMillis > 0) {
                         ListeningBar(listeningMillis, Modifier.padding(vertical = 4.dp).fillMaxWidth())
-                    }
-                    val phrase = current.phrase
-                    if (showRecognizedPhrase && phrase != null) {
-                        Text(phrase, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
-                            maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     recoverMicrophone?.let { recover ->
                         CockpitTextAction(label(R.string.quick_voice_microphone_settings), recover)
@@ -240,6 +246,10 @@ internal fun QuickVoicePopup(
         }
     }
 }
+
+/** The quick voice popup keeps this size, in dp, for every phase and result. */
+internal const val QUICK_VOICE_WIDTH_DP = 640
+internal const val QUICK_VOICE_HEIGHT_DP = 144
 
 /** Empties once over the recorder's listening window, so the time left to speak can be read at a glance. */
 @Composable
