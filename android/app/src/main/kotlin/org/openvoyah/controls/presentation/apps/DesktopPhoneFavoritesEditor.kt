@@ -11,10 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,8 +24,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -37,6 +33,7 @@ import org.openvoyah.controls.data.settings.VoiceSettings.LocalContact
 import org.openvoyah.controls.domain.apps.MAX_DESKTOP_PHONE_FAVORITES
 import org.openvoyah.controls.domain.apps.PhoneFavoriteEdit
 import org.openvoyah.controls.domain.apps.validPhoneFavoriteId
+import org.openvoyah.controls.presentation.dock.ReorderButton
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
@@ -95,22 +92,20 @@ internal fun DesktopPhoneFavoritesEditor(
 @Composable
 private fun FavoriteEditorRow(name: String, enabled: Boolean, canMoveUp: Boolean, canMoveDown: Boolean,
                               edit: (PhoneFavoriteEdit) -> Unit) {
+    val remove = UiText.get(R.string.desktop_info_phone_remove).format(name)
     Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            FavoriteOrderButton(name, up = true, enabled = enabled && canMoveUp) { edit(PhoneFavoriteEdit.MOVE_UP) }
-            FavoriteOrderButton(name, up = false, enabled = enabled && canMoveDown) { edit(PhoneFavoriteEdit.MOVE_DOWN) }
-            IconButton(onClick = { edit(PhoneFavoriteEdit.REMOVE) }, enabled = enabled, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Filled.Close, contentDescription = UiText.get(R.string.desktop_info_phone_remove).format(name))
+            ReorderButton(UiText.get(R.string.desktop_info_phone_up).format(name), earlier = true, enabled = enabled && canMoveUp) {
+                edit(PhoneFavoriteEdit.MOVE_UP)
+            }
+            ReorderButton(UiText.get(R.string.desktop_info_phone_down).format(name), earlier = false, enabled = enabled && canMoveDown) {
+                edit(PhoneFavoriteEdit.MOVE_DOWN)
+            }
+            IconButton(onClick = { edit(PhoneFavoriteEdit.REMOVE) }, enabled = enabled,
+                modifier = Modifier.size(48.dp).semantics { contentDescription = remove }) {
+                CockpitGlyph(CockpitIcon.CLOSE, tint = LocalContentColor.current)
             }
         }
-    }
-}
-
-@Composable
-private fun FavoriteOrderButton(name: String, up: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val description = UiText.get(if (up) R.string.desktop_info_phone_up else R.string.desktop_info_phone_down).format(name)
-    IconButton(onClick, enabled = enabled, modifier = Modifier.size(48.dp).semantics { contentDescription = description }) {
-        CockpitGlyph(CockpitIcon.ARROW, Modifier.rotate(if (up) -90f else 90f).alpha(if (enabled) 1f else .38f))
     }
 }

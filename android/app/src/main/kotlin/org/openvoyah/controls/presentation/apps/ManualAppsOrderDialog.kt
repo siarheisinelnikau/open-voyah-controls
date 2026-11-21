@@ -55,15 +55,15 @@ internal fun ManualAppsOrderDialog(
                     confirmReset = false
                     model.resetManualAppOrder()
                 }
-            }, enabled = enabled, primary = true) },
+            }, enabled = enabled, primary = true, destructive = true) },
         )
     } else {
         CockpitAlertDialog(
             onDismissRequest = close,
             title = { Text(UiText.get(R.string.apps_grid_edit_manual_order)) },
-            confirmButton = { CockpitTextAction(UiText.get(R.string.apps_desktop_done), close) },
+            confirmButton = { CockpitAction(UiText.get(R.string.apps_desktop_done), close, primary = true) },
             dismissButton = if (grid.manualAppOrder.isNotEmpty()) {
-                { CockpitAction(UiText.get(R.string.apps_grid_manual_order_reset), { confirmReset = true }, enabled = enabled) }
+                { CockpitAction(UiText.get(R.string.apps_grid_manual_order_reset), { confirmReset = true }, enabled = enabled, destructive = true) }
             } else null,
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -1,15 +1,16 @@
 package org.openvoyah.controls.presentation.dock
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,9 +23,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,6 +38,9 @@ import org.openvoyah.controls.domain.apps.AppGridPins
 import org.openvoyah.controls.domain.dock.MAX_DOCK_APP_SHORTCUTS
 import org.openvoyah.controls.presentation.theme.CockpitAppPicker
 import org.openvoyah.controls.presentation.theme.CockpitChoice
+import org.openvoyah.controls.presentation.theme.CockpitDialogWidth
+import org.openvoyah.controls.presentation.theme.CockpitDialogWindowMotion
+import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
@@ -65,9 +72,10 @@ internal fun DockShortcutEditor(model: QuickActionsViewModel, components: List<S
                             edit { model.moveApp(component, false) }
                         }
                     }
+                    val remove = UiText.get(R.string.quick_actions_remove_app).format(label)
                     IconButton({ edit { model.removeApp(component) } }, enabled = editable,
-                        modifier = Modifier.size(48.dp).testTag("quickActionsRemoveApp:$component")) {
-                        Icon(Icons.Filled.Close, contentDescription = UiText.get(R.string.quick_actions_remove_app).format(label))
+                        modifier = Modifier.size(48.dp).testTag("quickActionsRemoveApp:$component").semantics { contentDescription = remove }) {
+                        CockpitGlyph(CockpitIcon.CLOSE, tint = LocalContentColor.current)
                     }
                 }
             } }
@@ -75,11 +83,15 @@ internal fun DockShortcutEditor(model: QuickActionsViewModel, components: List<S
         if (hasRoom) {
             val title = UiText.get(R.string.quick_actions_add_app)
             CockpitChoice(title, enabled = editable, modifier = Modifier.testTag("quickActionsAddApp")) { edit { picking = true } }
-            if (picking) Dialog(onDismissRequest = { picking = false }) {
-                CockpitAppPicker(title, { picking = false }, select = { entry ->
-                    picking = false
-                    entry?.let { edit { model.addApp(it.component().flattenToString()) } }
-                }, eligible = { AppGridPins.supports(it) && it !in components }, noChoices = UiText.get(R.string.quick_actions_no_more_apps))
+            if (picking) Dialog(onDismissRequest = { picking = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+                CockpitDialogWindowMotion()
+                // The same width as the other app dialogs; the platform default would stretch the picker across the screen.
+                Box(Modifier.padding(horizontal = 16.dp).widthIn(max = CockpitDialogWidth).fillMaxWidth()) {
+                    CockpitAppPicker(title, { picking = false }, select = { entry ->
+                        picking = false
+                        entry?.let { edit { model.addApp(it.component().flattenToString()) } }
+                    }, eligible = { AppGridPins.supports(it) && it !in components }, noChoices = UiText.get(R.string.quick_actions_no_more_apps))
+                }
             }
         }
     }

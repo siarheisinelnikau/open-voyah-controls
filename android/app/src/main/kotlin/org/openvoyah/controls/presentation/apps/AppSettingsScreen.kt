@@ -3,9 +3,11 @@ package org.openvoyah.controls.presentation.apps
 import android.view.Display
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -15,21 +17,17 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog as AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import org.openvoyah.controls.presentation.theme.CockpitBackdrop
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,10 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
@@ -49,8 +46,15 @@ import org.openvoyah.controls.domain.display.WindowConnection
 import org.openvoyah.controls.platform.apps.AndroidAppAccess
 import org.openvoyah.controls.platform.apps.AppsPlatform
 import org.openvoyah.controls.platform.apps.InstallOrigin
+import org.openvoyah.controls.presentation.theme.CockpitAction
+import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
+import org.openvoyah.controls.presentation.theme.CockpitHeading
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.CockpitTouch
+import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 
 internal data class AppShortcutGridState(
     val pinned: Boolean?,
@@ -79,62 +83,43 @@ internal fun AppSettingsScreen(
     val permissions = state.permissions
     val busy = state.busy
     val colors = MaterialTheme.colorScheme
+    val layout = LocalCockpitLayout.current
     var choices by remember(app.id) { mutableStateOf<List<AppsPlatform.DisplayChoice>?>(null) }
     val launchActions: @Composable (Modifier) -> Unit = { modifier ->
         if (app.launchEntry != null) {
             FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (shortcut?.showInAll != null) {
                     val shown = shortcut.showInAll
-                    val editable = !busy && !shortcut.working
-                    Row(Modifier.heightIn(min = 50.dp).toggleable(shown, enabled = editable, role = Role.Switch,
-                        onValueChange = setShowInAll), horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text(text(R.string.apps_grid_show_in_all), style = MaterialTheme.typography.bodyLarge)
-                        Switch(shown, onCheckedChange = null, enabled = editable)
+                    // The shared switch row fills its parent; among these actions it keeps the width of its own content.
+                    Box(Modifier.width(IntrinsicSize.Max)) {
+                        CockpitSwitch(text(R.string.apps_grid_show_in_all), shown, !busy && !shortcut.working, setShowInAll)
                     }
                 }
                 if (shortcut?.pinned != null) {
                     val pinned = shortcut.pinned
-                    TextButton({ setPinned(!pinned) }, Modifier.heightIn(min = 50.dp), enabled = !busy && !shortcut.working) {
-                        val label = if (shortcut.isFavorites) {
-                            if (pinned) R.string.apps_desktop_unpin else R.string.apps_desktop_pin
-                        } else if (pinned) R.string.apps_unpin else R.string.apps_pin
-                        Text(text(label))
-                    }
+                    val label = if (shortcut.isFavorites) {
+                        if (pinned) R.string.apps_desktop_unpin else R.string.apps_desktop_pin
+                    } else if (pinned) R.string.apps_unpin else R.string.apps_pin
+                    CockpitAction(text(label), { setPinned(!pinned) }, enabled = !busy && !shortcut.working)
                 }
-                OutlinedButton({ choices = displays() }, Modifier.heightIn(min = 50.dp), enabled = !busy) {
-                    Text(text(R.string.choose_display))
-                }
-                Button({ open(null, false) }, Modifier.heightIn(min = 50.dp), enabled = !busy) {
-                    Text(text(R.string.open_app))
-                }
+                CockpitAction(text(R.string.choose_display), { choices = displays() }, enabled = !busy)
+                CockpitAction(text(R.string.open_app), { open(null, false) }, enabled = !busy, primary = true)
             }
         }
     }
     CockpitBackdrop {
         BoxWithConstraints(
             Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 22.dp, vertical = 17.dp),
+                .padding(horizontal = layout.spacing(22.dp), vertical = layout.spacing(17.dp)),
         ) {
             val wide = maxWidth >= 880.dp && window != null
             val inlineActions = maxWidth >= (if (shortcut == null) 680.dp else 1040.dp)
             val inlineActionWidth = maxWidth - 310.dp
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(
-                    Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OutlinedButton(model::close, Modifier.heightIn(min = 50.dp), enabled = !busy) {
-                        CockpitGlyph(CockpitIcon.BACK, Modifier.size(19.dp))
-                        Text(text(R.string.cockpit_back), Modifier.padding(start = 7.dp))
-                    }
-                    AppIcon(app, Modifier.size(46.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(text(R.string.app_settings_title), style = MaterialTheme.typography.labelLarge,
-                            color = colors.primary)
-                        Text(app.label, style = MaterialTheme.typography.headlineSmall, maxLines = 1,
-                            overflow = TextOverflow.Ellipsis)
-                    }
+            val spacing = Arrangement.spacedBy(layout.spacing(14.dp))
+            Column(verticalArrangement = spacing) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = spacing, verticalAlignment = Alignment.CenterVertically) {
+                    // Back needs no disabled state: the view model keeps the page open while a change is still in flight.
+                    Box(Modifier.weight(1f)) { CockpitHeading(app.label, text(R.string.app_settings_title), model::close) }
                     if (inlineActions) launchActions(Modifier.widthIn(max = inlineActionWidth))
                 }
                 if (!inlineActions) launchActions(Modifier)
@@ -142,7 +127,7 @@ internal fun AppSettingsScreen(
                     Text(text(message), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = colors.error)
                 }
                 if (wide) {
-                    Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(Modifier.weight(1f), horizontalArrangement = spacing) {
                         SettingsPane(R.string.app_window_title, CockpitIcon.DISPLAY,
                             Modifier.weight(1.15f).fillMaxHeight(), scroll = true) {
                             AppWindowSettings(requireNotNull(window), model)
@@ -154,8 +139,7 @@ internal fun AppSettingsScreen(
                         }
                     }
                 } else {
-                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = spacing) {
                         window?.let {
                             SettingsPane(R.string.app_window_title, CockpitIcon.DISPLAY, Modifier.fillMaxWidth()) {
                                 AppWindowSettings(it, model)
@@ -185,6 +169,10 @@ internal fun AppSettingsScreen(
     }
 }
 
+/**
+ * The card of CockpitSection with the same padding and gaps. CockpitSection itself cannot take a height from its
+ * column or scroll on its own, which the side-by-side panes need.
+ */
 @Composable
 private fun SettingsPane(
     title: Int,
@@ -194,13 +182,14 @@ private fun SettingsPane(
     content: @Composable () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
+    val layout = LocalCockpitLayout.current
     Surface(modifier, shape = MaterialTheme.shapes.large, color = colors.surface,
         border = BorderStroke(1.dp, colors.outlineVariant)) {
         val body = if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier
-        Column(body.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(body.padding(layout.spacing(16.dp)), verticalArrangement = Arrangement.spacedBy(layout.spacing(11.dp))) {
+            Row(horizontalArrangement = Arrangement.spacedBy(layout.spacing(12.dp)), verticalAlignment = Alignment.CenterVertically) {
                 CockpitGlyph(icon, Modifier.size(23.dp))
-                Text(text(title), style = MaterialTheme.typography.titleLarge)
+                Text(text(title), Modifier.semantics { heading() }, style = MaterialTheme.typography.titleLarge)
             }
             content()
         }
@@ -219,6 +208,7 @@ private fun PermissionSettings(
 ) {
     val details = panel.details
     val colors = MaterialTheme.colorScheme
+    val layout = LocalCockpitLayout.current
     val description = when {
         details == null && panel.busy -> R.string.apps_permission_checking
         else -> when (details?.origin ?: appOrigin) {
@@ -231,14 +221,10 @@ private fun PermissionSettings(
         }
     }
     Text(text(description), color = colors.onSurfaceVariant)
-    OutlinedButton(appInfo, Modifier.heightIn(min = 48.dp), enabled = !busy) {
-        Text(text(R.string.apps_app_info))
-    }
+    CockpitAction(text(R.string.apps_app_info), appInfo, enabled = !busy)
     panel.message?.let {
         Text(text(it), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = colors.error)
-        TextButton(refresh, Modifier.heightIn(min = 48.dp), enabled = !panel.busy) {
-            Text(text(R.string.apps_permission_recheck))
-        }
+        CockpitAction(text(R.string.apps_permission_recheck), refresh, enabled = !panel.busy)
     }
     if (details == null) return
     if (details.permissions.isEmpty()) {
@@ -251,17 +237,15 @@ private fun PermissionSettings(
     }
     details.permissions.forEach { item ->
         HorizontalDivider(color = colors.outlineVariant)
-        val toggle = if (item.changeable) {
-            Modifier.toggleable(value = item.granted, enabled = !panel.busy, role = Role.Switch,
-                onValueChange = { set(item.name, it) })
-        } else Modifier
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 52.dp).then(toggle),
-            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
+        if (item.changeable) {
+            CockpitSwitch(item.label, item.granted, !panel.busy) { set(item.name, it) }
+        } else Row(
+            // The metrics of CockpitSwitch, so read-only rows line up with the switches between them.
+            Modifier.fillMaxWidth().heightIn(min = CockpitTouch),
+            horizontalArrangement = Arrangement.spacedBy(layout.spacing(10.dp)), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(item.label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            if (item.changeable) Switch(item.granted, onCheckedChange = null, enabled = !panel.busy)
-            else Text(text(if (item.granted) R.string.apps_permission_granted else R.string.apps_permission_not_granted),
+            Text(item.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Text(text(if (item.granted) R.string.apps_permission_granted else R.string.apps_permission_not_granted),
                 style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         }
     }
@@ -270,9 +254,7 @@ private fun PermissionSettings(
         Text(text(R.string.apps_special_access), style = MaterialTheme.typography.titleMedium)
         Text(text(R.string.apps_special_handoff), color = colors.onSurfaceVariant)
         details.specialAccess.forEach { access ->
-            OutlinedButton({ specialAccess(access) }, Modifier.heightIn(min = 48.dp), enabled = !busy) {
-                Text(text(access.label()))
-            }
+            CockpitAction(text(access.label()), { specialAccess(access) }, enabled = !busy)
         }
     }
 }
@@ -306,32 +288,28 @@ private fun DisplayPicker(
         text = {
             if (choices.isEmpty()) Text(text(R.string.app_display_no_choices))
             else if (display == null) {
-                Column(Modifier.heightIn(max = 225.dp).verticalScroll(rememberScrollState())) {
+                Column(Modifier.heightIn(max = 225.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     choices.forEach { choice ->
-                        TextButton(
-                            onClick = {
-                                if (allowsWindow(choice) || choice.canOpenAlongside) selected = choice
-                                else open(choice.id, false)
-                            },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
-                        ) { Text(choice.label) }
+                        CockpitChoice(choice.label) {
+                            if (allowsWindow(choice) || choice.canOpenAlongside) selected = choice
+                            else open(choice.id, false)
+                        }
                     }
                 }
             } else if (display.canOpenAlongside) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(text(R.string.app_display_alongside_hint))
-                    OutlinedButton({ openAdjacent(display.id) }, Modifier.fillMaxWidth().heightIn(min = 50.dp)) {
-                        Text(text(R.string.app_display_alongside))
-                    }
+                    CockpitAction(text(R.string.app_display_alongside), { openAdjacent(display.id) }, Modifier.fillMaxWidth())
                 }
             } else Text(text(R.string.app_window_options))
         },
         confirmButton = {
-            if (display != null) Button({ open(display.id, false) }) { Text(text(R.string.open_app)) }
+            if (display != null) CockpitAction(text(R.string.open_app), { open(display.id, false) }, primary = true)
         },
         dismissButton = {
-            if (display != null && allowsWindow(display)) TextButton({ open(display.id, true) }) { Text(text(R.string.open_window)) }
-            else TextButton(close) { Text(text(R.string.ui_89)) }
+            if (display != null && allowsWindow(display)) CockpitTextAction(text(R.string.open_window)) { open(display.id, true) }
+            else CockpitTextAction(text(R.string.ui_89), close)
         },
     )
 }

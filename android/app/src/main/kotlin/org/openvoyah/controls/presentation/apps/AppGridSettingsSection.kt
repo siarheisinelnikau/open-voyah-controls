@@ -4,26 +4,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
@@ -66,9 +58,12 @@ import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitOptionDialog
+import org.openvoyah.controls.presentation.theme.CockpitReveal
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 
 internal class AppGridSettingsViewModel(
     private val preferences: AppGridPreferences,
@@ -169,6 +164,7 @@ internal fun AppGridSettingsSection() {
     val state by model.state.collectAsStateWithLifecycle(lifecycleOwner = owner)
     val current = state.settings?.getOrNull()
     val editable = current != null && !state.saving
+    val layout = LocalCockpitLayout.current
     var picker by remember { mutableStateOf<GridPicker?>(null) }
     fun active(): Boolean = owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
 
@@ -188,7 +184,7 @@ internal fun AppGridSettingsSection() {
         CockpitChoice(text(R.string.apps_grid_sort_order), current?.sortOrder?.label(), enabled = editable) {
             if (active()) picker = GridPicker.SORT_ORDER
         }
-        if (current?.sortOrder == AppGridSortOrder.MANUAL) {
+        CockpitReveal(current?.sortOrder == AppGridSortOrder.MANUAL) {
             CockpitChoice(text(R.string.apps_grid_edit_manual_order), enabled = editable) {
                 if (active()) picker = GridPicker.MANUAL_ORDER
             }
@@ -205,7 +201,7 @@ internal fun AppGridSettingsSection() {
         CockpitSwitch(text(R.string.apps_grid_show_system), current?.showSystemApps ?: true, enabled = editable) { show ->
             if (active()) model.setShowSystemApps(show)
         }
-        if (current?.showSystemApps == false) {
+        CockpitReveal(current?.showSystemApps == false) {
             Text(text(R.string.apps_grid_keeps_pins), color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium)
         }
@@ -215,19 +211,22 @@ internal fun AppGridSettingsSection() {
         CockpitSwitch(text(R.string.apps_desktop_enable), desktops?.enabled == true, enabled = editable) { enabled ->
             if (active()) model.setDesktopsEnabled(enabled)
         }
-        if (current != null && current.desktops.enabled) {
-            val defaultLabel = current.desktops.defaultDesktop.desktopLabel(current.desktopNames)
-            CockpitChoice(text(R.string.apps_desktop_default), defaultLabel, enabled = editable) {
-                if (active()) picker = GridPicker.DEFAULT_DESKTOP
-            }
-            CockpitChoice(text(R.string.apps_grid_desktop_names), enabled = editable) {
-                if (active()) picker = GridPicker.DESKTOP_NAMES
-            }
-            CockpitChoice(text(R.string.apps_grid_favorites_back), current.favoritesBackBehavior.label(), enabled = editable) {
-                if (active()) picker = GridPicker.FAVORITES_BACK
-            }
-            CockpitSwitch(text(R.string.apps_grid_smooth_paging), current.smoothDesktopPaging, enabled = editable) { smooth ->
-                if (active()) model.setSmoothDesktopPaging(smooth)
+        CockpitReveal(current != null && current.desktops.enabled) {
+            // The rows of one reveal need their own column; the gap is the one between the rows of a CockpitSection.
+            if (current != null) Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(layout.spacing(11.dp))) {
+                val defaultLabel = current.desktops.defaultDesktop.desktopLabel(current.desktopNames)
+                CockpitChoice(text(R.string.apps_desktop_default), defaultLabel, enabled = editable) {
+                    if (active()) picker = GridPicker.DEFAULT_DESKTOP
+                }
+                CockpitChoice(text(R.string.apps_grid_desktop_names), enabled = editable) {
+                    if (active()) picker = GridPicker.DESKTOP_NAMES
+                }
+                CockpitChoice(text(R.string.apps_grid_favorites_back), current.favoritesBackBehavior.label(), enabled = editable) {
+                    if (active()) picker = GridPicker.FAVORITES_BACK
+                }
+                CockpitSwitch(text(R.string.apps_grid_smooth_paging), current.smoothDesktopPaging, enabled = editable) { smooth ->
+                    if (active()) model.setSmoothDesktopPaging(smooth)
+                }
             }
         }
         DesktopWallpaperSettings(extraDesktops = desktops?.enabled == true, desktopName = desktopLabel)
@@ -312,31 +311,7 @@ private fun <T> GridOptionDialog(
     note: Int? = null,
     choose: (T) -> Unit,
 ) {
-    CockpitAlertDialog(
-        onDismissRequest = close,
-        title = { Text(text(title)) },
-        confirmButton = { CockpitTextAction(text(R.string.ui_89), close) },
-        text = {
-            Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
-                note?.let { Text(text(it), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                options.forEach { option ->
-                    val selected = option == current
-                    Row(
-                        Modifier.fillMaxWidth().heightIn(min = 52.dp)
-                            .selectable(selected, role = Role.RadioButton) {
-                                close()
-                                choose(option)
-                            },
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected, onClick = null)
-                        Text(label(option), style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-            }
-        },
-    )
+    CockpitOptionDialog(text(title), options, current, label, onSelect = choose, onDismiss = close, description = note?.let(::text))
 }
 
 @Composable

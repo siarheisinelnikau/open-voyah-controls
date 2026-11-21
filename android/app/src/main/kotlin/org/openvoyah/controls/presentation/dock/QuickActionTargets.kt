@@ -44,22 +44,28 @@ internal class QuickActionTarget(
         this(route, label, title, { CockpitGlyph(icon) })
 }
 
-internal val QuickAction.target: QuickActionTarget get() = when (this) {
-    QuickAction.APPS -> QuickActionTarget(ControlsRoute.APPS, CockpitIcon.APPS, R.string.quick_actions_apps,
-        R.string.appearance_app_grid)
-    QuickAction.BUTTONS -> QuickActionTarget(ControlsRoute.BUTTONS, CockpitIcon.BUTTONS, R.string.cockpit_buttons)
-    QuickAction.VOICE_SETTINGS -> QuickActionTarget(ControlsRoute.VOICE, CockpitIcon.VOICE, R.string.quick_actions_commands,
-        R.string.voice_options_title)
-    QuickAction.DISPLAY -> QuickActionTarget(ControlsRoute.DISPLAY, CockpitIcon.DISPLAY, R.string.quick_actions_display,
-        R.string.virtual_display)
-    QuickAction.VEHICLE -> QuickActionTarget(ControlsRoute.VEHICLE, CockpitIcon.CAR, R.string.quick_actions_vehicle,
-        R.string.vehicle_settings_title)
-    QuickAction.AUTOMATION -> QuickActionTarget(ControlsRoute.VEHICLE_AUTOMATION, CockpitIcon.ENERGY,
-        R.string.vehicle_automation_entry)
-    QuickAction.SETTINGS -> QuickActionTarget(ControlsRoute.SETTINGS, CockpitIcon.SETTINGS, R.string.cockpit_settings)
-    QuickAction.SEAT_MEMORY -> QuickActionTarget(ControlsRoute.SEAT_MEMORY, R.string.quick_actions_seat_memory, R.string.seat_memory_title) {
-        Icon(painterResource(R.drawable.ic_quick_action_seat), contentDescription = null, modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.primary)
+internal val QuickAction.target: QuickActionTarget get() = quickActionTargets.getValue(this)
+
+// Built once: a target created on every access would hand each dock button a new glyph lambda, so it could never skip.
+private val quickActionTargets: Map<QuickAction, QuickActionTarget> = QuickAction.entries.associateWith { action ->
+    when (action) {
+        QuickAction.APPS -> QuickActionTarget(ControlsRoute.APPS, CockpitIcon.APPS, R.string.quick_actions_apps,
+            R.string.appearance_app_grid)
+        QuickAction.BUTTONS -> QuickActionTarget(ControlsRoute.BUTTONS, CockpitIcon.BUTTONS, R.string.cockpit_buttons)
+        QuickAction.VOICE_SETTINGS -> QuickActionTarget(ControlsRoute.VOICE, CockpitIcon.VOICE, R.string.quick_actions_commands,
+            R.string.voice_options_title)
+        QuickAction.DISPLAY -> QuickActionTarget(ControlsRoute.DISPLAY, CockpitIcon.DISPLAY, R.string.quick_actions_display,
+            R.string.virtual_display)
+        QuickAction.VEHICLE -> QuickActionTarget(ControlsRoute.VEHICLE, CockpitIcon.CAR, R.string.quick_actions_vehicle,
+            R.string.vehicle_settings_title)
+        QuickAction.AUTOMATION -> QuickActionTarget(ControlsRoute.VEHICLE_AUTOMATION, CockpitIcon.ENERGY,
+            R.string.vehicle_automation_entry)
+        QuickAction.SETTINGS -> QuickActionTarget(ControlsRoute.SETTINGS, CockpitIcon.SETTINGS, R.string.cockpit_settings)
+        QuickAction.SEAT_MEMORY -> QuickActionTarget(ControlsRoute.SEAT_MEMORY, R.string.quick_actions_seat_memory,
+            R.string.seat_memory_title) {
+            Icon(painterResource(R.drawable.ic_quick_action_seat), contentDescription = null, modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.primary)
+        }
+        QuickAction.ROUTINES -> QuickActionTarget(ControlsRoute.ROUTINES, CockpitIcon.ENERGY, R.string.routines_title)
     }
-    QuickAction.ROUTINES -> QuickActionTarget(ControlsRoute.ROUTINES, CockpitIcon.ENERGY, R.string.routines_title)
 }

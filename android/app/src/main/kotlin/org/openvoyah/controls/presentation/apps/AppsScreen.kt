@@ -1,15 +1,12 @@
 package org.openvoyah.controls.presentation.apps
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,23 +23,21 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog as AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,7 +57,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -73,6 +67,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -87,8 +82,16 @@ import org.openvoyah.controls.domain.apps.AppGridTileSize
 import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
+import org.openvoyah.controls.presentation.theme.CockpitAction
+import org.openvoyah.controls.presentation.theme.CockpitEmblem
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.theme.CockpitReveal
+import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.CockpitTextField
+import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 import org.openvoyah.controls.presentation.theme.rememberPressMotion
 import java.util.Locale
 
@@ -161,7 +164,11 @@ internal fun AppsScreen(
     val showPicker = grid.desktops.enabled && desktop != AppGridDesktop.MAIN && pickerDesktop == desktop
     val showReorder = reorderDesktop == desktop && desktopPins.isNotEmpty()
     val handleFavoritesBack = gridActive && grid.opensMainOnBack(desktop) && !searching && !allow && !showPicker && !showReorder
-    val keyboardVisible = handleFavoritesBack && (WindowInsets.ime.getBottom(LocalDensity.current) > 0 ||
+    val ime = WindowInsets.ime
+    val density = LocalDensity.current
+    // Read as a flag, so the keyboard animation does not recompose the whole grid on every frame.
+    val imeShown by remember(ime, density) { derivedStateOf { ime.getBottom(density) > 0 } }
+    val keyboardVisible = handleFavoritesBack && (imeShown ||
         ViewCompat.getRootWindowInsets(LocalView.current)?.isVisible(WindowInsetsCompat.Type.ime()) == true)
     BackHandler(handleFavoritesBack && !keyboardVisible) { openDesktop(AppGridDesktop.MAIN) }
     val clearSearch = {
@@ -170,11 +177,14 @@ internal fun AppsScreen(
     }
     BackHandler(searching, onBack = clearSearch)
     val colors = MaterialTheme.colorScheme
+    val layout = LocalCockpitLayout.current
     val smoothPaging = animateDesktopPaging && grid.smoothDesktopPaging &&
         state.selection?.let { it.entry == entry && it.desktop == desktop } == true
+    val banner = rememberClosingStatus(state.status)
     DesktopWallpaperBackdrop(desktop) {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()
-            .padding(horizontal = 24.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            .padding(horizontal = layout.spacing(24.dp), vertical = layout.spacing(20.dp)),
+            verticalArrangement = Arrangement.spacedBy(layout.spacing(12.dp))) {
             if (grid.desktops.enabled || desktopPins.size > 1) {
                 DesktopSwitcher(desktop, showDesktops = grid.desktops.enabled, names = grid.desktopNames, select = openDesktop, findApps = {
                     reorderDesktop = null
@@ -186,30 +196,28 @@ internal fun AppsScreen(
                     }
                 } else null)
             }
-            AnimatedVisibility(alwaysShowSearch || searching, enter = fadeIn(tween(150)), exit = fadeOut(tween(100))) {
+            CockpitReveal(alwaysShowSearch || searching) {
                 val clearIcon: (@Composable () -> Unit)? = if (alwaysShowSearch && query.isNotEmpty()) {
                     {
-                        IconButton(onClick = clearSearch) {
-                            Icon(Icons.Filled.Close, contentDescription = text(R.string.apps_grid_clear_search))
+                        val clearLabel = text(R.string.apps_grid_clear_search)
+                        IconButton(onClick = clearSearch, modifier = Modifier.semantics { contentDescription = clearLabel }) {
+                            CockpitGlyph(CockpitIcon.CLOSE, tint = LocalContentColor.current)
                         }
                     }
                 } else null
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(query, { query = it }, Modifier.weight(1f), singleLine = true,
-                        label = { Text(text(R.string.ui_113)) }, trailingIcon = clearIcon, shape = MaterialTheme.shapes.medium)
-                    if (!alwaysShowSearch) {
-                        TextButton(clearSearch, Modifier.heightIn(min = 52.dp)) { Text(text(R.string.ui_89)) }
-                    }
+                    CockpitTextField(query, { query = it }, text(R.string.ui_113), Modifier.weight(1f), trailingIcon = clearIcon)
+                    if (!alwaysShowSearch) CockpitTextAction(text(R.string.ui_89), clearSearch)
                 }
             }
-            AnimatedVisibility(state.status != null, enter = fadeIn(tween(150)), exit = fadeOut(tween(100))) {
-                state.status?.let { message ->
+            CockpitReveal(state.status != null) {
+                banner?.let { message ->
                     Surface(shape = MaterialTheme.shapes.medium, color = colors.surfaceVariant,
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
                         Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(text(message), Modifier.weight(1f))
                             discardInstall?.let { discard ->
-                                TextButton(discard, Modifier.heightIn(min = 48.dp)) { Text(text(R.string.apps_install_discard)) }
+                                CockpitAction(text(R.string.apps_install_discard), discard, destructive = true)
                             }
                         }
                     }
@@ -223,18 +231,17 @@ internal fun AppsScreen(
                 }
                 LazyVerticalGrid(columns, Modifier.fillMaxSize(),
                     state = gridState,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    horizontalArrangement = Arrangement.spacedBy(layout.spacing(12.dp)),
+                    verticalArrangement = Arrangement.spacedBy(layout.spacing(12.dp))) {
                     item(key = "controls-settings") {
-                        LauncherTile(text(R.string.app_name), tiles, open = { navigate(ControlsRoute.SETTINGS) }) {
-                            Image(painterResource(R.drawable.ic_controls_art), contentDescription = null,
-                                modifier = Modifier.size(tiles.iconSize).clip(CircleShape),
-                                colorFilter = if (grid.iconStyle == AppGridIconStyle.MONOCHROME) monochromeIcons else null)
+                        LauncherTile(text(R.string.app_name), tiles, open = { navigate(ControlsRoute.SETTINGS) }, modifier = gridItemMotion()) {
+                            CockpitEmblem(Modifier.size(tiles.iconSize))
                         }
                     }
                     if (appsBeforeCards == 0) desktopInfoCards(cards, gridState, grid.showDesktopCardOutlines, navigate)
                     if (AppGridShortcut.QUICK_VOICE in grid.visibleShortcuts) {
                         val quickVoice = AppGridShortcut.QUICK_VOICE.details
-                        item(key = quickVoice.key) { Shortcut(quickVoice.label, quickVoice.icon, tiles, open = listen) }
+                        item(key = quickVoice.key) { Shortcut(quickVoice.label, quickVoice.icon, tiles, gridItemMotion(), open = listen) }
                     }
                     val appTile: @Composable LazyGridItemScope.(LocalApp) -> Unit = { app ->
                         val pinned = app.id in pinnedApps
@@ -243,7 +250,7 @@ internal fun AppsScreen(
                         } else null
                         val announcement = if (pinnedLabel != null) Modifier.semantics { stateDescription = pinnedLabel } else Modifier
                         LauncherTile(app.label, tiles, { if (app.launchEntry == null) showSettings(app) else open(app) },
-                            { showSettings(app) }, Modifier.animateItem(tween(150), tween(190), tween(110)).then(announcement),
+                            { showSettings(app) }, gridItemMotion().then(announcement),
                             showLabel = grid.showAppLabels) {
                             if (pinned) Box(Modifier.size(tiles.iconSize)) {
                                 AppIcon(app, Modifier.fillMaxSize(), grid.iconStyle)
@@ -259,7 +266,8 @@ internal fun AppsScreen(
                     optionalShortcuts.forEach { shortcut ->
                         val details = shortcut.details
                         item(key = details.key) {
-                            Shortcut(details.label, details.icon, tiles, enabled = shortcut != AppGridShortcut.INSTALL_APK || installEnabled) {
+                            Shortcut(details.label, details.icon, tiles, gridItemMotion(),
+                                enabled = shortcut != AppGridShortcut.INSTALL_APK || installEnabled) {
                                 when (shortcut) {
                                     AppGridShortcut.QUICK_VOICE -> listen()
                                     AppGridShortcut.INSTALL_APK -> if (canInstall()) install() else allow = true
@@ -269,9 +277,9 @@ internal fun AppsScreen(
                         }
                     }
                     if (!alwaysShowSearch) {
-                        item(key = "controls-search") { Shortcut(R.string.ui_113, CockpitIcon.APPS, tiles) { search = true } }
+                        item(key = "controls-search") { Shortcut(R.string.ui_113, CockpitIcon.SEARCH, tiles, gridItemMotion()) { search = true } }
                     }
-                    if (state.loading || visible.isEmpty()) item(key = "app-list-state") {
+                    if (state.loading || visible.isEmpty()) item(key = "app-list-state", span = { GridItemSpan(maxLineSpan) }) {
                         val label = when {
                             state.loading -> R.string.apps_loading
                             query.isNotBlank() -> R.string.apps_empty
@@ -279,7 +287,7 @@ internal fun AppsScreen(
                             else -> R.string.apps_grid_empty_main
                         }
                         Text(text(label),
-                            Modifier.padding(18.dp), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                            gridItemMotion().padding(18.dp), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                     }
                 }
             }
@@ -287,8 +295,8 @@ internal fun AppsScreen(
     }
     if (allow) AlertDialog(onDismissRequest = { allow = false },
         title = { Text(text(R.string.install_local_apk)) }, text = { Text(text(R.string.allow_apk_install)) },
-        confirmButton = { Button({ allow = false; allowInstalls() }, Modifier.heightIn(min = 50.dp)) { Text(text(R.string.ui_61)) } },
-        dismissButton = { TextButton({ allow = false }, Modifier.heightIn(min = 50.dp)) { Text(text(R.string.ui_89)) } })
+        confirmButton = { CockpitAction(text(R.string.ui_61), { allow = false; allowInstalls() }, primary = true) },
+        dismissButton = { CockpitTextAction(text(R.string.ui_89)) { allow = false } })
     if (showPicker) {
         FavoriteAppsPicker(desktop, grid, state, close = { pickerDesktop = null }, changePin = changeDesktopPin)
     }
@@ -299,9 +307,24 @@ internal fun AppsScreen(
     }
 }
 
+/** The last message stays on the banner while it closes, so the banner shrinks away instead of emptying first. */
 @Composable
-private fun Shortcut(label: Int, icon: CockpitIcon, tiles: GridTileMetrics, enabled: Boolean = true, open: () -> Unit) {
-    LauncherTile(text(label), tiles, open, enabled = enabled) {
+private fun rememberClosingStatus(status: Int?): Int? {
+    val last = remember { mutableStateOf(status) }
+    SideEffect { if (status != null) last.value = status }
+    return status ?: last.value
+}
+
+/** Every grid item arrives, moves and leaves alike, so the grid moves as one while it is filtered. */
+@Composable
+internal fun LazyGridItemScope.gridItemMotion(leave: Boolean = true): Modifier =
+    if (!LocalCockpitMotion.current.enabled) Modifier
+    else Modifier.animateItem(CockpitMotion.enter<Float>(), CockpitMotion.change<IntOffset>(), CockpitMotion.exit<Float>().takeIf { leave })
+
+@Composable
+private fun Shortcut(label: Int, icon: CockpitIcon, tiles: GridTileMetrics, modifier: Modifier = Modifier, enabled: Boolean = true,
+                     open: () -> Unit) {
+    LauncherTile(text(label), tiles, open, modifier = modifier, enabled = enabled) {
         CockpitGlyph(icon, Modifier.size(tiles.iconSize))
     }
 }
@@ -311,19 +334,20 @@ private fun Shortcut(label: Int, icon: CockpitIcon, tiles: GridTileMetrics, enab
 private fun LauncherTile(label: String, tiles: GridTileMetrics, open: () -> Unit, settings: (() -> Unit)? = null,
                          modifier: Modifier = Modifier, enabled: Boolean = true, showLabel: Boolean = true,
                          icon: @Composable () -> Unit) {
-    val press = rememberPressMotion()
+    val press = rememberPressMotion(enabled, depth = .06f)
     val accessibleName = if (showLabel) Modifier else Modifier.semantics { contentDescription = label }
-    Column(modifier.then(press.modifier).fillMaxWidth().heightIn(min = tiles.height)
+    Column(modifier.then(press.modifier).fillMaxWidth().heightIn(min = tiles.height).clip(MaterialTheme.shapes.medium)
             .combinedClickable(enabled = enabled, interactionSource = press.source,
-                indication = androidx.compose.foundation.LocalIndication.current, role = Role.Button,
+                indication = LocalIndication.current, role = Role.Button,
                 onLongClick = settings, onLongClickLabel = settings?.let { text(R.string.app_settings_title) }, onClick = open)
             .then(accessibleName)
             .padding(horizontal = 10.dp, vertical = tiles.verticalPadding), horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(tiles.labelSpacing, Alignment.CenterVertically)) {
+            // A label reserves two lines and hangs from the top, so the icons of a row stay level when one label wraps.
+            verticalArrangement = Arrangement.spacedBy(tiles.labelSpacing, if (showLabel) Alignment.Top else Alignment.CenterVertically)) {
             icon()
             if (showLabel) {
                 Text(label, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.5f))
             }
     }

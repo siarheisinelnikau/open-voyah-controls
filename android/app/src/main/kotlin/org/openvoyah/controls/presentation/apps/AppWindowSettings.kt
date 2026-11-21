@@ -6,17 +6,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
@@ -24,6 +24,7 @@ import org.openvoyah.controls.domain.display.AppWindowProfile
 import org.openvoyah.controls.domain.display.WindowConnection
 import org.openvoyah.controls.domain.display.WindowProfileDelivery
 import org.openvoyah.controls.domain.display.WindowProfileDelivery.Outcome
+import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -33,11 +34,7 @@ internal fun AppWindowSettings(window: AppSettingsViewModel.Window, model: AppSe
     val profile = window.profile
     if (profile == null) {
         CockpitFeedback(label(window.message ?: R.string.ui_80), error = window.message != null)
-        if (window.message != null && !window.busy) {
-            TextButton(model::loadWindow, Modifier.heightIn(min = 48.dp)) {
-                Text(label(R.string.app_window_retry))
-            }
-        }
+        if (window.message != null && !window.busy) CockpitAction(label(R.string.app_window_retry), model::loadWindow)
         return
     }
 
@@ -53,17 +50,12 @@ internal fun AppWindowSettings(window: AppSettingsViewModel.Window, model: AppSe
     ) { step -> model.changeWindow { it.copy(panelWidthPx = step * AppWindowProfile.INSET_STEP_PX) } }
     WindowDimensions(profile, editable, model::changeWindow)
     if (window.connection == WindowConnection.DISABLED) {
-        TextButton(model::enableWindows, Modifier.heightIn(min = 48.dp), enabled = editable) {
-            Text(label(R.string.app_window_enable))
-        }
+        CockpitAction(label(R.string.app_window_enable), model::enableWindows, enabled = editable)
     }
     FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-        TextButton(model::resetWindow, Modifier.heightIn(min = 48.dp), enabled = editable) {
-            Text(label(R.string.app_window_restore))
-        }
-        Button(model::applyWindow, Modifier.heightIn(min = 48.dp), enabled = editable) {
-            Text(label(if (window.connection == WindowConnection.ENABLED) R.string.app_window_apply else R.string.ui_104))
-        }
+        CockpitAction(label(R.string.app_window_restore), model::resetWindow, enabled = editable, destructive = true)
+        CockpitAction(label(if (window.connection == WindowConnection.ENABLED) R.string.app_window_apply else R.string.ui_104),
+            model::applyWindow, enabled = editable, primary = true)
     }
     val message = when {
         window.busy -> label(R.string.ui_80)
@@ -128,8 +120,15 @@ private fun StepSlider(
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             Text(value, color = MaterialTheme.colorScheme.primary)
         }
-        Slider(step.toFloat(), { change(it.roundToInt()) }, Modifier.fillMaxWidth().semantics { contentDescription = title },
-            enabled = enabled, valueRange = 0f..last.toFloat(), steps = last - 1)
+        // A dot per step is noise at this density, and TalkBack should read the value instead of a step index.
+        Slider(step.toFloat(), { change(it.roundToInt()) },
+            Modifier.fillMaxWidth().semantics {
+                contentDescription = title
+                stateDescription = value
+            },
+            enabled = enabled, valueRange = 0f..last.toFloat(), steps = last - 1,
+            colors = SliderDefaults.colors(activeTickColor = Color.Transparent, inactiveTickColor = Color.Transparent,
+                disabledActiveTickColor = Color.Transparent, disabledInactiveTickColor = Color.Transparent))
     }
 }
 

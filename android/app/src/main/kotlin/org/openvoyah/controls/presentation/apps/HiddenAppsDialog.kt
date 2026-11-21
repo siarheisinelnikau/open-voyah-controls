@@ -91,7 +91,7 @@ private fun HiddenAppRows(grid: AppGridConfiguration, apps: List<LocalApp>, enab
             val accessibleLabel = UiText.get(R.string.apps_grid_show_app).format(
                 if (detail == null) label else "$label, $detail",
             )
-            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
+            Row(listItemMotion().fillMaxWidth().heightIn(min = 56.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 if (app != null) AppIcon(app, Modifier.size(36.dp), grid.iconStyle)
                 Column(Modifier.weight(1f)) {

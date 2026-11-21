@@ -23,8 +23,6 @@
     <string name="apps_grid_shortcuts">Встроенные ярлыки</string>
     <string name="apps_grid_always_available">Open Voyah Controls и поиск доступны всегда.</string>
     <string name="apps_grid_reorder_pins">Порядок закреплённых приложений</string>
-    <string name="apps_grid_reorder_up">Вверх</string>
-    <string name="apps_grid_reorder_down">Вниз</string>
     <string name="apps_grid_reorder_up_for">Переместить %1$s вверх</string>
     <string name="apps_grid_reorder_down_for">Переместить %1$s вниз</string>
     <string name="apps_grid_desktop_names">Названия рабочих столов</string>
