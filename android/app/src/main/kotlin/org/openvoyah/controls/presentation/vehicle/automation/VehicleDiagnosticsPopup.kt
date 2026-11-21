@@ -34,6 +34,7 @@ import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
+import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.vehicle.vehicleSettingsViewModel
 
 internal class VehicleDiagnosticsViewModel(
@@ -98,7 +99,7 @@ internal fun VehicleDiagnosticsPopup(activity: ComponentActivity, close: () -> U
             CockpitAction(UiText.get(R.string.vehicle_diagnostics_copy), model::copyReport,
                 enabled = status != R.string.vehicle_diagnostics_preparing, primary = true)
         },
-        dismissButton = { CockpitAction(UiText.get(R.string.ui_89), close) },
+        dismissButton = { CockpitTextAction(UiText.get(R.string.ui_89), close) },
     )
 }
 

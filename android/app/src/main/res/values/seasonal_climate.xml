@@ -8,7 +8,7 @@
     <string name="seasonal_climate_above">Outside at or above %1$d °C</string>
     <string name="seasonal_climate_below">Outside at or below %1$d °C</string>
     <string name="seasonal_climate_setpoints">Driver %1$d °C · Passenger %2$d °C · Fan %3$d</string>
-    <string name="seasonal_climate_closed_summary"> · All doors closed</string>
+    <string name="seasonal_climate_closed_summary">%1$s · All doors closed</string>
     <string name="seasonal_climate_enabled">Use this scenario</string>
     <string name="seasonal_climate_edit">Edit settings</string>
     <string name="seasonal_climate_apply">Apply now</string>

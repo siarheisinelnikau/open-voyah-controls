@@ -5,7 +5,6 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.vehicle.HeadlightStatus
 import org.openvoyah.controls.platform.ui.VehicleSettingsDestination
-import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitColumns
 import org.openvoyah.controls.presentation.theme.CockpitDetail
@@ -37,12 +36,12 @@ internal fun VehicleSettingsScreen(
             CockpitSection(label(R.string.vehicle_assistance_title), CockpitIcon.BUTTONS) {
                 CockpitChoice(label(R.string.factory_assistance_title), onClick = assistance)
                 if (VehicleSettingsDestination.VEHICLE in available) {
-                    CockpitAction(label(R.string.vehicle_settings_open), { open(VehicleSettingsDestination.VEHICLE) })
+                    CockpitChoice(label(R.string.vehicle_settings_open)) { open(VehicleSettingsDestination.VEHICLE) }
                 }
                 status?.let { CockpitFeedback(it, error = true) }
             }
             CockpitChoice(label(R.string.service_reminder_title), serviceStatus, onClick = serviceReminder)
-            CockpitAction(label(R.string.vehicle_manual), manual)
+            CockpitChoice(label(R.string.vehicle_manual), onClick = manual)
         })
     }
 }

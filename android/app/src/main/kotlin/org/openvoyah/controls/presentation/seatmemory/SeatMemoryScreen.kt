@@ -18,7 +18,9 @@ import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
+import org.openvoyah.controls.presentation.theme.CockpitReveal
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.CockpitTextAction
 
 @Composable
 internal fun SeatMemoryScreen(
@@ -54,7 +56,10 @@ internal fun SeatMemoryScreen(
             state.working && prompt == null -> text(R.string.seat_memory_working)
             else -> state.outcome?.message
         }
-        CockpitFeedback(feedback, error = state.notice != null || state.outcome?.failed == true)
+        // A hidden reveal emits nothing, so an empty message leaves no extra gap in the spaced page column.
+        CockpitReveal(feedback != null) {
+            CockpitFeedback(feedback, error = state.notice != null || state.outcome?.failed == true)
+        }
         if (state.notice == R.string.seat_memory_load_failed) {
             CockpitAction(text(R.string.seat_memory_retry), refresh, enabled = active && !state.working)
         }
@@ -67,7 +72,7 @@ internal fun SeatMemoryScreen(
                 onDismissRequest = dismissPrompt,
                 title = { Text(seatMemoryText(R.string.seat_memory_recall_title, driverTitle(prompt.slot))) },
                 text = { Text(text(R.string.seat_memory_confirm)) },
-                dismissButton = { CockpitAction(text(R.string.seat_memory_cancel), dismissPrompt) },
+                dismissButton = { CockpitTextAction(text(R.string.seat_memory_cancel), dismissPrompt) },
                 confirmButton = {
                     CockpitAction(text(R.string.seat_memory_recall), { confirmRecall(prompt) },
                         enabled = !state.working, primary = true)
@@ -106,7 +111,7 @@ private fun FactoryMemoryDialog(
                 if (prompt.launchFailed) CockpitFeedback(text(R.string.seat_memory_open_failed), error = true)
             }
         },
-        dismissButton = if (openLabel != null) ({ CockpitAction(text(R.string.seat_memory_cancel), dismiss) }) else null,
+        dismissButton = if (openLabel != null) ({ CockpitTextAction(text(R.string.seat_memory_cancel), dismiss) }) else null,
         confirmButton = {
             if (openLabel != null) {
                 CockpitAction(text(openLabel), { openFactory(prompt) }, enabled = enabled, primary = true)

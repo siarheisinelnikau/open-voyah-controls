@@ -1,17 +1,13 @@
 package org.openvoyah.controls.presentation.climate
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -20,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -43,9 +40,14 @@ import org.openvoyah.controls.presentation.theme.CockpitColumns
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitOptionDialog
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.CockpitTextAction
+import org.openvoyah.controls.presentation.theme.CockpitTextField
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
+import org.openvoyah.controls.presentation.theme.cockpitSwap
 
 @Composable
 internal fun SeasonalClimateDestination(model: SeasonalClimateViewModel, back: () -> Unit) {
@@ -61,7 +63,7 @@ internal fun SeasonalClimateDestination(model: SeasonalClimateViewModel, back: (
                 pending.plan.preset.driverCelsius, pending.plan.preset.passengerCelsius, pending.plan.preset.fanLevel) +
                 "\n" + seatSummary(pending.plan.season, pending.plan.preset)) },
             confirmButton = { CockpitAction(text(R.string.seasonal_climate_apply), model::confirmApply, primary = true) },
-            dismissButton = { TextButton(onClick = model::dismissConfirmation) { Text(text(R.string.seasonal_climate_cancel)) } })
+            dismissButton = { CockpitTextAction(text(R.string.seasonal_climate_cancel), model::dismissConfirmation) })
     }
 }
 
@@ -76,30 +78,35 @@ internal fun SeasonalClimateScreen(
 ) {
     val settings = state.settings
     val selected = editing?.takeIf { settings != null }
-    CockpitDetail(selected?.let { text(R.string.seasonal_climate_edit_title).format(it.label()) }
-        ?: text(R.string.seasonal_climate_title), text(R.string.seasonal_climate_summary),
-        back = { if (selected != null) edit(null) else back() }) {
-        if (state.loadFailed) CockpitFeedback(text(R.string.seasonal_climate_load_failed), error = true)
-        if (settings != null) {
-            if (selected == null) {
-                CockpitColumns(first = {
-                    PresetOverview(ClimateSeason.SUMMER, settings.summer, state, { edit(ClimateSeason.SUMMER) }, save, requestApply)
-                }, second = {
-                    PresetOverview(ClimateSeason.WINTER, settings.winter, state, { edit(ClimateSeason.WINTER) }, save, requestApply)
-                })
-                if (state.approved.size != ClimateSeason.entries.size)
-                    CockpitFeedback(text(R.string.seasonal_climate_unreviewed))
-            } else key(selected, settings) {
-                SeasonalClimateEditor(selected, settings, state.form.busy, save)
+    val motion = LocalCockpitMotion.current
+    val offset = with(LocalDensity.current) { 20.dp.roundToPx() }
+    AnimatedContent(selected, transitionSpec = { cockpitSwap(motion, offset, forward = targetState != null) },
+        label = "climate views") { season ->
+        CockpitDetail(season?.let { text(R.string.seasonal_climate_edit_title).format(it.label()) }
+            ?: text(R.string.seasonal_climate_title), text(R.string.seasonal_climate_summary),
+            back = { if (season != null) edit(null) else back() }) {
+            if (state.loadFailed) CockpitFeedback(text(R.string.seasonal_climate_load_failed), error = true)
+            if (settings != null) {
+                if (season == null) {
+                    CockpitColumns(first = {
+                        PresetOverview(ClimateSeason.SUMMER, settings.summer, state, { edit(ClimateSeason.SUMMER) }, save, requestApply)
+                    }, second = {
+                        PresetOverview(ClimateSeason.WINTER, settings.winter, state, { edit(ClimateSeason.WINTER) }, save, requestApply)
+                    })
+                    if (state.approved.size != ClimateSeason.entries.size)
+                        CockpitFeedback(text(R.string.seasonal_climate_unreviewed))
+                } else key(season, settings) {
+                    SeasonalClimateEditor(season, settings, state.form.busy, save)
+                }
             }
+            when {
+                state.form.saving -> CockpitFeedback(text(R.string.seasonal_climate_saving))
+                state.form.applying -> CockpitFeedback(text(R.string.seasonal_climate_applying))
+                state.form.saveFailed -> CockpitFeedback(text(R.string.seasonal_climate_save_failed), error = true)
+                state.form.changed -> CockpitFeedback(text(R.string.seasonal_climate_changed), error = true)
+            }
+            state.form.lastResult?.let { CockpitFeedback(it.label(), error = it.status !in setOf(ClimateApplyStatus.VERIFIED, ClimateApplyStatus.ACCEPTED)) }
         }
-        when {
-            state.form.saving -> CockpitFeedback(text(R.string.seasonal_climate_saving))
-            state.form.applying -> CockpitFeedback(text(R.string.seasonal_climate_applying))
-            state.form.saveFailed -> CockpitFeedback(text(R.string.seasonal_climate_save_failed), error = true)
-            state.form.changed -> CockpitFeedback(text(R.string.seasonal_climate_changed), error = true)
-        }
-        state.form.lastResult?.let { CockpitFeedback(it.label(), error = it.status !in setOf(ClimateApplyStatus.VERIFIED, ClimateApplyStatus.ACCEPTED)) }
     }
 }
 
@@ -118,7 +125,8 @@ private fun PresetOverview(
             .format(preset.outsideThresholdCelsius), style = MaterialTheme.typography.titleMedium)
         Text(text(R.string.seasonal_climate_setpoints).format(preset.driverCelsius, preset.passengerCelsius, preset.fanLevel),
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(preset.gearCondition.label() + if (preset.requireDoorsClosed) text(R.string.seasonal_climate_closed_summary) else "",
+        val gear = preset.gearCondition.label()
+        Text(if (preset.requireDoorsClosed) text(R.string.seasonal_climate_closed_summary).format(gear) else gear,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (preset.driverSeatLevel > 0 || preset.passengerSeatLevel > 0)
             Text(seatSummary(season, preset), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -194,17 +202,10 @@ private fun <T> ClimateSettingChoice(title: String, value: T, options: List<T>, 
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val lifecycleState by lifecycle.currentStateAsState()
     val interactive = enabled && lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
-    Box(modifier) {
-        CockpitChoice(title, label(value), interactive) { open = true }
-        DropdownMenu(expanded = open && interactive, onDismissRequest = { open = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(text = { Text(label(option)) }, onClick = {
-                    open = false
-                    if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) change(option)
-                })
-            }
-        }
-    }
+    CockpitChoice(title, label(value), interactive, modifier) { open = true }
+    if (open && interactive) CockpitOptionDialog(title, options, value, label, onDismiss = { open = false }, onSelect = { option ->
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) change(option)
+    })
 }
 
 private fun seatSummary(season: ClimateSeason, preset: SeasonalClimatePreset): String =
@@ -216,10 +217,10 @@ private fun seatLevel(level: Int): String = if (level == 0) text(R.string.season
 @Composable
 private fun ClimateNumberField(label: String, value: String, enabled: Boolean, modifier: Modifier = Modifier,
                                signed: Boolean = false, change: (String) -> Unit) {
-    OutlinedTextField(value, { input ->
+    CockpitTextField(value, { input ->
         if (input.length <= 3 && input.withIndex().all { (index, character) -> character.isDigit() || signed && index == 0 && character == '-' })
             change(input)
-    }, modifier.fillMaxWidth(), enabled = enabled, label = { Text(label) }, singleLine = true,
+    }, label, modifier.fillMaxWidth(), enabled = enabled,
         keyboardOptions = KeyboardOptions(keyboardType = if (signed) KeyboardType.Ascii else KeyboardType.Number))
 }
 

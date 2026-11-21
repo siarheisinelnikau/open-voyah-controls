@@ -32,6 +32,7 @@ import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.vehicle.headlightModeLabel
 
 @Composable
@@ -64,7 +65,7 @@ internal fun VehicleAutomationDestination(
                     }
                 }
             },
-            confirmButton = { CockpitAction(text(R.string.vehicle_automation_close), { choosingDrive = null }) },
+            confirmButton = { CockpitTextAction(text(R.string.vehicle_automation_close)) { choosingDrive = null } },
         )
     }
     state.prompt?.let { prompt ->
@@ -72,7 +73,7 @@ internal fun VehicleAutomationDestination(
             onDismissRequest = model::dismissRestore,
             title = { Text(text(R.string.vehicle_automation_restore_title)) },
             text = { Text(text(R.string.vehicle_automation_restore_confirm).format(modeLabel(prompt.record.mode))) },
-            dismissButton = { CockpitAction(text(R.string.vehicle_automation_cancel), model::dismissRestore) },
+            dismissButton = { CockpitTextAction(text(R.string.vehicle_automation_cancel), model::dismissRestore) },
             confirmButton = { CockpitAction(text(R.string.vehicle_automation_restore), { model.confirmRestore(prompt) }, primary = true) },
         )
     }
@@ -89,9 +90,9 @@ internal fun VehicleAutomationScreen(
     val enabled = state.settings != null && !state.saving && !state.working
     CockpitDetail(text(R.string.vehicle_automation_title), text(R.string.vehicle_automation_description), back) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            CockpitAction(text(R.string.vehicle_automation_climate), climate, Modifier.weight(1f))
-            CockpitAction(text(R.string.vehicle_automation_rules), rules, Modifier.weight(1f))
-            CockpitAction(text(R.string.vehicle_automation_apollo), apollo, Modifier.weight(1f))
+            CockpitChoice(text(R.string.vehicle_automation_climate), modifier = Modifier.weight(1f), onClick = climate)
+            CockpitChoice(text(R.string.vehicle_automation_rules), modifier = Modifier.weight(1f), onClick = rules)
+            CockpitChoice(text(R.string.vehicle_automation_apollo), modifier = Modifier.weight(1f), onClick = apollo)
         }
         VehicleStatusSection(state.telemetry)
         CockpitColumns(first = {

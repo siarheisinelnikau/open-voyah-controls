@@ -1,19 +1,14 @@
 package org.openvoyah.controls.presentation.updates
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.updates.UpdateCheckPhase
@@ -24,7 +19,11 @@ import org.openvoyah.controls.presentation.theme.CockpitColumns
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.theme.CockpitReveal
 import org.openvoyah.controls.presentation.theme.CockpitSection
+import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 
 @Composable
 internal fun UpdatesScreen(state: UpdatesState, back: () -> Unit, check: () -> Unit, startup: (Boolean) -> Unit,
@@ -37,6 +36,8 @@ internal fun UpdatesScreen(state: UpdatesState, back: () -> Unit, check: () -> U
                     Text(text(R.string.updates_available_version).format(candidate.version), style = MaterialTheme.typography.titleLarge)
                 }
                 CockpitFeedback(checkMessage(state), state.check.phase == UpdateCheckPhase.FAILED && !state.check.automatic)
+                // Indeterminate, so it animates without end: compose it only while the check is actually running.
+                if (state.check.phase == UpdateCheckPhase.CHECKING) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 CockpitAction(text(R.string.updates_check), check, Modifier.fillMaxWidth(), !state.busy,
                     primary = candidate == null)
                 if (candidate != null) {
@@ -49,13 +50,13 @@ internal fun UpdatesScreen(state: UpdatesState, back: () -> Unit, check: () -> U
             val showInstallResult = state.work == UpdateWork.IDLE || state.work == UpdateWork.PREPARING
             val problem = state.problem ?: state.installation.problem.takeIf { showInstallResult }
             val message = state.message ?: state.installation.message.takeIf { showInstallResult }
-            if (status != null || problem != null || message != null || state.cancelled) {
+            // Null exactly when nothing is left to report, so the section collapses without showing a stale fallback text.
+            val feedback = message ?: problem?.let(::problemText) ?: status ?: text(R.string.updates_cancelled).takeIf { state.cancelled }
+            CockpitReveal(feedback != null) {
                 CockpitSection(text(R.string.updates_status_heading), CockpitIcon.SETTINGS) {
-                    CockpitFeedback(message ?: problem?.let(::problemText) ?: status
-                        ?: text(R.string.updates_cancelled), error = problem != null)
+                    CockpitFeedback(feedback, error = problem != null)
                     val progress = state.download?.let { it.bytes.toFloat() / it.total } ?: state.installation.progress
-                    if (progress != null && state.busy) LinearProgressIndicator(progress = { progress.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth())
+                    if (progress != null && state.busy) UpdateProgress(progress.coerceIn(0f, 1f))
                     if (state.canCancelDownload) CockpitAction(text(R.string.updates_cancel_download), cancel, Modifier.fillMaxWidth())
                     if (state.installation.phase == UpdateInstallPhase.INTERRUPTED) {
                         CockpitAction(text(R.string.updates_cancel_pending), discard, Modifier.fillMaxWidth())
@@ -67,16 +68,19 @@ internal fun UpdatesScreen(state: UpdatesState, back: () -> Unit, check: () -> U
             }
         }, second = {
             CockpitSection(text(R.string.updates_startup_heading), CockpitIcon.SETTINGS, text(R.string.updates_startup_description)) {
-                Row(Modifier.fillMaxWidth().heightIn(min = 64.dp)
-                    .toggleable(state.checkOnStartup, enabled = !state.preferenceSaving, role = Role.Switch, onValueChange = startup),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(text(R.string.updates_startup_toggle), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                    Switch(state.checkOnStartup, onCheckedChange = null, enabled = !state.preferenceSaving)
-                }
+                CockpitSwitch(text(R.string.updates_startup_toggle), state.checkOnStartup, !state.preferenceSaving, startup)
                 Text(text(R.string.updates_user_action), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         })
     }
+}
+
+/** Smooths the jumps between progress reports. A bar shown again for new work starts at its first value instead of sweeping back. */
+@Composable
+private fun UpdateProgress(fraction: Float) {
+    val animate = LocalCockpitMotion.current.enabled
+    val shown by animateFloatAsState(fraction, if (animate) CockpitMotion.change<Float>() else snap<Float>(), label = "update progress")
+    LinearProgressIndicator(progress = { shown }, modifier = Modifier.fillMaxWidth())
 }
 
 private fun checkMessage(state: UpdatesState): String? = when (state.check.phase) {

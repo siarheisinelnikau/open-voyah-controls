@@ -8,7 +8,7 @@
     <string name="seasonal_climate_above">Снаружи не ниже %1$d °C</string>
     <string name="seasonal_climate_below">Снаружи не выше %1$d °C</string>
     <string name="seasonal_climate_setpoints">Водитель %1$d °C · Пассажир %2$d °C · Обдув %3$d</string>
-    <string name="seasonal_climate_closed_summary"> · Все двери закрыты</string>
+    <string name="seasonal_climate_closed_summary">%1$s · Все двери закрыты</string>
     <string name="seasonal_climate_enabled">Использовать сценарий</string>
     <string name="seasonal_climate_edit">Настроить</string>
     <string name="seasonal_climate_apply">Применить сейчас</string>

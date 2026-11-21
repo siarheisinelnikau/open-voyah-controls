@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="flows_loading">Loading…</string>
+    <string name="flows_rules_saved">Saved rules</string>
+    <string name="flows_rule_routine">Routine: %1$s</string>
+    <string name="flows_rule_delete_prompt">Delete “%1$s”?</string>
+    <string name="flows_rule_delete_detail">The rule stops running and is removed from Controls. Its routine is kept.</string>
+</resources>
