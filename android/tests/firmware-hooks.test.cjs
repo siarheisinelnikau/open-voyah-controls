@@ -51,7 +51,7 @@ function steeringHarness(options = {}) {
     const press = {kind:'START_VOICE'}, long = {kind:'SYSTEM_SETTINGS'};
     const config = {schema:1, steeringEnabled:true, steering:{voiceShort:press, voiceLong:long, cameraShort:press}};
     if (options.source) config.steeringSource = options.source;
-    let original = 0, launches = 0;
+    let original = 0, launches = 0, uptime = 1000;
     const logs = [];
     const method = className => ({overload:() => ({returnType:{className}})});
     const callbacks = [0, 1].map(i => ({
@@ -70,6 +70,7 @@ function steeringHarness(options = {}) {
             'android.os.Build$VERSION':{SDK_INT:{value:options.sdk ?? 30}},
             'java.lang.Class':{forName(_name, initialize) { assert.equal(initialize,true); }},
             'android.app.ActivityThread':{currentApplication:()=>({getContentResolver:()=>({})})},
+            'android.os.SystemClock':{uptimeMillis:()=>uptime},
             // The read hook runs where the real JNI call would let another thread's callback in.
             'android.provider.Settings$Global':{getString:()=>{ options.onRead?.(); return options.raw ?? JSON.stringify(config); }},
             'com.qinggan.system.QGKeyEvent':Event,
@@ -88,7 +89,8 @@ function steeringHarness(options = {}) {
     const event = (stamp, gesture, key = 1, canceled = false) => ({
         getKeyCode:()=>key, getAction:()=>gesture, isCanceled:()=>canceled, getDownTime:()=>stamp
     });
-    return {config, callbacks, event, logs, get launches() { return launches; }, get original() { return original; }};
+    return {config, callbacks, event, logs, advance(ms) { uptime += ms; },
+        get launches() { return launches; }, get original() { return original; }};
 }
 
 test('OEM steering consumes one successful gesture and keeps the original on failure or reset', () => {
@@ -108,11 +110,11 @@ test('OEM steering consumes one successful gesture and keeps the original on fai
     assert.equal(h.original, 3);
 });
 
-test('OEM steering leaves unassigned camera, ambiguous time and a newly assigned duplicate native', () => {
+test('OEM steering leaves unassigned camera, invalid time and a newly assigned duplicate native', () => {
     const h = steeringHarness(), [first, second] = h.callbacks;
     delete h.config.steering.cameraShort;
     assert.equal(first.implementation(h.event(100, 4, 3)), false);
-    assert.equal(first.implementation(h.event(0, 4)), false);
+    assert.equal(first.implementation(h.event(-1, 4)), false);
     assert.equal(first.implementation(h.event(200, 4, 1, true)), false);
     h.config.steeringEnabled = false;
     assert.equal(first.implementation(h.event(300, 4)), false);
@@ -121,6 +123,59 @@ test('OEM steering leaves unassigned camera, ambiguous time and a newly assigned
     assert.equal(second.implementation(h.event(250, 4)), false);
     assert.equal(h.launches, 0);
     assert.equal(h.original, 6);
+});
+
+// QGKeyEvent.writeToParcel keeps only code, action, flags, data and display: the launcher always reads a zero down time.
+test('a parcel without a down time routes each assigned press once across both callbacks', () => {
+    const h = steeringHarness(), [first, second] = h.callbacks;
+    assert.equal(first.implementation(h.event(0, 4)), true);
+    h.advance(3);
+    assert.equal(second.implementation(h.event(0, 4)), true);
+    assert.equal(h.launches, 1);
+    h.advance(400);
+    assert.equal(second.implementation(h.event(0, 4)), true);
+    h.advance(2);
+    assert.equal(first.implementation(h.event(0, 4)), true);
+    assert.equal(h.launches, 2);
+    // A hold on the same key is another event, even right after a tap.
+    assert.equal(first.implementation(h.event(0, 5)), true);
+    assert.equal(h.launches, 3);
+    assert.equal(h.original, 0);
+});
+
+test('without a down time an unassigned or failed press reaches the original from both callbacks, once', () => {
+    const options = {};
+    const h = steeringHarness(options), [first, second] = h.callbacks;
+    delete h.config.steering.cameraShort;
+    assert.equal(first.implementation(h.event(0, 4, 3)), false);
+    assert.equal(second.implementation(h.event(0, 4, 3)), false);
+    options.fail = true;
+    h.advance(500);
+    assert.equal(first.implementation(h.event(0, 4)), false);
+    h.advance(2);
+    assert.equal(second.implementation(h.event(0, 4)), false);
+    assert.equal(h.launches, 1);
+    assert.equal(h.original, 4);
+});
+
+test('without a down time the second callback joins a slow launch and a callback nested in the Settings read', () => {
+    const options = {};
+    const h = steeringHarness(options), [first, second] = h.callbacks;
+    let nested;
+    // Binder delivers the second callback only after the first returns, however long the launch took.
+    options.onLaunch = () => { options.onLaunch = null; h.advance(300); };
+    assert.equal(first.implementation(h.event(0, 4)), true);
+    h.advance(5);
+    assert.equal(second.implementation(h.event(0, 4)), true);
+    assert.equal(h.launches, 1);
+    for (const [outer, inner] of [[first, second], [second, first]]) {
+        h.advance(1000);
+        options.onRead = () => { options.onRead = null; h.advance(1); nested = inner.implementation(h.event(0, 4)); };
+        assert.equal(outer.implementation(h.event(0, 4)), true);
+        assert.equal(nested, true);
+    }
+    assert.equal(h.launches, 3);
+    assert.equal(h.original, 0);
 });
 
 test('OEM steering signature and key collisions leave both callbacks unmodified', () => {
