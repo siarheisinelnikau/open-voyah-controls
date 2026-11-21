@@ -28,6 +28,7 @@ import org.openvoyah.controls.domain.display.AppWindowProfile;
 import org.openvoyah.controls.domain.display.WindowProfileDelivery;
 import org.openvoyah.controls.data.settings.LocalizationSettings;
 import org.openvoyah.controls.data.settings.SettingsStore;
+import org.openvoyah.controls.diagnostics.ControlsLog;
 import org.openvoyah.controls.platform.boot.RecoveryJobs;
 
 /** Coordinates injected agents, their configuration and recovery. */
@@ -41,6 +42,7 @@ public final class FridaBridge {
     private static final Object IO_LOCK = new Object();
     private static final java.util.concurrent.ExecutorService UPDATES = java.util.concurrent.Executors.newSingleThreadExecutor();
     private static final java.util.concurrent.atomic.AtomicLong REVISION = new java.util.concurrent.atomic.AtomicLong();
+    private static final RepeatedFailureFilter REVIEW_REFUSALS = new RepeatedFailureFilter();
     private final Context context;
     private final FridaTransport fixture;
     private final ProductionRootAccess production;
@@ -74,7 +76,15 @@ public final class FridaBridge {
         try {
             return production == null || production.packageReviewed(ReviewedFirmware.FRAMEWORK)
                 && production.operationReviewed(ReviewedFirmware.WINDOW_SERVICE);
-        } catch (Exception unreviewed) { return false; }
+        } catch (Exception unreviewed) {
+            // Callers show "unreviewed firmware"; the refusal type tells a changed evidence record apart.
+            if (REVIEW_REFUSALS.isRepeat(unreviewed.getClass().getName())) {
+                ControlsLog.debug("bridge_window_review", "outcome", "refused", "error", unreviewed);
+            } else {
+                ControlsLog.warn("bridge_window_review", unreviewed, "outcome", "refused");
+            }
+            return false;
+        }
     }
     boolean passengerWindowReviewed() {
         return production == null || windowReviewed() && production.operationReviewed(ReviewedFirmware.PASSENGER_WINDOW_DPI);
@@ -120,7 +130,13 @@ public final class FridaBridge {
         return context.getSharedPreferences("bridge", Context.MODE_PRIVATE).getString("updatePauseToken", null);
     }
     boolean runtimeConfigured() { return pendingUpdate(context) == null && wasConfigured(context) && knownAuthorization(); }
-    private void stopPending(boolean value) { context.getSharedPreferences("bridge",Context.MODE_PRIVATE).edit().putBoolean("stopPending",value).commit(); }
+    private void stopPending(boolean value) throws IOException {
+        // This flag is the crash journal that repeats a stop after a reboot. An unsaved change must not pass silently.
+        if (!context.getSharedPreferences("bridge",Context.MODE_PRIVATE).edit().putBoolean("stopPending",value).commit()) {
+            ControlsLog.error("bridge_journal", "key", "stopPending", "value", value, "outcome", "commit_failed");
+            throw new IOException(UiText.get(R.string.ui_152));
+        }
+    }
     private void configured(boolean value) {
         context.getSharedPreferences("bridge", Context.MODE_PRIVATE).edit().putBoolean("configured", value).apply();
     }
@@ -151,51 +167,73 @@ public final class FridaBridge {
     }
     public void connect(SettingsStore.State state) throws IOException {
         synchronized (IO_LOCK) {
-            try {
-                if (pendingUpdate(context) != null) throw new ProductionRootAccess.Refused(UiText.get(R.string.runtime_update_paused));
-                prepareActivation();
-                if (production != null && !context.getSharedPreferences("bridge", Context.MODE_PRIVATE)
-                        .edit().putBoolean("productionAuthorized", true).commit()) {
-                    throw new IOException(UiText.get(R.string.ui_152));
+            try (ControlsLog.Span span = ControlsLog.span("bridge_connect")) {
+                try {
+                    if (pendingUpdate(context) != null) throw new ProductionRootAccess.Refused(UiText.get(R.string.runtime_update_paused));
+                    prepareActivation();
+                    if (production != null && !context.getSharedPreferences("bridge", Context.MODE_PRIVATE)
+                            .edit().putBoolean("productionAuthorized", true).commit()) {
+                        throw new IOException(UiText.get(R.string.ui_152));
+                    }
+                    configured(true); // Persist desired state only after production verification.
+                    stopPending(false);
+                    connectLocked(state, true);
+                    health(UiText.get(R.string.ui_12));
+                    RecoveryJobs.cancel(context);
+                    span.outcome("connected");
                 }
-                configured(true); // Persist desired state only after production verification.
-                stopPending(false);
-                connectLocked(state, true);
-                health(UiText.get(R.string.ui_12));
-                RecoveryJobs.cancel(context);
-            }
-            catch (ProductionRootAccess.Refused ex) {
-                health(ex.getMessage());
-                RecoveryJobs.cancel(context);
-                throw ex;
-            }
-            catch (IOException | RuntimeException ex) {
-                health(UiText.get(R.string.ui_13) + FridaFailureText.message(ex));
-                if (runtimeConfigured()) RecoveryJobs.schedule(context);
-                throw ex;
+                catch (ProductionRootAccess.Refused ex) {
+                    record(span, ex);
+                    health(ex.getMessage());
+                    RecoveryJobs.cancel(context);
+                    throw ex;
+                }
+                catch (IOException | RuntimeException ex) {
+                    record(span, ex);
+                    health(UiText.get(R.string.ui_13) + FridaFailureText.message(ex));
+                    if (runtimeConfigured()) RecoveryJobs.schedule(context);
+                    throw ex;
+                }
             }
         }
     }
     public void reconnectAfterBoot() throws IOException {
         synchronized (IO_LOCK) {
-            if(Thread.currentThread().isInterrupted())return;
-            if (pendingUpdate(context) != null) return;
-            if (!knownAuthorization()) {
-                health(UiText.get(R.string.production_connect_required));
-                return;
-            }
-            try {
-                if (!runtimeConfigured()) {
-                    if (needsRecovery(context)) stopLocked();
+            try (ControlsLog.Span span = ControlsLog.span("bridge_reconnect")) {
+                if (Thread.currentThread().isInterrupted()) { span.outcome("interrupted"); return; }
+                if (pendingUpdate(context) != null) { span.outcome("update_paused"); return; }
+                if (!knownAuthorization()) {
+                    health(UiText.get(R.string.production_connect_required));
+                    span.outcome("connect_required");
                     return;
                 }
-                prepareActivation();
-                SettingsStore.State state = new SettingsStore(context).load();
-                if (production == null || !resumeVerifiedDeployment(state)) connectLocked(state, false);
-                health(UiText.get(R.string.ui_14));
+                String path = "verify";
+                try {
+                    if (!runtimeConfigured()) {
+                        boolean recover = needsRecovery(context);
+                        path = recover ? "stop" : "idle";
+                        if (recover) stopLocked();
+                        span.outcome("completed");
+                        return;
+                    }
+                    prepareActivation();
+                    SettingsStore.State state = new SettingsStore(context).load();
+                    path = "resume";
+                    if (production == null || !resumeVerifiedDeployment(state)) {
+                        path = "deploy";
+                        connectLocked(state, false);
+                    }
+                    health(UiText.get(R.string.ui_14));
+                    span.outcome("completed");
+                }
+                catch (ProductionRootAccess.Refused ex) { record(span, ex); health(ex.getMessage()); }
+                catch (IOException | RuntimeException ex) {
+                    record(span, ex);
+                    health(UiText.get(R.string.ui_15) + FridaFailureText.message(ex));
+                    throw ex;
+                }
+                finally { span.field("path", path); }
             }
-            catch (ProductionRootAccess.Refused ex) { health(ex.getMessage()); }
-            catch (IOException | RuntimeException ex) { health(UiText.get(R.string.ui_15) + FridaFailureText.message(ex)); throw ex; }
         }
     }
 
@@ -337,52 +375,61 @@ public final class FridaBridge {
 
     private void setOptionalHook(String channel, boolean enabled) throws IOException {
         synchronized (IO_LOCK) {
-            if (!knownAuthorization()) throw new ProductionRootAccess.Refused(UiText.get(R.string.production_connect_required));
-            requireRoot();
-            boolean restored = true;
-            if (enabled) {
-                if (!runtimeConfigured()) throw new IOException(UiText.get(R.string.ui_19));
-                if (channel.equals("window") ? !windowReviewed() : !navigationReviewed()) throw unreviewedOperation();
-                if (production != null) production.requireActivation();
-                boolean reuseWindow = channel.equals("window") && visualSessionState("/window").state().equals("current")
-                    && liveWindowReady("3");
-                if (channel.equals("window") && !reuseWindow) {
-                    boolean previousRestored = releaseWindowLocked();
-                    if (!previousRestored) recordVisualRecovery();
-                    command(stopCommand("/window"));
-                    previousRestored &= stoppedVisualSession("/window");
-                    if (!previousRestored) {
-                        recordVisualRecovery();
-                        throw new ProductionRootAccess.Refused(UiText.get(R.string.window_restore_unconfirmed));
+            try (ControlsLog.Span span = ControlsLog.span("bridge_optional_hook", "channel", channel, "enabled", enabled)) {
+                try {
+                    if (!knownAuthorization()) throw new ProductionRootAccess.Refused(UiText.get(R.string.production_connect_required));
+                    requireRoot();
+                    boolean restored = true;
+                    if (enabled) {
+                        if (!runtimeConfigured()) throw new IOException(UiText.get(R.string.ui_19));
+                        if (channel.equals("window") ? !windowReviewed() : !navigationReviewed()) throw unreviewedOperation();
+                        if (production != null) production.requireActivation();
+                        boolean reuseWindow = channel.equals("window") && visualSessionState("/window").state().equals("current")
+                            && liveWindowReady("3");
+                        if (channel.equals("window") && !reuseWindow) {
+                            boolean previousRestored = releaseWindowLocked();
+                            if (!previousRestored) recordVisualRecovery();
+                            command(stopCommand("/window"));
+                            previousRestored &= stoppedVisualSession("/window");
+                            if (!previousRestored) {
+                                recordVisualRecovery();
+                                throw new ProductionRootAccess.Refused(UiText.get(R.string.window_restore_unconfirmed));
+                            }
+                            clearWindowSettings();
+                        }
+                        if (channel.equals("window")) publishWindowProfiles();
+                        if (!reuseWindow) {
+                            stageOptionalHook(channel);
+                            if (production != null) {
+                                Set<String> active = enabledChannels();
+                                active.add(channel);
+                                sealDeployment(active);
+                            }
+                            enableChannel(channel);
+                            command(activationGuard() + fixtureEnvironment() + "nohup /system/bin/sh " + base + "/supervise.sh "
+                                + channel + " >/dev/null 2>&1 </dev/null &");
+                        }
+                    } else {
+                        if (channel.equals("window")) restored = releaseWindowLocked();
+                        if (!restored) recordVisualRecovery();
+                        command(stopCommand("/" + channel));
+                        if (channel.equals("window")) {
+                            restored &= stoppedVisualSession("/window");
+                            if (!restored) recordVisualRecovery();
+                            clearWindowSettings();
+                        }
                     }
-                    clearWindowSettings();
-                }
-                if (channel.equals("window")) publishWindowProfiles();
-                if (!reuseWindow) {
-                    stageOptionalHook(channel);
-                    if (production != null) {
-                        Set<String> active = enabledChannels();
-                        active.add(channel);
-                        sealDeployment(active);
+                    span.field("restored", restored);
+                    if (!context.getSharedPreferences("bridge", Context.MODE_PRIVATE).edit().putBoolean(channel + "Hook", enabled).commit()) {
+                        throw new IOException(UiText.get(R.string.ui_152));
                     }
-                    enableChannel(channel);
-                    command(activationGuard() + fixtureEnvironment() + "nohup /system/bin/sh " + base + "/supervise.sh "
-                        + channel + " >/dev/null 2>&1 </dev/null &");
-                }
-            } else {
-                if (channel.equals("window")) restored = releaseWindowLocked();
-                if (!restored) recordVisualRecovery();
-                command(stopCommand("/" + channel));
-                if (channel.equals("window")) {
-                    restored &= stoppedVisualSession("/window");
-                    if (!restored) recordVisualRecovery();
-                    clearWindowSettings();
+                    if (!restored) throw new IOException(UiText.get(R.string.window_restore_unconfirmed));
+                    span.outcome("applied");
+                } catch (IOException | RuntimeException ex) {
+                    record(span, ex);
+                    throw ex;
                 }
             }
-            if (!context.getSharedPreferences("bridge", Context.MODE_PRIVATE).edit().putBoolean(channel + "Hook", enabled).commit()) {
-                throw new IOException(UiText.get(R.string.ui_152));
-            }
-            if (!restored) throw new IOException(UiText.get(R.string.window_restore_unconfirmed));
         }
     }
     private void stageOptionalHook(String channel) throws IOException {
@@ -568,7 +615,10 @@ public final class FridaBridge {
             }
             return "applied".equals(new JSONObject(windowRequest("release", "")).getString("status"))
                 && clearVisualSession("/window", true, session);
-        } catch (IOException | JSONException ex) { return false; }
+        } catch (IOException | JSONException ex) {
+            ControlsLog.warn("bridge_visual_session", ex, "scope", "window", "action", "release");
+            return false;
+        }
     }
 
     private void clearWindowSettings() throws IOException {
@@ -668,31 +718,42 @@ public final class FridaBridge {
                 .put("confirmed",true).put("expires",SystemClock.elapsedRealtime()+12000).put("options",options).toString(); }
             catch (JSONException ex) { throw new IOException(ex); }
             if (!stillAllowed.getAsBoolean()) return new VoiceReply("blocked", UiText.get(R.string.voice_vehicle_blocked));
+            boolean published = false;
             try {
                 command(activationGuard() + "settings put global org.openvoyah.controls.voice " + quote(request));
+                published = true;
                 // A lost response can be ambiguous even when publishing failed locally. Do not resend.
                 String reply = command("i=0; while [ $i -lt 10 ]; do r=$(grep 'OVC_VOICE_RESULT.*" + token + "' "
                     + base + "/hook.log 2>/dev/null | tail -n 1); if [ -n \"$r\" ]; then printf '%s\\n' \"$r\"; exit 0; fi; "
                     + "sleep 1; i=$((i+1)); done; exit 1");
                 return parseVoiceReply(reply, token);
             }
-            catch (IOException | RuntimeException ex) { return unknownVoiceOutcome(); }
+            catch (IOException | RuntimeException ex) {
+                ControlsLog.warn("bridge_voice_request", ex, "command", id, "phase", published ? "await_reply" : "publish");
+                return unknownVoiceOutcome();
+            }
         }
     }
 
     static VoiceReply parseVoiceReply(String reply, String token) {
         final String marker = "OVC_VOICE_RESULT ";
-        if (!reply.startsWith(marker)) return unknownVoiceOutcome();
+        if (!reply.startsWith(marker)) return rejectedVoiceReply("no_result_marker");
         try {
             JSONObject response = new JSONObject(reply.substring(marker.length()));
             String status = response.getString("status");
             String message = response.getString("message");
-            if (!token.equals(response.getString("id")) || message.length() > 512) return unknownVoiceOutcome();
+            if (!token.equals(response.getString("id"))) return rejectedVoiceReply("request_mismatch");
+            if (message.length() > 512) return rejectedVoiceReply("message_too_long");
             return switch (status) {
                 case "accepted", "verified", "partial", "unknown", "blocked" -> new VoiceReply(status, message);
-                default -> unknownVoiceOutcome();
+                default -> rejectedVoiceReply("unknown_status");
             };
-        } catch (JSONException ex) { return unknownVoiceOutcome(); }
+        } catch (JSONException ex) { return rejectedVoiceReply("malformed"); }
+    }
+
+    private static VoiceReply rejectedVoiceReply(String reason) {
+        ControlsLog.warn("bridge_voice_reply", "outcome", "rejected", "reason", reason);
+        return unknownVoiceOutcome();
     }
 
     private static VoiceReply unknownVoiceOutcome() {
@@ -804,71 +865,96 @@ public final class FridaBridge {
         stopLocked(true);
     }
     private void stopLocked(boolean requireAuthorization) throws IOException {
-        if (requireAuthorization && !knownAuthorization()) throw new ProductionRootAccess.Refused(UiText.get(R.string.production_connect_required));
-        requireRoot();
-        boolean iconsRestored = restorePanelIcons();
-        boolean windowsRestored = releaseWindowLocked();
-        if (!iconsRestored || !windowsRestored) recordVisualRecovery();
-        command(stopCommand(CHANNELS));
-        iconsRestored &= stoppedVisualSession("");
-        windowsRestored &= stoppedVisualSession("/window");
-        if (!iconsRestored || !windowsRestored) recordVisualRecovery();
-        clearWindowSettings();
-        command("settings delete global " + KEY + "; settings delete global org.openvoyah.controls.voice; "
-            + "settings delete global org.openvoyah.controls.localization; settings delete global org.openvoyah.controls.clusterMedia");
-        stopPending(false);
-        String outcome = UiText.get(windowsRestored ? (iconsRestored ? R.string.ui_22 : R.string.panel_restore_unconfirmed)
-            : R.string.window_restore_unconfirmed);
-        health(outcome);
-        // Stopping workers does not prove that their visible changes were restored.
-        if (!iconsRestored || !windowsRestored) throw new ProductionRootAccess.Refused(outcome);
+        try (ControlsLog.Span span = ControlsLog.span("bridge_stop", "for_update", !requireAuthorization)) {
+            try {
+                if (requireAuthorization && !knownAuthorization()) throw new ProductionRootAccess.Refused(UiText.get(R.string.production_connect_required));
+                requireRoot();
+                boolean iconsRestored = restorePanelIcons();
+                boolean windowsRestored = releaseWindowLocked();
+                if (!iconsRestored || !windowsRestored) recordVisualRecovery();
+                command(stopCommand(CHANNELS));
+                iconsRestored &= stoppedVisualSession("");
+                windowsRestored &= stoppedVisualSession("/window");
+                span.field("icons_restored", iconsRestored).field("windows_restored", windowsRestored);
+                if (!iconsRestored || !windowsRestored) recordVisualRecovery();
+                clearWindowSettings();
+                command("settings delete global " + KEY + "; settings delete global org.openvoyah.controls.voice; "
+                    + "settings delete global org.openvoyah.controls.localization; settings delete global org.openvoyah.controls.clusterMedia");
+                stopPending(false);
+                String outcome = UiText.get(windowsRestored ? (iconsRestored ? R.string.ui_22 : R.string.panel_restore_unconfirmed)
+                    : R.string.window_restore_unconfirmed);
+                health(outcome);
+                // Stopping workers does not prove that their visible changes were restored.
+                if (!iconsRestored || !windowsRestored) throw new ProductionRootAccess.Refused(outcome);
+                span.outcome("stopped");
+            } catch (IOException | RuntimeException ex) {
+                record(span, ex);
+                throw ex;
+            }
+        }
     }
 
     /** Only shutdown uses this channel without firmware activation; it cannot deploy or enable agents. */
     public static void pauseRuntimeForUpdate(Context context, String token) throws IOException {
-        requireUpdateToken(token);
-        synchronized (IO_LOCK) {
-            FridaBridge bridge = new FridaBridge(context, null, AuthorizedRootChannel.Companion.existing(context));
-            bridge.requireRoot();
-            String pending = pendingUpdate(context);
-            if (pending != null && !pending.equals(token)) throw new IOException(UiText.get(R.string.runtime_update_paused));
-            if (!context.getSharedPreferences("bridge", Context.MODE_PRIVATE).edit()
-                    .putString("updatePauseToken", token).putBoolean("configured", false)
-                    .putBoolean("stopPending", true).commit()) throw new IOException(UiText.get(R.string.ui_152));
-            RecoveryJobs.cancel(context);
-            REVISION.incrementAndGet();
-            bridge.stopLocked(false);
-            bridge.verifyUpdateQuiescence();
-            bridge.writeUpdateMarker(token);
+        try (ControlsLog.Span span = ControlsLog.span("bridge_update_gate", "step", "pause")) {
+            try {
+                requireUpdateToken(token);
+                synchronized (IO_LOCK) {
+                    FridaBridge bridge = new FridaBridge(context, null, AuthorizedRootChannel.Companion.existing(context));
+                    bridge.requireRoot();
+                    String pending = pendingUpdate(context);
+                    if (pending != null && !pending.equals(token)) throw new IOException(UiText.get(R.string.runtime_update_paused));
+                    if (!context.getSharedPreferences("bridge", Context.MODE_PRIVATE).edit()
+                            .putString("updatePauseToken", token).putBoolean("configured", false)
+                            .putBoolean("stopPending", true).commit()) throw new IOException(UiText.get(R.string.ui_152));
+                    RecoveryJobs.cancel(context);
+                    REVISION.incrementAndGet();
+                    bridge.stopLocked(false);
+                    bridge.verifyUpdateQuiescence();
+                    bridge.writeUpdateMarker(token);
+                }
+                span.outcome("paused");
+            } catch (IOException | RuntimeException ex) {
+                record(span, ex);
+                throw ex;
+            }
         }
     }
 
     /** Completing or cancelling an install leaves an explicit, freshly verified reconnect to the user. */
     public static void finishRuntimeUpdate(Context context, String token) throws IOException {
-        requireUpdateToken(token);
-        synchronized (IO_LOCK) {
-            String pending = pendingUpdate(context);
-            if (pending == null) {
-                String finished = context.getSharedPreferences("bridge", Context.MODE_PRIVATE)
-                    .getString("finishedUpdateToken", null);
-                if (token.equals(finished)) return;
-                // A journal may precede preparation. Prove shutdown before resolving that ambiguity.
-                pauseRuntimeForUpdate(context, token);
-            } else if (!token.equals(pending)) throw new IOException(UiText.get(R.string.runtime_update_paused));
-            FridaBridge bridge = new FridaBridge(context, null, AuthorizedRootChannel.Companion.existing(context));
-            bridge.requireRoot();
-            bridge.stopLocked(false);
-            bridge.verifyUpdateQuiescence();
-            String path = quote(ProductionRootAccess.BASE + "/update.pending");
-            bridge.command("set -e\nif [ -e " + path + " ] || [ -L " + path + " ]; then\n"
-                + "test ! -L " + path + " && test -f " + path
-                + " && test \"$(stat -c '%u:%a:%h' " + path + ")\" = 0:600:1"
-                + " && test \"$(cat " + path + ")\" = " + quote(token) + " || exit 77\nrm -f " + path + "\nsync\nfi");
-            if (!context.getSharedPreferences("bridge", Context.MODE_PRIVATE).edit()
-                    .remove("updatePauseToken").putString("finishedUpdateToken", token)
-                    .putBoolean("configured", false).putBoolean("stopPending", false).commit())
-                throw new IOException(UiText.get(R.string.ui_152));
-            bridge.health(UiText.get(R.string.runtime_update_reconnect));
+        try (ControlsLog.Span span = ControlsLog.span("bridge_update_gate", "step", "finish")) {
+            try {
+                requireUpdateToken(token);
+                synchronized (IO_LOCK) {
+                    String pending = pendingUpdate(context);
+                    if (pending == null) {
+                        String finished = context.getSharedPreferences("bridge", Context.MODE_PRIVATE)
+                            .getString("finishedUpdateToken", null);
+                        if (token.equals(finished)) { span.outcome("already_finished"); return; }
+                        // A journal may precede preparation. Prove shutdown before resolving that ambiguity.
+                        pauseRuntimeForUpdate(context, token);
+                    } else if (!token.equals(pending)) throw new IOException(UiText.get(R.string.runtime_update_paused));
+                    FridaBridge bridge = new FridaBridge(context, null, AuthorizedRootChannel.Companion.existing(context));
+                    bridge.requireRoot();
+                    bridge.stopLocked(false);
+                    bridge.verifyUpdateQuiescence();
+                    String path = quote(ProductionRootAccess.BASE + "/update.pending");
+                    bridge.command("set -e\nif [ -e " + path + " ] || [ -L " + path + " ]; then\n"
+                        + "test ! -L " + path + " && test -f " + path
+                        + " && test \"$(stat -c '%u:%a:%h' " + path + ")\" = 0:600:1"
+                        + " && test \"$(cat " + path + ")\" = " + quote(token) + " || exit 77\nrm -f " + path + "\nsync\nfi");
+                    if (!context.getSharedPreferences("bridge", Context.MODE_PRIVATE).edit()
+                            .remove("updatePauseToken").putString("finishedUpdateToken", token)
+                            .putBoolean("configured", false).putBoolean("stopPending", false).commit())
+                        throw new IOException(UiText.get(R.string.ui_152));
+                    bridge.health(UiText.get(R.string.runtime_update_reconnect));
+                }
+                span.outcome("finished");
+            } catch (IOException | RuntimeException ex) {
+                record(span, ex);
+                throw ex;
+            }
         }
     }
 
@@ -934,7 +1020,10 @@ public final class FridaBridge {
                 if ((status.equals("current") || status.equals("changed")) && proof.matches("[0-9a-f]{64}"))
                     return new VisualSession(status, proof);
             }
-        } catch (IOException unavailable) { /* A missing receipt cannot prove restoration. */ }
+        } catch (IOException unavailable) {
+            // A missing receipt cannot prove restoration.
+            ControlsLog.warn("bridge_visual_session", unavailable, "scope", scope, "action", "read_state");
+        }
         return new VisualSession("uncertain", "");
     }
 
@@ -945,7 +1034,11 @@ public final class FridaBridge {
         try {
             return command(fixtureEnvironment() + "/system/bin/sh " + quote(base + "/supervise.sh") + " " + mode + " " + scope
                 + " " + quote(expected.proof()) + " && echo cleared").equals("cleared");
-        } catch (IOException unavailable) { return false; }
+        } catch (IOException unavailable) {
+            ControlsLog.warn("bridge_visual_session", unavailable, "scope", scope, "action",
+                restored ? "clear_restored" : "clear_changed");
+            return false;
+        }
     }
 
     private static String visualSessionScope(String suffix) {
@@ -1133,7 +1226,13 @@ public final class FridaBridge {
     }
     private static String quote(String text) { return "'" + text.replace("'", "'\"'\"'") + "'"; }
     private String command(String script) throws IOException {
-        if (recoveryChannel != null) return recoveryChannel.execute(script);
+        if (recoveryChannel != null) return recoveryChannel.execute(script, "update_runtime");
         return production == null ? fixture.execute(script) : production.execute(script);
+    }
+
+    /** A refusal is a deliberate, explained stop; anything else is reported as a failure with its type. */
+    private static void record(ControlsLog.Span span, Exception failure) {
+        span.failed(failure);
+        if (failure instanceof ProductionRootAccess.Refused) span.warning("refused");
     }
 }

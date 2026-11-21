@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.rules.ConditionalRule
 import org.openvoyah.controls.domain.rules.ConditionalRuleLibrary
 import org.openvoyah.controls.domain.rules.DoorRequirement
@@ -70,7 +71,8 @@ internal class ConditionalRulesPreferences(context: Context) {
                 is Set<*> -> rollback.putStringSet(SETTINGS, previous.filterIsInstance<String>().toSet())
                 else -> error("Unsupported original rule preference type")
             }
-            rollback.commit()
+            val rolledBack = rollback.commit()
+            ControlsLog.warn("conditional_rules_settings", "outcome", "commit_failed", "rolledBack", rolledBack)
             error("Could not save conditional rules")
         }
     }

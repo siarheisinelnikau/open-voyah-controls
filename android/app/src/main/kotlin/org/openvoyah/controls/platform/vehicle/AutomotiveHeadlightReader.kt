@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.vehicle.AutomotiveHeadlightSignal
 import org.openvoyah.controls.domain.vehicle.AutomotiveHeadlightSamples
 import org.openvoyah.controls.domain.vehicle.HeadlightConfirmationWindow
@@ -46,12 +47,16 @@ internal object AutomotiveHeadlightReader {
         activityAllowed: Boolean,
         report: (AutomotiveHeadlightSignal, AutomotiveHeadlightReaderOutcome) -> Unit = ::logAutomotiveHeadlightReader,
     ): Flow<HeadlightFeedback> = connections(app).catch { failure ->
-        if (failure.isReadFailure()) emit(null) else throw failure
+        if (!failure.isReadFailure()) throw failure
+        logReaderFailure(failure, "all", "connect")
+        emit(null)
     }.flatMapLatest { connection ->
         val manager = try {
             connection?.takeIf { it.window.isOpen }?.car?.getCarManager(Car.PROPERTY_SERVICE) as? CarPropertyManager
         } catch (failure: Throwable) {
-            if (failure.isReadFailure()) null else throw failure
+            if (!failure.isReadFailure()) throw failure
+            logReaderFailure(failure, "all", "property_service")
+            null
         }
         automotiveHeadlightChannels(selectorAllowed, activityAllowed) { signal ->
             flow {
@@ -66,6 +71,7 @@ internal object AutomotiveHeadlightReader {
                 if (!failure.isReadFailure()) throw failure
                 val outcome = if (failure is SecurityException) AutomotiveHeadlightReaderOutcome.ACCESS_DENIED
                     else AutomotiveHeadlightReaderOutcome.READ_FAILED
+                logReaderFailure(failure, signal.lamp?.key ?: "selector", "subscribe")
                 report(signal, outcome)
                 emit(signal.unavailable)
             }
@@ -266,7 +272,9 @@ internal fun automotiveHeadlightChannels(
     fun channel(signal: AutomotiveHeadlightSignal, allowed: Boolean): Flow<HeadlightFeedback> {
         if (!allowed) return flowOf(signal.unavailable)
         return flow { emitAll(read(signal)) }.catch { failure ->
-            if (failure.isReadFailure()) emit(signal.unavailable) else throw failure
+            if (!failure.isReadFailure()) throw failure
+            logReaderFailure(failure, signal.lamp?.key ?: "selector", "channel")
+            emit(signal.unavailable)
         }
     }
     return merge(
@@ -278,3 +286,8 @@ internal fun automotiveHeadlightChannels(
 
 private fun Throwable.isReadFailure(): Boolean =
     this !is CancellationException && (this is RuntimeException || this is LinkageError)
+
+/** The reader state names the outcome; only this entry keeps the exception type behind it. */
+private fun logReaderFailure(failure: Throwable, signal: String, stage: String) {
+    ControlsLog.warn("headlight_reader", failure, "source", "android_automotive", "signal", signal, "stage", stage)
+}

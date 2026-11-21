@@ -196,8 +196,15 @@ internal enum class AutomotiveHeadlightReaderOutcome(val key: String, val state:
 
 internal fun logAutomotiveHeadlightReader(signal: AutomotiveHeadlightSignal, outcome: AutomotiveHeadlightReaderOutcome) {
     val key = signal.lamp?.key ?: "selector"
-    ControlsLog.info("headlight_reader", "source", "android_automotive", "signal", key, "outcome", outcome.key,
-        "elapsed_ms", SystemClock.elapsedRealtime())
+    val failed = outcome == AutomotiveHeadlightReaderOutcome.READ_FAILED || outcome == AutomotiveHeadlightReaderOutcome.ACCESS_DENIED ||
+        outcome == AutomotiveHeadlightReaderOutcome.REGISTRATION_REJECTED
+    if (failed) {
+        ControlsLog.warn("headlight_reader", "source", "android_automotive", "signal", key, "outcome", outcome.key,
+            "elapsed_ms", SystemClock.elapsedRealtime())
+    } else {
+        ControlsLog.info("headlight_reader", "source", "android_automotive", "signal", key, "outcome", outcome.key,
+            "elapsed_ms", SystemClock.elapsedRealtime())
+    }
 }
 
 private fun automotiveFeedback(

@@ -7,6 +7,7 @@ import android.content.pm.PermissionInfo
 import android.os.Build
 import kotlinx.coroutines.CancellationException
 import org.openvoyah.controls.data.apps.RootPermissionWriter
+import org.openvoyah.controls.diagnostics.ControlsLog
 
 internal data class AppPermission(val name: String, val label: String, val granted: Boolean, val changeable: Boolean)
 
@@ -73,8 +74,9 @@ internal class InstalledAppPermissions(
             writer.set(userId(identity.uid), identity.packageName, name, granted)
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
+        } catch (failure: Exception) {
             // The transport can fail after Android has handled the request. Read once and never replay it.
+            ControlsLog.warn("app_permission_change", failure, "permission", name, "granted", granted)
         }
         val updated = read(identity.packageName)
         return when {

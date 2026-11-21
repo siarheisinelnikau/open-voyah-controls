@@ -90,7 +90,10 @@ internal class VehicleAutomationController(
                 val memory = settings?.takeIf { remembered.isSuccess }?.let {
                     driving.evaluate(it.drivingMode, remembered.getOrNull(), car, now)
                 }
-                val capabilities = try { port.capabilities(car.identity) } catch (_: RuntimeException) { VehicleAutomationCapabilities() }
+                // The adapter's checked I/O failures must not escape into the shared runtime scope.
+                val capabilities = try { port.capabilities(car.identity) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { VehicleAutomationCapabilities() }
                 mutable.update { before ->
                     val prompt = before.prompt?.takeIf { prompt ->
                         settings == prompt.settings && car.sessionId == prompt.sessionId &&

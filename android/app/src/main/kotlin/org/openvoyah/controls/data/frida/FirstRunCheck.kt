@@ -11,6 +11,7 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.data.settings.SettingsStore
 import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.data.voice.VoskModels
+import org.openvoyah.controls.diagnostics.ControlsLog
 
 /** The installer asks the app UID to exercise its own channel and initialize reviewed handlers. */
 internal class FirstRunCheck(private val context: Context) {
@@ -24,7 +25,9 @@ internal class FirstRunCheck(private val context: Context) {
         try {
             progress(R.string.setup_check_root)
             channel = AuthorizedRootChannel.existing(context)
-            check(runInterruptible(Dispatchers.IO) { channel.execute("test \"\$(id -u)\" = 0 && printf OVC_ROOT_OK") } == "OVC_ROOT_OK")
+            check(runInterruptible(Dispatchers.IO) {
+                channel.execute("test \"\$(id -u)\" = 0 && printf OVC_ROOT_OK", "first_run_probe")
+            } == "OVC_ROOT_OK")
             phase = "voice"
             progress(R.string.setup_check_voice)
             runInterruptible(Dispatchers.IO) {
@@ -60,6 +63,7 @@ internal class FirstRunCheck(private val context: Context) {
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (error: Exception) {
+            ControlsLog.warn("first_run_check", error, "phase", phase)
             result = when (phase) {
                 "root" -> R.string.setup_root_failed
                 "voice" -> if (error is VoskModels.StorageUnavailable) R.string.setup_space_failed else R.string.setup_voice_failed
@@ -68,12 +72,18 @@ internal class FirstRunCheck(private val context: Context) {
         }
         // No key, speech, OEM data or error text is sent to the installer.
         val report = "$nonce\t$status\t$phase\t${if (mic) 1 else 0}\t${if (buttons) 1 else 0}"
-        try {
+        val reported = try {
             runInterruptible(Dispatchers.IO) {
-                channel?.execute("umask 077\nprintf '%s\\n' '$report' > /data/adb/open-voyah-controls-access/app-probe\n")
-                    ?: throw java.io.IOException()
+                channel?.execute("umask 077\nprintf '%s\\n' '$report' > /data/adb/open-voyah-controls-access/app-probe\n",
+                    "first_run_report") ?: throw java.io.IOException()
             }
-        } catch (_: Exception) { return R.string.setup_root_failed }
-        return result
+            true
+        } catch (error: Exception) {
+            ControlsLog.warn("first_run_check", error, "phase", "report")
+            false
+        }
+        ControlsLog.info("first_run_check", "outcome", status, "phase", phase, "microphone", mic, "buttons", buttons,
+            "reported", reported)
+        return if (reported) result else R.string.setup_root_failed
     }
 }

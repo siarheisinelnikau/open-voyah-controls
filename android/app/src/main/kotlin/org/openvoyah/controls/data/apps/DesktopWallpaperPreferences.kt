@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.platform.apps.DesktopWallpaperImages
 
@@ -27,8 +28,16 @@ internal class DesktopWallpaperPreferences(context: Context) {
     fun observeImage(desktop: AppGridDesktop): Flow<Bitmap?> = changes()
         .map { synchronized(lock) { preferences.getString(desktop.storedValue, null) } }
         .distinctUntilChanged()
-        .map { data -> data?.let { runCatching { DesktopWallpaperImages.decode(decodeBase64(it)) }.getOrNull() } }
+        .map { data -> data?.let { decodeImage(desktop, it) } }
         .flowOn(Dispatchers.IO)
+
+    // Exception, not Throwable: an OutOfMemoryError while decoding must not read as a damaged rendition.
+    private fun decodeImage(desktop: AppGridDesktop, data: String): Bitmap? = try {
+        DesktopWallpaperImages.decode(decodeBase64(data))
+    } catch (failure: Exception) {
+        ControlsLog.warn("store_decode", failure, "store", STORE, "outcome", "image_unreadable", "desktop", desktop.storedValue)
+        null
+    }
 
     fun set(desktop: AppGridDesktop, rendition: ByteArray?) {
         val encoded = rendition?.let {

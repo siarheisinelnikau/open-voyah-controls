@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Process
 import org.json.JSONArray
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.display.AppDisplayDefaults
 import org.openvoyah.controls.domain.display.AppWindowProfile
 import org.openvoyah.controls.domain.display.WindowProfileStorage
@@ -51,7 +52,7 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
     }
 
     override fun saveDefaults(defaults: AppDisplayDefaults) = synchronized(lock) {
-        check(preferences.edit().putString("displayDefaults", encodeDefaults(defaults).toString()).commit())
+        commitOrRollBack("displayDefaults", encodeDefaults(defaults).toString())
     }
 
     fun exportDefaults(): JSONObject = encodeDefaults(loadDefaults())
@@ -60,7 +61,19 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
 
     private fun write(profiles: List<AppWindowProfile>) {
         require(profiles.size <= AppWindowProfile.MAX_PROFILES)
-        check(preferences.edit().putString("profiles", encode(profiles).toString()).commit())
+        commitOrRollBack("profiles", encode(profiles).toString())
+    }
+
+    /**
+     * A failed disk write leaves the new value in memory, where the next publish would send the unsaved profile to the
+     * window agent. Restore the previous stored string before failing.
+     */
+    private fun commitOrRollBack(key: String, value: String) {
+        val previous = preferences.getString(key, null)
+        if (preferences.edit().putString(key, value).commit()) return
+        val rolledBack = preferences.edit().putString(key, previous).commit()
+        ControlsLog.warn("window_profiles", "outcome", "commit_failed", "key", key, "rolledBack", rolledBack)
+        check(false)
     }
 
     companion object {

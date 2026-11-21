@@ -4,6 +4,7 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.seatmemory.SeatMemorySettings
 import org.openvoyah.controls.domain.seatmemory.SeatMemorySettingsStore
 import org.openvoyah.controls.domain.seatmemory.SeatMemorySlot
@@ -35,7 +36,8 @@ internal class SeatMemoryPreferences(context: Context) : SeatMemorySettingsStore
         val raw = preferences.getString(SETTINGS, null) ?: return false
         return try {
             JSONObject(raw).opt(OPEN_FACTORY_SEATS_ON_TAP) == true
-        } catch (_: JSONException) {
+        } catch (failure: JSONException) {
+            ControlsLog.warn("store_decode", failure, "store", STORE, "outcome", "shortcut_default_used")
             false
         }
     }

@@ -39,6 +39,9 @@ public final class MediaSessionMonitor implements AutoCloseable {
     private Runnable unsubscribe;
     private volatile long revision;
     private Media lastRequested = Media.EMPTY;
+    // Failures are logged on a transition only: a failed publish is retried on the next player callback.
+    private boolean accessDenied;
+    private boolean publishFailing;
 
     public MediaSessionMonitor(Context context, ComponentName component, DisplayEventBus events,
             DisplayPreferences preferences, ClusterOutput cluster) {
@@ -67,7 +70,16 @@ public final class MediaSessionMonitor implements AutoCloseable {
             }
 
             @Override public void onSessionDestroyed() {
-                if (active()) select(manager.getActiveSessions(component));
+                if (!active()) return;
+                List<MediaController> remaining;
+                try { remaining = manager.getActiveSessions(component); }
+                catch (SecurityException ex) {
+                    // Notification access was withdrawn while connected; behave as a failed connect.
+                    accessChanged(ex);
+                    disconnect();
+                    return;
+                }
+                select(remaining);
             }
         };
     }
@@ -79,7 +91,18 @@ public final class MediaSessionMonitor implements AutoCloseable {
             connected = true;
             unsubscribe = preferences.observeClusterMedia(() -> publish(events.snapshot().media()));
             select(manager.getActiveSessions(component));
-        } catch (SecurityException ex) { disconnect(); }
+            accessChanged(null);
+        } catch (SecurityException ex) {
+            accessChanged(ex);
+            disconnect();
+        }
+    }
+
+    private void accessChanged(SecurityException denied) {
+        if ((denied != null) == accessDenied) return;
+        accessDenied = denied != null;
+        if (denied != null) ControlsLog.warn("media_sessions", denied, "outcome", "access_denied");
+        else ControlsLog.info("media_sessions", "outcome", "access_granted");
     }
 
     private void select(List<MediaController> controllers) {
@@ -118,9 +141,19 @@ public final class MediaSessionMonitor implements AutoCloseable {
         long token = ++revision;
         worker.execute(() -> {
             if (token != revision) return;
-            try { cluster.publish(desired); }
-            catch (IOException ex) {
-                ControlsLog.info("cluster_media_publish", "outcome", "transport_unavailable", "error", ex);
+            try {
+                cluster.publish(desired);
+                if (publishFailing) {
+                    publishFailing = false;
+                    ControlsLog.info("cluster_media_publish", "outcome", "recovered");
+                }
+            }
+            catch (IOException | RuntimeException ex) {
+                // A RuntimeException here would otherwise end the worker thread and, through the default handler, the process.
+                if (!publishFailing) {
+                    publishFailing = true;
+                    ControlsLog.warn("cluster_media_publish", ex, "outcome", "transport_unavailable");
+                }
                 handler.post(() -> { if (token == revision) lastRequested = null; });
             }
         });

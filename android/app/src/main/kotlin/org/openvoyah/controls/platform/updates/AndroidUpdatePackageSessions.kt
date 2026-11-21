@@ -18,6 +18,7 @@ import androidx.core.content.IntentCompat
 import org.openvoyah.controls.core.updates.ReleasePolicy
 import org.openvoyah.controls.data.updates.UpdateException
 import org.openvoyah.controls.data.updates.UpdateProblem
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.platform.packages.PackageSessionRemoval
 import org.openvoyah.controls.platform.packages.PackageSessionRemoval.Observation
 import java.io.File
@@ -124,25 +125,33 @@ internal class AndroidUpdatePackageSessions(context: Context) : UpdatePackageSes
         if (!OsConstants.S_ISREG(pathStat.st_mode) || pathStat.st_size != target.bytes) return InstalledUpdateProof.DIFFERENT
         val expectedIdentity = identity(pathStat)
         FileInputStream(file).use { input ->
-            if (identity(Os.fstat(input.fd)) != expectedIdentity) return InstalledUpdateProof.UNAVAILABLE
+            if (identity(Os.fstat(input.fd)) != expectedIdentity) return unavailable("installed_file_replaced")
             try { UpdateApkBytes.transfer(input, null, target.bytes, target.sha256) }
             catch (failure: UpdateException) {
                 if (failure.problem == UpdateProblem.SIZE_OR_DIGEST) return InstalledUpdateProof.DIFFERENT
                 throw failure
             }
             if (identity(Os.fstat(input.fd)) != expectedIdentity || identity(Os.lstat(file.path)) != expectedIdentity) {
-                return InstalledUpdateProof.UNAVAILABLE
+                return unavailable("installed_file_changed_while_reading")
             }
         }
         val after = installedInfo()
         if (!matchesTarget(after, target) || before.lastUpdateTime != after.lastUpdateTime ||
-            before.applicationInfo?.sourceDir != after.applicationInfo?.sourceDir) return InstalledUpdateProof.UNAVAILABLE
+            before.applicationInfo?.sourceDir != after.applicationInfo?.sourceDir) return unavailable("package_changed_while_reading")
         return InstalledUpdateProof.MATCH
+    }
+
+    /** The installer turns this into an interrupted install; the reason is only recorded here. */
+    private fun unavailable(reason: String): InstalledUpdateProof {
+        ControlsLog.warn("update_install", "step", "verify", "outcome", "unavailable", "reason", reason)
+        return InstalledUpdateProof.UNAVAILABLE
     }
 
     override fun deleteSource(target: UpdateInstallTarget) {
         val file = File(target.sourcePath)
-        if (file.exists() && sourceIdentity(file) == target.sourceIdentity) file.delete()
+        if (file.exists() && sourceIdentity(file) == target.sourceIdentity && !file.delete()) {
+            ControlsLog.warn("update_install", "step", "delete_download", "outcome", "not_deleted")
+        }
     }
 
     private fun matchesTarget(info: PackageInfo, target: UpdateInstallTarget): Boolean {
@@ -171,6 +180,13 @@ internal class AndroidUpdatePackageSessions(context: Context) : UpdatePackageSes
             val id = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
             if (id < 0) return null
             val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, Int.MIN_VALUE)
+            // Every status at or above FAILURE is handled alike; the raw status and Android's message tell them apart.
+            val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+            if (status == PackageInstaller.STATUS_SUCCESS || status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                ControlsLog.info("update_session_result", "session", id, "status", status, "status_message", message)
+            } else {
+                ControlsLog.warn("update_session_result", "session", id, "status", status, "status_message", message)
+            }
             val kind = when (status) {
                 PackageInstaller.STATUS_PENDING_USER_ACTION -> UpdateCallbackKind.APPROVAL
                 PackageInstaller.STATUS_SUCCESS -> UpdateCallbackKind.SUCCESS

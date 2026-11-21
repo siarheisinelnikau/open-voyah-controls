@@ -15,6 +15,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.openvoyah.controls.R
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.presentation.display.DisplayPreviewScreen
 import org.openvoyah.controls.presentation.display.DisplayPreviewState
 import org.openvoyah.controls.presentation.display.effectivePreviewDpi
@@ -107,8 +108,10 @@ internal class VirtualDisplayPreview(private val activity: ComponentActivity) : 
                 show()
             }
             current.value = ready
-        } catch (_: RuntimeException) {
+        } catch (failure: RuntimeException) {
             closeDisplay()
+            // Surface changes rebuild repeatedly; record only the transition into the unavailable state.
+            if (current.value != Status.Unavailable) ControlsLog.warn("display_preview", failure, "outcome", "unavailable")
             current.value = Status.Unavailable
         }
     }

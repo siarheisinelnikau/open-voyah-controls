@@ -20,6 +20,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.openvoyah.controls.core.updates.ReleasePolicy
 import org.openvoyah.controls.core.updates.ReleaseVersion
+import org.openvoyah.controls.diagnostics.ControlsLog
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -72,11 +73,13 @@ internal class OfficialUpdateRepository(
     suspend fun check(automatic: Boolean = false): UpdateCheck = checkLock.withLock {
         val before = mutable.value
         mutable.value = UpdateCheck(UpdateCheckPhase.CHECKING, before.candidate, automatic = automatic)
+        var httpStatus: Int? = null
         try {
             val selected = withContext(Dispatchers.IO) {
                 val installed = ReleaseVersion.parse(installedVersion) ?: throw UpdateException(UpdateProblem.VERSION)
                 val deadline = deadline(15)
                 http.open(ReleasePolicy.CATALOG_URL).use { response ->
+                    httpStatus = response.status
                     requireSuccess(response)
                     if (response.length > MAX_CATALOG_BYTES) throw UpdateException(UpdateProblem.CATALOG)
                     withResponseCancellation(response) {
@@ -105,6 +108,8 @@ internal class OfficialUpdateRepository(
                 is JSONException -> UpdateProblem.CATALOG
                 else -> UpdateProblem.NETWORK
             }
+            // An unsynchronized clock (TLS handshake), DNS and an HTTP refusal all reach the screen as one problem.
+            ControlsLog.warn("update_check", error, "problem", problem, "http_status", httpStatus, "automatic", automatic)
             UpdateCheck(UpdateCheckPhase.FAILED, before.candidate, problem, automatic).also { mutable.value = it }
         }
     }
@@ -115,14 +120,19 @@ internal class OfficialUpdateRepository(
             try { withContext(Dispatchers.IO) {
                 ensureDirectory()
                 val partial = try { File.createTempFile("release-", ".part", directory) }
-                catch (_: IOException) { throw UpdateException(UpdateProblem.STORAGE) }
+                catch (failure: IOException) {
+                    ControlsLog.warn("update_download", failure, "problem", UpdateProblem.STORAGE, "step", "create_partial")
+                    throw UpdateException(UpdateProblem.STORAGE)
+                }
                 var complete: File? = null
+                var httpStatus: Int? = null
                 try {
                     val deadline = deadline(300)
                     val digest = MessageDigest.getInstance("SHA-256")
                     var written = 0L
                     var reportedAt = 0L
                     http.open(candidate.url).use { response ->
+                        httpStatus = response.status
                         requireSuccess(response)
                         if (response.length >= 0 && response.length != candidate.bytes) throw UpdateException(UpdateProblem.SIZE_OR_DIGEST)
                         withResponseCancellation(response) {
@@ -166,6 +176,8 @@ internal class OfficialUpdateRepository(
                     throw cancelled
                 } catch (error: Exception) {
                     complete?.delete()
+                    ControlsLog.warn("update_download", error, "problem", (error as? UpdateException)?.problem ?: UpdateProblem.DOWNLOAD,
+                        "http_status", httpStatus)
                     if (error is UpdateException) throw error
                     throw UpdateException(UpdateProblem.DOWNLOAD)
                 } finally {

@@ -15,6 +15,7 @@ import kotlinx.coroutines.withContext
 import org.openvoyah.controls.data.frida.FridaUpdateGate
 import org.openvoyah.controls.data.updates.UpdateException
 import org.openvoyah.controls.data.updates.UpdateProblem
+import org.openvoyah.controls.diagnostics.ControlsLog
 import java.io.File
 import java.util.UUID
 import kotlin.coroutines.coroutineContext
@@ -69,7 +70,10 @@ internal class PackageUpdateInstaller(
             try {
                 val pending = journal.read()
                 val pausedToken = try { runtime.pendingToken() }
-                catch (_: Exception) { throw UpdateException(UpdateProblem.DEVICE_PREPARATION) }
+                catch (failure: Exception) {
+                    report("pending_token", UpdateProblem.DEVICE_PREPARATION, failure)
+                    throw UpdateException(UpdateProblem.DEVICE_PREPARATION)
+                }
                 inspected = true
                 if (pending != null || pausedToken != null) {
                     interrupted(UpdateProblem.INSTALLATION)
@@ -100,6 +104,7 @@ internal class PackageUpdateInstaller(
                 throw cancelled
             } catch (failure: Exception) {
                 val problem = problem(failure, if (receipt == null) UpdateProblem.INSTALLATION else UpdateProblem.DEVICE_PREPARATION)
+                report(if (paused) "prepare_after_pause" else "prepare", problem, failure)
                 // A failed pause may have changed runtime state. Only a deliberate discard may resolve that uncertainty.
                 val saved = receipt
                 if (saved != null && paused) withContext(NonCancellable) { cancelBeforeCommit(saved, UpdateInstallPhase.FAILED, problem) }
@@ -163,6 +168,11 @@ internal class PackageUpdateInstaller(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
+                report(when {
+                    current.attempted -> "commit_attempted"
+                    gateUncertain -> "commit_gate"
+                    else -> "commit_staging"
+                }, problem(failure, UpdateProblem.INSTALLATION), failure)
                 if (current.attempted || gateUncertain) interrupted(problem(failure, UpdateProblem.INSTALLATION))
                 else withContext(NonCancellable) {
                     cancelBeforeCommit(current, UpdateInstallPhase.FAILED, problem(failure, UpdateProblem.INSTALLATION))
@@ -201,7 +211,10 @@ internal class PackageUpdateInstaller(
                 if (mutable.value.phase != UpdateInstallPhase.INTERRUPTED) {
                     try {
                         if (runtime.pendingToken() != null) interrupted(UpdateProblem.DEVICE_PREPARATION)
-                    } catch (_: Exception) { interrupted(UpdateProblem.DEVICE_PREPARATION) }
+                    } catch (failure: Exception) {
+                        report("recover_pending_token", UpdateProblem.DEVICE_PREPARATION, failure)
+                        interrupted(UpdateProblem.DEVICE_PREPARATION)
+                    }
                 }
                 return@withLock
             }
@@ -242,7 +255,10 @@ internal class PackageUpdateInstaller(
 
     override suspend fun discardInterrupted() = withContext(io) {
         operation.withLock {
-            val receipt = try { journal.read() } catch (_: Exception) { null }
+            val receipt = try { journal.read() } catch (failure: Exception) {
+                report("discard_read_receipt", null, failure)
+                null
+            }
             if (receipt != null) {
                 activeSession = receipt.sessionId
                 val installed = receipt.target?.let { proof(it) }
@@ -260,7 +276,10 @@ internal class PackageUpdateInstaller(
                 val resolved = UpdateInstallReceipt(token ?: newToken(), null, UpdateReceiptStep.CANCELLED)
                 journal.write(resolved)
                 finish(resolved, UpdateInstallPhase.CANCELLED)
-            } catch (_: Exception) { interrupted(UpdateProblem.DEVICE_PREPARATION) }
+            } catch (failure: Exception) {
+                report("discard", UpdateProblem.DEVICE_PREPARATION, failure)
+                interrupted(UpdateProblem.DEVICE_PREPARATION)
+            }
         }
     }
 
@@ -286,7 +305,11 @@ internal class PackageUpdateInstaller(
                     mutable.value = UpdateInstallState(UpdateInstallPhase.VERIFYING)
                 }
                 true
-            } catch (_: Exception) { interrupted(UpdateProblem.STORAGE); false }
+            } catch (failure: Exception) {
+                report("session_result", UpdateProblem.STORAGE, failure)
+                interrupted(UpdateProblem.STORAGE)
+                false
+            }
         }
     }
 
@@ -333,25 +356,48 @@ internal class PackageUpdateInstaller(
             preparedCapability = null
             mutable.value = UpdateInstallState(phase,
                 problem = if (phase == UpdateInstallPhase.FAILED) problem ?: UpdateProblem.INSTALLATION else null)
-            receipt.target?.let { runCatching { sessions.deleteSource(it) } }
+            receipt.target?.let { target ->
+                runCatching { sessions.deleteSource(target) }.onFailure { report("delete_download", null, it) }
+            }
         } catch (cancelled: CancellationException) {
+            report("finish", UpdateProblem.DEVICE_PREPARATION, cancelled)
             interrupted(UpdateProblem.DEVICE_PREPARATION)
             throw cancelled
-        } catch (_: Exception) { interrupted(UpdateProblem.DEVICE_PREPARATION) }
+        } catch (failure: Exception) {
+            // Covers the journal writes and runtime.finish: the runtime stays paused until a deliberate discard.
+            report("finish", UpdateProblem.DEVICE_PREPARATION, failure)
+            interrupted(UpdateProblem.DEVICE_PREPARATION)
+        }
     }
 
     private suspend fun proof(target: UpdateInstallTarget): InstalledUpdateProof = try {
         sessions.installed(target)
     } catch (cancelled: CancellationException) { interrupted(UpdateProblem.INSTALLATION); throw cancelled }
-    catch (_: Exception) { InstalledUpdateProof.UNAVAILABLE }
+    catch (failure: Exception) {
+        report("verify", null, failure)
+        InstalledUpdateProof.UNAVAILABLE
+    }
 
     private fun abandon(sessionId: Int?): Boolean = try {
         // A process can die between Android creating a session and our durable ID write.
         if (sessionId == null) sessions.abandonOrphanedSelfSessions() else sessions.abandon(sessionId)
-    } catch (_: Exception) { false }
+    } catch (failure: Exception) {
+        report("abandon", null, failure)
+        false
+    }
 
     private fun readReceipt(): UpdateInstallReceipt? = try { journal.read() }
-    catch (_: Exception) { interrupted(UpdateProblem.STORAGE); null }
+    catch (failure: Exception) {
+        report("read_receipt", UpdateProblem.STORAGE, failure)
+        interrupted(UpdateProblem.STORAGE)
+        null
+    }
+
+    /** Every failure becomes a fixed problem on the screen; the step and the exception type are only recorded here. */
+    private fun report(step: String, problem: UpdateProblem?, failure: Throwable) {
+        if (problem == null) ControlsLog.warn("update_install", failure, "step", step)
+        else ControlsLog.warn("update_install", failure, "step", step, "problem", problem)
+    }
 
     private fun interrupted(problem: UpdateProblem) {
         mutable.value = UpdateInstallState(UpdateInstallPhase.INTERRUPTED, problem = problem)

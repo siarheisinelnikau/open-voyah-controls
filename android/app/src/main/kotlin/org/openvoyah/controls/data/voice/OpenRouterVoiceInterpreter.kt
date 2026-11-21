@@ -10,6 +10,7 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
+import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.voice.NaturalAction
 
 internal sealed interface Interpretation {
@@ -22,17 +23,23 @@ internal sealed interface Interpretation {
 internal class OpenRouterVoiceInterpreter(private val credential: () -> String?) {
     suspend fun interpret(phrase: String): Interpretation {
         if (phrase.isBlank() || phrase.length > 160 || phrase.any { it.isISOControl() }) return Interpretation.Unknown
+        // Never the key, the prompt or the phrase: a 401, a 429, a timeout and a TLS failure are told apart by type only.
         return try {
             withTimeoutOrNull(3_800) {
                 runInterruptible(Dispatchers.IO) {
                     val token = credential() ?: return@runInterruptible Interpretation.Unavailable
                     decode(request(token, phrase))
                 }
-            } ?: Interpretation.Unavailable
-        } catch (_: IOException) {
+            } ?: Interpretation.Unavailable.also { ControlsLog.warn("voice_interpreter", "outcome", "timeout") }
+        } catch (failure: IOException) {
+            val status = (failure as? ServiceStatus)?.status
+            if (status == null) ControlsLog.warn("voice_interpreter", failure, "outcome", "unavailable")
+            else ControlsLog.warn("voice_interpreter", "outcome", "unavailable", "http_status", status)
             Interpretation.Unavailable
         }
     }
+
+    private class ServiceStatus(val status: Int) : IOException("Interpreter service unavailable")
 
     private fun request(token: String, phrase: String): String {
         val deadline = SystemClock.elapsedRealtime() + 3_500
@@ -51,7 +58,8 @@ internal class OpenRouterVoiceInterpreter(private val credential: () -> String?)
         }
         try {
             connection.outputStream.use { it.write(body) }
-            if (connection.responseCode != 200) throw IOException("Interpreter service unavailable")
+            val status = connection.responseCode
+            if (status != 200) throw ServiceStatus(status)
             return connection.inputStream.use { input ->
                 val bytes = ByteArrayOutputStream()
                 val chunk = ByteArray(2_048)

@@ -20,6 +20,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
+import org.openvoyah.controls.diagnostics.ControlsLog
 import java.util.UUID
 
 /** Stages a single APK in a session owned by Controls. Android presents and enforces confirmation. */
@@ -64,7 +65,8 @@ internal class LocalApkInstaller(
             }
         } }
         catch (cancelled: CancellationException) { throw cancelled }
-        catch (_: Exception) {
+        catch (failure: Exception) {
+            ControlsLog.warn("apk_install", failure, "step", "recover_cleanup")
             synchronized(lock) {
                 update(progress.value.copy(message = R.string.apps_install_cleanup_failed,
                     interrupted = progress.value.interrupted || active() != null || preferences.contains("creating_package")))
@@ -90,7 +92,8 @@ internal class LocalApkInstaller(
                     )
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (failure: Exception) {
+                ControlsLog.warn("apk_install", failure, "step", "verify", "session", pending.id)
                 false
             }
             synchronized(lock) {
@@ -111,13 +114,16 @@ internal class LocalApkInstaller(
             var sessionId: Int? = null
             var staged: StagedLocalApk? = null
             var commitAttempted = false
+            var step = "validate"
             try {
                 if (uri.scheme != "content") throw LocalApkStagingFailure(LocalApkRefusal.INVALID_APK)
                 check(sessions.canInstall())
                 stager.cleanupInterrupted()
+                step = "stage"
                 val inspected = stager.stage(uri)
                 staged = inspected
                 ensureActive()
+                step = "create_session"
                 val token = UUID.randomUUID().toString()
                 synchronized(lock) {
                     // This foreign target is durable before Android can allocate a session. No
@@ -131,12 +137,14 @@ internal class LocalApkInstaller(
                     check(preferences.edit().putInt("session", id).putString("package", inspected.packageName)
                         .remove("creating_package").commit())
                 }
+                step = "write"
                 sessions.open(id).use { session ->
                     session.openWrite(inspected.bytes).use { output ->
                         stager.copy(inspected, output)
                         session.fsync(output)
                     }
                     ensureActive()
+                    step = "commit"
                     val result = Intent(context, ApkInstallResultReceiver::class.java)
                         .setAction(RESULT_ACTION).setData(Uri.fromParts(RESULT_SCHEME, token, null))
                     val flags = PendingIntent.FLAG_CANCEL_CURRENT or if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
@@ -152,7 +160,10 @@ internal class LocalApkInstaller(
                 if (!commitAttempted) discardBeforeCommit(sessionId, R.string.apk_install_ended)
                 throw cancelled
             } catch (failure: Exception) {
-                val message = when ((failure as? LocalApkStagingFailure)?.refusal) {
+                val refusal = (failure as? LocalApkStagingFailure)?.refusal
+                ControlsLog.warn("apk_install", failure, "step", step, "session", sessionId, "refusal", refusal,
+                    "committed", commitAttempted)
+                val message = when (refusal) {
                     LocalApkRefusal.OWN_PACKAGE -> R.string.apps_install_self_update
                     LocalApkRefusal.INVALID_APK -> R.string.apps_install_invalid_apk
                     LocalApkRefusal.CHANGED -> R.string.apps_install_changed_apk
@@ -163,9 +174,10 @@ internal class LocalApkInstaller(
             } finally {
                 withContext(NonCancellable) {
                     try { staged?.let { stager.discard(it) } }
-                    catch (_: Exception) { synchronized(lock) {
-                        update(progress.value.copy(message = R.string.apps_install_cleanup_failed))
-                    } }
+                    catch (failure: Exception) {
+                        ControlsLog.warn("apk_install", failure, "step", "discard_staged")
+                        synchronized(lock) { update(progress.value.copy(message = R.string.apps_install_cleanup_failed)) }
+                    }
                 }
             }
         }
@@ -185,7 +197,8 @@ internal class LocalApkInstaller(
         staging.withLock {
             try { stager.cleanupInterrupted() }
             catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) {
+            catch (failure: Exception) {
+                ControlsLog.warn("apk_install", failure, "step", "discard_cleanup")
                 synchronized(lock) { update(State(message = R.string.apps_install_cleanup_failed, interrupted = true)) }
                 return@withLock
             }
@@ -211,7 +224,15 @@ internal class LocalApkInstaller(
             result.data?.schemeSpecificPart != pending.token ||
             result.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1) != pending.id) return@synchronized false
         if (pending.completedPackage != null) return@synchronized false
-        when (result.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
+        val status = result.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
+        // Every failure status reads as one message on the screen; Android's status and message tell them apart.
+        val statusMessage = result.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+        if (status == PackageInstaller.STATUS_SUCCESS || status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            ControlsLog.info("apk_install", "step", "result", "session", pending.id, "status", status, "status_message", statusMessage)
+        } else {
+            ControlsLog.warn("apk_install", "step", "result", "session", pending.id, "status", status, "status_message", statusMessage)
+        }
+        when (status) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 if (preferences.getBoolean("approval_received", false)) return@synchronized false
                 val approval = IntentCompat.getParcelableExtra(result, Intent.EXTRA_INTENT, Intent::class.java)
@@ -257,7 +278,10 @@ internal class LocalApkInstaller(
             if (current.any { it.installer != context.packageName || it.sealed }) return false
             for (session in current) if (!abandon(session.id, target)) return false
             matching().isEmpty() && clearActive()
-        } catch (_: Exception) { false }
+        } catch (failure: Exception) {
+            ControlsLog.warn("apk_install", failure, "step", "discard_creation")
+            false
+        }
     }
 
     private fun active(): Pending? {
@@ -271,7 +295,8 @@ internal class LocalApkInstaller(
 
     private fun abandon(id: Int, expectedPackage: String?): Boolean = try {
         sessions.abandon(id, expectedPackage)
-    } catch (_: RuntimeException) {
+    } catch (failure: RuntimeException) {
+        ControlsLog.warn("apk_install", failure, "step", "abandon", "session", id)
         false
     }
 
@@ -281,6 +306,7 @@ internal class LocalApkInstaller(
             .remove("creating_package").remove("bytes").remove("digest").remove("approval_received")
             .remove("completed_package").commit()
         if (!cleared) {
+            ControlsLog.warn("apk_install", "step", "clear_receipt", "outcome", "commit_failed")
             // Android updates the in-memory map even when commit reports a disk failure. Retain
             // the receipt in memory as well so reopening/discarding can retry after storage recovers.
             val restore = preferences.edit()

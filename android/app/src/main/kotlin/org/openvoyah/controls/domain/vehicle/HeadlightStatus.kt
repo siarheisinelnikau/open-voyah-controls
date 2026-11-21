@@ -156,6 +156,8 @@ internal class HeadlightMonitor(
     private val feedback: Flow<HeadlightFeedback>,
     private val history: HeadlightHistory,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    /** Receives a reader failure that ends the feedback; platform callers log it, the domain stays free of logging. */
+    private val reportFailure: (Exception) -> Unit = {},
 ) {
     fun observe(): Flow<HeadlightStatus> = flow {
         var state = HeadlightStatus(HeadlightFeedback.AwaitingController, history.read(),
@@ -163,7 +165,12 @@ internal class HeadlightMonitor(
         var newestSelector = 0L
         val newestLamp = mutableMapOf<ExteriorLamp, Long>()
         emit(state)
-        feedback.catch { emit(HeadlightFeedback.Unavailable) }.collect { report ->
+        feedback.catch { failure ->
+            // An Error is not an unavailable reader. It must reach the owner instead of reading as a lamp state.
+            if (failure !is Exception) throw failure
+            reportFailure(failure)
+            emit(HeadlightFeedback.Unavailable)
+        }.collect { report ->
             state = when (report) {
                 is HeadlightFeedback.ReaderState -> state.copy(inputStates = state.inputStates + (report.input to report.state))
                 is HeadlightFeedback.Confirmed -> {

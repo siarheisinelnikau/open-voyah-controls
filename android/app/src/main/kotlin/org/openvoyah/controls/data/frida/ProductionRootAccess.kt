@@ -8,6 +8,7 @@ import android.os.UserHandle
 import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.diagnostics.ControlsLog
 import java.io.IOException
 import java.util.Locale
 
@@ -20,8 +21,10 @@ class ProductionRootAccess(context: Context) {
         try {
             ReviewedFirmware.load(app)
         } catch (error: Refused) {
+            logRefusal("unreviewed_firmware", error)
             throw error
         } catch (error: Exception) {
+            logRefusal("review_unreadable", error)
             throw Refused(UiText.get(R.string.production_evidence_changed), error)
         }
     }
@@ -29,6 +32,7 @@ class ProductionRootAccess(context: Context) {
         try {
             ReviewedFirmware.runtime(app)
         } catch (error: Exception) {
+            logRefusal("runtime_unreadable", error)
             throw Refused(UiText.get(R.string.production_evidence_changed), error)
         }
     }
@@ -51,7 +55,7 @@ class ProductionRootAccess(context: Context) {
     fun execute(script: String): String {
         val verified = evidence()
         return try {
-            verified.broker.execute(verified.guard + script)
+            verified.broker.execute(verified.guard + script, "command")
         } catch (error: Refused) {
             proof = null
             throw error
@@ -133,16 +137,22 @@ class ProductionRootAccess(context: Context) {
         proof?.let { return it }
         val profile = review
         val expected = BuildConfig.RELEASE_CERT_SHA256.lowercase(Locale.ROOT)
-        if (BuildConfig.DEBUG || app.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 ||
-            !expected.matches(ReviewedFirmware.sha256) || Process.myUserHandle() != UserHandle.getUserHandleForUid(0)
-        ) {
+        val release = when {
+            BuildConfig.DEBUG -> "debug_build"
+            app.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 -> "debuggable"
+            !expected.matches(ReviewedFirmware.sha256) -> "release_signer_unset"
+            Process.myUserHandle() != UserHandle.getUserHandleForUid(0) -> "secondary_user"
+            else -> null
+        }
+        if (release != null) {
+            logRefusal(release)
             throw Refused(UiText.get(R.string.production_release_required))
         }
         val packages = listOf(installed(app.packageName, expected, null)) +
             profile.packages.map { installed(it.name, it.signer, it.apk) }
         val guard = deviceGuard(profile.device)
         val broker = AuthorizedRootChannel.existing(app)
-        val response = broker.execute(buildString {
+        val response = broker.execute(purpose = "evidence", script = buildString {
             append(guard)
             for (pkg in packages) {
                 val path = shell(pkg.path)
@@ -156,12 +166,20 @@ class ProductionRootAccess(context: Context) {
             }
         })
         val rows = response.lineSequence().filter { it.startsWith("OVC_PROOF\t") }.toList()
-        if (rows.size != packages.size) throw Refused(UiText.get(R.string.production_evidence_changed))
+        if (rows.size != packages.size) {
+            logRefusal("proof_rows")
+            throw Refused(UiText.get(R.string.production_evidence_changed))
+        }
         val verified = rows.zip(packages).map { (line, pkg) ->
             val columns = line.split('\t')
-            if (columns.size != 3 || !columns[1].matches(stampPattern) || !columns[2].matches(ReviewedFirmware.sha256) ||
-                pkg.expectedHash?.let { it != columns[2] } == true
-            ) {
+            val invalid = when {
+                columns.size != 3 || !columns[1].matches(stampPattern) || !columns[2].matches(ReviewedFirmware.sha256) ->
+                    "proof_format"
+                pkg.expectedHash?.let { it != columns[2] } == true -> "apk_hash"
+                else -> null
+            }
+            if (invalid != null) {
+                logRefusal(invalid, packageName = pkg.name)
                 throw Refused(UiText.get(R.string.production_evidence_changed))
             }
             VerifiedPackage(pkg.name, pkg.path, columns[1], columns[2])
@@ -181,17 +199,27 @@ class ProductionRootAccess(context: Context) {
         val info = try {
             app.packageManager.getPackageInfo(name, PackageManager.GET_SIGNING_CERTIFICATES)
         } catch (error: PackageManager.NameNotFoundException) {
+            logRefusal("package_missing", error, name)
             throw Refused(UiText.get(R.string.production_evidence_changed), error)
         }
-        val details = info.applicationInfo ?: throw Refused(UiText.get(R.string.production_evidence_changed))
+        val details = info.applicationInfo ?: run {
+            logRefusal("application_info_missing", packageName = name)
+            throw Refused(UiText.get(R.string.production_evidence_changed))
+        }
         val currentSigner = info.signingInfo?.takeUnless { it.hasMultipleSigners() }
             ?.signingCertificateHistory?.lastOrNull()?.toByteArray()
         val path = details.sourceDir
-        if (currentSigner == null || ReviewedFirmware.digest(currentSigner) != signer ||
-            (expectedHash != null && details.flags and ApplicationInfo.FLAG_SYSTEM == 0) ||
-            !details.splitSourceDirs.isNullOrEmpty() || path == null || !path.matches(apkPath) ||
-            path.split('/').drop(1).any { it.isEmpty() || it == "." || it == ".." }
-        ) {
+        val invalid = when {
+            currentSigner == null -> "signer_unavailable"
+            ReviewedFirmware.digest(currentSigner) != signer -> "wrong_signer"
+            expectedHash != null && details.flags and ApplicationInfo.FLAG_SYSTEM == 0 -> "not_system_app"
+            !details.splitSourceDirs.isNullOrEmpty() -> "split_apk"
+            path == null || !path.matches(apkPath) || path.split('/').drop(1).any { it.isEmpty() || it == "." || it == ".." } ->
+                "apk_path"
+            else -> null
+        }
+        if (invalid != null || path == null) {
+            logRefusal(invalid ?: "apk_path", packageName = name)
             throw Refused(UiText.get(R.string.production_evidence_changed))
         }
         return Installed(name, path, expectedHash)
@@ -219,6 +247,17 @@ class ProductionRootAccess(context: Context) {
             "test ! -L $path && test -f $path || exit 77\n"
     }
 
+    /** Every refusal reaches the screen as the same localized text; this entry names the check that failed. */
+    private fun logRefusal(reason: String, error: Throwable? = null, packageName: String? = null) {
+        val fields = if (packageName == null) arrayOf<Any?>("outcome", "refused", "reason", reason)
+            else arrayOf<Any?>("outcome", "refused", "reason", reason, "package", packageName)
+        when {
+            refusals.isRepeat("$reason:$packageName") -> ControlsLog.debug("production_evidence", *fields, "error", error)
+            error != null -> ControlsLog.warn("production_evidence", error, *fields)
+            else -> ControlsLog.warn("production_evidence", *fields)
+        }
+    }
+
     private data class Installed(val name: String, val path: String, val expectedHash: String?)
     private data class VerifiedPackage(val name: String, val path: String, val stamp: String, val apkHash: String)
     private data class Proof(val broker: AuthorizedRootChannel, val packages: List<VerifiedPackage>, val guard: String)
@@ -232,6 +271,7 @@ class ProductionRootAccess(context: Context) {
             "for ovc_dir in \"\$ovc_old\" \"\$ovc_old/locale-setting\" \"\$ovc_old/locale-vehicle\" " +
             "\"\$ovc_old/locale-bluetooth\" \"\$ovc_old/window\" \"\$ovc_old/navigation\" \"\$ovc_old/can\"; do\n" +
             "test ! -e \"\$ovc_dir/enabled\" && test ! -L \"\$ovc_dir/enabled\" || exit 78\ndone\n"
+        private val refusals = RepeatedFailureFilter()
         private val artifactPath = Regex("(?:[a-z0-9-]+/)?[a-z0-9.-]+")
         private val apkPath = Regex("/[A-Za-z0-9_./+=~-]{1,511}\\.apk")
         private val stampPattern = Regex("[0-9]+(?::[0-9]+){4}")

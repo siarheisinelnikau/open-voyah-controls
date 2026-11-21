@@ -15,6 +15,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import org.openvoyah.controls.diagnostics.ControlsLog
 
 /** Persist callbacks within the broadcast lifetime; a job performs potentially large installed-APK reads. */
 class UpdateInstallResultReceiver : BroadcastReceiver() {
@@ -28,8 +29,9 @@ class UpdateInstallResultReceiver : BroadcastReceiver() {
                         UpdateRecoveryJobService.schedule(context)
                     }
                 }
-            } catch (_: Exception) {
+            } catch (failure: Exception) {
                 // The durable receipt remains available to the screen or package-replacement recovery.
+                ControlsLog.warn("update_session_result", failure, "outcome", "not_recorded")
             } finally { pending.finish() }
         }
     }
@@ -57,7 +59,10 @@ class UpdateRecoveryJobService : JobService() {
         owner = token
         work = scope.launch {
             try { withTimeout(120_000) { PackageUpdateInstaller.get(this@UpdateRecoveryJobService).recover() } }
-            catch (_: Exception) { /* A stopped or failed probe leaves the persisted transaction paused. */ }
+            catch (failure: Exception) {
+                // A stopped or failed probe leaves the persisted transaction paused.
+                ControlsLog.warn("update_recovery_job", failure, "outcome", if (owner === token) "failed" else "stopped")
+            }
             finally { if (owner === token) jobFinished(params, false) }
         }
         return true
@@ -81,10 +86,17 @@ class UpdateRecoveryJobService : JobService() {
 
         fun schedule(context: Context) {
             try {
-                val scheduler = context.getSystemService(JobScheduler::class.java) ?: return
-                scheduler.schedule(JobInfo.Builder(JOB_ID, ComponentName(context, UpdateRecoveryJobService::class.java))
+                val scheduler = context.getSystemService(JobScheduler::class.java) ?: run {
+                    ControlsLog.warn("update_recovery_job", "outcome", "scheduler_unavailable")
+                    return
+                }
+                val result = scheduler.schedule(JobInfo.Builder(JOB_ID, ComponentName(context, UpdateRecoveryJobService::class.java))
                     .setPersisted(true).setOverrideDeadline(1_000).build())
-            } catch (_: RuntimeException) { /* The Updates screen can still recover the durable receipt. */ }
+                if (result != JobScheduler.RESULT_SUCCESS) ControlsLog.warn("update_recovery_job", "outcome", "schedule_rejected")
+            } catch (failure: RuntimeException) {
+                // The Updates screen can still recover the durable receipt.
+                ControlsLog.warn("update_recovery_job", failure, "outcome", "schedule_failed")
+            }
         }
     }
 }

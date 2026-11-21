@@ -73,7 +73,7 @@ internal class NativeVehicleTelemetryMonitor(context: Context) : VehicleTelemetr
         if (!interactive) {
             diagnostic.update { it.copy(connected = false) }
             flowOf(unknownTelemetry())
-        } else channelFlow {
+        } else channelFlow<VehicleTelemetry> {
             send(unknownTelemetry())
             try {
                 QingganHeadlightReader.observeReadOnly(app, additionalObserver = {
@@ -89,14 +89,20 @@ internal class NativeVehicleTelemetryMonitor(context: Context) : VehicleTelemetr
             }
             // An absent/denied source is stable until wake or the owning collector restarts.
             awaitCancellation()
-        }
-    }.catch { failure ->
+        }.unknownAfterFailure()
+    }.unknownAfterFailure().flowOn(Dispatchers.IO)
+
+    /**
+     * Applied to each interactive period, a reader failure ends only that period: the interactivity watcher keeps
+     * running and the next wake subscribes again. The outer use still covers a failure of the watcher itself.
+     */
+    private fun Flow<VehicleTelemetry>.unknownAfterFailure(): Flow<VehicleTelemetry> = catch { failure ->
         if (failure is CancellationException || (failure !is Exception && failure !is LinkageError)) throw failure
         diagnostic.update { it.copy(connected = false) }
         ControlsLog.warn("vehicle_observer", "outcome", "read_failed", "failure", failure)
         emit(unknownTelemetry())
         awaitCancellation()
-    }.flowOn(Dispatchers.IO)
+    }
 
     private class VehicleCallbacks(
         initial: VehicleTelemetry,
@@ -147,12 +153,15 @@ internal class NativeVehicleTelemetryMonitor(context: Context) : VehicleTelemetr
                         "outcome", if (value == null) "unavailable" else "observed", "elapsed_ns", elapsed,
                         "session", current.sessionId)
                 }
-                if (current.gear != previous.gear) logSignal("gear", current.gear?.value?.key)
-                if (current.drivingMode != previous.drivingMode) logSignal("driving_mode", current.drivingMode?.value?.key)
-                if (current.outsideCelsius != previous.outsideCelsius)
+                // Every callback stamps a new sample time; only a changed value is worth a journal entry.
+                if (current.gear?.value != previous.gear?.value) logSignal("gear", current.gear?.value?.key)
+                if (current.drivingMode?.value != previous.drivingMode?.value) logSignal("driving_mode", current.drivingMode?.value?.key)
+                if (current.outsideCelsius?.value != previous.outsideCelsius?.value)
                     logSignal("outside_temperature", current.outsideCelsius?.value?.toString())
                 for (door in VehicleDoor.entries) {
-                    if (current.doors[door] != previous.doors[door]) logSignal("door_${door.key}", current.doors[door]?.value?.key)
+                    if (current.doors[door]?.value != previous.doors[door]?.value) {
+                        logSignal("door_${door.key}", current.doors[door]?.value?.key)
+                    }
                 }
             }
             return true
