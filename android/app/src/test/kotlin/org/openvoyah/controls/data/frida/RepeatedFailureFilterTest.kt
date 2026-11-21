@@ -16,10 +16,24 @@ class RepeatedFailureFilterTest {
         assertFalse(filter.isRepeat("command:78"))
     }
 
-    @Test fun aDifferentFailureIsReportedAndStartsItsOwnWindow() {
+    @Test fun aDifferentFailureIsReportedOnceAndAlternatingFailuresStayRepeats() {
         assertFalse(filter.isRepeat("command:78"))
         assertFalse(filter.isRepeat("evidence:77"))
         assertTrue(filter.isRepeat("evidence:77"))
+        // Two failures taking turns must not present each other as new on every attempt.
+        assertTrue(filter.isRepeat("command:78"))
+        assertTrue(filter.isRepeat("evidence:77"))
+        now += 60_000L
         assertFalse(filter.isRepeat("command:78"))
+        assertFalse(filter.isRepeat("evidence:77"))
+    }
+
+    @Test fun theNumberOfRememberedKindsIsBounded() {
+        for (kind in 0 until 8) assertFalse(filter.isRepeat("kind:$kind"))
+        for (kind in 0 until 8) assertTrue(filter.isRepeat("kind:$kind"))
+        // A ninth kind takes the place of the oldest one, which is then reported again.
+        assertFalse(filter.isRepeat("kind:8"))
+        assertFalse(filter.isRepeat("kind:0"))
+        assertTrue(filter.isRepeat("kind:8"))
     }
 }

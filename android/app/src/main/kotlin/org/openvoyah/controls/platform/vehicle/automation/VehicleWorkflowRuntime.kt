@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -65,10 +64,11 @@ internal data class VehicleRuntimeState(
 /** One process owner. The existing accessibility service holds the background lease; UI is optional. */
 internal class VehicleWorkflowRuntime private constructor(context: Context) {
     private val app = context.applicationContext
-    // An unhandled failure in one workflow must not take down the process and the accessibility service with it.
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, failure ->
-        ControlsLog.error("vehicle_runtime", failure, "outcome", "unhandled_failure")
-    })
+    // No exception handler on purpose. A failure that nothing below handles ends the lease coroutine or a shared
+    // state for good, and a runtime that keeps showing its last lamp state while it no longer observes anything is
+    // worse than a process that restarts together with its accessibility service. The uncaught-exception hook of
+    // Diagnostics records the failure before Android ends the process.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val background = MutableStateFlow<Any?>(null)
     private val foreground = MutableStateFlow(VehicleForegroundLeases<suspend (RuleDecision) -> Int?>())
     private val mutable = MutableStateFlow(VehicleRuntimeState())

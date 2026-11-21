@@ -360,7 +360,8 @@ internal class PackageUpdateInstaller(
                 runCatching { sessions.deleteSource(target) }.onFailure { report("delete_download", null, it) }
             }
         } catch (cancelled: CancellationException) {
-            report("finish", UpdateProblem.DEVICE_PREPARATION, cancelled)
+            // A cancelled caller is not a failed step: the attempt stays recoverable and is recorded as interrupted.
+            ControlsLog.info("update_install", "step", "finish", "outcome", "interrupted")
             interrupted(UpdateProblem.DEVICE_PREPARATION)
             throw cancelled
         } catch (failure: Exception) {

@@ -78,6 +78,9 @@ internal class FirstRunCheck(private val context: Context) {
                     "first_run_report") ?: throw java.io.IOException()
             }
             true
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            // The page that asked is gone; a cancelled report is neither a failed nor a delivered one.
+            throw cancelled
         } catch (error: Exception) {
             ControlsLog.warn("first_run_check", error, "phase", "report")
             false
