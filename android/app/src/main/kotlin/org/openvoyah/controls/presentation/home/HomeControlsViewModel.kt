@@ -80,15 +80,20 @@ internal class HomeControlsViewModel(
         if (slot !in PanelSlots.forProduct(product)) return
         if (change {
             // Absence selects the app default; explicit native selection must survive decoding.
-            if (action.isAssigned || slot == "mainApps") it.panelActions[slot] = action else it.panelActions.remove(slot)
+            if (action.isAssigned || SettingsStore.hasDefault(slot)) it.panelActions[slot] = action else it.panelActions.remove(slot)
         } && state.value.panelEnabled && !panel.configured()) error(UiText.get(R.string.ui_72))
     }
     fun chooseSteering(slot: String, action: Action) {
         if (slot !in PanelSlots.STEERING) return
-        if (change { if (action.isAssigned) it.steeringActions[slot] = action else it.steeringActions.remove(slot) }
-            && !panel.configured()) error(UiText.get(R.string.ui_72))
+        if (change {
+            if (action.isAssigned || SettingsStore.hasDefault(slot)) it.steeringActions[slot] = action else it.steeringActions.remove(slot)
+        } && !panel.configured()) error(UiText.get(R.string.ui_72))
     }
-    fun clearSteering() = change { it.steeringActions.clear() }
+    /** Factory restore keeps the voice key native too, which an empty map would turn back into the app default. */
+    fun clearSteering() = change {
+        it.steeringActions.clear()
+        it.steeringActions[SettingsStore.DEFAULT_STEERING_SLOT] = Action.NONE
+    }
     fun binding(id: String): Binding? = settings?.bindings?.firstOrNull { it.id == id }
 
     fun saveBinding(binding: Binding, existingId: String?): String? {

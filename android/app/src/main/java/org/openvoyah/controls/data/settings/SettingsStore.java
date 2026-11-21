@@ -18,6 +18,14 @@ import org.openvoyah.controls.core.PanelSlots;
 public final class SettingsStore {
     private final SharedPreferences preferences;
     public static final int SCHEMA = 1;
+    /** The steering-wheel voice key opens Controls voice input until another or the factory action is chosen. */
+    public static final String DEFAULT_STEERING_SLOT = "voiceShort";
+    /** Absence selects an app default for these slots, so an explicit factory choice must be saved. */
+    public static boolean hasDefault(String slot) { return "mainApps".equals(slot) || DEFAULT_STEERING_SLOT.equals(slot); }
+    /** True only for the untouched steering default, which does not depend on a qualified steering hook. */
+    public static boolean isDefaultSteering(String slot, Action action) {
+        return DEFAULT_STEERING_SLOT.equals(slot) && action.kind == Action.Kind.START_VOICE;
+    }
     public static final class State {
         public boolean enabled = true;
         public int holdMs = 650;
@@ -28,6 +36,7 @@ public final class SettingsStore {
         public final java.util.Map<String, Action> steeringActions = new java.util.LinkedHashMap<>();
         public State() {
             panelActions.put("mainApps", new Action(Action.Kind.CONTROLS_APPS, "", "Controls"));
+            steeringActions.put(DEFAULT_STEERING_SLOT, new Action(Action.Kind.START_VOICE, "", "Voice"));
         }
     }
     public SettingsStore(Context context) { preferences = context.getSharedPreferences("controls", Context.MODE_PRIVATE); }

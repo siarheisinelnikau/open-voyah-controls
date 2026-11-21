@@ -748,7 +748,8 @@ public final class FridaBridge {
                     .append(" ").append(dir).append("/ready || { echo pending; exit 0; }\n");
                 if (suffix.isEmpty()) script.append("grep -Eq '^OVC_VOICE_READY protocol=3( |$)' ").append(dir)
                     .append("/ready || { echo pending; exit 0; }\n");
-                if (suffix.isEmpty() && assignments.enabled && !assignments.steeringActions.isEmpty()) {
+                if (suffix.isEmpty() && assignments.enabled && assignments.steeringActions.entrySet().stream().anyMatch(entry ->
+                        entry.getValue().isAssigned() && !SettingsStore.isDefaultSteering(entry.getKey(), entry.getValue()))) {
                     script.append("grep -Eq '^OVC_STEERING_READY protocol=2( |$)' ").append(dir)
                         .append("/ready || { echo pending; exit 0; }\n");
                 }
