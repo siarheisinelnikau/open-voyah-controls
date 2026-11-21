@@ -14,6 +14,19 @@
         <item name="android:windowAnimationStyle">@style/CockpitWindowMotion</item>
     </style>
 
+    <!-- Applied before the first frame when the saved palette is Daytime, so the window does not open dark. -->
+    <style name="AppTheme.Day">
+        <item name="android:colorAccent">@color/cockpit_day_accent</item>
+        <item name="android:colorBackground">@color/cockpit_day_background</item>
+        <item name="android:colorBackgroundFloating">@color/cockpit_day_surface</item>
+        <item name="android:textColorPrimary">@color/cockpit_day_text</item>
+        <item name="android:textColorSecondary">@color/cockpit_day_muted</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">@color/cockpit_day_background</item>
+        <item name="android:navigationBarColor">@color/cockpit_day_background</item>
+        <item name="android:windowBackground">@color/cockpit_day_background</item>
+    </style>
+
     <style name="LaunchBrandTheme" parent="AppTheme" />
 
     <style name="CockpitButton" parent="android:style/Widget.Material.Button">

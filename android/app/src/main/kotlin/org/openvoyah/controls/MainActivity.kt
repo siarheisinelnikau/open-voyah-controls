@@ -41,6 +41,7 @@ import org.openvoyah.controls.domain.routines.RoutineEditException
 import org.openvoyah.controls.domain.routines.RoutinePlan
 import org.openvoyah.controls.domain.routines.RoutineStartupDelay
 import org.openvoyah.controls.domain.routines.RoutineStartupRequest
+import org.openvoyah.controls.domain.settings.AppPalette
 import org.openvoyah.controls.domain.settings.LauncherEntry
 import org.openvoyah.controls.platform.apps.AppsPlatform
 import org.openvoyah.controls.platform.apps.LauncherShortcuts
@@ -83,6 +84,9 @@ class MainActivity : ComponentActivity() {
     private var launcherMediaTask: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // The manifest theme is dark. With the Daytime palette saved, the window itself must open light, or every
+        // start and every recreate() shows one near-black frame before Compose paints.
+        if (appearancePreferences.load().palette == AppPalette.DAY) setTheme(R.style.AppTheme_Day)
         super.onCreate(savedInstanceState)
         val provider = ViewModelProvider(this)
         navigation = provider[ControlsNavigationViewModel::class.java]
