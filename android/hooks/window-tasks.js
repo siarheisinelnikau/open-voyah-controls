@@ -1,6 +1,8 @@
 import { android9Tasks } from './window-task-android9.js';
 import { android11Tasks } from './window-task-android11.js';
-import { CENTRAL_DISPLAY, SECONDARY_DISPLAY, rectValues, sameBounds, windowBounds } from './window-profiles.js';
+import {
+    CENTRAL_DISPLAY, SECONDARY_DISPLAY, fitsReservedStrip, rectValues, sameBounds, windowBounds
+} from './window-profiles.js';
 
 function error(code) {
     const failure = Error(code);
@@ -160,7 +162,11 @@ export function systemTasks(Java, sdk, panelWidth) {
                 (prior.bounds !== null && !sameBounds(geometry(task), prior.bounds))))) throw error('rollback_failed');
     }
 
-    function apply(profile, user, taskId, launch = null, displayId = 0) {
+    /**
+     * [reservedPx] is the left strip Android itself keeps clear on the central display, or 0. A task whose profile
+     * fills the usable width then keeps Android's placement and only receives its density.
+     */
+    function apply(profile, user, taskId, launch = null, displayId = 0, reservedPx = 0) {
         const pkg = profile.component.split('/')[0];
         return api.lock(() => {
             if (api.user() !== user || api.isLocked()) throw error('unsupported_task');
@@ -175,7 +181,8 @@ export function systemTasks(Java, sdk, panelWidth) {
             const taskKey = key(task);
             const dpi = profile.dpi;
             const changeDensity = before.dpi !== dpi;
-            const canPlace = screen === CENTRAL_DISPLAY && api.supportsFreeform() && task.isResizeable();
+            const canPlace = screen === CENTRAL_DISPLAY && api.supportsFreeform() && task.isResizeable() &&
+                !fitsReservedStrip(profile, reservedPx);
             if (screen === CENTRAL_DISPLAY && !canPlace && dpi === 0 && !changeDensity) throw error('unsupported_window');
             // Android may already have applied our provisional bounds. A new task keeps its native density.
             const launchOriginal = canPlace && launch?.id === taskKey ? launch.prior : null;
