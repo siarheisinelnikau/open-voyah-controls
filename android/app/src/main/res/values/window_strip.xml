@@ -1,0 +1,24 @@
+<resources>
+    <string name="window_strip_title">Let Android reserve the panel strip (experimental)</string>
+    <string name="window_strip_enable_title">Let Android reserve the panel strip?</string>
+    <string name="window_strip_enable_message">Experimental, and not yet verified on a head unit.\n\nAndroid itself will lay out every window of the central display beside the left panel, instead of Controls moving each app there. Running apps restart once. Factory screens that already leave room for the panel may show a doubled gap.\n\nIf the system process restarts while this is on, Controls turns it off by itself. You can turn it off here at any time.</string>
+    <string name="window_strip_disable_title">Stop reserving the panel strip?</string>
+    <string name="window_strip_disable_message">Android returns to its own layout and running apps restart once. Controls then places managed apps beside the panel again, as before.</string>
+    <string name="window_strip_requested">Requested. Android applies it within a few seconds.</string>
+    <string name="window_strip_released">Android no longer reserves the panel strip.</string>
+    <string name="window_strip_saved">Saved. It takes effect once the window service is running.</string>
+    <string name="window_strip_agent_required">The window service agent on this head unit does not support the option yet. Reconnect in Buttons to update it.</string>
+    <string name="window_strip_status_service_off">Needs the window service</string>
+    <string name="window_strip_status_agent">Waiting for the window service agent</string>
+    <string name="window_strip_status_off">Off</string>
+    <string name="window_strip_status_starting">Starting…</string>
+    <string name="window_strip_status_waiting_panel">Waiting for the launcher panel</string>
+    <string name="window_strip_status_checking">Applied, being checked · %1$d px</string>
+    <string name="window_strip_status_active">On · %1$d px reserved</string>
+    <string name="window_strip_status_other_user">Paused while another Android user is active</string>
+    <string name="window_strip_status_blocked">Turned off after the system process restarted. Turn it on again to retry.</string>
+    <string name="window_strip_status_unsupported">Not available on this firmware (%1$s)</string>
+    <string name="window_strip_status_failed">Could not be applied (%1$s)</string>
+    <string name="window_strip_status_not_undone">Not fully undone. Restart the head unit.</string>
+    <string name="window_strip_status_unknown">State unknown</string>
+</resources>

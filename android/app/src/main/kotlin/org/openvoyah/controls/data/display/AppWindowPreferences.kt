@@ -30,11 +30,22 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
         write(profiles().filterNot { it.packageName == packageName })
     }
 
+    /**
+     * [systemInsetsAttempt] is null unless the experimental strip reserved by Android itself is on. It counts how
+     * often the driver turned the option on, which lets the agent tell a new request from one it already blocked.
+     */
     @JvmOverloads
-    fun agentConfig(enabled: Boolean, allowSecondary: Boolean = true, passengerDisplayId: Int? = null): String = synchronized(lock) {
+    fun agentConfig(
+        enabled: Boolean,
+        allowSecondary: Boolean = true,
+        passengerDisplayId: Int? = null,
+        systemInsetsAttempt: Int? = null,
+    ): String = synchronized(lock) {
         require(passengerDisplayId == null || passengerDisplayId == 1)
+        require(systemInsetsAttempt == null || systemInsetsAttempt >= 0)
         val config = JSONObject().put("schema", 1).put("user", userId).put("enabled", enabled)
             .put("apps", exportProfiles())
+        if (systemInsetsAttempt != null) config.put("systemInsets", true).put("systemInsetsAttempt", systemInsetsAttempt)
         val stored = loadDefaults()
         val defaults = if (allowSecondary) stored else stored.copy(secondaryDpi = null)
         if (defaults != AppDisplayDefaults()) config.put("displayDpi", encodeDefaults(defaults))

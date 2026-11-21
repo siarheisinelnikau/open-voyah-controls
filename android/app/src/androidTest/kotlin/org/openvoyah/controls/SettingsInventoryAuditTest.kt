@@ -430,30 +430,34 @@ class SettingsInventoryColdStartTest : InstrumentationTestCase() {
 private const val BRIDGE_PREFS = "bridge"
 private const val WINDOW_HOOK = "windowHook"
 private const val NAVIGATION_HOOK = "navigationHook"
+private const val WINDOW_STRIP = "windowSystemInsets"
 private const val CLOUD_VOICE_PREFS = "cloud_voice"
 private const val CLOUD_CREDENTIAL = "credential"
 private const val CLOUD_KEY_ALIAS = "org.openvoyah.controls.openrouter"
-private val DEVICE_ONLY_FAMILIES = listOf("optional online fallback", "navigation feed", "window service")
+private val DEVICE_ONLY_FAMILIES = listOf("optional online fallback", "navigation feed", "window service", "system panel strip")
 
 private enum class DeviceSettingsProfile(
     val id: String,
     private val windowHook: Boolean,
     private val navigationHook: Boolean,
+    private val windowStrip: Boolean,
     private val credential: String?,
 ) {
-    A("a", windowHook = false, navigationHook = true, credential = "AuditOnlySyntheticCredentialA2026"),
-    B("b", windowHook = true, navigationHook = false, credential = null);
+    A("a", windowHook = false, navigationHook = true, windowStrip = true, credential = "AuditOnlySyntheticCredentialA2026"),
+    B("b", windowHook = true, navigationHook = false, windowStrip = false, credential = null);
 
     fun write(app: Context) {
         // Direct preference writes keep this fixture independent of each optional service's lifecycle.
         val bridge = app.getSharedPreferences(BRIDGE_PREFS, Context.MODE_PRIVATE)
-        check(bridge.edit().putBoolean(WINDOW_HOOK, windowHook).putBoolean(NAVIGATION_HOOK, navigationHook).commit())
+        check(bridge.edit().putBoolean(WINDOW_HOOK, windowHook).putBoolean(NAVIGATION_HOOK, navigationHook)
+            .putBoolean(WINDOW_STRIP, windowStrip).commit())
         CloudVoiceSettings(app).save(credential != null, credential.orEmpty())
     }
 
     fun verify(app: Context, label: String) {
         assertEquals("$label changed window service", windowHook, FridaBridge.windowHookEnabled(app))
         assertEquals("$label changed navigation feed", navigationHook, FridaBridge.navigationHookEnabled(app))
+        assertEquals("$label changed the system panel strip", windowStrip, FridaBridge.windowStripEnabled(app))
         val voice = CloudVoiceSettings(app)
         assertTrue("$label changed the device-bound voice setting",
             voice.configured() == (credential != null) && voice.key() == credential)
@@ -463,18 +467,20 @@ private enum class DeviceSettingsProfile(
 private data class DeviceSettingsSnapshot(
     private val windowHook: Boolean?,
     private val navigationHook: Boolean?,
+    private val windowStrip: Boolean?,
     private val encryptedCredential: String?,
     private val cloudKeyExisted: Boolean,
 ) {
     fun encode() = JSONObject()
         .put(WINDOW_HOOK, windowHook ?: JSONObject.NULL)
         .put(NAVIGATION_HOOK, navigationHook ?: JSONObject.NULL)
+        .put(WINDOW_STRIP, windowStrip ?: JSONObject.NULL)
         .put(CLOUD_CREDENTIAL, encryptedCredential ?: JSONObject.NULL)
         .put("cloudKeyExisted", cloudKeyExisted)
 
     fun restore(app: Context) {
         val bridge = app.getSharedPreferences(BRIDGE_PREFS, Context.MODE_PRIVATE).edit()
-        for ((key, value) in listOf(WINDOW_HOOK to windowHook, NAVIGATION_HOOK to navigationHook)) {
+        for ((key, value) in listOf(WINDOW_HOOK to windowHook, NAVIGATION_HOOK to navigationHook, WINDOW_STRIP to windowStrip)) {
             if (value == null) bridge.remove(key) else bridge.putBoolean(key, value)
         }
         check(bridge.commit())
@@ -498,6 +504,7 @@ private data class DeviceSettingsSnapshot(
             return DeviceSettingsSnapshot(
                 optionalValue(bridge[WINDOW_HOOK], WINDOW_HOOK),
                 optionalValue(bridge[NAVIGATION_HOOK], NAVIGATION_HOOK),
+                optionalValue(bridge[WINDOW_STRIP], WINDOW_STRIP),
                 optionalValue(voice[CLOUD_CREDENTIAL], CLOUD_CREDENTIAL),
                 keyExisted,
             )
@@ -506,6 +513,7 @@ private data class DeviceSettingsSnapshot(
         fun decode(value: JSONObject) = DeviceSettingsSnapshot(
             optionalValue(value.get(WINDOW_HOOK), WINDOW_HOOK),
             optionalValue(value.get(NAVIGATION_HOOK), NAVIGATION_HOOK),
+            optionalValue(value.opt(WINDOW_STRIP), WINDOW_STRIP),
             optionalValue(value.get(CLOUD_CREDENTIAL), CLOUD_CREDENTIAL),
             value.getBoolean("cloudKeyExisted"),
         )

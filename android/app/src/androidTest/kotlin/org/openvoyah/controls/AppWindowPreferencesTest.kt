@@ -63,6 +63,24 @@ class AppWindowPreferencesTest : AndroidTestCase() {
         }
     }
 
+    fun testTheAgentDocumentCarriesTheExperimentalStripOnlyWhenItIsOn() {
+        val preferences = AppWindowPreferences(context)
+        val plain = JSONObject(preferences.agentConfig(true))
+        assertFalse(plain.has("systemInsets"))
+        assertFalse(plain.has("systemInsetsAttempt"))
+        val reserved = JSONObject(preferences.agentConfig(true, systemInsetsAttempt = 3))
+        assertTrue(reserved.getBoolean("systemInsets"))
+        assertEquals(3, reserved.getInt("systemInsetsAttempt"))
+        // Everything else in the document is the same with and without the option.
+        reserved.remove("systemInsets")
+        reserved.remove("systemInsetsAttempt")
+        assertEquals(plain.toString(), reserved.toString())
+        try {
+            preferences.agentConfig(true, systemInsetsAttempt = -1)
+            fail("A negative attempt number must be rejected")
+        } catch (_: IllegalArgumentException) { }
+    }
+
     fun testLegacyProfileAppliesToOtherLaunchEntriesInThePackage() {
         val preferences = AppWindowPreferences(context)
         val previous = preferences.exportProfiles()

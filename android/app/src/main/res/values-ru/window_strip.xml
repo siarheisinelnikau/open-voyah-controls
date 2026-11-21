@@ -1,0 +1,24 @@
+<resources>
+    <string name="window_strip_title">Резервировать полосу панели средствами Android (эксперимент)</string>
+    <string name="window_strip_enable_title">Резервировать полосу панели средствами Android?</string>
+    <string name="window_strip_enable_message">Экспериментальная функция, на головном устройстве ещё не проверена.\n\nAndroid сам будет размещать все окна центрального экрана правее левой панели — вместо того чтобы Controls сдвигал каждое приложение. Запущенные приложения один раз перезапустятся. Заводские экраны, которые уже оставляют место под панель, могут показать двойной отступ.\n\nЕсли при включённой функции перезапустится системный процесс, Controls сам её отключит. Отключить её можно здесь в любой момент.</string>
+    <string name="window_strip_disable_title">Перестать резервировать полосу панели?</string>
+    <string name="window_strip_disable_message">Android вернётся к собственной раскладке, запущенные приложения один раз перезапустятся. После этого Controls снова будет размещать управляемые приложения рядом с панелью, как раньше.</string>
+    <string name="window_strip_requested">Запрос отправлен. Android применит его через несколько секунд.</string>
+    <string name="window_strip_released">Android больше не резервирует полосу панели.</string>
+    <string name="window_strip_saved">Сохранено. Вступит в силу, когда заработает служба окон.</string>
+    <string name="window_strip_agent_required">Агент службы окон на этом устройстве пока не поддерживает функцию. Переподключитесь в разделе «Кнопки», чтобы обновить его.</string>
+    <string name="window_strip_status_service_off">Нужна служба окон</string>
+    <string name="window_strip_status_agent">Ожидание агента службы окон</string>
+    <string name="window_strip_status_off">Выключено</string>
+    <string name="window_strip_status_starting">Запуск…</string>
+    <string name="window_strip_status_waiting_panel">Ожидание панели лаунчера</string>
+    <string name="window_strip_status_checking">Применено, идёт проверка · %1$d px</string>
+    <string name="window_strip_status_active">Включено · зарезервировано %1$d px</string>
+    <string name="window_strip_status_other_user">Приостановлено: активен другой пользователь Android</string>
+    <string name="window_strip_status_blocked">Отключено после перезапуска системного процесса. Включите снова, чтобы повторить.</string>
+    <string name="window_strip_status_unsupported">Недоступно на этой прошивке (%1$s)</string>
+    <string name="window_strip_status_failed">Не удалось применить (%1$s)</string>
+    <string name="window_strip_status_not_undone">Отменено не полностью. Перезагрузите головное устройство.</string>
+    <string name="window_strip_status_unknown">Состояние неизвестно</string>
+</resources>

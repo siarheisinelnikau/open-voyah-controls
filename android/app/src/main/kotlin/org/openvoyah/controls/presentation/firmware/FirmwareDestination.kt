@@ -23,6 +23,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.withStarted
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
@@ -35,6 +36,7 @@ import org.openvoyah.controls.presentation.maintenance.FirmwareAction
 import org.openvoyah.controls.presentation.maintenance.FirmwareScreen
 import org.openvoyah.controls.presentation.maintenance.MaintenanceViewModel
 import org.openvoyah.controls.presentation.maintenance.MaintenanceWork
+import org.openvoyah.controls.presentation.maintenance.WindowStripRow
 import org.openvoyah.controls.presentation.theme.CockpitDialogs
 
 /** The destination observes maintenance work; leaving it closes only its confirmation dialogs. */
@@ -65,13 +67,24 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit) {
     val state by model.state.collectAsStateWithLifecycle(lifecycleOwner = lifecycleOwner)
     val lifecycle by lifecycleOwner.lifecycle.currentStateAsState()
     val active = lifecycle.isAtLeast(Lifecycle.State.STARTED)
-    val windowStatus by produceState<Int?>(null, active, state) {
-        if (windows.supported && active && !state.working) {
-            value = when (windows.connection()) {
-                WindowConnection.DISCONNECTED -> R.string.cockpit_setup_required
-                WindowConnection.DISABLED -> R.string.cockpit_disabled
-                WindowConnection.ENABLED -> R.string.cockpit_enabled
+    val windowRows by produceState<Pair<Int, WindowStripRow>?>(null, active, state) {
+        if (!windows.supported || !active || state.working) return@produceState
+        val connection = windows.connection()
+        val status = when (connection) {
+            WindowConnection.DISCONNECTED -> R.string.cockpit_setup_required
+            WindowConnection.DISABLED -> R.string.cockpit_disabled
+            WindowConnection.ENABLED -> R.string.cockpit_enabled
+        }
+        // The experimental strip moves from "starting" to "on" within seconds of being requested; follow it for a
+        // bounded time, so the line under the switch is not left at a stage that has already passed.
+        var polls = 0
+        while (true) {
+            val (row, settling) = withContext(Dispatchers.IO) {
+                windowStripRow(adapter.windowStripEnabled(), connection, adapter::windowStripState)
             }
+            value = status to row
+            if (!settling || ++polls >= STRIP_POLLS) break
+            delay(STRIP_POLL_MILLIS)
         }
     }
     // Reading the flag parses the stored dictionary (up to 48 KB of JSON), so it stays off the main thread and is read
@@ -108,6 +121,13 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit) {
                         adapter.windowEnabled(enable)
                     }
                 }
+                FirmwareAction.WINDOW_STRIP -> {
+                    val enable = !adapter.windowStripEnabled()
+                    confirm(if (enable) R.string.window_strip_enable_title else R.string.window_strip_disable_title,
+                        if (enable) R.string.window_strip_enable_message else R.string.window_strip_disable_message) {
+                        adapter.windowStrip(enable)
+                    }
+                }
                 FirmwareAction.RUSSIAN -> model.run { adapter.preset("ru") }
                 FirmwareAction.ENGLISH -> model.run { adapter.preset("en") }
                 FirmwareAction.DISABLE_TRANSLATION -> model.run(adapter::disable)
@@ -122,8 +142,11 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit) {
     }
 
     val product = remember { "${Build.PRODUCT} · ${Firmware.identify(Build.PRODUCT)}" }
-    FirmwareScreen(product, translationEnabled, windowStatus, state, back, ::select)
+    FirmwareScreen(product, translationEnabled, windowRows?.first, windowRows?.second, state, back, ::select)
 }
+
+private const val STRIP_POLLS = 8
+private const val STRIP_POLL_MILLIS = 2_000L
 
 private tailrec fun Context.componentActivity(): ComponentActivity = when (this) {
     is ComponentActivity -> this
