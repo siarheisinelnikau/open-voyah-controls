@@ -94,6 +94,17 @@ class DiagnosticJournalTest {
         assertEquals("1970-01-01T05:00:00.000+03:00 I event=fresh\n", journal.read())
     }
 
+    @Test fun aFailureWhileFormattingAnEntryStaysInsideTheWriter() {
+        var zones = 0
+        val journal = DiagnosticJournal(directory, inline, 4_096, 100) {
+            if (zones++ == 0) throw java.time.DateTimeException("Unknown zone") else ZoneOffset.UTC
+        }
+        journal.write(record("event=lost", millis = 1_000L), null)
+        journal.write(record("event=kept", millis = 2_000L), null)
+
+        assertEquals("1970-01-01T00:00:02.000+00:00 I event=kept\n", journal.read())
+    }
+
     @Test fun anUnwritableDirectoryIsAbandonedQuietly() {
         val blocked = File(directory, "blocked").apply { writeText("not a directory") }
         val journal = DiagnosticJournal(blocked, inline)
