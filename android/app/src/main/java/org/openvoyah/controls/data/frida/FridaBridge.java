@@ -26,6 +26,7 @@ import org.openvoyah.controls.data.frida.WindowDiagnostics.Outcome;
 import org.openvoyah.controls.data.frida.WindowDiagnostics.Stage;
 import org.openvoyah.controls.domain.display.AppWindowProfile;
 import org.openvoyah.controls.domain.display.WindowProfileDelivery;
+import org.openvoyah.controls.domain.display.WindowStripState;
 import org.openvoyah.controls.data.settings.LocalizationSettings;
 import org.openvoyah.controls.data.settings.SettingsStore;
 import org.openvoyah.controls.diagnostics.ControlsLog;
@@ -36,6 +37,9 @@ public final class FridaBridge {
     private static final String KEY = "org.openvoyah.controls.panel";
     private static final String WINDOW_PROFILES = "org.openvoyah.controls.windowProfiles";
     private static final String WINDOW_REQUEST = "org.openvoyah.controls.windowRequest";
+    private static final String WINDOW_STRIP = "windowSystemInsets";
+    private static final String WINDOW_STRIP_ATTEMPT = "windowSystemInsetsAttempt";
+    private static final String WINDOW_STRIP_READY = "^OVC_WINDOW_READY protocol=3 .*systemInsets=1( |$)";
     private static final String FIXTURE_BASE = "/data/local/tmp/open-voyah-controls";
     private static final String[] CHANNELS = {"", "/locale-setting", "/locale-vehicle", "/locale-bluetooth", "/window", "/navigation", "/can"};
     private static final String FIXTURE_INJECTOR = "/data/local/tmp/open-voyah-controls-frida-17.26.2";
@@ -500,9 +504,73 @@ public final class FridaBridge {
         command(activationGuard() + "test ! -L " + quote(path) + " && chmod 600 " + quote(path + ".new")
             + " && mv " + quote(path + ".new") + " " + quote(path));
     }
+    /** Experimental: Android itself keeps the launcher panel strip clear. Device-only, like the service switch. */
+    public static boolean windowStripEnabled(Context context) {
+        return context.getSharedPreferences("bridge", Context.MODE_PRIVATE).getBoolean(WINDOW_STRIP, false);
+    }
+
+    /**
+     * Saves the choice and hands it to a running window agent. Returns whether the agent received it; a choice that
+     * was only saved takes effect with the next publication of the window profiles.
+     */
+    public boolean setWindowStrip(boolean enabled) throws IOException {
+        synchronized (IO_LOCK) {
+            try (ControlsLog.Span span = ControlsLog.span("window_strip", "enabled", enabled)) {
+                boolean live = runtimeConfigured() && windowHookEnabled(context) && windowHookSupported() && windowReviewed();
+                if (enabled && !live) {
+                    span.outcome("service_off");
+                    throw new IOException(UiText.get(R.string.window_hook_requirement));
+                }
+                if (live) {
+                    requireRoot();
+                    // An agent deployed before the option existed would ignore it and never answer for it.
+                    live = channelReady("/window", WINDOW_STRIP_READY);
+                    if (enabled && !live) {
+                        span.outcome("agent_unavailable");
+                        throw new IOException(UiText.get(R.string.window_strip_agent_required));
+                    }
+                }
+                var store = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
+                int attempt = store.getInt(WINDOW_STRIP_ATTEMPT, 0);
+                // Every time the driver turns the option on is a new attempt. The agent blocks an attempt that may
+                // have ended the system process, and only a new number lets it try again.
+                if (enabled) attempt = attempt >= 1_000_000 ? 1 : attempt + 1;
+                if (!store.edit().putBoolean(WINDOW_STRIP, enabled).putInt(WINDOW_STRIP_ATTEMPT, attempt).commit()) {
+                    span.outcome("not_saved");
+                    throw new IOException(UiText.get(R.string.ui_152));
+                }
+                if (live) publishWindowProfiles();
+                span.outcome(live ? "published" : "saved");
+                return live;
+            }
+        }
+    }
+
+    /** Asks the window agent what it knows about the reserved strip. Changes nothing. */
+    public WindowStripState windowStripState() throws IOException {
+        String reply;
+        synchronized (IO_LOCK) {
+            if (!runtimeConfigured() || !windowHookEnabled(context) || !windowHookSupported() || !windowReviewed()) {
+                return new WindowStripState(WindowStripState.Phase.SERVICE_OFF, 0, null);
+            }
+            requireRoot();
+            if (!channelReady("/window", WINDOW_STRIP_READY)) {
+                return new WindowStripState(WindowStripState.Phase.AGENT_UNAVAILABLE, 0, null);
+            }
+            try {
+                reply = windowRequest("insets", "");
+            } catch (IOException unanswered) {
+                return new WindowStripState(WindowStripState.Phase.AGENT_UNAVAILABLE, 0, null);
+            }
+        }
+        return WindowStripReceipt.parse(reply);
+    }
+
     private void publishWindowProfiles() throws IOException {
+        var store = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
+        Integer stripAttempt = store.getBoolean(WINDOW_STRIP, false) ? Integer.valueOf(store.getInt(WINDOW_STRIP_ATTEMPT, 0)) : null;
         String profiles = new AppWindowPreferences(context).agentConfig(true, passengerWindowReviewed(),
-            production != null ? Integer.valueOf(1) : null);
+            production != null ? Integer.valueOf(1) : null, stripAttempt);
         String encoded = Base64.encodeToString(profiles.getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
         StringBuilder script = new StringBuilder(activationGuard() + "settings put global " + WINDOW_PROFILES
             + " \"$(base64 -d <<'OVC_WINDOWS'\n");

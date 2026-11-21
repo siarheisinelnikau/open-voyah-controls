@@ -93,6 +93,21 @@ On a prepared head unit, select **Connect Frida**. **Window service** starts by 
 - The screen reports saved profiles separately from changes confirmed by Android. A missing response leaves the saved profile available for the next launch.
 - Profiles and display defaults survive Android restarts and are included in app settings backups. Older profiles retain their width, DPI, and minimum inset under the shared panel rule. The reviewed passenger override changes only task density. For a supported adjacent launch in an active multi-window layout, Android selects placement. Pinned, private, and shared tasks keep native layout.
 
+### Letting Android reserve the panel strip (experimental)
+
+**Firmware and OEM profiles → Let Android reserve the panel strip** changes who keeps apps clear of the launcher's left panel. Normally the window service moves each managed launch into a window beside the panel. With the option on, Android itself lays out every window of the central display beside it, and apps are told about the strip the way they are told about a system bar. It needs a running window service and is off by default.
+
+**This option has not been verified on a head unit.** It was written against the Android 9 and Android 11 sources and is tested against models of their window managers. Treat the first use as a trial:
+
+- Turning it on or off changes the display configuration, so running apps restart once.
+- Every window is affected, including the launcher's home screen and factory apps that already leave room for the panel. Those may show a doubled gap. If they do, turn the option off: the per-app placement is unchanged and takes over again.
+- The line under the switch shows what the agent reports: **Starting…**, **Applied, being checked**, **On · N px reserved**, or why it was not applied. **Not available on this firmware (…)** names the precondition that does not hold; trying again will not change it.
+- If the system process restarts while the strip is reserved, the agent does not reserve it again on its own, on this boot or later ones. The line then reads **Turned off after the system process restarted**, and switching the option on again is a new attempt.
+- A managed app whose profile uses the full width beside the panel is no longer put into a freeform window. A narrower width, a wider left margin or a per-app DPI still work as before.
+- The choice stays on this head unit and is not part of a settings export.
+
+The mechanism, its preconditions and the record that prevents a restart loop are described in [The reserved panel strip](FRIDA_AGENTS.md#the-reserved-panel-strip-experimental).
+
 The Android SDK version and product name describe candidate firmware branches. OEM key delivery, the passenger display ID, window service signatures, and cluster updates still require testing on the actual head unit.
 
 ## Text translation
