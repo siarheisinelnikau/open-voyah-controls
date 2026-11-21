@@ -44,6 +44,8 @@ Desktop names, pins, wallpapers and card choices use stable desktop IDs. Availab
 
 Select **Manual order** under **App order** to arrange ordinary launcher apps. New apps appear after the saved order. Pins and built-in shortcuts keep their priority. Reordering keeps a separate list, and choosing a different sort keeps your manual arrangement. New layouts contain the list. An older layout preserves the saved order when it omits the list.
 
+**App grid → Built-in shortcuts** chooses which Controls shortcuts appear in the grid: Voice assistant, Buttons, Virtual display, Vehicle settings, Vehicle routines, Voice settings, Updates and Install local APK. A new grid shows none of them. The **Open Voyah Controls** tile opens Settings, which links to the same screens. Voice assistant and Install local APK have no row in Settings, so turn those two shortcuts on to use them from the grid. A grid whose shortcut choice was never changed follows this default after an update. A saved choice stays as it is, including one kept in a desktop layout or a settings archive.
+
 Turn off **Show in All apps** in an app's shortcut settings to hide it from the All apps grid and search. Its Favorites shortcuts still open the app. **App grid → Hidden app shortcuts** lets you show a shortcut again. Settings archives and new desktop layouts retain the hidden list.
 
 Turn on **Always show search in All apps** to put the search field above the grid. The field waits for a tap before opening the keyboard. Clear the query to show the complete grid again.

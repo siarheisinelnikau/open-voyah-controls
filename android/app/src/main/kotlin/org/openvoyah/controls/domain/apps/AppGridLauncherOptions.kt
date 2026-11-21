@@ -31,7 +31,11 @@ internal enum class AppGridShortcut(val storedValue: String) {
     INSTALL_APK("installApk");
 
     companion object {
-        val defaults: Set<AppGridShortcut> = entries.toSet()
+        /**
+         * A new grid shows the Open Voyah Controls tile only. Its Settings page links to every screen a shortcut opens,
+         * so each shortcut is an opt-in under Built-in shortcuts. Quick voice and local APK install have no row there.
+         */
+        val defaults: Set<AppGridShortcut> = emptySet()
 
         fun parse(value: String): AppGridShortcut =
             requireNotNull(entries.firstOrNull { it.storedValue == value }) { "Invalid app grid shortcut" }

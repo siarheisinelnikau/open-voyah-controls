@@ -31,10 +31,10 @@ class AppGridLauncherOptionsTest {
         assertEquals(3, AppGridColumns.AUTO.fit(388, 118, 12))
     }
 
-    @Test fun optionsKeepAutomaticSizingAndEveryOptionalShortcutByDefault() {
+    @Test fun optionsKeepAutomaticSizingAndNoOptionalShortcutByDefault() {
         val grid = AppGridConfiguration()
         assertEquals(AppGridColumns.AUTO, grid.columns)
-        assertEquals(AppGridShortcut.entries.toSet(), grid.visibleShortcuts)
+        assertEquals(emptySet<AppGridShortcut>(), grid.visibleShortcuts)
         assertEquals(AppGridColumns.FOUR, AppGridColumns.parse("4"))
         assertThrows(IllegalArgumentException::class.java) { AppGridColumns.parse("3") }
         assertFalse(AppGridShortcut.entries.any { it.storedValue in setOf("androidSettings", "settings", "search") })
