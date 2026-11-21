@@ -32,6 +32,7 @@ import org.openvoyah.controls.core.voice.VoiceAudioOptions.FeedbackStyle
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.ReadyCueStyle
 import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.domain.voice.VoiceResult
+import org.openvoyah.controls.platform.display.useControlsDensity
 import org.openvoyah.controls.platform.voice.OfflineVoiceFeedback
 import org.openvoyah.controls.platform.voice.MicrophonePermission
 import org.openvoyah.controls.platform.voice.forRecognitionLanguage
@@ -63,6 +64,11 @@ class QuickVoiceActivity : ComponentActivity() {
             microphoneRecovery = true
             showFailure(UiText.get(R.string.quick_mic_denied))
         }
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        useControlsDensity(newBase)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

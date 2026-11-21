@@ -152,7 +152,7 @@ internal class AppGridPreferences(context: Context) {
         val values = preferences.all
         return AppGridConfiguration(
             pinnedApps = decodePins(JSONArray(values[PINNED_APPS] as String? ?: "[]")),
-            tileSize = (values[TILE_SIZE] as String?)?.let { AppGridTileSize.parse(it) } ?: AppGridTileSize.STANDARD,
+            tileSize = (values[TILE_SIZE] as String?)?.let { AppGridTileSize.parse(it) } ?: AppGridTileSize.DEFAULT,
             showSystemApps = values[SHOW_SYSTEM_APPS] as Boolean? ?: true,
             desktops = (values[DESKTOPS] as String?)?.let { decodeDesktops(JSONObject(it)) } ?: AppGridDesktops(),
             iconStyle = (values[ICON_STYLE] as String?)?.let { AppGridIconStyle.parse(it) } ?: AppGridIconStyle.NATIVE,

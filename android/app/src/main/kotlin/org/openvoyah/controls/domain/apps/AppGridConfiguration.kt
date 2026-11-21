@@ -6,6 +6,13 @@ internal enum class AppGridTileSize(val storedValue: String) {
     LARGE("large");
 
     companion object {
+        /**
+         * A new grid uses Large tiles: six columns and two rows on the central display, sized like the factory
+         * launcher's own app grid. A grid whose tile size was never changed follows this default after an update;
+         * a saved size stays, also one kept in a desktop layout or a settings archive.
+         */
+        val DEFAULT = LARGE
+
         fun parse(value: String): AppGridTileSize =
             requireNotNull(entries.firstOrNull { it.storedValue == value }) { "Invalid app grid tile size" }
     }
@@ -63,7 +70,7 @@ internal class AppGridHiddenAppsFull : IllegalStateException("Hidden app shortcu
 
 internal data class AppGridConfiguration(
     val pinnedApps: List<String> = emptyList(),
-    val tileSize: AppGridTileSize = AppGridTileSize.STANDARD,
+    val tileSize: AppGridTileSize = AppGridTileSize.DEFAULT,
     val showSystemApps: Boolean = true,
     val desktops: AppGridDesktops = AppGridDesktops(),
     val iconStyle: AppGridIconStyle = AppGridIconStyle.NATIVE,

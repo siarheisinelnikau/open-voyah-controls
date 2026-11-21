@@ -10,6 +10,7 @@ import android.graphics.drawable.Drawable
 import android.provider.Settings
 import androidx.core.graphics.createBitmap
 import org.openvoyah.controls.InstalledApps
+import org.openvoyah.controls.platform.display.controlsDensity
 
 internal data class LocalApp(
     val id: String,
@@ -60,8 +61,9 @@ internal class AppsCatalog(
     }
 }
 
+/** Rendered at the size of the largest app-grid icon (Large tiles), so no tile draws an enlarged bitmap. */
 internal fun Context.appIcon(drawable: Drawable): Bitmap {
-    val pixels = (48 * resources.displayMetrics.density).toInt().coerceIn(48, 128)
+    val pixels = (APP_ICON_DP * controlsDensity()).toInt().coerceIn(48, 192)
     return createBitmap(pixels, pixels).also { bitmap ->
         drawable.mutate().apply {
             setBounds(0, 0, pixels, pixels)
@@ -69,3 +71,5 @@ internal fun Context.appIcon(drawable: Drawable): Bitmap {
         }
     }
 }
+
+private const val APP_ICON_DP = 80
