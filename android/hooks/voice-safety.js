@@ -1,4 +1,6 @@
-import catalog from '../app/src/main/assets/voice/verified-commands.json';
+// Written by tools/voice-approvals.mjs before every compile: the shipped catalog, plus the owner's rows in a
+// local-vehicle debug build.
+import catalog from '../app/build/generated/voice-approvals/voice/verified-commands.json';
 
 export function approvedVoiceCommands(Java) {
     const Build = Java.use('android.os.Build');
@@ -6,7 +8,7 @@ export function approvedVoiceCommands(Java) {
     const fingerprint = String(Build.FINGERPRINT.value);
     const sdk = Java.use('android.os.Build$VERSION').SDK_INT.value;
     const abi = String(Build.SUPPORTED_ABIS.value[0]);
-    if (![28, 30].includes(sdk) || abi !== 'arm64-v8a' || !/^[A-Za-z0-9_.:/+-]{1,256}$/.test(fingerprint) ||
+    if (![28, 30].includes(sdk) || abi !== 'arm64-v8a' || !/^[A-Za-z0-9_.:/+,-]{1,256}$/.test(fingerprint) ||
         catalog.schema !== 1 || !Array.isArray(catalog.headUnits) || catalog.headUnits.length > 128) return null;
     const matches = catalog.headUnits.filter(unit => unit && unit.product === product &&
         unit.fingerprint === fingerprint && unit.sdk === sdk && unit.abi === abi);

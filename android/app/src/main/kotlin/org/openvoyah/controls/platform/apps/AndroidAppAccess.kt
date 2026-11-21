@@ -1,14 +1,30 @@
 package org.openvoyah.controls.platform.apps
 
 import android.Manifest
+import android.app.AppOpsManager
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import org.openvoyah.controls.domain.apps.AppOpMode
 
-internal enum class AndroidAppAccess {
-    OVERLAY, WRITE_SETTINGS, UNKNOWN_APPS, ALL_FILES, USAGE, NOTIFICATION_LISTENER, ACCESSIBILITY;
+/**
+ * A special access an app can declare. [permission] is the app-op permission behind it, which Controls changes
+ * through AppOps; [revoked] is the mode Android's own settings write to deny it. Notification and accessibility
+ * access are enabled components rather than app-ops and stay with Android settings.
+ */
+internal enum class AndroidAppAccess(val permission: String?, val revoked: AppOpMode = AppOpMode.ERRORED) {
+    OVERLAY(Manifest.permission.SYSTEM_ALERT_WINDOW),
+    WRITE_SETTINGS(Manifest.permission.WRITE_SETTINGS),
+    UNKNOWN_APPS(Manifest.permission.REQUEST_INSTALL_PACKAGES),
+    ALL_FILES(Manifest.permission.MANAGE_EXTERNAL_STORAGE),
+    USAGE(Manifest.permission.PACKAGE_USAGE_STATS, AppOpMode.IGNORED),
+    NOTIFICATION_LISTENER(null),
+    ACCESSIBILITY(null);
+
+    /** The AppOps operation behind [permission], such as `android:system_alert_window`. */
+    val operation: String? get() = permission?.let(AppOpsManager::permissionToOp)
 
     fun settings(packageName: String): Intent = when (this) {
         OVERLAY -> Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {

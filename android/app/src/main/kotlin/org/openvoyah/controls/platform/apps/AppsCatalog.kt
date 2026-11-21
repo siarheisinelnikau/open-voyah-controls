@@ -8,8 +8,12 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import androidx.core.graphics.createBitmap
 import org.openvoyah.controls.InstalledApps
+import org.openvoyah.controls.domain.apps.AppGridEntryFacts
+import org.openvoyah.controls.domain.apps.AppGridVisibility
+import org.openvoyah.controls.domain.apps.DefaultHideReason
 import org.openvoyah.controls.platform.display.controlsDensity
 
 internal data class LocalApp(
@@ -20,7 +24,11 @@ internal data class LocalApp(
     val icon: Bitmap?,
     val origin: InstallOrigin,
     val firstInstallTime: Long? = null,
-)
+    /** Why All apps hides this app until the user chooses otherwise; null when it starts visible. */
+    val defaultHide: DefaultHideReason? = null,
+) {
+    val hiddenByDefault: Boolean get() = defaultHide != null
+}
 
 internal class AppsCatalog(
     private val context: Context,
@@ -38,12 +46,28 @@ internal class AppsCatalog(
             val info = permissions.installInfo(packageName)
             info.copy(firstInstallTime = info.firstInstallTime?.takeIf { it <= latestInstallTime })
         }
+        val inputMethods = try {
+            context.getSystemService(InputMethodManager::class.java)?.inputMethodList.orEmpty().mapTo(HashSet()) { it.packageName }
+        } catch (_: RuntimeException) {
+            emptySet()
+        }
+        val entriesPerPackage = launchable.groupingBy { it.component().packageName }.eachCount()
+        val mainEntries = mutableMapOf<String, String?>()
+        fun defaultHide(component: String, packageName: String, origin: InstallOrigin): DefaultHideReason? {
+            // Only a package with several launcher entries has extra ones; Android's launch intent names the main one.
+            val main = entriesPerPackage.getOrDefault(packageName, 0) <= 1 || mainEntries.getOrPut(packageName) {
+                try { packages.getLaunchIntentForPackage(packageName)?.component?.flattenToString() } catch (_: RuntimeException) { null }
+            }.let { it == null || it == component }
+            return AppGridVisibility.defaultHideReason(AppGridEntryFacts(component, origin == InstallOrigin.SYSTEM,
+                packageName in inputMethods, main))
+        }
         val rows = launchable.map { entry ->
             val id = entry.component().packageName
+            val component = entry.component().flattenToString()
             val installed = installation(id)
-            LocalApp(entry.component().flattenToString(), id, entry.label(), entry,
+            LocalApp(component, id, entry.label(), entry,
                 try { context.appIcon(packages.getActivityIcon(entry.component())) } catch (_: PackageManager.NameNotFoundException) { null },
-                installed.origin, installed.firstInstallTime)
+                installed.origin, installed.firstInstallTime, defaultHide(component, id, installed.origin))
         }
         if (launcherOnly) return rows
         val launcherPackages = launchable.map { it.component().packageName }.toSet()
@@ -55,7 +79,7 @@ internal class AppsCatalog(
             val installed = installation(id)
             if (installed.origin != InstallOrigin.CONTROLS && installed.origin != InstallOrigin.UNVERIFIED) return@mapNotNull null
             LocalApp(id, id, app.loadLabel(packages).toString(), null, context.appIcon(app.loadIcon(packages)),
-                installed.origin, installed.firstInstallTime)
+                installed.origin, installed.firstInstallTime, defaultHide(id, id, installed.origin))
         }
         return (rows + withoutLauncher).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
     }

@@ -16,7 +16,7 @@ Before changing startup, the installer reads a bounded init configuration graph 
 
 The Android first-run check proves app-side root access and loads the selected offline speech model. On a reviewed firmware it also waits for every enabled handler. An unreviewed firmware is reported separately and keeps vehicle operations disabled. The check does not certify microphone audio quality, physical actions, a cold boot or sleep/wake behavior.
 
-APK installation and launch are separate from handler readiness. Check the panel, windows, and voice status in Controls after connecting. APKs installed in a batch from Windows use Android's system-managed permission screens. Use the user-confirmed installer inside Controls to establish its installation receipt for direct runtime permission controls.
+APK installation and launch are separate from handler readiness. Check the panel, windows, and voice status in Controls after connecting. For APKs installed in a batch from Windows, touch and hold the app in the Controls app grid to change its permissions or close it; firmware without Android's permission screens does not need them.
 
 ## Back up and recover from the PC
 

@@ -15,10 +15,7 @@ import android.os.SystemClock
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -29,16 +26,13 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.ListeningWindow
-import org.openvoyah.controls.data.voice.VoskModels
 import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.voice.SpeechEvent
 import org.openvoyah.controls.domain.voice.VoiceInput
@@ -46,7 +40,7 @@ import org.openvoyah.controls.domain.voice.VoiceOutcome
 import org.vosk.Model
 import org.vosk.Recognizer
 
-/** The shared lock protects the microphone and native model across both voice entry points. */
+/** The speech lock of [SpeechModels] protects the microphone and native model across both voice entry points. */
 class OfflineVoiceInput(
     context: Context,
     private val duckMedia: Boolean,
@@ -62,17 +56,11 @@ class OfflineVoiceInput(
     override fun listen(language: String, grammar: Set<String>): Flow<SpeechEvent> = flow {
         var stage = "microphone_lock"
         try {
-            val result = audioLock.withLock {
-                eviction?.cancel()
-                try {
-                    capture(language, grammar, { stage = it }) {
-                        emit(SpeechEvent.Listening(UiText.get(R.string.voice_listening_action)))
-                    }
-                } finally {
-                    eviction = cacheScope.launch {
-                        delay(90_000)
-                        audioLock.withLock { models.release() }
-                    }
+            // The model and recognizer stay prepared after the request; see SpeechModels.
+            val speech = SpeechModels.of(context)
+            val result = speech.lock.withLock {
+                capture(speech, language, grammar, { stage = it }) {
+                    emit(SpeechEvent.Listening(UiText.get(R.string.voice_listening_action)))
                 }
             }
             emit(result)
@@ -89,10 +77,11 @@ class OfflineVoiceInput(
     }.flowOn(Dispatchers.IO)
 
     override suspend fun repair(language: String) = withContext(Dispatchers.IO) {
-        audioLock.withLock { models.invalidate(context, language) }
+        SpeechModels.repair(context, language)
     }
 
     private suspend fun capture(
+        speech: PreparedSpeech<Model, Recognizer>,
         language: String,
         grammar: Set<String>,
         stage: (String) -> Unit,
@@ -104,13 +93,15 @@ class OfflineVoiceInput(
         }
         val captureContext = currentCoroutineContext()
         stage("model_load")
-        val model = models.load(context, language) { captureContext.isActive }
+        // Usually prepared at process start; a warm-up still running is awaited through the lock, never repeated.
+        val prepared = speech.prepare(language, speechGrammar(grammar), "request") { captureContext.isActive }
+        val model = prepared.model
         captureContext.ensureActive()
         // Speech that is not a command is replayed once without the grammar, so the popup can show what was heard.
         val replay = ShortArray(sampleLimit)
         val focusLost = CompletableDeferred<Unit>()
         stage("recognizer")
-        val captured = Recognizer(model, SAMPLE_RATE.toFloat(), recognitionGrammar(grammar)).use { recognizer ->
+        val captured = checkNotNull(prepared.recognizer).let { recognizer ->
             stage("buffer_size")
             val size = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             if (size <= 0) throw IOException(UiText.get(R.string.ui_140))
@@ -136,7 +127,7 @@ class OfflineVoiceInput(
                     }
                     captureContext.ensureActive()
                 }
-                if (focusLost.isCompleted) return@use Captured(interrupted())
+                if (focusLost.isCompleted) return@let Captured(interrupted())
                 stage("start_recording")
                 audio.startRecording()
                 if (audio.recordingState != AudioRecord.RECORDSTATE_RECORDING) throw IOException(UiText.get(R.string.ui_142))
@@ -236,18 +227,8 @@ class OfflineVoiceInput(
         UiText.get(R.string.ui_146) + failure.message.orEmpty() + UiText.get(R.string.ui_147)
     )
 
-    private fun recognitionGrammar(phrases: Set<String>): String {
-        val grammar = phrases.filterTo(sortedSetOf()) { phrase -> phrase.codePoints().noneMatch(Character::isDigit) }
-        grammar += "[unk]"
-        return JSONArray(grammar).toString()
-    }
-
     private companion object {
-        const val SAMPLE_RATE = 16_000
-        val audioLock = Mutex()
-        val cacheScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        val models = VoskModels()
-        var eviction: Job? = null
+        const val SAMPLE_RATE = SpeechModels.SAMPLE_RATE
     }
 }
 

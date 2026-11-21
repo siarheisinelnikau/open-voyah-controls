@@ -213,6 +213,33 @@ test('changed fingerprint or missing per-command evidence blocks the hook', asyn
     assert.equal(foreign.canRequests,0);
 });
 
+test('a reviewed fingerprint with a comma approves only its listed driver-memory recalls', async () => {
+    // The supported Android 11 unit reports "...,test-keys"; its own rows must still match exactly.
+    const unit = {product:'f6802h', fingerprint:'fixture/test/unit:11/review/97:user/release-keys,test-keys', sdk:30, abi:'arm64-v8a'};
+    const catalog = {schema:1, headUnits:[{...unit, profile:'FREE_REST',
+        commands:['GetFromMemoryCellOne','GetFromMemoryCellTwo','GetFromMemoryCellThree']}]};
+    for (const [command, value] of [['GetFromMemoryCellOne', 1], ['GetFromMemoryCellTwo', 2], ['GetFromMemoryCellThree', 3]]) {
+        const park = harness({device:unit, catalog});
+        park.send(command);
+        await settle();
+        assert.deepEqual(park.writes, [['DMS_GET_MEMORY_REQ', value]]);
+        const drive = harness({device:unit, catalog, gear:'Drive'});
+        drive.send(command);
+        await settle();
+        assert.equal(drive.writes.length, 0);
+        assert.ok(drive.logs.some(line => line.includes('requires Parking gear')));
+    }
+    const other = harness({device:unit, catalog});
+    other.send('LampOff');
+    await settle();
+    assert.equal(other.canRequests, 0);
+    assert.ok(other.logs.some(line => line.includes('not approved for this head unit')));
+    const changed = harness({device:{...unit, fingerprint:unit.fingerprint.replace(',test-keys', ',dev-keys')}, catalog});
+    changed.send('GetFromMemoryCellOne');
+    await settle();
+    assert.equal(changed.canRequests, 0);
+});
+
 test('motion and unavailable or slow telemetry fail closed before each write', async () => {
     for (const options of [{speed:1},{speed:-1},{speed:null},{gear:'Unknown'},{stateDelay:501}]) {
         const h = harness(options);

@@ -69,12 +69,14 @@ record() {
 }
 reviewed_receipt() {
     private_dir /data/adb && private_file "$receipt" 600 &&
-        [ "$(getenforce)" = Enforcing ] || return 1
+        { [ "$(getenforce)" = Enforcing ] || { [ "$(getenforce)" = Permissive ] && tr ' ' '\n' < /proc/cmdline | grep -qx androidboot.selinux=permissive; }; } || return 1
     rr_bytes=$(wc -c < "$receipt") || return 1
     [ "$rr_bytes" -le 16384 ] &&
         [ "$(LC_ALL=C tr -d '\000' < "$receipt" | wc -c)" = "$rr_bytes" ] || return 1
     rr_fp=$(getprop ro.build.fingerprint); rr_sdk=$(getprop ro.build.version.sdk)
-    rr_abi=$(getprop ro.product.cpu.abi); rr_product=$(getprop ro.product.name)
+    # Some OEM frameworks report ro.build.product_3rdparty as Build.PRODUCT, which the receipt records.
+    rr_abi=$(getprop ro.product.cpu.abi); rr_product=$(getprop ro.build.product_3rdparty)
+    [ -n "$rr_product" ] || rr_product=$(getprop ro.product.name)
     [ -n "$rr_fp" ] && [ -n "$rr_product" ] && [ "$rr_abi" = arm64-v8a ] || return 1
     case "$rr_sdk" in 28|30) ;; *) return 1;; esac
     rr_sha() {
@@ -182,6 +184,19 @@ reviewed_package() {
         [ "$(digest "$installed")" = "$expected" ] || return 1
     printf '%s\n' "$installed"
 }
+# Some toybox grep builds stop at the first NUL of a command line unless -z makes NUL the line end. Toybox tr
+# never returns when a process exits between opening and reading its command line, which hung the launcher
+# worker at boot; grep and head simply fail on such a file. So command lines are read only by grep or head.
+cmdline_matches() {
+    if printf 'a\000b\000' | grep -qFz -e b 2>/dev/null; then
+        grep -aFlz "$@" /proc/[0-9]*/cmdline 2>/dev/null || true
+        return
+    fi
+    for cm_file in /proc/[0-9]*/cmdline; do
+        if cmdline_text "$cm_file" | grep -qF "$@"; then printf '%s\n' "$cm_file"; fi
+    done
+}
+cmdline_text() { head -c 4096 "$1" 2>/dev/null | tr '\000' ' '; }
 legacy_inert() {
     old=/data/local/tmp/open-voyah-controls
     for file in "/data/local/tmp/$runtime" /data/local/tmp/open-voyah-controls-frida-17.18.0 "$old/boot-start.sh" "$old/supervise.sh" \
@@ -193,9 +208,9 @@ legacy_inert() {
             if [ -e "$file" ] || [ -L "$file" ]; then return 1; fi
         done
     done
-    candidates=$(grep -aF -l -e "$old/supervise.sh" -e '/data/local/tmp/open-voyah-controls-frida-' /proc/[0-9]*/cmdline 2>/dev/null || true)
+    candidates=$(cmdline_matches -e "$old/supervise.sh" -e '/data/local/tmp/open-voyah-controls-frida-')
     for proc in $candidates; do
-        args=$(tr '\000' ' ' < "$proc" 2>/dev/null) || continue
+        args=$(cmdline_text "$proc")
         case "$args" in "/system/bin/sh $old/supervise.sh "*|/data/local/tmp/open-voyah-controls-frida-*' -p '*) return 1;; esac
     done
 }
@@ -448,9 +463,9 @@ child_gone() {
     )
 }
 unknown_injector() {
-    matches=$(grep -aF -l "$script" /proc/[0-9]*/cmdline 2>/dev/null || true)
+    matches=$(cmdline_matches -e "$script")
     for proc in $matches; do
-        args=$(tr '\000' ' ' < "$proc" 2>/dev/null) || continue
+        args=$(cmdline_text "$proc")
         case "$args" in "$injector -p "*" -s $script ") return 0;; esac
     done
     return 1

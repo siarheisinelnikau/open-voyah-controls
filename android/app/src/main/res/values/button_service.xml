@@ -1,0 +1,8 @@
+<resources>
+    <string name="button_service_enable">Enable button service</string>
+    <string name="button_service_title">Button service</string>
+    <string name="button_service_failed">Button service not enabled</string>
+    <string name="button_service_connected">The button service is connected. Assigned buttons run their actions.</string>
+    <string name="button_service_pending">The button service is enabled, but Android has not connected it yet. Check again in a few seconds.</string>
+    <string name="button_service_connect_first">This head unit has no Accessibility settings screen. Press Connect Frida under OEM panel buttons first; Controls then enables the button service itself.</string>
+</resources>

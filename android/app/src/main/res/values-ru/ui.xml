@@ -39,7 +39,7 @@
     <string name="ui_38" formatted="false">"Служба подключена"</string>
     <string name="ui_39" formatted="false">"Включи службу кнопок"</string>
     <string name="ui_40" formatted="false">"Назначенные кнопки запускают выбранные действия."</string>
-    <string name="ui_41" formatted="false">"Открой специальные возможности и включи Open Voyah Controls."</string>
+    <string name="ui_41" formatted="false">"Нажмите «Включить службу кнопок». Controls включит её через подключение от установщика или откроет специальные возможности Android."</string>
     <string name="ui_42" formatted="false">"Специальные возможности"</string>
     <string name="ui_43" formatted="false">"Перехват аппаратных кнопок"</string>
     <string name="ui_44" formatted="false">"Назначения"</string>

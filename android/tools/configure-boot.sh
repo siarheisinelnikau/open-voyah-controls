@@ -30,6 +30,8 @@ fail() { printf '%s\n' "$*" >&2; exit 1; }
 digest() { sha256sum "$1" | awk '{print $1}'; }
 is_sha() { [ "${#1}" = 64 ] && case "$1" in *[!0-9a-f]*) false;; *) true;; esac; }
 numeric() { case "$1" in ''|*[!0-9]*) return 1;; esac; }
+# Enforcing, or Permissive only when the firmware's own kernel command line booted it that way.
+selinux_ready() { [ "$(getenforce)" = Enforcing ] || { [ "$(getenforce)" = Permissive ] && tr ' ' '\n' < /proc/cmdline | grep -qx androidboot.selinux=permissive; }; }
 valid_boot_id() {
     case "$1" in *[!a-f0-9-]*) return 1;; ????????-????-????-????-????????????) return 0;; *) return 1;; esac
 }
@@ -57,7 +59,7 @@ case "$mode" in
     *) fail 'Choose status, backup, install, restore, rollback, rearm, or restore-exported.' ;;
 esac
 [ "$(id -u)" = 0 ] || fail 'An authorized root shell is required.'
-case "$fingerprint" in ''|*[!A-Za-z0-9_.:/+-]*) fail 'Invalid expected fingerprint.';; esac
+case "$fingerprint" in ''|*[!A-Za-z0-9_.:/+,-]*) fail 'Invalid expected fingerprint.';; esac
 case "$serial" in ''|unknown|*[!A-Za-z0-9_.:-]*) fail 'Invalid expected device serial.';; esac
 [ "$(getprop ro.build.fingerprint)" = "$fingerprint" ] || fail 'Build fingerprint does not match.'
 [ "$(getprop ro.serialno)" = "$serial" ] || fail 'Device serial does not match.'
@@ -68,7 +70,7 @@ valid_boot_id "$boot_id" || fail 'Kernel boot identity could not be verified.'
 if [ "$mode" = install ] || [ "$mode" = install-access ]; then
     case "$sdk" in 28|30) ;; *) fail 'Boot installation supports Android 9 and 11.';; esac
     [ "$(getprop ro.product.cpu.abi)" = arm64-v8a ] || fail 'The prepared runtime requires Android ARM64.'
-    [ "$(getenforce)" = Enforcing ] || fail 'Boot installation requires SELinux Enforcing.'
+    selinux_ready || fail 'Boot installation requires SELinux Enforcing.'
     is_sha "$exported_sha" || fail 'Export and verify the original on the PC before installing the entry.'
 fi
 
@@ -138,10 +140,23 @@ scopes_safe() {
         done
     done
 }
+# Some toybox grep builds stop at the first NUL of a command line unless -z makes NUL the line end. Toybox tr
+# never returns when a process exits between opening and reading its command line; grep and head simply fail
+# on such a file. So command lines are read only by grep or head.
+cmdline_matches() {
+    if printf 'a\000b\000' | grep -qFz -e b 2>/dev/null; then
+        grep -aFlz "$@" /proc/[0-9]*/cmdline 2>/dev/null || true
+        return
+    fi
+    for cm_file in /proc/[0-9]*/cmdline; do
+        if cmdline_text "$cm_file" | grep -qF "$@"; then printf '%s\n' "$cm_file"; fi
+    done
+}
+cmdline_text() { head -c 4096 "$1" 2>/dev/null | tr '\000' ' '; }
 classify() {
     p=$1
     numeric "$p" && [ "$p" -gt 1 ] || return 1
-    args=$(tr '\000' ' ' < "/proc/$p/cmdline" 2>/dev/null) || return 1
+    args=$(cmdline_text "/proc/$p/cmdline")
     case "$args" in
         '/system/bin/sh /data/adb/open-voyah-controls/supervise.sh '*|\
         '/system/bin/sh /data/local/tmp/open-voyah-controls/supervise.sh '*|\
@@ -183,7 +198,7 @@ classify() {
     printf 'unverified - - %s -\n' "$p"
 }
 owned_processes() {
-    candidates=$(grep -aF -l -e "$private" -e "$legacy" -e '/data/local/tmp/open-voyah-controls-frida-' /proc/[0-9]*/cmdline 2>/dev/null || true)
+    candidates=$(cmdline_matches -e "$private" -e "$legacy" -e '/data/local/tmp/open-voyah-controls-frida-')
     for proc in $candidates; do
         entry=${proc%/cmdline}
         classify "${entry##*/}" || true
@@ -197,7 +212,7 @@ owned_processes() {
                 safe_file "$pidfile" || continue
                 recorded=$(cat "$pidfile" 2>/dev/null || true)
                 if numeric "$recorded" && [ -d "/proc/$recorded" ] &&
-                    ! tr '\000' ' ' < "/proc/$recorded/cmdline" >/dev/null 2>&1; then
+                    ! head -c 1 "/proc/$recorded/cmdline" >/dev/null 2>&1; then
                     printf 'unverified - - %s -\n' "$recorded"
                 fi
             done
@@ -538,7 +553,7 @@ export_backup() {
         "$state" "$original" "$fingerprint" "$serial" "$context" "${attrs%:*}" "${attrs##*:}"
 }
 reviewed_boot_worker() {
-    private_dir /data/adb && private_dir "$private" && [ "$(getenforce)" = Enforcing ] || return 1
+    private_dir /data/adb && private_dir "$private" && selinux_ready || return 1
     for file in boot-start.sh trust.tsv; do safe_file "$private/$file" || return 1; done
     [ "$(stat -c %a "$private/trust.tsv")" = 600 ] &&
         [ "$(stat -c %a "$private/boot-start.sh")" = 700 ] || return 1
@@ -569,7 +584,7 @@ render_boot_entry() {
         sleep 2
         waits=$((waits+1))
     done
-    if [ "$(id -u)" = 0 ] && [ "$(getenforce)" = Enforcing ] &&
+    if [ "$(id -u)" = 0 ] && { [ "$(getenforce)" = Enforcing ] || { [ "$(getenforce)" = Permissive ] && tr ' ' '\n' < /proc/cmdline | grep -qx androidboot.selinux=permissive; }; } &&
         [ -d /data/adb ] && [ ! -L /data/adb ] && [ "$(stat -c %u:%a /data/adb)" = 0:700 ] &&
         [ -d "$b" ] && [ ! -L "$b" ] && [ "$(stat -c %u:%a "$b")" = 0:700 ] &&
         [ -f "$t" ] && [ ! -L "$t" ] && [ "$(stat -c %u:%a "$t")" = 0:600 ] &&
@@ -594,7 +609,7 @@ render_access_entry() {
     a=/data/adb/open-voyah-controls-access
     waits=0
     while [ ! -d "$a" ] && [ "$waits" -lt 40 ]; do sleep 2; waits=$((waits+1)); done
-    if [ "$(id -u)" = 0 ] && [ "$(getenforce)" = Enforcing ] &&
+    if [ "$(id -u)" = 0 ] && { [ "$(getenforce)" = Enforcing ] || { [ "$(getenforce)" = Permissive ] && tr ' ' '\n' < /proc/cmdline | grep -qx androidboot.selinux=permissive; }; } &&
         [ -d /data/adb ] && [ ! -L /data/adb ] && [ "$(stat -c %u:%a /data/adb)" = 0:700 ] &&
         [ -d "$a" ] && [ ! -L "$a" ] && [ "$(stat -c %u:%a "$a")" = 0:700 ] &&
         [ -f "$a/access-start.sh" ] && [ ! -L "$a/access-start.sh" ] && [ "$(stat -c %u:%a "$a/access-start.sh")" = 0:700 ] &&

@@ -11,7 +11,7 @@
           "org.example.music/org.example.music.MusicActivity"
         ],
         "tileSize": "compact",
-        "showSystemApps": false,
+        "hideByDefault": true,
         "desktops": {
           "enabled": true,
           "defaultDesktop": "favorites1",
@@ -50,6 +50,9 @@
         ],
         "hiddenApps": [
           "org.example.podcasts/org.example.podcasts.PodcastsActivity"
+        ],
+        "shownApps": [
+          "org.example.calendar/org.example.calendar.CalendarActivity"
         ]
       },
       "appWindows": [
@@ -187,7 +190,7 @@
                 "org.example.music/org.example.music.MusicActivity"
               ],
               "tileSize": "standard",
-              "showSystemApps": false,
+              "hideByDefault": true,
               "desktops": {
                 "enabled": true,
                 "defaultDesktop": "main",
@@ -517,7 +520,7 @@
           "org.example.navigation/org.example.navigation.NavigationActivity"
         ],
         "tileSize": "large",
-        "showSystemApps": true,
+        "hideByDefault": false,
         "desktops": {
           "enabled": false,
           "defaultDesktop": "favorites2",
@@ -553,7 +556,8 @@
           "org.example.notes/org.example.notes.NotesActivity",
           "org.example.podcasts/org.example.podcasts.PodcastsActivity"
         ],
-        "hiddenApps": []
+        "hiddenApps": [],
+        "shownApps": []
       },
       "appWindows": [
         {
@@ -689,7 +693,7 @@
                 "org.example.navigation/org.example.navigation.NavigationActivity"
               ],
               "tileSize": "large",
-              "showSystemApps": true,
+              "hideByDefault": false,
               "desktops": {
                 "enabled": true,
                 "defaultDesktop": "favorites2",
@@ -1052,7 +1056,7 @@
     },
     {
       "area": "Voice",
-      "name": "extended smoke venting",
+      "name": "extended driver window venting",
       "path": "/voice/values/doubleSmoke"
     },
     {
@@ -1207,8 +1211,8 @@
     },
     {
       "area": "App grid",
-      "name": "system-app visibility",
-      "path": "/appGrid/showSystemApps"
+      "name": "hide firmware and service apps by default",
+      "path": "/appGrid/hideByDefault"
     },
     {
       "area": "App grid",
@@ -1312,8 +1316,13 @@
     },
     {
       "area": "App grid",
-      "name": "hidden All apps shortcuts",
+      "name": "apps hidden in All apps",
       "path": "/appGrid/hiddenApps"
+    },
+    {
+      "area": "App grid",
+      "name": "apps kept in All apps",
+      "path": "/appGrid/shownApps"
     },
     {
       "area": "App grid",

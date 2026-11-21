@@ -47,12 +47,32 @@ function harness(config, options = {}) {
     const manager = {
         resolveActivity(intent) {
             if (options.missing && options.missing === intent.component) return null;
+            const packageName = intent.component?.split('/')[0] ?? 'com.android.settings';
             return {
-                activityInfo: {value:{}},
+                activityInfo: {value:{packageName:{value:packageName}}},
                 loadIcon() {
                     return {component:intent.component ?? intent.action, getIntrinsicWidth:() => 128, getIntrinsicHeight:() => 64};
                 }
             };
+        },
+        // Apps name a panel glyph only through options.glyphs: {package: drawable id}.
+        getApplicationInfo: {overload(...types) {
+            assert.deepEqual(types, ['java.lang.String', 'int']);
+            return {call(self, packageName, flags) {
+                assert.equal(self, manager);
+                assert.equal(flags, 0x80);
+                if (options.failGlyph) throw new Error('android.content.pm.PackageManager$NameNotFoundException');
+                const id = options.glyphs?.[packageName];
+                const metaData = id === undefined ? null
+                    : {getInt: key => key === 'org.openvoyah.controls.PANEL_ICON' ? id : 0};
+                return {packageName, metaData: {value: metaData}};
+            }};
+        }},
+        getDrawable(packageName, id, app) {
+            assert.equal(app.packageName, packageName);
+            if (options.missingGlyph) return null;
+            const [width, height] = options.glyphSize ?? [234, 201];
+            return {glyph:id, packageName, getIntrinsicWidth:() => width, getIntrinsicHeight:() => height};
         }
     };
     const context = {
@@ -125,14 +145,13 @@ function harness(config, options = {}) {
         'android.app.ActivityOptions': { makeBasic() { return { setLaunchDisplayId(id) { this.display = id; }, toBundle() { return { display: this.display }; } }; } },
         'android.app.ActivityThread': {currentApplication:() => context},
         'android.content.pm.PackageManager': {MATCH_DEFAULT_ONLY:{value:65536}},
-        'android.graphics.drawable.LayerDrawable': {$new([states, icon]) { return {
-            states, icon, setLayerGravity(index, gravity) { this.gravity = gravity; }, setLayerSize(index, width, height) { this.size = [width,height]; }
+        'android.graphics.drawable.LayerDrawable': {$new(layers) { return {
+            layers, icon: layers[0],
+            setLayerGravity(index, gravity) { this.gravity = [index, gravity]; },
+            setLayerSize(index, width, height) { this.sizedLayer = index; this.size = [width,height]; }
         }; }},
-        'android.graphics.drawable.StateListDrawable': {$new() { return {entries:[], addState(ids, drawable) { this.entries.push({ids, drawable}); }}; }},
+        'android.graphics.drawable.RippleDrawable': {$new(color, layer, mask) { return object({color, layer, mask}); }},
         'android.graphics.drawable.GradientDrawable': {$new() { return {setColor(color) { this.color = color; }, setCornerRadius(radius) { this.radius = radius; }}; }},
-        'android.graphics.drawable.ColorDrawable': {$new(color) { return {color}; }},
-        'android.R$attr': {state_checked: {value: 16842912}},
-        'android.graphics.drawable.RippleDrawable': {$new(color, layer) { return object({color, layer}); }},
         'android.content.res.ColorStateList': {valueOf:color => color},
         'android.view.Gravity': {CENTER:{value:17}},
         'java.lang.ref.WeakReference': {$new(referent) { return {get: () => referent, $dispose() {}}; }},
@@ -498,6 +517,9 @@ test('existing navigation, music and passenger radio buttons use the same compon
         const view = bar.views[name];
         assert.equal(view.background.layer.icon.component, app.component);
         assert.deepEqual(view.background.layer.size, [56,28]);
+        assert.deepEqual(view.background.layer.gravity, [0, 17]);
+        assert.equal(view.background.layer.sizedLayer, 0);
+        assert.equal(view.background.mask, null);
         assert.deepEqual(view.insets, [4,5,6,7]);
         h.tap(bar, name);
         assert.equal(h.launched.at(-1).intent.component, app.component);
@@ -506,6 +528,54 @@ test('existing navigation, music and passenger radio buttons use the same compon
     const climate = center.views.screen_up_icon_3;
     assert.equal(climate.background, climate.stock);
     assert.equal(h.tap(center, 'screen_up_icon_3'), 'oem');
+});
+
+test('Controls entries draw the app panel glyph without a plate and keep a rounded pressed ripple', () => {
+    const glyph = 0x7f080042;
+    const h = harness(config({mainApps:{kind:'CONTROLS_APPS'}, navbar01:{kind:'START_VOICE'}, navbar02:action}),
+        {glyphs:{'org.openvoyah.controls':glyph}});
+    const bar = h.bar(0);
+    for (const name of ['screen_up_all_app_icon', 'screen_up_icon_1']) {
+        const {background} = bar.views[name];
+        assert.deepEqual([background.layer.icon.glyph, background.layer.icon.packageName], [glyph, 'org.openvoyah.controls']);
+        assert.equal(background.layer.layers.length, 1);
+        // As tall as the 56 px app icons beside it, so the wide mark runs wider instead of shrinking.
+        assert.deepEqual(background.layer.size, [65,56]);
+        assert.deepEqual(background.layer.gravity, [0, 17]);
+        assert.equal(background.color, 0x26ffffff);
+        // The glyph paints only its strokes, so the ripple gets the button's rounded bounds as its mask.
+        assert.equal(background.mask.color, -1);
+        assert.equal(background.mask.radius, 90 * 0.12);
+    }
+    const music = bar.views.screen_up_icon_2;
+    assert.equal(music.background.layer.icon.component, action.component);
+    assert.equal(music.background.mask, null);
+    h.theme(bar);
+    assert.equal(bar.views.screen_up_all_app_icon.background.layer.icon.glyph, glyph);
+    const token = 'b'.repeat(32);
+    h.setConfig({schema:1, enabled:false, restoreIcons:token});
+    h.tick();
+    for (const view of Object.values(bar.views)) assert.equal(view.background, view.stock);
+    assert.ok(h.logs.includes('OVC_PANEL_ICONS_RESTORED ' + token));
+});
+
+test('panel glyphs stay inside their button', () => {
+    for (const [glyphSize, size] of [[[348, 100], [116,33]], [[100, 200], [28,56]], [[200, 200], [56,56]]]) {
+        const h = harness(config({mainApps:{kind:'CONTROLS_APPS'}}), {glyphs:{'org.openvoyah.controls':0x7f080042}, glyphSize});
+        assert.deepEqual(h.bar(0).views.screen_up_all_app_icon.background.layer.size, size);
+    }
+});
+
+test('a missing or unreadable panel glyph falls back to the launcher icon', () => {
+    const component = 'org.openvoyah.controls/org.openvoyah.controls.MainActivity';
+    for (const options of [{failGlyph:true}, {missingGlyph:true}]) {
+        const h = harness(config({mainApps:{kind:'CONTROLS_APPS'}}), {glyphs:{'org.openvoyah.controls':0x7f080042}, ...options});
+        const {background} = h.bar(0).views.screen_up_all_app_icon;
+        assert.equal(background.layer.icon.component, component);
+        assert.deepEqual(background.layer.size, [56,28]);
+        assert.equal(background.mask, null);
+        assert.ok(!h.logs.some(line => line.includes('OVC_PANEL_ICONS_ERROR')));
+    }
 });
 
 test('assignment changes and OEM theme reload refresh icons and disabling restores stock', () => {
@@ -625,7 +695,9 @@ test('selection follows the exact foreground component on its own display', () =
     h.select(passenger, 'com.example.player', 'com.example.player.Main');
     assert.equal(passenger.checked, player.getId());
     assert.equal(passenger.stockUpdates, 1);
-    assert.equal(player.background.layer.states.entries[0].ids[0], 16842912);
+    // The launcher's own slider marks the checked button; the icon adds no plate of its own.
+    assert.equal(player.background.layer.layers.length, 1);
+    assert.equal(player.background.layer.layers[0].component, action.component);
     h.select(passenger, 'com.example.player', '.OtherActivity');
     assert.equal(passenger.checked, -1);
     h.select(passenger, 'com.example.player', '.Main');

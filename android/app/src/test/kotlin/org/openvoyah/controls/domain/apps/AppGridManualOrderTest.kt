@@ -5,32 +5,31 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class AppGridManualOrderTest {
-    @Test fun manualOrderPreservesPinPrecedenceSystemVisibilityAndFavorites() {
+    @Test fun manualOrderPreservesPinPrecedenceDefaultHidingAndFavorites() {
         val alpha = app("alpha")
         val bravo = app("bravo")
-        val hidden = app("hidden", system = true)
+        val hidden = app("hidden", hiddenByDefault = true)
         val nova = app("nova")
-        val pinned = app("pinned", system = true)
+        val pinned = app("pinned", hiddenByDefault = true)
         val offline = app("offline")
-        val utility = AppGridOrderApp("org.example.withoutlauncher", system = false)
+        val utility = AppGridOrderApp("org.example.withoutlauncher", hiddenByDefault = false)
         val catalog = listOf(alpha, bravo, hidden, nova, pinned, utility)
         val grid = AppGridConfiguration(
             pinnedApps = listOf(pinned.component),
-            showSystemApps = false,
             desktops = AppGridDesktops(enabled = true, firstFavorites = listOf(alpha.component, bravo.component)),
             sortOrder = AppGridSortOrder.MANUAL,
             manualAppOrder = listOf(offline.component, bravo.component, hidden.component, alpha.component, pinned.component),
         )
 
         assertEquals(listOf(pinned, bravo, alpha, nova, utility),
-            grid.arrange(catalog, AppGridOrderApp::component, AppGridOrderApp::system))
+            grid.arrange(catalog, AppGridOrderApp::component, AppGridOrderApp::hiddenByDefault))
         assertEquals(listOf(pinned, bravo, hidden, alpha, nova, utility),
-            grid.copy(showSystemApps = true).arrange(catalog, AppGridOrderApp::component, AppGridOrderApp::system))
+            grid.copy(hideByDefault = false).arrange(catalog, AppGridOrderApp::component, AppGridOrderApp::hiddenByDefault))
         assertEquals(listOf(pinned, alpha, bravo, nova, utility),
-            grid.copy(sortOrder = AppGridSortOrder.NAME).arrange(catalog, AppGridOrderApp::component, AppGridOrderApp::system))
+            grid.copy(sortOrder = AppGridSortOrder.NAME).arrange(catalog, AppGridOrderApp::component, AppGridOrderApp::hiddenByDefault))
         assertEquals(listOf(alpha, bravo),
-            grid.arrange(catalog, AppGridOrderApp::component, AppGridOrderApp::system, AppGridDesktop.FAVORITES_ONE))
-        assertEquals(listOf(bravo, alpha, nova), grid.editableManualApps(catalog, AppGridOrderApp::component, AppGridOrderApp::system))
+            grid.arrange(catalog, AppGridOrderApp::component, AppGridOrderApp::hiddenByDefault, AppGridDesktop.FAVORITES_ONE))
+        assertEquals(listOf(bravo, alpha, nova), grid.editableManualApps(catalog, AppGridOrderApp::component, AppGridOrderApp::hiddenByDefault))
     }
 
     @Test fun movingVisibleAppsPreservesHiddenAndMissingSlotsAndIgnoresAnOldDirection() {
@@ -61,5 +60,6 @@ class AppGridManualOrderTest {
         }
     }
 
-    private fun app(name: String, system: Boolean = false) = AppGridOrderApp("org.example.$name/org.example.$name.Main", system)
+    private fun app(name: String, hiddenByDefault: Boolean = false) =
+        AppGridOrderApp("org.example.$name/org.example.$name.Main", hiddenByDefault)
 }

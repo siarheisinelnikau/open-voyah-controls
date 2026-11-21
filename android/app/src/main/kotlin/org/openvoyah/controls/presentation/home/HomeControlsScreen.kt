@@ -41,7 +41,8 @@ internal fun HomeButtons(state: HomeControlsState, actions: HomeActions) {
         Text(UiText.get(if (state.connected) R.string.ui_40 else R.string.ui_41), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(UiText.get(R.string.button_fallback_scope), style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        CockpitAction(UiText.get(R.string.ui_42), { actions.command(HomeCommand.ACCESSIBILITY) })
+        CockpitAction(UiText.get(if (state.connected) R.string.ui_42 else R.string.button_service_enable),
+            { actions.command(HomeCommand.ACCESSIBILITY) })
         CockpitSwitch(UiText.get(R.string.ui_43), state.buttonsEnabled, change = actions::buttonsEnabled)
     }
     CockpitSection(UiText.get(R.string.ui_44), CockpitIcon.SETTINGS) {

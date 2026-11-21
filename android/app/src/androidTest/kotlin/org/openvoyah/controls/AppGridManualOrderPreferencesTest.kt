@@ -28,7 +28,7 @@ class AppGridManualOrderPreferencesTest : AndroidTestCase() {
         try {
             layouts.restoreSettings(JSONObject())
             preferences.restoreSettings(grid().put("manualAppOrder", JSONArray(originalOrder))
-                .put("sortOrder", "manual").put("showSystemApps", false))
+                .put("sortOrder", "manual").put("hideByDefault", true))
             preferences.moveManualApp(listOf(AppGridOrderApp(first, false), AppGridOrderApp(hidden, true), AppGridOrderApp(second, false)),
                 second, first, earlier = true)
             assertEquals(JSONArray(swapped).toString(), order())

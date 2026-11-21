@@ -1,0 +1,8 @@
+<resources>
+    <string name="button_service_enable">Включить службу кнопок</string>
+    <string name="button_service_title">Служба кнопок</string>
+    <string name="button_service_failed">Служба кнопок не включена</string>
+    <string name="button_service_connected">Служба кнопок подключена. Назначенные кнопки выполняют свои действия.</string>
+    <string name="button_service_pending">Служба кнопок включена, но Android её ещё не подключил. Проверьте ещё раз через несколько секунд.</string>
+    <string name="button_service_connect_first">На этой магнитоле нет экрана специальных возможностей. Сначала нажмите «Подключить Frida» в разделе «Кнопки штатной панели», тогда Controls включит службу кнопок сам.</string>
+</resources>

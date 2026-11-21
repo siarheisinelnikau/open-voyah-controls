@@ -68,10 +68,14 @@ internal data class AppGridDesktops(
 
 internal class AppGridHiddenAppsFull : IllegalStateException("Hidden app shortcut list is full")
 
+/**
+ * [hideByDefault] applies [AppGridVisibility]'s default to the per-app **Hide** choice. [hiddenApps] and [shownApps]
+ * hold the user's choices where they differ from that default, so a choice overrides it either way.
+ */
 internal data class AppGridConfiguration(
     val pinnedApps: List<String> = emptyList(),
     val tileSize: AppGridTileSize = AppGridTileSize.DEFAULT,
-    val showSystemApps: Boolean = true,
+    val hideByDefault: Boolean = true,
     val desktops: AppGridDesktops = AppGridDesktops(),
     val iconStyle: AppGridIconStyle = AppGridIconStyle.NATIVE,
     val showAppLabels: Boolean = true,
@@ -85,13 +89,21 @@ internal data class AppGridConfiguration(
     val favoritesBackBehavior: FavoritesBackBehavior = FavoritesBackBehavior.SYSTEM,
     val manualAppOrder: List<String> = emptyList(),
     val hiddenApps: Set<String> = emptySet(),
+    val shownApps: Set<String> = emptySet(),
     val showSearchField: Boolean = false,
 ) {
-    fun hiddenAppsWith(component: String, hidden: Boolean): Set<String> {
+    /** Whether All apps hides [component]; [hiddenByDefault] comes from [AppGridVisibility]. */
+    fun hides(component: String, hiddenByDefault: Boolean): Boolean =
+        component in hiddenApps || (hideByDefault && hiddenByDefault && component !in shownApps)
+
+    /** Records the user's choice for one app; a choice equal to the default clears the app's entry instead. */
+    fun withHidden(component: String, hidden: Boolean, hiddenByDefault: Boolean): AppGridConfiguration {
         require(AppGridPins.supports(component))
-        if ((component in hiddenApps) == hidden) return hiddenApps
-        if (hidden && hiddenApps.size >= MAX_HIDDEN_APPS) throw AppGridHiddenAppsFull()
-        return if (hidden) hiddenApps + component else hiddenApps - component
+        val default = hideByDefault && hiddenByDefault
+        val hiddenNext = if (hidden && !default) hiddenApps + component else hiddenApps - component
+        val shownNext = if (!hidden && default) shownApps + component else shownApps - component
+        if (hiddenNext.size > MAX_HIDDEN_APPS || shownNext.size > MAX_HIDDEN_APPS) throw AppGridHiddenAppsFull()
+        return copy(hiddenApps = hiddenNext, shownApps = shownNext)
     }
 
     fun opensMainOnBack(desktop: AppGridDesktop): Boolean =
@@ -103,23 +115,20 @@ internal data class AppGridConfiguration(
         AppGridDesktop.FAVORITES_TWO -> desktops.secondFavorites
     }
 
-    fun <T> arrange(items: List<T>, component: (T) -> String, isSystem: (T) -> Boolean,
+    /**
+     * The tiles of [desktop]. All apps leaves out hidden apps; pinning an app that is only hidden by default keeps it,
+     * while the user's own **Hide** wins over a pin. A favorites desktop shows exactly its pins.
+     */
+    fun <T> arrange(items: List<T>, component: (T) -> String, hiddenByDefault: (T) -> Boolean,
                     desktop: AppGridDesktop = AppGridDesktop.MAIN, installedAt: (T) -> Long? = { null }): List<T> {
         val effective = desktops.selected(desktop)
         val pins = pins(effective)
-        val visible = when {
-            effective != AppGridDesktop.MAIN -> {
-                val pinned = pins.toSet()
-                items.filter { component(it) in pinned }
-            }
-            showSystemApps && hiddenApps.isEmpty() -> items
-            else -> {
-                val pinned = pins.toSet()
-                items.filter {
-                    val id = component(it)
-                    id !in hiddenApps && (showSystemApps || !isSystem(it) || id in pinned)
-                }
-            }
+        val pinned = pins.toSet()
+        val visible = if (effective != AppGridDesktop.MAIN) {
+            items.filter { component(it) in pinned }
+        } else items.filter {
+            val id = component(it)
+            !hides(id, hiddenByDefault(it)) || (id in pinned && id !in hiddenApps)
         }
         // The catalog's name order is the fallback for unranked apps and equal install times.
         val unpinnedOrder = if (effective == AppGridDesktop.MAIN) when (sortOrder) {
@@ -130,11 +139,11 @@ internal data class AppGridConfiguration(
         return AppGridPins.order(visible, pins, unpinnedOrder, component)
     }
 
-    fun <T> editableManualApps(items: List<T>, component: (T) -> String, isSystem: (T) -> Boolean): List<T> {
+    fun <T> editableManualApps(items: List<T>, component: (T) -> String, hiddenByDefault: (T) -> Boolean): List<T> {
         val pinned = pinnedApps.toHashSet()
         val eligible = items.filter { row ->
             val id = component(row)
-            id !in hiddenApps && id !in pinned && AppGridPins.supports(id) && (showSystemApps || !isSystem(row))
+            id !in pinned && AppGridPins.supports(id) && !hides(id, hiddenByDefault(row))
         }.distinctBy(component)
         return AppGridPins.order(eligible, manualAppOrder, component = component)
     }

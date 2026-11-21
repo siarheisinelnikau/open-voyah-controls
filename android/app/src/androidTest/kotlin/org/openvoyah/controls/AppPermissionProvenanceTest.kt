@@ -12,12 +12,16 @@ import android.os.Build
 import android.provider.Settings
 import android.test.AndroidTestCase
 import kotlinx.coroutines.runBlocking
+import org.openvoyah.controls.data.apps.RootAppStopper
 import org.openvoyah.controls.data.apps.RootPermissionWriter
+import org.openvoyah.controls.domain.apps.AppControlRefusal
 import org.openvoyah.controls.platform.apps.AndroidAppAccess
 import org.openvoyah.controls.platform.apps.AndroidInstallSource
+import org.openvoyah.controls.platform.apps.AppStop
 import org.openvoyah.controls.platform.apps.InstallOrigin
 import org.openvoyah.controls.platform.apps.InstalledAppIdentity
 import org.openvoyah.controls.platform.apps.InstalledAppPermissions
+import org.openvoyah.controls.platform.apps.InstalledAppStopper
 import org.openvoyah.controls.platform.apps.LocalApkInstaller
 import org.openvoyah.controls.platform.apps.PermissionChange
 import java.util.UUID
@@ -68,6 +72,46 @@ class AppPermissionProvenanceTest : AndroidTestCase() {
         assertTrue(details.permissions.any { it.name == Manifest.permission.RECORD_AUDIO && !it.changeable })
         assertEquals(PermissionChange.ANDROID_ONLY,
             adapter.set(checkNotNull(details.identity), Manifest.permission.RECORD_AUDIO, true))
+    }
+
+    fun testOwnSpecialAccessIsReadFromAndroidButNeverWritten() {
+        val adapter = InstalledAppPermissions(context, RootPermissionWriter { error("Unexpected app-op write") })
+        val details = checkNotNull(adapter.read(context.packageName))
+        assertEquals(AppControlRefusal.CONTROLS, details.refusal)
+        // Controls declares REQUEST_INSTALL_PACKAGES, so its install access is listed with the state AppOps reports.
+        val install = details.specialAccess.single { it.access == AndroidAppAccess.UNKNOWN_APPS }
+        assertEquals(context.packageManager.canRequestPackageInstalls(), install.allowed)
+        assertFalse(install.changeable)
+        assertEquals(PermissionChange.ANDROID_ONLY,
+            adapter.setSpecialAccess(checkNotNull(details.identity), AndroidAppAccess.UNKNOWN_APPS, true))
+    }
+
+    fun testPreinstalledAppsAreShownButNeverChangedOrClosed() {
+        val writes = RootPermissionWriter { error("Unexpected root command") }
+        val adapter = InstalledAppPermissions(context, writes)
+        val stopper = InstalledAppStopper(context, RootAppStopper { error("Unexpected root command") })
+        val system = InstalledApps.list(context).map { it.component().packageName }.distinct()
+            .first { it != context.packageName && adapter.origin(it) == InstallOrigin.SYSTEM }
+        val details = checkNotNull(adapter.read(system))
+        assertEquals(AppControlRefusal.PREINSTALLED, details.refusal)
+        assertTrue(details.permissions.none { it.changeable })
+        assertTrue(details.specialAccess.none { it.changeable })
+        assertFalse(stopper.canStop(system))
+        val identity = checkNotNull(details.identity)
+        assertEquals(AppStop.Refused, stopper.stop(identity))
+        details.permissions.firstOrNull()?.let { permission ->
+            assertEquals(PermissionChange.ANDROID_ONLY, adapter.set(identity, permission.name, !permission.granted))
+        }
+    }
+
+    fun testCloseRefusesItselfAndAReplacedPackageWithoutTheShell() {
+        val stopper = InstalledAppStopper(context, RootAppStopper { error("Unexpected root command") })
+        val details = checkNotNull(InstalledAppPermissions(context, RootPermissionWriter { "" }).read(context.packageName))
+        val identity = checkNotNull(details.identity)
+        assertFalse(stopper.canStop(context.packageName))
+        assertEquals(AppStop.Refused, stopper.stop(identity))
+        assertEquals(AppStop.PackageChanged, stopper.stop(identity.copy(updatedAt = identity.updatedAt + 1)))
+        assertEquals(AppStop.PackageChanged, stopper.stop(identity.copy(packageName = "org.openvoyah.controls.missing")))
     }
 
     fun testCompletedSessionCanBeVerifiedOnReopenWithoutTrustingCallbackAlone() = runBlocking {

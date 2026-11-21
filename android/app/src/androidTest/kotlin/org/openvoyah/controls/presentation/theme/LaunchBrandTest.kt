@@ -314,10 +314,10 @@ class LaunchBrandTest : InstrumentationTestCase() {
 
     private companion object {
         // Points of the timeline at which a stage is complete and the next has not begun.
-        const val WINGS_ONLY = LaunchTimeline.BODY_START - .005f
+        const val WINGS_ONLY = LaunchTimeline.BODY_START - 11f / LaunchTimeline.DURATION_MILLIS
         const val CHARGED = (LaunchTimeline.CHARGE_FULL + LaunchTimeline.CHARGE_FADE) / 2
         const val AT_REST = (LaunchTimeline.CHARGE_END + LaunchTimeline.EXIT_START) / 2
-        // The intro runs 2.2 s at the normal animator scale; a device set to a slower scale still fits.
+        // The intro runs 4.5 s at the normal animator scale; a device set to up to three times slower still fits.
         const val CLOSE_TIMEOUT_MILLIS = 15_000L
         val WING_ROWS = 22 until 37
         val BODY_ROWS = 33 until 55

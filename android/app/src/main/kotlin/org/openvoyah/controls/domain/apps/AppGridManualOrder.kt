@@ -1,6 +1,6 @@
 package org.openvoyah.controls.domain.apps
 
-internal data class AppGridOrderApp(val component: String, val system: Boolean)
+internal data class AppGridOrderApp(val component: String, val hiddenByDefault: Boolean)
 
 internal class AppGridManualOrderFull : IllegalStateException("Manual app order is full")
 

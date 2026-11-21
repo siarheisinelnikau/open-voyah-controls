@@ -97,7 +97,7 @@ class LocalSettingsArchiveRollbackTest : AndroidTestCase() {
         incoming.getJSONObject("appGrid").apply {
             put("pinnedApps", JSONArray().put("com.example.maps/com.example.maps.Main"))
             put("tileSize", if (getString("tileSize") == "large") "compact" else "large")
-            put("showSystemApps", !getBoolean("showSystemApps"))
+            put("hideByDefault", !getBoolean("hideByDefault"))
             put("iconStyle", if (getString("iconStyle") == "native") "monochrome" else "native")
             put("showAppLabels", !getBoolean("showAppLabels"))
             put("sortOrder", if (getString("sortOrder") == "name") "recentlyInstalled" else "name")

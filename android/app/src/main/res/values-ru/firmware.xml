@@ -18,6 +18,6 @@
     <string name="voice_no_matching_command">Нет подходящей команды</string>
     <string name="default_levels">Уровни команд по умолчанию</string>
     <string name="window_options">Настройки проветривания</string>
-    <string name="double_smoke">Двойная команда «перекур»</string>
+    <string name="double_smoke">Двойное проветривание у водителя</string>
     <string name="double_ventilation">Двойное проветривание</string>
 </resources>

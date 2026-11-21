@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9_.:-]+$')][string]$Serial,
-    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9_.:/+-]+$')][string]$Fingerprint,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9_.:/+,-]+$')][string]$Fingerprint,
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9_.:-]+$')][string]$DeviceSerial,
     [ValidateSet('status', 'backup', 'install', 'restore', 'rollback', 'rearm', 'restore-exported')][string]$Mode = 'status',
     [string]$BackupDirectory,

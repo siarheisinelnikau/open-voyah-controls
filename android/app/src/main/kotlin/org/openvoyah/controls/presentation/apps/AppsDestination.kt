@@ -38,11 +38,16 @@ import kotlinx.coroutines.launch
 import org.openvoyah.controls.R
 import org.openvoyah.controls.appWindowConfiguration
 import org.openvoyah.controls.data.apps.AppGridPreferences
+import org.openvoyah.controls.data.apps.RootAppStopper
+import org.openvoyah.controls.data.apps.RootPermissionWriter
+import org.openvoyah.controls.data.apps.appRootShell
 import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.domain.apps.AppGridPins
+import org.openvoyah.controls.platform.apps.AndroidAppAccess
 import org.openvoyah.controls.platform.apps.AppsCatalog
 import org.openvoyah.controls.platform.apps.AppsPlatform
 import org.openvoyah.controls.platform.apps.InstalledAppPermissions
+import org.openvoyah.controls.platform.apps.InstalledAppStopper
 import org.openvoyah.controls.platform.apps.LocalApkInstaller
 import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
@@ -63,14 +68,18 @@ internal fun AppsDestination(
     val installer = remember(activity) { LocalApkInstaller(activity.applicationContext) }
     val provider = remember(activity) {
         val app = activity.applicationContext
-        val permissions = InstalledAppPermissions(app)
+        // One root shell for both actions, so they share one verification of the firmware evidence.
+        val root by lazy { appRootShell(app) }
+        val permissions = InstalledAppPermissions(app, RootPermissionWriter { root(it) })
         ViewModelProvider(activity, viewModelFactory {
             initializer { AppsViewModel(AppsCatalog(app, permissions), AppGridPreferences(app)) }
-            initializer { AppSettingsViewModel(appWindowConfiguration(app), permissions) }
+            initializer {
+                AppSettingsViewModel(appWindowConfiguration(app), permissions, InstalledAppStopper(app, RootAppStopper { root(it) }))
+            }
         })
     }
     val model = remember(provider) { provider["apps-catalog", AppsViewModel::class.java] }
-    val settings = remember(provider) { provider["app-settings", AppSettingsViewModel::class.java] }
+    val settings = remember(provider) { provider[APP_SETTINGS_MODEL_KEY, AppSettingsViewModel::class.java] }
     val state by model.state.collectAsStateWithLifecycle()
     val selected by settings.state.collectAsStateWithLifecycle()
     val installation by installer.state.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
@@ -112,7 +121,7 @@ internal fun AppsDestination(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 model.refresh()
-                settings.refreshPermissions()
+                settings.refresh()
                 activity.lifecycleScope.launch { installer.recover() }
             }
         }
@@ -180,12 +189,22 @@ internal fun AppsDestination(
             val edit = state.gridEdit?.takeIf { it.component == app.id && (it.desktop == null || it.desktop == desktop) }
             val shortcut = if (app.launchEntry == null || !AppGridPins.supports(app.id)) null else AppShortcutGridState(
                 pinned = grid?.getOrNull()?.pins(desktop)?.contains(app.id),
-                showInAll = grid?.getOrNull()?.let { app.id !in it.hiddenApps },
+                hidden = grid?.getOrNull()?.hides(app.id, app.hiddenByDefault),
                 isFavorites = desktop != AppGridDesktop.MAIN,
                 working = state.gridEdit?.working == true,
                 notice = if (grid?.isFailure == true) R.string.apps_grid_settings_read_failed else edit?.error,
             )
             fun editingThisApp() = owner.lifecycle.currentState == Lifecycle.State.RESUMED && settings.state.value?.app?.id == app.id
+            // Android settings pages offered only where the firmware has them; most head units ship without them.
+            val androidPages = remember(app.packageName) { mutableMapOf<AndroidAppAccess?, Intent?>() }
+            fun androidPage(access: AndroidAppAccess?): (() -> Unit)? {
+                // A missing page is the usual answer on head units, so it is remembered as well.
+                if (access !in androidPages) {
+                    androidPages[access] = if (access == null) platform.appDetails(app.packageName)
+                        else platform.specialAccess(app.packageName, access)
+                }
+                return androidPages[access]?.let { intent -> { permission(intent) } }
+            }
             AppSettingsScreen(current, settings, { platform.displays(app.launchEntry) }, { platform.windowsSupported },
                 shortcut = shortcut,
                 setPinned = { pinned ->
@@ -194,16 +213,16 @@ internal fun AppsDestination(
                         model.changePin(app, pinned, desktop)
                     }
                 },
-                setShowInAll = { show ->
+                setHidden = { hide ->
                     if (editingThisApp()) {
                         settings.notice(null)
-                        model.setAppHidden(app, !show)
+                        model.setAppHidden(app, hide)
                     }
                 },
                 open = { display, window -> open(app, display, window) },
                 openAdjacent = { display -> open(app, display, false, adjacent = true) },
-                appInfo = { permission(platform.appDetails(app.packageName)) },
-                specialAccess = { permission(platform.specialAccess(app.packageName, it)) })
+                appInfo = androidPage(null),
+                specialAccess = ::androidPage)
         }
     }
 }

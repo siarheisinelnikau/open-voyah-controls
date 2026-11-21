@@ -207,8 +207,7 @@ internal fun ControlsTheme(
             colorScheme = rememberBlendedColors(colors, settings.animateRoutes),
             shapes = cockpitShapes(settings.corners),
             typography = typography,
-            content = content,
-        )
+        ) { LauncherPanelPadding(content) }
     }
 }
 

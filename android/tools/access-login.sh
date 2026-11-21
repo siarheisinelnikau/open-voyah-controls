@@ -6,7 +6,7 @@ unset ENV BASH_ENV LD_PRELOAD LD_LIBRARY_PATH
 umask 077
 base=/data/adb/open-voyah-controls-access
 file() { [ -f "$1" ] && [ ! -L "$1" ] && [ "$(stat -c %u:%a:%h "$1")" = "0:$2:1" ]; }
-[ "$(id -u)" = 0 ] && [ "$(getenforce)" = Enforcing ] || exit 1
+[ "$(id -u)" = 0 ] && { [ "$(getenforce)" = Enforcing ] || { [ "$(getenforce)" = Permissive ] && tr ' ' '\n' < /proc/cmdline | grep -qx androidboot.selinux=permissive; }; } || exit 1
 [ ! -e "$base/disabled" ] && [ ! -L "$base/disabled" ] || exit 1
 file "$base/key" 600 && file "$base/fingerprint" 600 && file "$base/uid" 600 || exit 1
 [ "$(getprop ro.build.fingerprint)" = "$(cat "$base/fingerprint")" ] || exit 1
@@ -41,6 +41,8 @@ expected=$(printf 'OVC_ROOT_CLIENT_V1:%s:%s:%s' "$key" "$client" "$server" | sha
 unset key proof response expected client server
 # Commands include large heredocs. Canonical TTY input would silently truncate long lines.
 stty -echo -icanon min 1 time 0 -ixon -ixoff -iuclc -olcuc -istrip 2>/dev/null || exit 1
+# BusyBox telnetd sets XTABS (tab3) on the PTY, which turns the tab-separated replies into spaces.
+stty tab0 2>/dev/null || true
 printf 'OVC_AUTHENTICATED\n'
 # A pipe forces noninteractive mksh on both supported Android generations.
 # Older mksh can wait for more input when a script is read directly from a PTY.

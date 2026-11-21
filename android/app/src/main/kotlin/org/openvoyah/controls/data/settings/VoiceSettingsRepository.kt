@@ -5,6 +5,7 @@ import android.net.Uri
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
 import org.openvoyah.controls.data.voice.CloudVoiceSettings
 import org.openvoyah.controls.platform.voice.OfflineVoiceInput
+import org.openvoyah.controls.platform.voice.SpeechModels
 import org.openvoyah.controls.presentation.voice.VoiceSettingsChange
 import org.openvoyah.controls.presentation.voice.VoiceSettingsConfiguration
 import org.openvoyah.controls.presentation.voice.VoiceSettingsSource
@@ -39,10 +40,19 @@ internal class VoiceSettingsRepository(context: Context) : VoiceSettingsSource {
             is VoiceSettingsChange.Contact -> settings.contact(change.name, change.phone)
             VoiceSettingsChange.RestorePrevious -> settings.restore()
         }
+        // The prepared model and command grammar follow the language and the contact list.
+        if (change is VoiceSettingsChange.Language || change is VoiceSettingsChange.Contact ||
+            change == VoiceSettingsChange.RestorePrevious) SpeechModels.warmUp(app, "settings")
     }
 
     override fun saveOnline(enabled: Boolean, key: String) { online.save(enabled, key) }
-    override suspend fun repairModel() { OfflineVoiceInput(app, duckMedia = false).repair(settings.language()) }
+    override suspend fun repairModel() {
+        OfflineVoiceInput(app, duckMedia = false).repair(settings.language())
+        SpeechModels.warmUp(app, "repair")
+    }
     override suspend fun saveDocument(document: String) { documents.save(Uri.parse(document)) }
-    override suspend fun restoreDocument(document: String) { documents.restore(Uri.parse(document)) }
+    override suspend fun restoreDocument(document: String) {
+        documents.restore(Uri.parse(document))
+        SpeechModels.warmUp(app, "settings")
+    }
 }

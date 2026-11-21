@@ -23,7 +23,7 @@ WiperMaintain	Basic	wipers
 GetFromMemoryCellOne	Basic	driver number one|driver one|driver seat position one|driver seat memory one	driver 1
 GetFromMemoryCellThree	Basic	driver number three|driver three|driver seat position three|driver seat memory three	driver 3
 GetFromMemoryCellTwo	Basic	driver number two|driver two|driver seat position two|driver seat memory two	driver 2
-SmokeCommand	Basic	let's have a smoke|open the window a little|open window a little|open window little
+SmokeCommand	Basic	vent driver window|open the window a little|open window a little|open window little
 VentilationCommand	Basic	ventilation|fresh air|air out|stuffy
 DisableDriverCondition	DriverSeat	seat ventilation off
 EnableConditionDriverLevelDefault	DriverSeat	seat ventilation enable|driver seat ventilation enable

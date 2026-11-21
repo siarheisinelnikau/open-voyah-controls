@@ -266,8 +266,8 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
         return new JSONObject().put("pinnedApps", pinnedApps);
     }
 
-    private static JSONObject gridSettings(String component, String tileSize, boolean showSystemApps) throws Exception {
-        return gridSettings(component).put("tileSize", tileSize).put("showSystemApps", showSystemApps);
+    private static JSONObject gridSettings(String component, String tileSize, boolean hideByDefault) throws Exception {
+        return gridSettings(component).put("tileSize", tileSize).put("hideByDefault", hideByDefault);
     }
 
     private static JSONObject desktopSettings(boolean enabled, String startDesktop) throws Exception {
@@ -279,7 +279,7 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
     private static void assertGridSettings(JSONObject expected, JSONObject restored) throws Exception {
         assertEquals(expected.getJSONArray("pinnedApps").toString(), restored.getJSONArray("pinnedApps").toString());
         assertEquals(expected.getString("tileSize"), restored.getString("tileSize"));
-        assertEquals(expected.getBoolean("showSystemApps"), restored.getBoolean("showSystemApps"));
+        assertEquals(expected.getBoolean("hideByDefault"), restored.getBoolean("hideByDefault"));
         if (expected.has("desktops")) {
             assertEquals(expected.getJSONObject("desktops").toString(), restored.getJSONObject("desktops").toString());
         }

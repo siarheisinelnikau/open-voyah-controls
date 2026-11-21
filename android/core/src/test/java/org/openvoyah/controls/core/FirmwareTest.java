@@ -34,6 +34,22 @@ public class FirmwareTest {
             assertEquals("Driver" + (char) ('A' + i), en.match("driver " + enSlots[i]).id());
         }
     }
+    @Test public void driverWindowVentingUsesNeutralPhrasesDistinctFromTheOtherWindowCommands() throws Exception {
+        VoiceCatalog ru = new VoiceCatalog(getClass().getResourceAsStream("/voice-catalog.tsv"));
+        VoiceCatalog en = new VoiceCatalog(getClass().getResourceAsStream("/voice-catalog-en.tsv"));
+        assertEquals("проветрить у водителя", ru.byId("SmokeCommand").title());
+        assertEquals("vent driver window", en.byId("SmokeCommand").title());
+        for (String phrase : new String[]{"проветрить у водителя", "приоткрыть окно водителя", "окно водителя на проветривание", "открой окно немного"}) {
+            assertEquals("SmokeCommand", ru.match(phrase).id());
+        }
+        assertEquals("VentilationCommand", ru.match("проветрить").id());
+        assertEquals("OpenDriverWindowCommand", ru.match("открой окно").id());
+        assertEquals("VentilationCommand", en.match("air out").id());
+        assertEquals("OpenDriverWindowCommand", en.match("open window").id());
+        for (String slang : new String[]{"давай покурим", "джип", "режим джип", "сейв", "режим сэйв"}) assertNull(ru.match(slang));
+        assertNull(en.match("let's have a smoke"));
+        assertEquals("нравится", ru.byId("Like").title());
+    }
     @Test public void englishStopNeverExecutes() throws Exception {
         VoiceCatalog en = new VoiceCatalog(getClass().getResourceAsStream("/voice-catalog-en.tsv"));
         VoiceSession session = new VoiceSession(en,(c,p,d)->fail());
