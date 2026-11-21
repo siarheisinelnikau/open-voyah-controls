@@ -1,33 +1,46 @@
 import { createActionLauncher } from './launcher-buttons.js';
 import { initializedType } from './java-types.js';
+import { createReporter, errorKind } from './report.js';
 
 const EVENT = 'com.qinggan.system.QGKeyEvent';
 const CONFIG = 'org.openvoyah.controls.panel';
+const CAN_ROUTES = ['can-terminal', 'can-edges'];
+
+function unsupported(code) {
+    return Object.assign(Error(code), {code});
+}
 
 function requireReturn(method, type) {
-    if (method.returnType.className !== type) throw Error('Unsupported OEM callback signature');
+    if (method.returnType.className !== type) throw unsupported('callback_signature');
     return method;
 }
 
-export function installSteering(Java, retries = 10) {
+export function installSteering(Java, retries = 10, report = createReporter('OVC_STEERING_ERROR')) {
     Java.perform(() => {
         const installed = [];
         try {
             const sdk = Java.use('android.os.Build$VERSION').SDK_INT.value;
             if (![28, 30].includes(sdk)) {
-                console.log('OVC_STEERING_UNSUPPORTED Android SDK ' + sdk);
+                console.log('OVC_STEERING_UNSUPPORTED unsupported_sdk sdk=' + (Number.isInteger(sdk) ? sdk : 'invalid'));
                 return;
             }
             const app = Java.use('android.app.ActivityThread').currentApplication();
             if (app === null) {
-                if (retries > 0) setTimeout(() => installSteering(Java, retries - 1), 2000);
-                else console.log('OVC_STEERING_UNSUPPORTED launcher context unavailable');
+                if (retries > 0) setTimeout(() => installSteering(Java, retries - 1, report), 2000);
+                else console.log('OVC_STEERING_UNSUPPORTED no_launcher_context');
                 return;
             }
             const resolver = app.getContentResolver();
             const Global = Java.use('android.provider.Settings$Global');
-            const initial = Global.getString(resolver, CONFIG);
-            if (initial && ['can-terminal', 'can-edges'].includes(JSON.parse(String(initial)).steeringSource)) {
+            const readConfig = () => {
+                const raw = Global.getString(resolver, CONFIG);
+                return raw ? JSON.parse(String(raw)) : null;
+            };
+            let initial = null;
+            // A broken document is not an unsupported firmware: install, and stay native while it cannot be read.
+            try { initial = readConfig(); }
+            catch (error) { report('config', error); }
+            if (CAN_ROUTES.includes(initial?.steeringSource)) {
                 console.log('OVC_STEERING_READY protocol=2 delegated=can');
                 return;
             }
@@ -44,7 +57,7 @@ export function installSteering(Java, retries = 10) {
             const long = Event.KEYACTION_LONG.value;
             if (![voice, custom, camera, short, long].every(value => Number.isInteger(value) && value > 0)
                 || new Set([voice, custom, camera]).size !== 3 || short === long) {
-                throw Error('Unsupported OEM key constants');
+                throw unsupported('key_constants');
             }
             const callbacks = [
                 requireReturn(Callback.onEvent.overload(EVENT, 'java.lang.String', 'int'), 'boolean'),
@@ -54,49 +67,58 @@ export function installSteering(Java, retries = 10) {
             const keys = new Map([[voice, 'voice'], [custom, 'custom'], [camera, 'camera']]);
             const gestures = new Map([[short, 'Short'], [long, 'Long']]);
             const handled = new Map();
+
+            function assigned(key, gesture) {
+                try {
+                    const config = readConfig();
+                    return config?.schema === 1 && !CAN_ROUTES.includes(config.steeringSource)
+                        && config.steeringEnabled === true && config.steering?.[key + gesture] || null;
+                } catch (error) {
+                    report('config', error, {key, gesture});
+                    return null;
+                }
+            }
+
+            /** True when an assigned action owns this event, so the OEM callback must not run. */
+            function consumed(event) {
+                const key = event && keys.get(event.getKeyCode());
+                const gesture = key && gestures.get(event.getAction());
+                if (!gesture || event.isCanceled()) return false;
+                // Both OEM paths need the same down time before replacing a physical gesture.
+                const stamp = Number(event.getDownTime());
+                if (!Number.isSafeInteger(stamp) || stamp <= 0) return false;
+                const previous = handled.get(key);
+                if (previous?.stamp === stamp) return previous.consumed || previous.pending;
+                if (previous && stamp < previous.stamp) return false;
+                // The Settings read is a JNI call that lets the other callback for this event run. It must not
+                // find an attempt that looks like a native decision while this one may still launch.
+                const action = assigned(key, gesture);
+                const current = handled.get(key);
+                if (current?.stamp === stamp) return current.consumed || current.pending;
+                if (current && stamp < current.stamp) return false;
+                const attempt = {stamp, consumed: false, pending: action !== null};
+                handled.set(key, attempt);
+                if (action === null) return false;
+                try { attempt.consumed = launch(app, 0, action) === true; }
+                catch (error) { report('launch', error, {key, gesture}); }
+                finally { attempt.pending = false; }
+                return attempt.consumed;
+            }
+
             for (const callback of callbacks) {
                 installed.push(callback);
                 callback.implementation = function (...args) {
-                    try {
-                        const event = args[0];
-                        const key = event && keys.get(event.getKeyCode());
-                        const gesture = key && gestures.get(event.getAction());
-                        if (gesture && !event.isCanceled()) {
-                            // Both OEM paths need the same down time before replacing a physical gesture.
-                            const stamp = Number(event.getDownTime());
-                            if (Number.isSafeInteger(stamp) && stamp > 0) {
-                                const previous = handled.get(key);
-                                if (previous?.stamp === stamp) {
-                                    if (previous.consumed || previous.pending) return true;
-                                } else if (!previous || stamp > previous.stamp) {
-                                    const attempt = {stamp, consumed: false, pending: false};
-                                    handled.set(key, attempt);
-                                    const raw = Global.getString(resolver, CONFIG);
-                                    const config = raw && JSON.parse(String(raw));
-                                    const action = config?.schema === 1 && !['can-terminal', 'can-edges'].includes(config.steeringSource)
-                                        && config.steeringEnabled === true
-                                        && config.steering?.[key + gesture];
-                                    if (action) {
-                                        attempt.pending = true;
-                                        try { attempt.consumed = launch(app, 0, action) === true; }
-                                        finally { attempt.pending = false; }
-                                        if (attempt.consumed) return true;
-                                    }
-                                }
-                            }
-                        }
-                    } catch (error) { }
+                    try { if (consumed(args[0])) return true; }
+                    catch (error) { report('event', error); }
                     return callback.call(this, ...args);
                 };
             }
             console.log('OVC_STEERING_READY protocol=2 sdk=' + sdk + ' voice custom camera');
         } catch (error) {
             for (const callback of installed) {
-                try { callback.implementation = null; } catch (restoreError) {
-                    console.log('OVC_STEERING_ERROR callback restore failed ' + restoreError);
-                }
+                try { callback.implementation = null; } catch (restoreError) { report('restore', restoreError); }
             }
-            console.log('OVC_STEERING_UNSUPPORTED ' + error);
+            console.log('OVC_STEERING_UNSUPPORTED ' + errorKind(error));
         }
     });
 }

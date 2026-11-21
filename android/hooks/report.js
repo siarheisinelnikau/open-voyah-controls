@@ -17,7 +17,8 @@ export function errorKind(error) {
 
 function field(value) {
     const text = String(value);
-    return /^[A-Za-z0-9_.:/-]{1,64}$/.test(text) ? text : 'invalid';
+    // '$' is part of a nested class name such as Resources$NotFoundException.
+    return /^[A-Za-z0-9_.:/$-]{1,64}$/.test(text) ? text : 'invalid';
 }
 
 /**

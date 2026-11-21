@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const source = fs.readFileSync(path.join(__dirname, '../hooks/panel-state.js'), 'utf8')
-    .replace(/^import .*;$/gm, '').replace(/^export /gm, '');
+const source = ['report.js', 'panel-state.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+    .replace(/^import .*;$/gm, '').replace(/^export /gm, '')).join('\n');
 
 function harness(options = {}) {
     const handles = [], weakReferences = [], mainQueue = [], timers = new Set(), logs = [];
@@ -54,7 +54,11 @@ function harness(options = {}) {
         Java, Nav, panels:[[['button', '', 'navbar01']]], readConfig:() => config,
         actionFor:(value, slot) => value?.schema === 1 && value.enabled === true ? value.actions?.[slot] ?? null : null,
         buildIntent:action => action, ownsView:() => true, lifecycle:{skipRelease:true, contextOf:() => context},
-        createPanelIcon:() => () => { requireMain(); iconDraws++; return object({kind:'assigned'}); },
+        createPanelIcon:() => () => {
+            requireMain(); iconDraws++;
+            if (options.failIcon) throw Error('java.lang.OutOfMemoryError: private bitmap');
+            return object({kind:'assigned'});
+        },
         console:{log:line => logs.push(line)},
         setInterval:run => { timers.add(run); return run; }, clearInterval:run => timers.delete(run),
         set state(value) { state = value; }
@@ -188,4 +192,22 @@ test('disposal cancels queued refreshes, restores live views and releases every 
     assert.equal(h.liveHandles, 0);
     h.state.dispose(); h.flush();
     assert.equal(h.liveHandles, 0);
+});
+
+test('icon and restore failures are reported once per stage and slot without their message', () => {
+    const h = harness({failIcon:true});
+    const first = h.bar(), second = h.bar();
+    for (const {nav, view, stock} of [first, second]) {
+        assert.equal(view.background, stock);
+        assert.equal(view.hold, true);
+        assert.equal(h.state.active(nav, view, {kind:'LAUNCH_APP', component:'org.example.player/.Main'}), true);
+    }
+    h.options.failRestore = true;
+    h.setConfig({schema:1, enabled:false}); h.tick(); h.tick();
+    assert.equal(first.view.hold, true);
+    assert.deepEqual(h.logs.filter(line => line.startsWith('OVC_PANEL_ICONS_ERROR')), [
+        'OVC_PANEL_ICONS_ERROR stage=icon kind=OutOfMemoryError slot=navbar01',
+        'OVC_PANEL_ICONS_ERROR stage=restore kind=Error slot=navbar01',
+    ]);
+    assert.equal(h.logs.some(line => line.includes('private') || line.includes('Could not')), false);
 });

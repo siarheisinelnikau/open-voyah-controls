@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const source = fs.readFileSync(path.join(__dirname, '../hooks/display-events.js'), 'utf8')
-    .replace(/^export /gm, '');
+const source = ['report.js', 'display-events.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+    .replace(/^import .*;$/gm, '').replace(/^export /gm, '')).join('\n');
 
 function harness(options = {}) {
     let raw = options.initialRaw ?? '', time = 1000, poll;
@@ -32,7 +32,10 @@ function harness(options = {}) {
         'com.qinggan.cluster.info.MediaSrcType':{Other:{value:1}},
         'com.qinggan.cluster.info.MediaType':{SimpleAudio:{value:2}},
         'com.qinggan.cluster.info.MediaState':{PLAY:{value:3}, PAUSE:{value:4}, CLEAN:{value:5}},
-        'android.provider.Settings$Global':{getString:() => raw}
+        'android.provider.Settings$Global':{getString() {
+            if (options.providerFailure) throw Error('java.lang.IllegalStateException: provider for private.package is restarting');
+            return raw;
+        }}
     };
     vm.runInNewContext(source + '\ninstallClusterMedia(Java);', {
         Java:{perform:run => run(), use(name) { assert.ok(classes[name], name); return classes[name]; }},
@@ -128,6 +131,30 @@ test('attachment validates existing media by expiry and dedupes only published s
         assert.equal(h.published.length, expires > 1000 ? 1 : 0);
         if (h.published.length) assert.equal(h.published[0].state, 4);
     }
+});
+
+test('an unavailable settings provider is reported once and the poll recovers', () => {
+    const h = harness({providerFailure:true});
+    for (let second = 0; second < 5; second++) assert.doesNotThrow(() => h.tick());
+    assert.deepEqual(h.logs.filter(line => line.startsWith('OVC_CLUSTER_MEDIA_ERROR')),
+        ['OVC_CLUSTER_MEDIA_ERROR stage=settings kind=IllegalStateException']);
+    h.options.providerFailure = false;
+    h.send(); h.tick();
+    assert.equal(h.published.length, 1);
+    assert.equal(h.logs.some(line => line.includes('private')), false);
+});
+
+test('parse and publication failures name their stage and class without quoting the error', () => {
+    const malformed = harness();
+    malformed.setRaw('{"title":"private'); malformed.tick(); malformed.tick();
+    assert.deepEqual(malformed.logs.filter(line => line.startsWith('OVC_CLUSTER_MEDIA_ERROR')),
+        ['OVC_CLUSTER_MEDIA_ERROR stage=parse kind=SyntaxError']);
+    const failing = harness({failures:3});
+    failing.send(); failing.tick(); failing.tick(); failing.tick();
+    assert.equal(failing.attempts, 3);
+    assert.deepEqual(failing.logs.filter(line => line.startsWith('OVC_CLUSTER_MEDIA_ERROR')),
+        ['OVC_CLUSTER_MEDIA_ERROR stage=publish kind=Error']);
+    assert.equal([...malformed.logs, ...failing.logs].some(line => line.includes('private') || line.includes('Temporary')), false);
 });
 
 test('media clearing retains its ownership rule and dedupes a successful clear', () => {

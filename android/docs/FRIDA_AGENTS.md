@@ -38,6 +38,28 @@ The process-by-process scope and button mappings are listed in [Injection target
 
 The boot and supervisor files ending in `.sh` are shell scripts. They verify the deployment, wait for the right process, start the corresponding agent and monitor its readiness. Each optional agent has its own process/package checks and recovery. Frida execution in a fixture proves the adapter can run; exact OEM compatibility and physical behavior still require vehicle qualification.
 
+## Agent error lines
+
+Every agent reports a failure through `hooks/report.js` as one line in its worker's `hook.log`:
+
+```text
+OVC_PANEL_ERROR stage=click kind=SecurityException slot=navbar01
+OVC_STEERING_ERROR stage=launch kind=ActivityNotFoundException key=voice gesture=Long repeated=10
+```
+
+| Marker | Agent | Stages |
+| --- | --- | --- |
+| `OVC_PANEL_ERROR` | Panel buttons, both launcher adapters | `install`, `rollback`, `click`, `hold`, `selection`, `restore` |
+| `OVC_PANEL_ICONS_ERROR` | Panel icons and selection state | `theme`, `track`, `refresh`, `icon`, `apply`, `selection`, `restore`, `release` |
+| `OVC_STEERING_ERROR` | Steering keys in the launcher | `config`, `event`, `launch`, `restore` |
+| `OVC_CAN_ERROR` | Steering keys in the CAN service | the install phase (`process`, `constants`, `callback`, `launcher`, `install`), `route`, `gesture` |
+| `OVC_LOCALIZATION_ERROR` | Interface translation | `install`, `settings`, `config`, `convert`, `refresh` |
+| `OVC_CLUSTER_MEDIA_ERROR`, `OVC_NAVIGATION_ERROR` | Cluster media and navigation events | `install`, `settings`, `parse`, `publish`, `event`, `distance` |
+| `OVC_VOICE_ERROR` | Voice command executor | `install`, `settings` |
+| `OVC_WINDOW_ERROR` | Window service | see below |
+
+`kind` is an outcome code, a Java exception class or a JavaScript error type, and never the exception message: messages quote package names, resource ids and user text. A problem is printed when it first happens and again at 10, 100, 1000… occurrences, because most of these hooks run on every click, key event or text change. A reporter is kept across installation retries, so an agent that can never install does not add a line every 30 seconds. Readiness and result markers are a separate contract with the supervisor and are not rate-limited.
+
 ## Window service diagnostics
 
 Each explicit profile apply or reset, display defaults sync, and window-service toggle that reaches `FridaBridge` emits one `event=window_service` entry under the `OpenVoyahControls` Logcat tag. The entry contains an allowlisted operation, the last stage reached, an outcome, and monotonic elapsed time in milliseconds. The elapsed time includes any wait for the bridge lock.

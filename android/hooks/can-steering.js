@@ -3,21 +3,24 @@ import {createActionPreflight} from './action-preflight.js';
 import {createCanKeyRouter} from './can-keys.js';
 import {createCanEdgeRouter} from './can-edges.js';
 import {initializedType} from './java-types.js';
+import {createReporter, errorKind} from './report.js';
+
+const failure = code => Object.assign(Error(code), {code});
 
 /** The service-side fan-out avoids adding a second, competing CAN subscriber. */
-export function installCanSteering(Java, retries = 10) {
+export function installCanSteering(Java, retries = 10, report = createReporter('OVC_CAN_ERROR')) {
     Java.perform(() => {
         let callback;
         let phase = 'process';
         try {
             const app = Java.use('android.app.ActivityThread').currentApplication();
             if (app === null && retries > 0) {
-                setTimeout(() => installCanSteering(Java, retries - 1), 2000);
+                setTimeout(() => installCanSteering(Java, retries - 1, report), 2000);
                 return;
             }
             const sdk = Java.use('android.os.Build$VERSION').SDK_INT.value;
             if (app === null || String(app.getPackageName()) !== 'com.qinggan.canbus.service'
-                || ![28, 30].includes(sdk)) throw Error('Unsupported CAN process');
+                || ![28, 30].includes(sdk)) throw failure('unsupported_process');
             phase = 'constants';
             const Codes = initializedType(Java, 'com.qinggan.canbus.CanBoxCommType$KEY_CODE');
             const Status = initializedType(Java, 'com.qinggan.canbus.CanBoxCommType$KEY_STATUS');
@@ -26,12 +29,12 @@ export function installCanSteering(Java, retries = 10) {
                 short: Status.SHORT_PRESSED.value, long: Status.LONG_PRESSED.value};
             for (const values of [keyValues, Object.values(status)]) {
                 if (!values.every(value => Number.isInteger(value) && value >= 0)
-                    || new Set(values).size !== values.length) throw Error('Ambiguous CAN constants');
+                    || new Set(values).size !== values.length) throw failure('ambiguous_constants');
             }
             phase = 'callback';
             const method = Java.use('com.qinggan.canbus.service.BaseCanBusComponent')
                 .onCarKeyChanged.overload('int', 'int');
-            if (method.returnType.className !== 'void') throw Error('Unsupported CAN callback');
+            if (method.returnType.className !== 'void') throw failure('callback_signature');
             phase = 'launcher';
             const Global = Java.use('android.provider.Settings$Global');
             const clock = Java.use('android.os.SystemClock');
@@ -48,17 +51,19 @@ export function installCanSteering(Java, retries = 10) {
             const terminal = createCanKeyRouter(inputs);
             const edges = createCanEdgeRouter({...inputs, canLaunch:action => canLaunch(app, action),
                 schedule:(run, delay) => setTimeout(() => Java.perform(run), delay), cancel:clearTimeout,
-                report:reason => console.log('OVC_CAN_GESTURE ' + reason)});
+                report:(reason, error) => report('gesture', failure(String(reason).replace(/-/g, '_')),
+                    error === undefined ? {} : {cause:errorKind(error)})});
             phase = 'install';
             callback = method;
             method.implementation = function (code, event) {
-                try { if (edges(code, event) || terminal(code, event)) return; } catch (_) { /* Preserve OEM delivery. */ }
+                try { if (edges(code, event) || terminal(code, event)) return; }
+                catch (error) { report('route', error); /* Preserve OEM delivery. */ }
                 return method.call(this, code, event);
             };
             console.log('OVC_CAN_READY protocol=2 terminal edges sdk=' + sdk);
-        } catch (_) {
+        } catch (error) {
             if (callback) callback.implementation = null;
-            console.log('OVC_CAN_ERROR contract unavailable phase=' + phase);
+            report(phase, error);
         }
     });
 }

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const source = ['panel-icons.js', 'panel-state.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+const source = ['report.js', 'panel-icons.js', 'panel-state.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import .*;$/gm, '').replaceAll('export function', 'function')).join('\n') + '\ninstall(Java);';
 
 function harness(config, options = {}) {
@@ -13,6 +13,7 @@ function harness(config, options = {}) {
     const click = { call(nav, view) {
         if (!inClick) return dispatchClick(nav, view);
         originalCalls++;
+        if (options.failNative) throw new Error('java.lang.IllegalStateException: private native action');
         return 'oem';
     }};
     function dispatchClick(nav, view) {
@@ -140,13 +141,19 @@ function harness(config, options = {}) {
     vm.runInNewContext(source, {
         Java: {
             array(name, values) { return values; }, retain(x) { return x; }, cast(x) { return x; },
-            choose(name, callbacks) { existing.forEach(nav => callbacks.onMatch(Object.assign(nav, {$dispose(){}}))); callbacks.onComplete(); },
+            choose(name, callbacks) {
+                if (options.failChoose) throw new Error('java.lang.IllegalStateException: private heap scan');
+                existing.forEach(nav => callbacks.onMatch(Object.assign(nav, {$dispose(){}}))); callbacks.onComplete();
+            },
             scheduleOnMainThread(fn) { fn(); }, perform(fn) { fn(); },
             use(name) { if (options.noNav && name.endsWith('NavigationBar')) throw Error('class not loaded'); assert.ok(classes[name], name); return classes[name]; }
         },
         Process: { id: 42 }, console: { log(line) { logs.push(line); } },
         setTimeout(fn,ms) { retries.push({fn,ms}); }, setInterval(fn) { timers.push(fn); return fn; },
-        clearInterval(fn) { timers.splice(timers.indexOf(fn),1); }
+        clearInterval(fn) {
+            if (options.failDispose) throw new Error('java.lang.IllegalStateException: private timer');
+            timers.splice(timers.indexOf(fn),1);
+        }
     });
     function bar(screen) {
         const nav = makeBar(screen);
@@ -158,6 +165,8 @@ function harness(config, options = {}) {
     }
     return {
         retries, logs, existing,
+        hooks: {click, init, selection, holds, theme, release},
+        holdView(view, ...coordinates) { return performHold(view, coordinates); },
         bar,
         setConfig(value) { config = value; },
         tick() { timers.forEach(fn => fn()); },
@@ -649,4 +658,56 @@ test('every central app shortcut supplies the OEM panel width to the window agen
     assert.equal(h.launched[0].intent.extras['org.openvoyah.controls.extra.LEFT_PANEL_PX'], 171);
     assert.equal(h.launched[1].intent.extras['org.openvoyah.controls.extra.LEFT_PANEL_PX'], 171);
     assert.equal(h.launched[2].intent.extras, undefined);
+});
+
+test('click, hold and selection failures are bounded error lines with their slot instead of logcat text', () => {
+    const options = {failLaunch:true};
+    const h = harness(config({navbar01:action}), options);
+    for (let press = 0; press < 3; press++) assert.equal(h.tap(h.bar(0), 'screen_up_icon_1'), 'oem');
+    assert.equal(h.originalCalls, 3);
+    options.failLaunch = false;
+    const broken = h.bar(0), view = broken.views.screen_up_icon_1;
+    view.getResources = () => { throw new Error('java.lang.IllegalStateException: private resources'); };
+    assert.equal(h.holdView(view), false);
+    assert.equal(h.originalHolds, 1);
+    options.failNative = true;
+    assert.equal(h.holdView(h.bar(0).views.screen_up_icon_1, 18, 24), true);
+    options.failNative = false;
+    const selecting = h.bar(0);
+    selecting.mScreenUpRadioGroup = {get value() { throw new Error('java.lang.IllegalStateException: private group'); }};
+    h.select(selecting, 'com.example.player', '.Main');
+    assert.equal(selecting.stockUpdates, 1);
+    assert.deepEqual(h.logs.filter(line => line.startsWith('OVC_PANEL_ERROR')), [
+        'OVC_PANEL_ERROR stage=click kind=Error slot=navbar01',
+        'OVC_PANEL_ERROR stage=hold kind=IllegalStateException',
+        'OVC_PANEL_ERROR stage=hold kind=IllegalStateException slot=navbar01',
+        'OVC_PANEL_ERROR stage=selection kind=IllegalStateException',
+    ]);
+    assert.equal(h.logs.some(line => line.includes('private') || line.includes('Activity not found')), false);
+});
+
+test('a failed installation resets every hook even when dispose throws and retries in 30 s', () => {
+    const options = {failChoose:true, failDispose:true};
+    const h = harness(config({navbar01:action}), options);
+    const {click, init, selection, holds, theme, release} = h.hooks;
+    for (const hook of [click, init, selection, ...holds, theme, release]) assert.equal(hook.implementation, null);
+    assert.deepEqual(h.retries.map(retry => retry.ms), [30000]);
+    assert.deepEqual(h.logs.filter(line => line.startsWith('OVC_')), [
+        'OVC_PANEL_ERROR stage=install kind=IllegalStateException',
+        'OVC_PANEL_ERROR stage=rollback kind=IllegalStateException',
+    ]);
+    options.failChoose = false; options.failDispose = false;
+    h.retries[0].fn();
+    h.click(0, 'screen_up_icon_1');
+    assert.equal(h.launched.length, 1);
+    assert.equal(h.originalCalls, 0);
+    assert.equal(h.logs.filter(line => line === 'OVC_PANEL_SELECTION_READY').length, 1);
+});
+
+test('selection readiness is announced only after the rest of the installation succeeded', () => {
+    const h = harness(config({navbar01:action}), {existing:[0]});
+    const ready = h.logs.findIndex(line => line.startsWith('OVC_READY NavigationBar'));
+    assert.ok(ready >= 0);
+    assert.deepEqual(h.logs.slice(ready + 1).filter(line => line.startsWith('OVC_')), ['OVC_PANEL_SELECTION_READY']);
+    assert.equal(harness(config({navbar01:action}), {noSelection:true}).logs.includes('OVC_PANEL_SELECTION_READY'), false);
 });

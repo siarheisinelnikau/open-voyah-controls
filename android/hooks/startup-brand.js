@@ -1,3 +1,5 @@
+import { errorKind } from './report.js';
+
 const APP = 'org.openvoyah.controls';
 const ACTION = APP + '.action.SHOW_BOOT_BRAND';
 const STARTUP_WINDOW_MS = 30_000;
@@ -53,14 +55,16 @@ export function createStartupBrand(Java) {
                     finished = true;
                     try {
                         // Persist before launching so repeated attachment cannot interrupt the user again.
-                        if (!prefs.edit().putInt('last_boot', boot).commit()) throw Error('Could not save boot marker');
+                        if (!prefs.edit().putInt('last_boot', boot).commit()) {
+                            throw Object.assign(Error('Could not save boot marker'), {code:'marker_not_saved'});
+                        }
                         const intent = Intent.$new(ACTION);
                         intent.setClassName(APP, APP + '.LaunchBrandActivity');
                         intent.addFlags(0x10000000);
                         activity.startActivity(intent);
                         console.log('OVC_STARTUP_BRAND outcome=requested');
                     } catch (error) {
-                        console.log('OVC_STARTUP_BRAND outcome=failed ' + error);
+                        console.log('OVC_STARTUP_BRAND outcome=failed kind=' + errorKind(error));
                     }
                     return 'stop';
                 },
@@ -69,7 +73,7 @@ export function createStartupBrand(Java) {
             return true;
         } catch (error) {
             finished = true;
-            console.log('OVC_STARTUP_BRAND outcome=unavailable ' + error);
+            console.log('OVC_STARTUP_BRAND outcome=unavailable kind=' + errorKind(error));
             return true;
         }
     }

@@ -1,6 +1,5 @@
-'use strict';
-
 import { installPanelState } from './panel-state.js';
+import { createReporter } from './report.js';
 
 const PREFIX = 'org.openvoyah.controls';
 const LEFT_PANEL = PREFIX + '.extra.LEFT_PANEL_PX';
@@ -72,7 +71,7 @@ export function createActionLauncher(Java, buildIntent = createActionIntent(Java
 }
 
 /** Installs the panel adapter for the Qinggan launcher. */
-export function install(Java, onNavigation = () => {}, startup) {
+export function install(Java, onNavigation = () => {}, startup, report = createReporter('OVC_PANEL_ERROR')) {
 Java.perform(function () {
     let clickHook, initHook, selectionHook;
     const holdHooks = [];
@@ -89,7 +88,6 @@ Java.perform(function () {
     const initViews = Nav.initScreenUpViews.overload();
     clickHook=onClick; initHook=initViews;
     holdHooks.push(View.performLongClick.overload(), View.performLongClick.overload('float', 'float'));
-    let lastConfigError = '';
     let stockClickView = null;
 
     function readConfig(context) {
@@ -141,13 +139,10 @@ Java.perform(function () {
                 }
                 return;
             }
-        } catch (error) {
-            const message = String(error);
-            if (message !== lastConfigError) { Log.w('OpenVoyahControls', message); lastConfigError = message; }
-        }
+        } catch (error) { report('click', error, slot ? {slot} : {}); }
         if (action) {
             try { panelState.failed(this, slot); }
-            catch (error) { Log.w('OpenVoyahControls', 'Could not restore button after launch failure: ' + error); }
+            catch (error) { report('restore', error, {slot}); }
         }
         // Call OEM code exactly once if unmapped, disabled, or the replacement failed.
         return onClick.call(this, view);
@@ -179,13 +174,9 @@ Java.perform(function () {
                     const group = this.mScreenUpRadioGroup.value;
                     if (group !== null && !ids.includes(group.getCheckedRadioButtonId())) panelState.select(this, group, ids[0]);
                 }
-            } catch (error) {
-                const message = 'Panel selection: ' + error;
-                if (message !== lastConfigError) { Log.w('OpenVoyahControls', message); lastConfigError = message; }
-            }
+            } catch (error) { report('selection', error); }
             return result;
         };
-        console.log('OVC_PANEL_SELECTION_READY');
     } catch (error) {
         if (selectionHook) selectionHook.implementation = null;
         selectionHook = null;
@@ -195,19 +186,19 @@ Java.perform(function () {
     for (const hold of holdHooks) {
         hold.implementation = function (...coordinates) {
             if (stockClickView !== null && this.equals(stockClickView)) return true;
-            let owner = null;
+            let owner = null, slot = null;
             try {
                 const nav = clickOwner(this);
-                const slot = nav && slotFor(nav, this);
+                slot = nav && slotFor(nav, this);
                 const action = slot && actionFor(readConfig(nav.mContext.value), slot);
                 if (action && panelState?.active(nav, this, action)) owner = nav;
-            } catch (error) { Log.w('OpenVoyahControls', 'Long press: ' + error); }
+            } catch (error) { report('hold', error, slot ? {slot} : {}); }
             if (owner !== null) {
                 // A virtual call from a different hook can re-enter the click implementation.
                 const previous = stockClickView;
                 stockClickView = this;
                 try { onClick.call(owner, this); }
-                catch (error) { Log.w('OpenVoyahControls', 'Native long-press action failed: ' + error); }
+                catch (error) { report('hold', error, {slot}); }
                 finally { stockClickView = previous; }
                 // Android suppresses the release click after a handled long press.
                 return true;
@@ -239,12 +230,18 @@ Java.perform(function () {
         }
     });
     Log.i('OpenVoyahControls', 'READY NavigationBar.onClick: ' + Process.id);
+    // Announced only once nothing can roll the installation back any more.
+    if (selectionHook) console.log('OVC_PANEL_SELECTION_READY');
     } catch (error) {
-        // Roll back a partially installed feature before the next attempt.
-        panelState?.dispose();
-        for(const hook of [clickHook,initHook,selectionHook,...holdHooks]) if(hook) hook.implementation=null;
-        console.log('OVC_PANEL_ERROR ' + error + '; retry in 30s');
-        setTimeout(()=>install(Java, onNavigation, startup),30000);
+        report('install', error);
+        // Roll back a partially installed feature before the next attempt. The hooks go first, so a failing
+        // dispose can neither leave them in place nor prevent the retry.
+        for (const hook of [clickHook, initHook, selectionHook, ...holdHooks]) {
+            if (!hook) continue;
+            try { hook.implementation = null; } catch (resetError) { report('rollback', resetError); }
+        }
+        try { panelState?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
+        setTimeout(() => install(Java, onNavigation, startup, report), 30000);
     }
 });
 }

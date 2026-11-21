@@ -1,14 +1,25 @@
 // Replace exact dictionary matches in Android text rendering.
 // Translations are independent data; no vendor payload or license code is loaded.
-export function translated(config, packageName, product, source) {
-    if (!config || config.schema !== 1 || config.enabled !== true || typeof source !== 'string') return source;
-    if (config.products?.length && !config.products.includes(product)) return source;
-    const table = config.packages?.[packageName];
+import { createReporter } from './report.js';
+
+const KEY = 'org.openvoyah.controls.localization';
+
+function tableFor(config, packageName, product) {
+    if (!config || config.schema !== 1 || config.enabled !== true) return null;
+    if (config.products?.length && !config.products.includes(product)) return null;
+    return config.packages?.[packageName] || null;
+}
+
+function lookup(table, source) {
     return table && Object.prototype.hasOwnProperty.call(table, source) && typeof table[source] === 'string'
         ? table[source] : source;
 }
 
-export function installLocalization(Java) {
+export function translated(config, packageName, product, source) {
+    return typeof source === 'string' ? lookup(tableFor(config, packageName, product), source) : source;
+}
+
+export function installLocalization(Java, report = createReporter('OVC_LOCALIZATION_ERROR')) {
     Java.perform(() => {
         const installed = [];
         try {
@@ -18,19 +29,38 @@ export function installLocalization(Java) {
             const Global = Java.use('android.provider.Settings$Global');
             const resolver = app.getContentResolver();
             const JString = Java.use('java.lang.String');
-            let config = null, previous = '';
+            // The dictionary for this package and product, resolved once per changed setting; null when off.
+            let table = null, previous = '';
             const reload = () => {
-                try {
-                    const raw = String(Global.getString(resolver, 'org.openvoyah.controls.localization') || '');
-                    if (raw !== previous) { config = raw ? JSON.parse(raw) : null; previous = raw; }
-                } catch (_) { config = null; }
+                let raw;
+                try { raw = String(Global.getString(resolver, KEY) || ''); }
+                catch (error) {
+                    // Stay off while the provider is unavailable and read the value again once it is back.
+                    table = null;
+                    previous = null;
+                    report('settings', error);
+                    return;
+                }
+                if (raw === previous) return;
+                // Remember the value before parsing, so a rejected document is parsed and reported once.
+                previous = raw;
+                table = null;
+                if (!raw) return;
+                try { table = tableFor(JSON.parse(raw), packageName, product); }
+                catch (error) { report('config', error, {bytes:raw.length}); }
             };
             reload();
             function convert(value) {
-                if (value === null) return value;
-                const source = String(value), replacement = translated(config, packageName, product, source);
-                // Keep spans and OEM object identity when there is no translation.
-                return replacement === source ? value : JString.$new(replacement);
+                // Most processes run without a dictionary: skip the JNI toString() for every text then.
+                if (table === null || value === null) return value;
+                try {
+                    const source = String(value), replacement = lookup(table, source);
+                    // Keep spans and OEM object identity when there is no translation.
+                    return replacement === source ? value : JString.$new(replacement);
+                } catch (error) {
+                    report('convert', error);
+                    return value;
+                }
             }
             const TextView = Java.use('android.widget.TextView');
             const text = TextView.setText.overload('java.lang.CharSequence', 'android.widget.TextView$BufferType');
@@ -52,7 +82,7 @@ export function installLocalization(Java) {
                             if (next !== old) retained.setText.overload('java.lang.CharSequence').call(retained, next);
                             const oldHint = retained.getHint(), nextHint = convert(oldHint);
                             if (nextHint !== oldHint) hint.call(retained, nextHint);
-                        } catch (error) { console.log("OVC_LOCALIZATION_REFRESH_ERROR " + error); }
+                        } catch (error) { report('refresh', error); }
                         finally { retained.$dispose(); }
                     });
                 }, onComplete() { }
@@ -61,8 +91,8 @@ export function installLocalization(Java) {
             console.log('OVC_LOCALIZATION_READY ' + packageName);
         } catch (error) {
             for (const method of installed) { try { method.implementation = null; } catch (_) { } }
-            console.log('OVC_LOCALIZATION_ERROR ' + error + '; retry in 30s');
-            setTimeout(() => installLocalization(Java), 30000);
+            report('install', error);
+            setTimeout(() => installLocalization(Java, report), 30000);
         }
     });
 }

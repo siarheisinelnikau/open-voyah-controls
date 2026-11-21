@@ -1,4 +1,5 @@
 import { createPanelIcon } from './panel-icons.js';
+import { createReporter } from './report.js';
 
 /** Owns reversible mutations of the observed launcher views on the UI thread. */
 export function installPanelState(Java, Nav, panels, readConfig, actionFor, buildIntent, ownsView, lifecycle = {}) {
@@ -13,17 +14,10 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         catch (error) { if (!lifecycle.allowMissingRelease) throw error; }
     }
     const contextOf = lifecycle.contextOf ?? (nav => nav.mContext.value);
+    const report = createReporter('OVC_PANEL_ICONS_ERROR');
     const bars = [];
     let drawIcon, theme;
-    let ready = false, disposed = false, queued = false, applied = '', lastError = '';
-
-    function report(error) {
-        const message = String(error);
-        if (message !== lastError) {
-            lastError = message;
-            console.log('OVC_PANEL_ICONS_ERROR ' + message);
-        }
-    }
+    let ready = false, disposed = false, queued = false, applied = '';
 
     function reference(object) {
         return Java.retain(Reference.$new(object));
@@ -92,7 +86,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
             }
             return true;
         } catch (error) {
-            report(error);
+            report('restore', error, {slot: entry.slot});
             return false;
         }
     }
@@ -112,7 +106,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
             return true;
         } catch (error) {
             bar.selection = selection;
-            report(error);
+            report('selection', error);
             return false;
         }
     }
@@ -154,7 +148,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
                     }
                     let drawable;
                     try { drawable = drawIcon?.(view, manager, info); }
-                    catch (error) { report(error); }
+                    catch (error) { report('icon', error, {slot}); }
                     if (drawable) {
                         const original = view.getBackground();
                         const insets = padding(view);
@@ -167,10 +161,10 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
                     }
                     entry.active = true;
                 } catch (error) {
-                    report(error);
+                    report('apply', error, {slot});
                     if (!restoreBar(bar, slot)) return false;
                 }
-            } catch (error) { report(error); }
+            } catch (error) { report('refresh', error, {slot}); }
         }
         return true;
     }
@@ -181,14 +175,14 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
             const bar = rememberBar(nav);
             bar.released = false;
             if (!refresh(nav, bar, readConfig(contextOf(nav)))) applied = '';
-        } catch (error) { applied = ''; report(error); }
+        } catch (error) { applied = ''; report('track', error); }
     }
 
     function restore(nav) {
         try {
             const bar = findBar(nav);
             if (!bar || restoreBar(bar)) return true;
-        } catch (error) { report(error); }
+        } catch (error) { report('restore', error); }
         applied = '';
         return false;
     }
@@ -203,7 +197,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
                     bar.owner.$dispose();
                 } else applied = '';
             }
-        } catch (error) { applied = ''; report(error); }
+        } catch (error) { applied = ''; report('release', error); }
         return release.call(this);
     };
 
@@ -218,7 +212,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         };
         theme = nextTheme;
         drawIcon = nextDraw;
-    } catch (error) { report(error); }
+    } catch (error) { report('theme', error); }
 
     function signature(config) {
         const valid = config?.schema === 1;
@@ -278,12 +272,12 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
                             else console.log('OVC_PANEL_ICONS_RESTORED ' + token);
                         }
                     }
-                } catch (error) { report(error); }
+                } catch (error) { report('refresh', error); }
                 finally { queued = false; }
             });
         } catch (error) {
             queued = false;
-            report(error);
+            report('refresh', error);
         }
     }), 1000);
 
@@ -297,7 +291,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         },
         restoreSelection(nav) {
             try { return restoreSelection(findBar(nav)); }
-            catch (error) { report(error); return false; }
+            catch (error) { report('selection', error); return false; }
         },
         select(nav, group, id) {
             const bar = findBar(nav);
@@ -319,9 +313,10 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         },
         dispose() {
             disposed = true;
-            clearInterval(timer);
+            // Hooks first, so a failure below cannot leave them installed.
             if (theme) theme.implementation = null;
             if (release) release.implementation = null;
+            clearInterval(timer);
             Java.scheduleOnMainThread(() => {
                 for (const bar of bars) bar.released = true;
                 visitBars(() => true);

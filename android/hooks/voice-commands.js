@@ -1,8 +1,9 @@
 import {planFor, executePlan} from './voice-engine.js';
 import {QingganBus} from './qinggan-bus.js';
 import {approvedVoiceCommands, requireStationary, VoiceCommandFailure} from './voice-safety.js';
+import {createReporter} from './report.js';
 
-export function installVoice(Java) {
+export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR')) {
     Java.perform(() => {
         try {
             const Global = Java.use('android.provider.Settings$Global');
@@ -48,7 +49,13 @@ export function installVoice(Java) {
                 if (now() >= expires) throw new VoiceCommandFailure('blocked', 'Vehicle command expired');
             }
             setInterval(() => Java.perform(() => {
-                const raw = String(Global.getString(resolver, KEY) || '');
+                let raw;
+                try { raw = String(Global.getString(resolver, KEY) || ''); }
+                catch (error) {
+                    // A provider failure must not escape the timer several times a second.
+                    reportError('settings', error);
+                    return;
+                }
                 if (!raw || raw === last) return;
                 last = raw;
                 let request;
@@ -275,6 +282,10 @@ export function installVoice(Java) {
                 }
             }),250);
             console.log('OVC_VOICE_READY protocol=3');
-        } catch (error) { console.log('OVC_VOICE_ERROR ' + error + '; retry in 30s');setTimeout(()=>installVoice(Java),30000); }
+        } catch (error) {
+            // The same reporter serves every retry, so a permanent failure is printed at 1, 10, 100 attempts.
+            reportError('install', error);
+            setTimeout(() => installVoice(Java, reportError), 30000);
+        }
     });
 }

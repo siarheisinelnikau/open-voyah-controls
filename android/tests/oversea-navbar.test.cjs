@@ -2,13 +2,13 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const source = ['launcher-buttons.js', 'navbar-oversea.js'].map(file =>
+const source = ['report.js', 'launcher-buttons.js', 'navbar-oversea.js'].map(file =>
     fs.readFileSync(__dirname + '/../hooks/' + file, 'utf8')
         .replace(/^import .*;$/gm, '').replaceAll('export function', 'function')).join('\n');
 
 function harness(options = {}) {
     const config = {schema:1, enabled:true, actions:{}};
-    const logs = [], launches = [], states = [], bars = [], hooks = [];
+    const logs = [], launches = [], states = [], bars = [], hooks = [], failedSlots = [];
     let stock = 0, stockHolds = 0;
     const object = value => Object.assign(value, {equals(other) { return this === other; }, $dispose() {}});
     const context = {
@@ -26,7 +26,10 @@ function harness(options = {}) {
     layouts.forEach(([name, ...fields], screen) => {
         const bar = object({screen, mScreenId:{value:screen}});
         for (const field of fields) bar[field] = {value:object({mListenerInfo:{value:{mOnClickListener:{value:bar}}}})};
-        const click = {returnType:{className: options.badSignature && screen === 1 ? 'boolean' : 'void'}, call() { stock++; }};
+        const click = {returnType:{className: options.badSignature && screen === 1 ? 'boolean' : 'void'}, call() {
+            stock++;
+            if (options.failNative) throw Error('java.lang.IllegalStateException: private native action');
+        }};
         const constructor = {call() {}};
         hooks.push({click, constructor}); bars.push(bar);
         classes[name] = {
@@ -44,31 +47,43 @@ function harness(options = {}) {
         addFlags(flags) { this.flags = (this.flags ?? 0) | flags; },
         putExtra:{overload() { return {call(intent, key, value) { intent.extras = {[key]:value}; }}; }}
     }; }};
-    classes['android.content.ComponentName'] = {unflattenFromString:value => value, $new:(pkg, cls) => pkg + '/' + cls};
+    classes['android.content.ComponentName'] = {unflattenFromString:value => options.unresolvable ? null : value,
+        $new:(pkg, cls) => pkg + '/' + cls};
     classes['android.app.ActivityOptions'] = {makeBasic() { return {
         setLaunchDisplayId(display) { this.display = display; }, toBundle() { return {display:this.display}; }
     }; }};
     const Java = {
         use(name) { if (!classes[name]) throw Error('Class unavailable'); return classes[name]; },
         perform:fn => fn(), scheduleOnMainThread:fn => fn(), retain:value => value, cast:value => value,
-        choose(name, callback) { callback.onMatch(bars[layouts.findIndex(layout => layout[0] === name)]); callback.onComplete(); }
+        choose(name, callback) {
+            if (options.failChoose) throw Error('java.lang.IllegalStateException: private heap scan');
+            callback.onMatch(bars[layouts.findIndex(layout => layout[0] === name)]); callback.onComplete();
+        }
     };
     vm.runInNewContext(source + '\ninstallOversea(Java);', {
         Java, Process:{id:42}, console:{log:value => logs.push(value)},
         installPanelState(Java, Nav, panels, read, action, build, owns, lifecycle) {
             const tracked = new Set(), failed = new Set();
             const state = {
-                lifecycle, disposed:false,
+                lifecycle, disposed:false, disposeCalls:0,
                 track(nav) { tracked.add(nav); },
                 active(nav, view) { return tracked.has(nav) && !failed.has(view) && Object.values(nav).some(field => field?.value === view); },
-                failed(nav, slot) { failed.add(nav[panels[nav.screen].find(item => item[2] === slot)[0]].value); },
+                failed(nav, slot) {
+                    failedSlots.push(slot);
+                    if (options.failRestore) throw Error('java.lang.IllegalStateException: private restore');
+                    failed.add(nav[panels[nav.screen].find(item => item[2] === slot)[0]].value);
+                },
                 finishScan:() => true,
-                dispose() { this.disposed = true; }
+                dispose() {
+                    this.disposeCalls++;
+                    if (options.failDispose) throw Error('java.lang.IllegalStateException: private dispose');
+                    this.disposed = true;
+                }
             };
             states.push(state); return state;
         }
     });
-    return {config, logs, launches, states, bars, hooks, holds,
+    return {config, logs, launches, states, bars, hooks, holds, failedSlots,
         click(screen, field) { return hooks[screen].click.implementation.call(bars[screen], bars[screen][field].value); },
         hold(screen, field, ...coordinates) { return holds[coordinates.length ? 1 : 0].implementation.call(bars[screen][field].value, ...coordinates); },
         holdAndRelease(screen, field, ...coordinates) {
@@ -187,6 +202,51 @@ test('unsupported second-bar signature leaves both native click paths intact', (
     const h = harness({badSignature:true});
     assert.ok(h.hooks.every(hook => !hook.click.implementation));
     assert.ok(!h.logs.some(line => line.startsWith('OVC_READY ')));
+});
+
+test('a refused overseas launch restores the button and calls the OEM once, like the standard launcher', () => {
+    const options = {unresolvable:true}, h = harness(options);
+    h.config.actions.navbar01 = action;
+    h.click(0, 'mScreenUpItemView1');
+    assert.equal(h.stock, 1); assert.equal(h.launches.length, 0);
+    assert.deepEqual(h.failedSlots, ['navbar01']);
+    options.unresolvable = false;
+    h.click(0, 'mScreenUpItemView1');
+    assert.equal(h.stock, 2); assert.equal(h.launches.length, 0);
+    assert.equal(h.logs.some(line => line.startsWith('OVC_PANEL_ERROR')), false);
+});
+
+test('a throwing restore after a failed overseas launch still reaches the OEM click once', () => {
+    const h = harness({failLaunch:true, failRestore:true});
+    h.config.actions.navbar01 = action;
+    assert.doesNotThrow(() => h.click(0, 'mScreenUpItemView1'));
+    assert.equal(h.stock, 1);
+    assert.deepEqual(h.logs.filter(line => line.startsWith('OVC_PANEL_ERROR')), [
+        'OVC_PANEL_ERROR stage=click kind=Error slot=navbar01',
+        'OVC_PANEL_ERROR stage=restore kind=IllegalStateException slot=navbar01',
+    ]);
+    assert.equal(h.logs.some(line => line.includes('private') || line.includes('Target disappeared')), false);
+});
+
+test('an overseas native hold failure is reported with its slot and still consumes the release', () => {
+    const h = harness({failNative:true});
+    h.config.actions.navbar01 = action;
+    assert.equal(h.hold(0, 'mScreenUpItemView1'), true);
+    assert.equal(h.stock, 1);
+    assert.equal(h.stockHolds, 0);
+    assert.deepEqual(h.logs.filter(line => line.startsWith('OVC_PANEL_ERROR')),
+        ['OVC_PANEL_ERROR stage=hold kind=IllegalStateException slot=navbar01']);
+});
+
+test('a failed overseas installation resets every hook before disposing and names the class', () => {
+    const h = harness({failChoose:true, failDispose:true});
+    assert.ok(h.hooks.every(hook => hook.click.implementation === null && hook.constructor.implementation === null));
+    assert.ok(h.holds.every(hold => hold.implementation === null));
+    assert.deepEqual(h.states.map(state => state.disposeCalls), [1, 1]);
+    assert.deepEqual(h.logs.filter(line => line.startsWith('OVC_')), [
+        'OVC_PANEL_ERROR stage=install kind=IllegalStateException',
+        'OVC_PANEL_ERROR stage=rollback kind=IllegalStateException',
+    ]);
 });
 
 test('a newly constructed bar is tracked before accepting an assignment', () => {

@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=name=>fs.readFileSync(path.join(__dirname,'../hooks',name),'utf8')
     .replace(/^import .*;$/gm,'').replace(/^export /gm,'');
-const modules=['voice-safety.js','voice-engine.js','qinggan-bus.js','voice-commands.js'].map(source).join('\n');
+const modules=['report.js','voice-safety.js','voice-engine.js','qinggan-bus.js','voice-commands.js'].map(source).join('\n');
 const identity={product:'f0506h', fingerprint:'fixture/test/unit:11/review/1:user/test-keys', sdk:30, abi:'arm64-v8a'};
 const commands=['EnableHeatDriverLevelOne','EnableHeatRearLeftLevelOne','OpenTrunkCommand',
     'FastDecreaseTemperature','IncreaseTemperature','CarWashMode','OpenSunroofWithPercent','DriverA','RebootTbox',
@@ -36,7 +36,10 @@ function harness(options={}) {
         return {moveToFirst:()=>true,getString:()=>args[0].startsWith('drive_mode_recycleState')?'4':'2',close(){}};
     }};}}};
     const classes={
-        'android.provider.Settings$Global':{getString(){return raw;}},
+        'android.provider.Settings$Global':{getString(){
+            if(options.providerFailure)throw Error('java.lang.IllegalStateException: provider for private.package is restarting');
+            return raw;
+        }},
         'android.app.ActivityThread':{currentApplication(){return {
             getContentResolver(){return resolver;},
             getPackageName(){return options.packageName ?? 'com.qinggan.app.launcher';},
@@ -275,4 +278,18 @@ test('voice request validity uses elapsed time independently of wall clock chang
     await settle();
     assert.equal(h.writes.length,1);
     assert.ok(h.logs.some(line=>line.includes('"status":"accepted"')));
+});
+
+test('an unavailable settings provider is reported once and does not stop the command poller', async () => {
+    const options = {};
+    const h = harness(options);
+    options.providerFailure = true;
+    for (let tick = 0; tick < 8; tick++) assert.doesNotThrow(() => h.poll());
+    assert.deepEqual(h.logs.filter(line=>line.startsWith('OVC_VOICE_ERROR')),
+        ['OVC_VOICE_ERROR stage=settings kind=IllegalStateException']);
+    options.providerFailure = false;
+    h.send('EnableHeatDriverLevelOne');
+    await settle();
+    assert.deepEqual(h.writes,[['FRONT_SEAT_HEATING_COMMAND_LEFT',1]]);
+    assert.equal(h.logs.some(line=>line.includes('private')),false);
 });
