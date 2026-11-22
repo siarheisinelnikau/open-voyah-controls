@@ -89,4 +89,15 @@
     <string name="apps_install_changed_apk">The APK changed during preparation. Choose the file again.</string>
     <string name="apps_install_cleanup_failed">A prepared APK could not be removed. Check app storage and try again.</string>
     <string name="apps_install_unverified">APK installed. Controls could not confirm that the installation came from it.</string>
+    <string name="app_icon_title">Icon</string>
+    <string name="app_icon_launcher">The app\'s own icon</string>
+    <string name="app_icon_custom">Your picture</string>
+    <string name="app_icon_choose">Choose picture…</string>
+    <string name="app_icon_reset">Use the app\'s icon</string>
+    <string name="app_icon_plain">Remove the white background (experimental)</string>
+    <string name="app_icon_plain_hint">Applies to the app grid and the launcher panel. A picture you chose takes precedence.</string>
+    <string name="app_icon_plain_not_found">This icon has no white background to remove.</string>
+    <string name="app_icon_image_failed">The picture could not be used as an icon.</string>
+    <string name="app_icon_save_failed">The icon setting could not be saved.</string>
+    <string name="app_icon_picker_unavailable">No app is available to choose a picture.</string>
 </resources>

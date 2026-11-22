@@ -4,17 +4,19 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import org.openvoyah.controls.InstalledApps
+import org.openvoyah.controls.data.apps.AppIconPreferences
 
 internal data class LauncherShortcut(val entry: InstalledApps.Entry, val icon: Bitmap?)
 
 internal class LauncherShortcuts(private val context: Context) {
     fun resolve(components: Set<String>): Map<String, LauncherShortcut> = buildMap {
+        val icons = AppIconPreferences(context).all()
         for (packageName in components.map { it.substringBefore('/') }.distinct()) {
             for (entry in entries(packageName)) {
                 val id = entry.component().flattenToString()
                 if (id !in components) continue
                 val icon = try {
-                    context.appIcon(context.packageManager.getActivityIcon(entry.component()))
+                    context.appIcon(context.packageManager.getActivityIcon(entry.component()), icons[packageName])
                 } catch (_: PackageManager.NameNotFoundException) {
                     null
                 } catch (_: RuntimeException) {

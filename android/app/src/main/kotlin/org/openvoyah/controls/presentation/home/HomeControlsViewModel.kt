@@ -19,7 +19,9 @@ interface HomeActions {
     fun command(command: HomeCommand)
     fun buttonsEnabled(enabled: Boolean)
     fun panelEnabled(enabled: Boolean)
-    fun plainNavigatorIcon(enabled: Boolean)
+    fun navigatorHomeCard(enabled: Boolean)
+    fun weatherCard(enabled: Boolean)
+    fun weatherCity(city: String)
     fun choosePanel(slot: String)
     fun editBinding(id: String)
 }
@@ -31,7 +33,9 @@ interface HomeActions {
 @Immutable
 internal data class HomeControlsState(
     val available: Boolean = false, val error: String? = null, val health: String = "",
-    val buttonsEnabled: Boolean = false, val panelEnabled: Boolean = false, val plainNavigatorIcon: Boolean = true,
+    val buttonsEnabled: Boolean = false, val panelEnabled: Boolean = false,
+    val navigatorHomeCard: Boolean = false, val navigatorHomeCardSupported: Boolean = false,
+    val weatherCard: Boolean = false, val weatherCity: String = "",
     val connected: Boolean = false,
     val holdMs: Int = 650, val debounceMs: Int = 100, val steeringSupported: Boolean = false,
     val panels: List<PanelRow> = emptyList(), val bindings: List<BindingRow> = emptyList(),
@@ -78,7 +82,9 @@ internal class HomeControlsViewModel(
     fun panelEnabled(enabled: Boolean) {
         if (change { it.panelEnabled = enabled } && !panel.configured()) error(UiText.get(R.string.ui_70))
     }
-    fun plainNavigatorIcon(enabled: Boolean) = change { it.plainNavigatorIcon = enabled }
+    fun navigatorHomeCard(enabled: Boolean) = change { it.navigatorHomeCard = enabled }
+    fun weatherCard(enabled: Boolean) = change { it.weatherCard = enabled }
+    fun weatherCity(city: String) { current.value = current.value.copy(weatherCity = city) }
     fun choosePanel(slot: String, action: Action) {
         if (slot !in PanelSlots.forProduct(product)) return
         if (change {
@@ -156,7 +162,8 @@ internal class HomeControlsViewModel(
             it.holdMs = source.holdMs
             it.debounceMs = source.debounceMs
             it.panelEnabled = source.panelEnabled
-            it.plainNavigatorIcon = source.plainNavigatorIcon
+            it.navigatorHomeCard = source.navigatorHomeCard
+            it.weatherCard = source.weatherCard
             it.bindings.clear()
             it.bindings.addAll(source.bindings)
             it.panelActions.clear()
@@ -207,7 +214,10 @@ internal class HomeControlsViewModel(
         }
         current.value = current.value.copy(available = true, error = null, health = panel.health(),
             buttonsEnabled = settings.enabled, panelEnabled = settings.panelEnabled,
-            plainNavigatorIcon = settings.plainNavigatorIcon, connected = connected(),
+            navigatorHomeCard = settings.navigatorHomeCard,
+            weatherCard = settings.weatherCard,
+            // The overseas launcher has no Baidu navigation card to replace.
+            navigatorHomeCardSupported = product != "f6811", connected = connected(),
             holdMs = settings.holdMs, debounceMs = settings.debounceMs, steeringSupported = sdk in listOf(28, 30),
             panels = panels, bindings = bindings, steering = steering)
     }

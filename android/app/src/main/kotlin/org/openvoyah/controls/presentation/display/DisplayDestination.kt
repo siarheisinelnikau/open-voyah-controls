@@ -72,11 +72,15 @@ internal fun DisplayDestination(back: () -> Unit) {
                     Locale.forLanguageTag(UiText.language()))
             }
             initializer { AppDisplayDefaultsViewModel(windows) }
+            initializer { WindowSwipeViewModel(windows) }
         })
     }
     val model = remember(provider) { provider[DisplayViewModel::class.java] }
     val defaults = remember(provider, windows) {
         if (windows.supported) provider[AppDisplayDefaultsViewModel::class.java] else null
+    }
+    val swipe = remember(provider, windows) {
+        if (windows.supported) provider[WindowSwipeViewModel::class.java] else null
     }
     val preview = remember(activity) { VirtualDisplayPreview(activity) }
     val dialogs = remember(activity) { CockpitDialogs(activity) }
@@ -131,7 +135,7 @@ internal fun DisplayDestination(back: () -> Unit) {
         if (started && preferred.isNotEmpty()) preferredLabel = model.mediaSourceLabel(preferred)
     }
     DisplayScreen(
-        state, status, if (started) defaults else null, media, preferredLabel, back,
+        state, status, if (started) defaults else null, if (started) swipe else null, media, preferredLabel, back,
         needsMediaAccess = needsMediaAccess,
         canvasDensity = canvasDensity,
         chooseDensity = {

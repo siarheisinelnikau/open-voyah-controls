@@ -75,10 +75,12 @@ function harness(options={}) {
         JSON:{parse:value=>{parses.count++;return JSON.parse(value);},stringify:JSON.stringify}});
     return {logs,passed,retries,refreshed,parses,tick:()=>tick(),setRaw:value=>{raw=value;},
         failReads:value=>{readFailure=value;},
-        setText:value=>text.implementation.call({},value,'NORMAL'),
-        setHint:value=>hint.implementation.call({},value),
-        getText:()=>typed.implementation.call({},0),
-        getResourceText:()=>resource.implementation.call({},0x7f010001)};
+        // An OEM call: through the hook while one is installed, straight to the original method otherwise.
+        hooked:()=>[text,hint,typed,resource].map(item=>typeof item.implementation==='function'),
+        setText:value=>(text.implementation ?? ((v,t)=>text.call({},v,t))).call({},value,'NORMAL'),
+        setHint:value=>(hint.implementation ?? (v=>hint.call({},v))).call({},value),
+        getText:()=>(typed.implementation ?? (()=>typed.call({},0))).call({},0),
+        getResourceText:()=>(resource.implementation ?? (()=>resource.call({},0))).call({},0x7f010001)};
 }
 // A Java CharSequence: String() on it is a JNI toString() call.
 function chars(text) {
@@ -97,6 +99,8 @@ test('without an applicable dictionary text passes through unconverted and uncha
         assert.ok(h.passed.every(item=>item===value));
         assert.equal(value.calls,0);
         assert.deepEqual(h.logs,['OVC_LOCALIZATION_READY '+(options.packageName ?? 'com.qinggan.app.launcher')]);
+        // Without a dictionary nothing is hooked, so the OEM text calls do not pass through Frida.
+        assert.deepEqual(h.hooked(),[false,false,false,false]);
     }
 });
 
@@ -108,10 +112,28 @@ test('an applicable dictionary translates exact text and keeps every other text 
     assert.equal(h.passed[1],other);
     assert.equal(h.passed[2],null);
     assert.equal(known.calls,1);
+    assert.deepEqual(h.hooked(),[true,true,true,true]);
     h.setRaw(JSON.stringify({...config,enabled:false}));h.tick();
+    assert.deepEqual(h.hooked(),[false,false,false,false]);
     h.setText(known);
     assert.equal(h.passed[3],known);
     assert.equal(known.calls,1);
+    h.setRaw(JSON.stringify(config));h.tick();
+    assert.deepEqual(h.hooked(),[true,true,true,true]);
+    h.setText(known);
+    assert.deepEqual(h.passed[4],{translated:'Settings'});
+});
+
+test('a dictionary that arrives later installs the hooks and refreshes visible text',()=>{
+    const working={getText:()=>chars('设置'),getHint:()=>null,$dispose(){}};
+    const h=harness({raw:'',views:[working]});
+    assert.deepEqual(h.hooked(),[false,false,false,false]);
+    assert.deepEqual(h.refreshed,[]);
+    h.setRaw(JSON.stringify(config));h.tick();
+    assert.deepEqual(h.hooked(),[true,true,true,true]);
+    assert.deepEqual(h.refreshed,[{translated:'Settings'}]);
+    h.tick();
+    assert.deepEqual(h.refreshed,[{translated:'Settings'}]);
 });
 
 test('a failing conversion keeps the original text and is reported without its message',()=>{
@@ -186,4 +208,13 @@ test('a resource template is translated before the app formats it',()=>{
     const other=chars('Plain resource');
     const k=harness({raw:named,packageName:'com.qinggan.bluetoothphone',resource:other});
     assert.equal(k.getResourceText(),other);
+});
+
+test('a hook that cannot be installed later is reported, reset and not retried for 30 s',()=>{
+    const h=harness({raw:'',noHint:true});
+    assert.deepEqual(h.logs,['OVC_LOCALIZATION_READY com.qinggan.app.launcher']);
+    h.setRaw(JSON.stringify(config));h.tick();h.tick();h.tick();
+    assert.deepEqual(h.hooked(),[false,false,false,false]);
+    assert.deepEqual(h.logs.slice(1),['OVC_LOCALIZATION_ERROR stage=install kind=NoSuchMethodError']);
+    assert.deepEqual(h.retries,[]);
 });

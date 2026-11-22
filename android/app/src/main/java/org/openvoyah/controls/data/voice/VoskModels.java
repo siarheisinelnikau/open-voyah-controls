@@ -30,6 +30,27 @@ public final class VoskModels {
     }
 
     public Model load(Context context, String language, BooleanSupplier current) throws IOException {
+        return load(context, language, null, current);
+    }
+
+    /**
+     * Loads [downloaded], a verified model folder of SpeechModelStore, when the language has no model in the APK;
+     * otherwise unpacks the bundled model of [language] on first use.
+     */
+    public Model load(Context context, String language, File downloaded, BooleanSupplier current) throws IOException {
+        if (downloaded != null) {
+            synchronized (PREPARATION_LOCK) {
+                checkCurrent(current);
+                if (!new File(downloaded, "ready").isFile()) throw new IOException(UiText.get(R.string.voice_model_not_downloaded));
+                if (!downloaded.equals(cachedPath)) release();
+                if (cached == null) {
+                    cached = new Model(downloaded.getAbsolutePath());
+                    cachedPath = downloaded;
+                }
+                if (!current.getAsBoolean()) { release(); checkCurrent(current); }
+                return cached;
+            }
+        }
         synchronized (PREPARATION_LOCK) {
         File path = modelPath(context, language);
         File marker = new File(path, "ready");
@@ -68,7 +89,11 @@ public final class VoskModels {
     }
 
     private static File modelPath(Context context, String language) {
-        return new File(context.getFilesDir(), language.equals("en") ? "speech-model-en-0.15" : "speech-model-ru-0.22");
+        return switch (language) {
+            case "en" -> new File(context.getFilesDir(), "speech-model-en-0.15");
+            case "ru" -> new File(context.getFilesDir(), "speech-model-ru-0.22");
+            default -> throw new IllegalArgumentException("No bundled speech model for this language");
+        };
     }
 
     private static void checkCurrent(BooleanSupplier current) throws IOException {

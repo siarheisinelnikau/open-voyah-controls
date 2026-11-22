@@ -17,6 +17,7 @@ import org.openvoyah.controls.data.apps.AppGridPreferences
 import org.openvoyah.controls.domain.apps.AppGridConfiguration
 import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.domain.apps.AppGridHiddenAppsFull
+import org.openvoyah.controls.domain.apps.AppGridManualOrderFull
 import org.openvoyah.controls.domain.apps.AppGridPins
 import org.openvoyah.controls.platform.apps.AppsCatalog
 import org.openvoyah.controls.platform.apps.LocalApp
@@ -78,6 +79,10 @@ internal class AppsViewModel(
         grid.swapPins(app.id, other.id, desktop)
     }
 
+    /** Moves [app] to the place of [target] in [visible], the app order [desktop] shows; see `AppGridConfiguration.move`. */
+    fun moveApp(app: LocalApp, target: LocalApp, desktop: AppGridDesktop, visible: List<String>) =
+        editGrid(app, desktop, R.string.apps_grid_move_failed) { grid.moveApp(desktop, visible, app.id, target.id) }
+
     fun setAppHidden(app: LocalApp, hidden: Boolean) = editGrid(app, null, R.string.apps_grid_settings_save_failed) {
         grid.setAppHidden(app.id, hidden, app.hiddenByDefault)
     }
@@ -94,6 +99,8 @@ internal class AppsViewModel(
                 throw cancelled
             } catch (_: AppGridHiddenAppsFull) {
                 working.copy(error = R.string.apps_grid_hidden_full)
+            } catch (_: AppGridManualOrderFull) {
+                working.copy(error = R.string.apps_grid_move_full)
             } catch (_: Exception) {
                 working.copy(error = failure)
             }

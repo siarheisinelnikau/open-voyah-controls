@@ -1,0 +1,135 @@
+# Kazakh command vocabulary. The optional fourth column lists final transcript aliases separated by |.
+Assistant	Basic	көмекшіні аш|көмекші|ассистент
+Camera	Basic	камера|камераны аш|камераны қос
+Music	Basic	музыка|музыканы қос
+Navigator	Basic	навигатор|карта|картаны аш|навигацияны аш
+Radio	Basic	радио|радионы қос
+RestartMusic	Basic	музыканы қайта қос|музыканы қайта іске қос
+RestartNavigator	Basic	навигацияны қайта қос|картаны қайта қос
+DecreaseTemperature	Basic	ыстық|ысып кеттім
+FastDecreaseTemperature	Basic	өте ыстық|қатты ыстық
+FastIncreaseTemperature	Basic	өте суық|қатты суық
+FlowBody	Basic	ауа бетке|бетке|ауа денеге|денеге
+FlowBodyLegs	Basic	ауа бетке және аяққа|бетке және аяққа|денеге және аяққа|бет пен аяқ
+FlowLegs	Basic	ауа аяққа|аяққа|аяқ
+FlowWindow	Basic	ауа әйнекке|әйнекке|әйнек
+FlowWindowLegs	Basic	ауа әйнекке және аяққа|әйнекке және аяққа|әйнек пен аяқ
+IncreaseTemperature	Basic	суық|тоңып тұрмын|жаурадым
+OpenElectricityPort	Basic	зарядтау қақпағын аш|зарядтау|зарядтау порты
+OpenFuelPort	Basic	жанармай қақпағын аш|жанармай багы|бензин|жанармай құю
+CarWashMode	Basic	жуу режимі|көлік жуу|жуу
+PowerHold	Basic	қуатты ұстау|қуатты ұстау режимі
+WiperMaintain	Basic	әйнек тазалағыштар|тазалағыштар|щеткалар
+GetFromMemoryCellOne	Basic	жүргізуші бір|бірінші жүргізуші|жүргізуші орындығы бір	жүргізуші 1
+GetFromMemoryCellThree	Basic	жүргізуші үш|үшінші жүргізуші|жүргізуші орындығы үш	жүргізуші 3
+GetFromMemoryCellTwo	Basic	жүргізуші екі|екінші жүргізуші|жүргізуші орындығы екі	жүргізуші 2
+SmokeCommand	Basic	жүргізуші терезесін сәл аш|терезені сәл аш|терезені аздап аш|жүргізуші жағын желдету
+VentilationCommand	Basic	салонды желдету|салонды желдетіңіз|таза ауа|тымырсық
+DisableDriverCondition	DriverSeat	жүргізуші орындығын желдетуді өшір|орындықты желдетуді өшір|желдетуді өшір
+EnableConditionDriverLevelDefault	DriverSeat	жүргізуші орындығын желдету|орындықты желдету|орындықты желдетуді қос
+EnableConditionDriverLevelOne	DriverSeat	жүргізуші орындығын желдету бірінші деңгей|орындықты желдету бірінші деңгей|орындықты желдету бір
+EnableConditionDriverLevelTree	DriverSeat	жүргізуші орындығын желдету үшінші деңгей|орындықты желдету үшінші деңгей|орындықты желдету үш
+EnableConditionDriverLevelTwo	DriverSeat	жүргізуші орындығын желдету екінші деңгей|орындықты желдету екінші деңгей|орындықты желдету екі
+DisableDriverHeat	DriverSeat	жүргізуші орындығын жылытуды өшір|орындықты жылытуды өшір|жылытуды өшір
+EnableHeatDriverLevelDefault	DriverSeat	жүргізуші орындығын жылыту|орындықты жылыту|орындықты жылытуды қос|жылыту
+EnableHeatDriverLevelOne	DriverSeat	жүргізуші орындығын жылыту бірінші деңгей|орындықты жылыту бірінші деңгей|орындықты жылыту бір|жылыту бір
+EnableHeatDriverLevelTree	DriverSeat	жүргізуші орындығын жылыту үшінші деңгей|орындықты жылыту үшінші деңгей|орындықты жылыту үш|жылыту үш
+EnableHeatDriverLevelTwo	DriverSeat	жүргізуші орындығын жылыту екінші деңгей|орындықты жылыту екінші деңгей|орындықты жылыту екі|жылыту екі
+DisableDriverMassage	DriverSeat	жүргізуші массажын өшір|массажды өшір
+EnableMassageDriverLevelDefault	DriverSeat	жүргізуші массажын қос|массажды қос|массаж|жүргізуші массажы
+EnableMassageDriverLevelOne	DriverSeat	жүргізуші массажы бірінші деңгей|массаж бірінші деңгей|массаж бір
+EnableMassageDriverLevelTree	DriverSeat	жүргізуші массажы үшінші деңгей|массаж үшінші деңгей|массаж үш
+EnableMassageDriverLevelTwo	DriverSeat	жүргізуші массажы екінші деңгей|массаж екінші деңгей|массаж екі
+AdaptiveLightOff	Light	адаптивті жарықты өшір|автоматты алыс жарықты өшір
+AdaptiveLightOn	Light	адаптивті жарықты қос|адаптивті жарық|автоматты алыс жарық|автоматты алыс жарықты қос
+AutoMode	Light	фаралар авто|фаралар автоматты
+LampOff	Light	жарықты өшір|шамдарды өшір|фаралар өшсін
+LowBeam	Light	жақын жарық|фаралар|жарықты қос
+PositionLamp	Light	габариттік оттар|габариттік шамдар
+RearFog	Light	тұманға қарсы шамдар|тұман шамдары|артқы тұман шамы
+BackLightModeNight	Light	жарықтық түн|түнгі жарықтық
+BackLightModeDay	Light	жарықтық күн|күндізгі жарықтық
+BackLightModeAuto	Light	жарықтық авто|автоматты жарықтық
+ComfortMode	Mode	комфорт режимі|комфорт
+EcoMode	Mode	эко режимі|эко
+IndividualMode	Mode	жеке режим|жеке|индивидуалды режим
+OffroadMode	Mode	жолсыздық режимі|жолсыздық|қала сырты
+SnowMode	Mode	қар режимі|қар
+SportMode	Mode	спорт режимі|спорт
+ElectroMode	Mode	электр режимі|электр|электро
+ForcedElectroMode	Mode	мәжбүрлі электр режимі|мәжбүрлі электр
+FuelMode	Mode	жанармай режимі|отын режимі|отын
+HybridMode	Mode	гибрид режимі|гибрид
+IntellectMode	Mode	интеллектуалды режим|ақылды режим|смарт режимі|смарт
+SaveMode	Mode	сақтау режимі|сақтау|зарядты сақтау
+SaveModeWithSOC	Mode	сақтау жиырма бес|сақтау отыз|сақтау отыз бес|сақтау қырық|сақтау қырық бес|сақтау елу|сақтау елу бес|сақтау алпыс|сақтау алпыс бес|сақтау жетпіс|сақтау жетпіс бес|сақтау сексен
+Split	Other	экранды бөл|экранды екіге бөл|сплит скрин
+DisableWheelHeat	Other	рульді жылытуды өшір
+EnableWheelHeat	Other	рульді жылыту|рульді жылытуды қос
+Magic	Other	сиқыр|магия
+RebootTbox	Other	модемді қайта жүкте|интернетті қайта жүкте
+DriverA	Other	пайдаланушы а|профиль а
+DriverB	Other	пайдаланушы б|профиль б|пайдаланушы би
+DriverC	Other	пайдаланушы ц|профиль ц|пайдаланушы си
+Weather	Other	ауа райы|бүгінгі ауа райы|қазіргі ауа райы
+WeatherTomorrow	Other	ертеңгі ауа райы|ертеңге болжам|ауа райы ертең
+Like	Other	ұнайды|маған ұнайды|лайк
+RemoveLike	Other	лайк алып таста|лайк жою
+DisLike	Other	ұнамайды|маған ұнамайды
+Sentry	Other	күзет режимі|күзет
+ControlsSettings	Other	баптаулар|қолданба баптаулары|контроль баптаулары
+DisablePassengerCondition	PassengerSeat	жолаушы орындығын желдетуді өшір
+EnableConditionPassengerLevelDefault	PassengerSeat	жолаушы орындығын желдету|жолаушы орындығын желдетуді қос
+EnableConditionPassengerLevelOne	PassengerSeat	жолаушы орындығын желдету бірінші деңгей|жолаушы орындығын желдету бір
+EnableConditionPassengerLevelTree	PassengerSeat	жолаушы орындығын желдету үшінші деңгей|жолаушы орындығын желдету үш
+EnableConditionPassengerLevelTwo	PassengerSeat	жолаушы орындығын желдету екінші деңгей|жолаушы орындығын желдету екі
+DisablePassengerHeat	PassengerSeat	жолаушы орындығын жылытуды өшір
+EnableHeatPassengerLevelDefault	PassengerSeat	жолаушы орындығын жылыту|жолаушы орындығын жылытуды қос
+EnableHeatPassengerLevelOne	PassengerSeat	жолаушы орындығын жылыту бірінші деңгей|жолаушы орындығын жылыту бір
+EnableHeatPassengerLevelTree	PassengerSeat	жолаушы орындығын жылыту үшінші деңгей|жолаушы орындығын жылыту үш
+EnableHeatPassengerLevelTwo	PassengerSeat	жолаушы орындығын жылыту екінші деңгей|жолаушы орындығын жылыту екі
+DisablePassengerMassage	PassengerSeat	жолаушы массажын өшір
+EnableMassagePassengerLevelDefault	PassengerSeat	жолаушы массажын қос|жолаушы массажы
+EnableMassagePassengerLevelOne	PassengerSeat	жолаушы массажы бірінші деңгей|жолаушы массажы бір
+EnableMassagePassengerLevelTree	PassengerSeat	жолаушы массажы үшінші деңгей|жолаушы массажы үш
+EnableMassagePassengerLevelTwo	PassengerSeat	жолаушы массажы екінші деңгей|жолаушы массажы екі
+DisableRearLeftHeat	RearSeat	артқы сол жақ орындықты жылытуды өшір|артқы сол жақты жылытуды өшір
+EnableHeatRearLeftLevelDefault	RearSeat	артқы сол жақ орындықты жылыту|артқы сол жақты жылыту
+EnableHeatRearLeftLevelOne	RearSeat	артқы сол жақ орындықты жылыту бірінші деңгей|артқы сол жақты жылыту бір
+EnableHeatRearLeftLevelTwo	RearSeat	артқы сол жақ орындықты жылыту екінші деңгей|артқы сол жақты жылыту екі
+EnableHeatRearLeftLevelTree	RearSeat	артқы сол жақ орындықты жылыту үшінші деңгей|артқы сол жақты жылыту үш
+DisableRearRightHeat	RearSeat	артқы оң жақ орындықты жылытуды өшір|артқы оң жақты жылытуды өшір
+EnableHeatRearRightLevelDefault	RearSeat	артқы оң жақ орындықты жылыту|артқы оң жақты жылыту
+EnableHeatRearRightLevelOne	RearSeat	артқы оң жақ орындықты жылыту бірінші деңгей|артқы оң жақты жылыту бір
+EnableHeatRearRightLevelTwo	RearSeat	артқы оң жақ орындықты жылыту екінші деңгей|артқы оң жақты жылыту екі
+EnableHeatRearRightLevelTree	RearSeat	артқы оң жақ орындықты жылыту үшінші деңгей|артқы оң жақты жылыту үш
+DisableAllHeating	RearSeat	барлық жылытуды өшір|барлық жылытқыштарды өшір|барлық жылытуды тоқтат
+EnableAllHeating	RearSeat	барлық жылытуды қос|барлық жылытқыштарды қос|барлық жылыту
+EnableMinRecuperation	Recuperation	әлсіз регенерация|регенерация минимум|регенерация бір|регенерация бірінші деңгей
+EnableStandardRecuperation	Recuperation	орташа регенерация|регенерация стандарт|регенерация екі|регенерация екінші деңгей
+EnableMaxRecuperation	Recuperation	күшті регенерация|регенерация максимум|регенерация үш|регенерация үшінші деңгей
+CloseSunroof	Window	люк жап|төбе терезесін жап|люк жабу
+OpenSunroof	Window	люк аш|төбе терезесін аш|люк ашылсын|люк ашу
+OpenSunroofWithPercent	Window	люк он пайызға аш|люк он пайыз|люк он|люк жиырма пайызға аш|люк жиырма пайыз|люк жиырма|люк отыз пайызға аш|люк отыз пайыз|люк отыз|люк қырық пайызға аш|люк қырық пайыз|люк қырық|люк елу пайызға аш|люк елу пайыз|люк елу|люк алпыс пайызға аш|люк алпыс пайыз|люк алпыс|люк жетпіс пайызға аш|люк жетпіс пайыз|люк жетпіс|люк сексен пайызға аш|люк сексен пайыз|люк сексен|люк тоқсан пайызға аш|люк тоқсан пайыз|люк тоқсан|люк жүз пайызға аш|люк жүз пайыз|люк жүз
+OpenSunroofVentilation	Window	люк желдету|люк желдету режимі
+CloseSunshade	Window	пердені жап|люк пердесін жап|панорама пердесін жап
+OpenSunshade	Window	пердені аш|люк пердесін аш|панорама пердесін аш
+OpenSunshadeWithPercent	Window	пердені он пайызға аш|перде он пайыз|перде он|пердені жиырма пайызға аш|перде жиырма пайыз|перде жиырма|пердені отыз пайызға аш|перде отыз пайыз|перде отыз|пердені қырық пайызға аш|перде қырық пайыз|перде қырық|пердені елу пайызға аш|перде елу пайыз|перде елу|пердені алпыс пайызға аш|перде алпыс пайыз|перде алпыс|пердені жетпіс пайызға аш|перде жетпіс пайыз|перде жетпіс|пердені сексен пайызға аш|перде сексен пайыз|перде сексен|пердені тоқсан пайызға аш|перде тоқсан пайыз|перде тоқсан|пердені жүз пайызға аш|перде жүз пайыз|перде жүз
+CloseTrunkCommand	Window	жүк бөлімін жап|артқы қақпақты жап
+OpenTrunkCommand	Window	жүк бөлімін аш|артқы қақпақты аш
+DisableTrunkCommand	Window	жүк бөлімін құлыпта|артқы қақпақты құлыпта
+EnableTrunkCommand	Window	жүк бөлімінің құлпын аш|артқы қақпақтың құлпын аш
+CloseAllWindowCommand	Window	барлық терезелерді жап
+CloseDriverWindowCommand	Window	жүргізуші терезесін жап|терезені жап
+ClosePassengerWindowCommand	Window	жолаушы терезесін жап
+OpenAllWindowCommand	Window	барлық терезелерді аш
+OpenDriverWindowCommand	Window	жүргізуші терезесін аш|терезені аш
+OpenPassengerWindowCommand	Window	жолаушы терезесін аш
+MediaPlay	Media	музыканы жалғастыр|ойнату
+MediaPause	Media	кідірту|үзіліс|музыканы тоқтат
+MediaNext	Media	келесі трек|келесі ән
+MediaPrevious	Media	алдыңғы трек|алдыңғы ән
+VolumeUp	Media	дыбысты көтер|қаттырақ|дыбысты арттыр
+VolumeDown	Media	дыбысты түсір|дыбысты азайтыңыз|ақырын
+VolumeMute	Media	дыбысты өшір
+SystemSettings	Media	жүйе баптаулары|жүйелік баптаулар

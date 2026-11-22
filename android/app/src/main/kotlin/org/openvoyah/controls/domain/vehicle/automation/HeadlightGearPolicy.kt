@@ -9,7 +9,8 @@ internal enum class HeadlightGearAction(val key: String, val mode: HeadlightMode
     LOW_BEAM("low_beam", HeadlightMode.LOW_BEAM), POSITION("position", HeadlightMode.POSITION),
     OFF("off", HeadlightMode.OFF);
 
-    // The observed native PositionLamp and LampOff plans both require Park and zero speed.
+    // The launcher agent lets AutoMode and LowBeam run while moving; PositionLamp and LampOff would dim the road and
+    // stay Park-only there (MOTION_COMMANDS in hooks/voice-safety.js).
     val allowedInDrive: Boolean get() = this != OFF && this != POSITION
 }
 
@@ -43,7 +44,8 @@ internal data class HeadlightGearDecision(
     fun isCurrent(current: HeadlightGearSettings, telemetry: VehicleTelemetry, lighting: HeadlightStatus, now: Long): Boolean =
         current == settings && current.enabled && session.matches(telemetry) &&
             VehicleSignalKind.GEAR !in telemetry.unavailable && telemetry.gear == gear &&
-            gear.isFreshFor(telemetry, now) && lighting.currentObservation != null &&
+            gear.isFreshFor(telemetry, now) &&
+            // The selector reports only changes, so its mode is often unknown; setting the same mode again is harmless.
             lighting.currentObservation?.mode != action.mode &&
             (action.allowedInDrive || telemetry.isStationary(now))
 }

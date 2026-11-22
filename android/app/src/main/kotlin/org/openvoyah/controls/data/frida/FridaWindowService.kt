@@ -29,7 +29,7 @@ internal class FridaWindowService(context: Context) : WindowProfileService {
         Outcome.UNCONFIRMED
     }
 
-    override fun publishDefaults(passengerRequested: Boolean): DisplayDefaultsDelivery {
+    override fun publishDefaults(passengerRequested: Boolean, moveRequested: Boolean): DisplayDefaultsDelivery {
         val published = try {
             bridge.syncWindowProfiles()
         } catch (_: IOException) {
@@ -37,8 +37,21 @@ internal class FridaWindowService(context: Context) : WindowProfileService {
         }
         return when {
             !published -> DisplayDefaultsDelivery.SAVED
+            moveRequested && !moveReady() -> DisplayDefaultsDelivery.MOVE_UNAVAILABLE
             passengerRequested && !bridge.passengerWindowReviewed() -> DisplayDefaultsDelivery.CENTRAL_ONLY
             else -> DisplayDefaultsDelivery.NEXT_LAUNCH
         }
+    }
+
+    override fun recallMovedWindows(): Boolean = try {
+        bridge.recallMovedWindows()
+    } catch (_: IOException) {
+        false
+    }
+
+    private fun moveReady(): Boolean = try {
+        bridge.displayMoveReady()
+    } catch (_: IOException) {
+        false
     }
 }

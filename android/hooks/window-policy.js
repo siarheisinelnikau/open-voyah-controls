@@ -3,6 +3,7 @@ import { android11WindowHook } from './window-android11.js';
 import { createReporter, errorKind } from './report.js';
 import { systemTasks } from './window-tasks.js';
 import { systemReserve } from './window-reserve.js';
+import { android11DisplayMoves, displayMover } from './window-display-move.js';
 import { RESERVE_GUARD, reserveSwitch } from './window-reserve-switch.js';
 import {
     CENTRAL_DISPLAY, CONTROLS, OEM_LAUNCHER, PANEL_CONFIG, PANEL_EDGE, SECONDARY_DISPLAY, WINDOW_CONFIG, WINDOW_REQUEST,
@@ -265,6 +266,29 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         catch (error) { pendingLaunches.delete(key); throw error; }
     }
 
+    // Optional, and looked up once both start hooks are known to fit: a firmware without one of its members keeps
+    // the rest of the window service and says displayMove=0.
+    let moves = null;
+    if (sdk === 30) {
+        try { moves = android11DisplayMoves(Java); } catch (error) { report('display_move', error); }
+    }
+    /** The swipe between screens, wired to this agent's placement policy. Null without the Android 11 members. */
+    const mover = moves && displayMover({
+        api: moves,
+        componentKey,
+        prepare: (task, info) => tasks.prepareMove(task, componentKey(info.component).split('/')[0], info.user),
+        placed: (component, user, taskId, displayId) => {
+            const key = componentKey(component);
+            if (key && !released) applyAfterLaunch({key, user, edge:0, caller:CONTROLS, fromHome:false, display:displayId},
+                taskId, null, displayId);
+        },
+        schedule: work => setTimeout(() => Java.perform(work), 0),
+        report: (phase, error) => reportError(phase, error),
+        announce: line => console.log(line),
+    });
+    const moveWanted = () => !released && config?.enabled === true && config.displayMove
+        ? {fingers: config.displayMove.fingers, passenger: config.passengerDisplayId ?? 1} : null;
+
     function refresh() {
         const windows = raw(WINDOW_CONFIG);
         const buttons = raw(PANEL_CONFIG);
@@ -299,10 +323,16 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
             if (!Global.putString(resolver, WINDOW_REQUEST, null)) throw Error('Window request could not be consumed');
             if (command.operation === 'release') {
                 released = true;
-                // The display returns to its native layout first; the tasks are then restored into it.
+                // Moved windows come back to the central display first, then it returns to its native layout and
+                // the tasks are restored into it.
+                const returned = mover ? mover.release() : true;
                 const native = reservation.stop();
                 result = tasks.release(command.user);
+                if (!returned) throw Object.assign(Error('A moved window stayed on its screen'), {code:'rollback_failed'});
                 if (!native) throw Object.assign(Error('The reserved strip was not released'), {code:'rollback_failed'});
+            } else if (command.operation === 'recall') {
+                if (!mover?.recall()) throw Object.assign(Error('Moved windows did not return'), {code:'rollback_failed'});
+                result = {};
             } else if (command.operation === 'insets') {
                 // Answers from memory: the app asks this when it shows the option, and must not change anything.
                 const strip = reservation.status();
@@ -398,6 +428,7 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
     setInterval(() => Java.perform(() => {
         try { request(); } catch (error) { reportError('settings', error); }
         try { reservation.sync(reservationWanted()); } catch (error) { reportError('reserve', error); }
+        try { mover?.sync(moveWanted()); } catch (error) { reportError('display_move', error); }
     }), 400);
-    console.log('OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1 systemInsets=1');
+    console.log('OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1 systemInsets=1 displayMove=' + (mover ? 1 : 0));
 }

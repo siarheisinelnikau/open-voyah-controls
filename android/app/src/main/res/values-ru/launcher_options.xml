@@ -10,6 +10,15 @@
     <string name="apps_grid_empty_main">Нет приложений для отображения.</string>
     <string name="apps_grid_hidden_apps">Скрытые приложения</string>
     <string name="apps_hide">Скрывать в списке приложений</string>
+    <string name="apps_move">Переместить</string>
+    <string name="apps_move_hint">Перетащите приложение на новое место; у края экрана страница перелистнётся.</string>
+    <string name="apps_move_picked">Коснитесь места для «%1$s» или перетащите его туда.</string>
+    <string name="apps_move_earlier">Переместить раньше</string>
+    <string name="apps_move_later">Переместить дальше</string>
+    <string name="apps_grid_move_failed">Не удалось сохранить новое место. Попробуйте ещё раз.</string>
+    <string name="apps_grid_move_full">Ручной порядок приложений заполнен. Сначала сбросьте его в настройках сетки приложений.</string>
+    <string name="apps_grid_page">Страница %1$d из %2$d</string>
+    <string name="apps_grid_go_to_page">Страница %1$d</string>
     <string name="apps_grid_hide_by_default">По умолчанию скрывать приложения прошивки и служебные</string>
     <string name="apps_grid_hidden_intro">Скрытых приложений нет во «Всех приложениях» и в поиске; на рабочих столах «Избранное» закреплённые ярлыки остаются. Приложения прошивки и их внутренние действия, клавиатуры, служебные приложения и дополнительные ярлыки скрыты по умолчанию. Ваш выбор для приложения заменяет это правило.</string>
     <string name="apps_grid_hidden_reset">Как по умолчанию</string>

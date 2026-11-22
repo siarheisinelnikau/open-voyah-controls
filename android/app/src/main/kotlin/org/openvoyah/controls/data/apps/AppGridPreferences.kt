@@ -27,6 +27,7 @@ import org.openvoyah.controls.domain.apps.AppGridSortOrder
 import org.openvoyah.controls.domain.apps.AppGridTileSize
 import org.openvoyah.controls.domain.apps.DesktopCardPlacement
 import org.openvoyah.controls.domain.apps.FavoritesBackBehavior
+import org.openvoyah.controls.domain.apps.move
 
 internal class AppGridPreferences(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(STORE, Context.MODE_PRIVATE)
@@ -101,6 +102,13 @@ internal class AppGridPreferences(context: Context) {
         val visible = current.editableManualApps(catalog, AppGridOrderApp::component, AppGridOrderApp::hiddenByDefault)
         val order = AppGridManualOrder.move(current.manualAppOrder, visible.map(AppGridOrderApp::component), source, neighbor, earlier)
         if (order != current.manualAppOrder) ArchivedSettings(manualAppOrder = order) else null
+    }
+
+    /** Moves [source] to the place of [target] in the app order [desktop] shows as [visible]; see `AppGridConfiguration.move`. */
+    suspend fun moveApp(desktop: AppGridDesktop, visible: List<String>, source: String, target: String) = update { current ->
+        val move = current.move(desktop, visible, source, target) ?: return@update null
+        ArchivedSettings(pinnedApps = move.pinnedApps, desktops = move.desktops, manualAppOrder = move.manualAppOrder,
+            sortOrder = move.sortOrder)
     }
 
     suspend fun resetManualAppOrder() = update { current ->

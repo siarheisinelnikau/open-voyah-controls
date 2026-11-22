@@ -1,3 +1,5 @@
+import { installHomeNavigationCard } from './home-navi-card.js';
+import { installHomeWeatherCard } from './home-weather-card.js';
 import { installPanelState } from './panel-state.js';
 import { createReporter } from './report.js';
 
@@ -75,7 +77,7 @@ export function install(Java, onNavigation = () => {}, startup, report = createR
 Java.perform(function () {
     let clickHook, initHook, selectionHook;
     const holdHooks = [];
-    let panelState;
+    let panelState, homeCard = null, weatherCard = null;
     try {
     const Nav = Java.use('com.qinggan.mainlauncher.navigation.NavigationBar');
     const Global = Java.use('android.provider.Settings$Global');
@@ -83,6 +85,7 @@ Java.perform(function () {
     const launch = createActionLauncher(Java, buildIntent);
     const Log = Java.use('android.util.Log');
     const CONFIG = PREFIX + '.panel';
+    const WEATHER = PREFIX + '.homeWeather';
     const onClick = Nav.onClick.overload('android.view.View');
     const View = Java.use('android.view.View');
     const initViews = Nav.initScreenUpViews.overload();
@@ -92,6 +95,11 @@ Java.perform(function () {
 
     function readConfig(context) {
         const raw = Global.getString(context.getContentResolver(), CONFIG);
+        try { return raw === null ? null : JSON.parse(raw.toString()); }
+        catch (error) { return null; }
+    }
+    function readWeather(context) {
+        const raw = Global.getString(context.getContentResolver(), WEATHER);
         try { return raw === null ? null : JSON.parse(raw.toString()); }
         catch (error) { return null; }
     }
@@ -212,7 +220,20 @@ Java.perform(function () {
         panelState?.track(this);
         return result;
     };
-    panelState = installPanelState(Java, Nav, PANELS, readConfig, actionFor, buildIntent, ownsView, {startup});
+    // Its own failure leaves the factory navigation card and does not affect the panel.
+    homeCard = installHomeNavigationCard(Java, {readConfig, onNavigation,
+        launch: (context, component) => launch(context, 0, {kind: 'LAUNCH_APP', component})});
+    weatherCard = installHomeWeatherCard(Java, {readConfig, readWeather});
+    panelState = installPanelState(Java, Nav, PANELS, readConfig, actionFor, buildIntent, ownsView, {startup,
+        // Controls detaches only after this line, so the factory navigation card must be back as well.
+        restored(token) {
+            let restored = false;
+            try { restored = homeCard === null || homeCard.restoreAll(); }
+            catch (error) { report('home_card', error); }
+            try { if (weatherCard !== null && !weatherCard.restoreAll()) restored = false; }
+            catch (error) { restored = false; report('home_weather', error); }
+            if (restored) console.log('OVC_PANEL_ICONS_RESTORED ' + token);
+        }});
     // Injection normally occurs after launcher has already constructed the bars.
     Java.choose('com.qinggan.mainlauncher.navigation.NavigationBar', {
         onMatch(nav) {
@@ -241,6 +262,8 @@ Java.perform(function () {
             try { hook.implementation = null; } catch (resetError) { report('rollback', resetError); }
         }
         try { panelState?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
+        try { homeCard?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
+        try { weatherCard?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
         setTimeout(() => install(Java, onNavigation, startup, report), 30000);
     }
 });

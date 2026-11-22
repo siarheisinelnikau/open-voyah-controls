@@ -72,7 +72,7 @@ internal class DrivingModeMemoryEngine {
             enabled = settings.enabled
         }
         val sample = telemetry.drivingMode?.takeIf {
-            VehicleSignalKind.DRIVING_MODE !in telemetry.unavailable && it.isFreshFor(telemetry, nowNanos)
+            it.isCurrentIn(telemetry, nowNanos)
         }
         val previousMode = newestMode
         // A new gear sample cannot make regressed or contradictory mode feedback current.
@@ -81,7 +81,8 @@ internal class DrivingModeMemoryEngine {
                 sample.observedAtElapsedNanos == previousMode.observedAtElapsedNanos && sample != previousMode)) {
             return DrivingModeMemoryEvaluation()
         }
-        val gear = telemetry.gear?.takeIf { VehicleSignalKind.GEAR !in telemetry.unavailable && it.isFreshFor(telemetry, nowNanos) }
+        // Mode and gear are reported only on change; their last value in this session stays valid.
+        val gear = telemetry.gear?.takeIf { it.isCurrentIn(telemetry, nowNanos) }
         var departingNow = false
         var completedTrip = false
         if (gear == null) {
@@ -124,7 +125,7 @@ internal class DrivingModeMemoryEngine {
     fun acceptCurrent(settings: DrivingModeMemorySettings, telemetry: VehicleTelemetry, nowNanos: Long): DrivingModeRecord? {
         if (!settings.enabled || !telemetry.isStationary(nowNanos)) return null
         val actual = telemetry.drivingMode?.takeIf {
-            VehicleSignalKind.DRIVING_MODE !in telemetry.unavailable && it.isFreshFor(telemetry, nowNanos)
+            it.isCurrentIn(telemetry, nowNanos)
         } ?: return null
         if (session == telemetry.sessionId && sessionStartedAt == telemetry.sessionStartedAtElapsedNanos &&
             identity == telemetry.identity && newestMode?.let { previous ->

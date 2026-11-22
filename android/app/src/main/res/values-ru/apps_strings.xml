@@ -89,4 +89,15 @@
     <string name="apps_install_invalid_apk">Выбранный файл не является читаемым APK Android. Выберите файл APK.</string>
     <string name="apps_install_changed_apk">APK изменился во время подготовки. Выберите файл ещё раз.</string>
     <string name="apps_install_cleanup_failed">Не удалось удалить подготовленный APK. Проверьте хранилище приложения и повторите попытку.</string>
+    <string name="app_icon_title">Значок</string>
+    <string name="app_icon_launcher">Значок приложения</string>
+    <string name="app_icon_custom">Своя картинка</string>
+    <string name="app_icon_choose">Выбрать картинку…</string>
+    <string name="app_icon_reset">Вернуть значок приложения</string>
+    <string name="app_icon_plain">Убрать белый фон (эксперимент)</string>
+    <string name="app_icon_plain_hint">Действует в сетке приложений и на панели лаунчера. Своя картинка важнее.</string>
+    <string name="app_icon_plain_not_found">У этого значка нет белого фона, который можно убрать.</string>
+    <string name="app_icon_image_failed">Эту картинку не удалось использовать как значок.</string>
+    <string name="app_icon_save_failed">Не удалось сохранить настройку значка.</string>
+    <string name="app_icon_picker_unavailable">Нет приложения для выбора картинки.</string>
 </resources>

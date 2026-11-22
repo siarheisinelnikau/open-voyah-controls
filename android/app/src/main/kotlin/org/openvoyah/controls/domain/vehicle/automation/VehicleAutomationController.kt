@@ -23,7 +23,6 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleAutomationPort
 import org.openvoyah.controls.domain.vehicle.automation.VehicleAutomationSettings
 import org.openvoyah.controls.domain.vehicle.automation.VehicleAutomationStore
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
-import org.openvoyah.controls.domain.vehicle.automation.VehicleSignalKind
 import org.openvoyah.controls.domain.vehicle.automation.VehicleSignal
 
 internal class DrivingModeRestorePrompt(
@@ -105,8 +104,7 @@ internal class VehicleAutomationController(
                         historyFailed = remembered.isFailure, telemetry = car, lighting = lamps,
                         rememberedMode = remembered.getOrNull(), actualMode = memory?.actual,
                         canRememberCurrent = settings?.drivingMode?.enabled == true && remembered.isSuccess &&
-                            car.isStationary(now) && VehicleSignalKind.DRIVING_MODE !in car.unavailable &&
-                            car.drivingMode?.isFreshFor(car, now) == true,
+                            car.isStationary(now) && car.drivingMode?.isCurrentIn(car, now) == true,
                         restoreCandidate = memory?.restore, capabilities = capabilities, prompt = prompt)
                 }
                 memory?.save?.takeIf { active == generation }?.let { record ->
@@ -185,7 +183,7 @@ internal class VehicleAutomationController(
         val car = before.telemetry ?: return
         val actual = car.drivingMode
         if (before.working || before.saving || !car.isStationary(nowNanos()) || target.mode !in before.capabilities.drivingModes ||
-            VehicleSignalKind.DRIVING_MODE in car.unavailable || actual == null || !actual.isFreshFor(car, nowNanos())) {
+            actual == null || !actual.isCurrentIn(car, nowNanos())) {
             mutable.update { it.copy(outcome = VehicleAutomationOutcome.BLOCKED) }
             return
         }
@@ -212,8 +210,7 @@ internal class VehicleAutomationController(
             car.sessionStartedAtElapsedNanos != prompt.sessionStartedAtElapsedNanos ||
             car.drivingMode != prompt.actualMode ||
             prompt.record.identity != car.identity || !car.isStationary(nowNanos()) ||
-            VehicleSignalKind.DRIVING_MODE in car.unavailable ||
-            car.drivingMode?.isFreshFor(car, nowNanos()) != true ||
+            car.drivingMode?.isCurrentIn(car, nowNanos()) != true ||
             prompt.record.mode !in before.capabilities.drivingModes) {
             if (before.prompt === prompt) mutable.update { it.copy(prompt = null, outcome = VehicleAutomationOutcome.BLOCKED) }
             return
@@ -229,7 +226,7 @@ internal class VehicleAutomationController(
                     latest == null || latest.sessionId != car.sessionId || latest.identity != car.identity ||
                     latest.sessionStartedAtElapsedNanos != car.sessionStartedAtElapsedNanos ||
                     latest.drivingMode != car.drivingMode || !latest.isStationary(nowNanos()) ||
-                    latest.drivingMode?.isFreshFor(latest, nowNanos()) != true) {
+                    latest.drivingMode?.isCurrentIn(latest, nowNanos()) != true) {
                     if (restoreOwner === owner) mutable.update { it.copy(outcome = VehicleAutomationOutcome.BLOCKED) }
                     return@launch
                 }

@@ -416,6 +416,7 @@
         "schema": 1,
         "values": {
           "language": "en",
+          "engine": "zipformer",
           "level.EnableConditionDriverLevelDefault": "1",
           "level.EnableHeatDriverLevelDefault": "2",
           "level.EnableMassageDriverLevelDefault": "3",
@@ -914,6 +915,7 @@
         "schema": 1,
         "values": {
           "language": "ru",
+          "engine": "vosk",
           "level.EnableConditionDriverLevelDefault": "2",
           "level.EnableHeatDriverLevelDefault": "3",
           "level.EnableMassageDriverLevelDefault": "1",
@@ -1048,6 +1050,11 @@
       "area": "Voice",
       "name": "Voice language",
       "path": "/voice/values/language"
+    },
+    {
+      "area": "Voice",
+      "name": "speech engine",
+      "path": "/voice/values/engine"
     },
     {
       "area": "Voice",

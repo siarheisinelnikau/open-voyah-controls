@@ -3,6 +3,7 @@ package org.openvoyah.controls
 import android.test.AndroidTestCase
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands.Identity
+import org.openvoyah.controls.data.settings.VehicleCommandSwitches
 
 class ReviewedVoiceCommandsTest : AndroidTestCase() {
     private val fixture = Identity("f0506h", "fixture/test/unit:11/review/1:user/test-keys", 30, "arm64-v8a")
@@ -30,6 +31,25 @@ class ReviewedVoiceCommandsTest : AndroidTestCase() {
         val policy = ReviewedVoiceCommands(context)
         for (command in listOf("EnableHeatDriverLevelOne", "DriverA", "RebootTbox", "Sentry", "LampOff")) {
             assertNull(policy.profileFor(command))
+        }
+    }
+
+    fun testSwitchedOffCommandsAreKeptLocallyAndInvalidNamesAreRejected() {
+        val switches = VehicleCommandSwitches(context)
+        val original = switches.switchedOff()
+        try {
+            switches.replace(setOf("LowBeam", "OpenTrunkCommand"))
+            assertEquals(setOf("LowBeam", "OpenTrunkCommand"), switches.switchedOff())
+            assertTrue(switches.isSwitchedOff("LowBeam"))
+            assertFalse(switches.isSwitchedOff("AutoMode"))
+            assertFalse(ReviewedVoiceCommands(context).isSwitchedOff("LowBeam"))
+            try {
+                switches.replace(setOf("not a command"))
+                fail("An invalid command name was stored")
+            } catch (_: IllegalArgumentException) { }
+            assertEquals(setOf("LowBeam", "OpenTrunkCommand"), switches.switchedOff())
+        } finally {
+            switches.replace(original)
         }
     }
 }

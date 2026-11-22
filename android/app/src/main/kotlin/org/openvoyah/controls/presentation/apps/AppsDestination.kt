@@ -36,6 +36,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import kotlinx.coroutines.launch
 import org.openvoyah.controls.R
+import org.openvoyah.controls.data.apps.AppIconPreferences
 import org.openvoyah.controls.appWindowConfiguration
 import org.openvoyah.controls.data.apps.AppGridPreferences
 import org.openvoyah.controls.data.apps.RootAppStopper
@@ -81,6 +82,8 @@ internal fun AppsDestination(
     val model = remember(provider) { provider["apps-catalog", AppsViewModel::class.java] }
     val settings = remember(provider) { provider[APP_SETTINGS_MODEL_KEY, AppSettingsViewModel::class.java] }
     val state by model.state.collectAsStateWithLifecycle()
+    // A changed app icon shows in the grid and the dock without waiting for the next return to the grid.
+    LaunchedEffect(model) { AppIconPreferences(activity.applicationContext).changes().collect { model.refresh() } }
     val selected by settings.state.collectAsStateWithLifecycle()
     val installation by installer.state.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
     val lifecycle by owner.lifecycle.currentStateAsState()
@@ -143,6 +146,8 @@ internal fun AppsDestination(
     }
     val saved = rememberSaveableStateHolder()
     val desktop = state.desktopFor(entry, entryDesktop)
+    // The move mode belongs to one grid entry and one desktop; a new entry or another desktop ends it.
+    var moving by remember(entry, desktop) { mutableStateOf<AppMoveState?>(null) }
     val motion = LocalCockpitMotion.current
     BackHandler(selected != null, onBack = settings::close)
     AnimatedContent(selected, contentKey = { it?.app?.id },
@@ -182,7 +187,16 @@ internal fun AppsDestination(
                 showSettings = { app ->
                     model.clearGridFailure()
                     settings.open(app)
-                }, open = { open(it, null, false) })
+                }, open = { open(it, null, false) },
+                move = moving,
+                endMove = { moving = null },
+                moveApp = { app, target, visible ->
+                    if (owner.lifecycle.currentState == Lifecycle.State.RESUMED && settings.state.value == null &&
+                        model.state.value.desktopFor(entry, entryDesktop) == desktop) {
+                        model.clearGridFailure()
+                        model.moveApp(app, target, desktop, visible)
+                    }
+                })
         } else {
             val app = current.app
             val grid = state.grid
@@ -195,6 +209,10 @@ internal fun AppsDestination(
                 notice = if (grid?.isFailure == true) R.string.apps_grid_settings_read_failed else edit?.error,
             )
             fun editingThisApp() = owner.lifecycle.currentState == Lifecycle.State.RESUMED && settings.state.value?.app?.id == app.id
+            // Moving needs the app on this desktop's grid, where the move mode shows it.
+            val onGrid = remember(grid, state.apps, app.id, desktop) {
+                grid?.getOrNull()?.arrange(state.apps, LocalApp::id, LocalApp::hiddenByDefault, desktop)?.any { it.id == app.id } == true
+            }
             // Android settings pages offered only where the firmware has them; most head units ship without them.
             val androidPages = remember(app.packageName) { mutableMapOf<AndroidAppAccess?, Intent?>() }
             fun androidPage(access: AndroidAppAccess?): (() -> Unit)? {
@@ -219,6 +237,14 @@ internal fun AppsDestination(
                         model.setAppHidden(app, hide)
                     }
                 },
+                move = if (shortcut != null && onGrid) {
+                    {
+                        if (editingThisApp()) {
+                            settings.close()
+                            if (settings.state.value == null) moving = AppMoveState(app.id)
+                        }
+                    }
+                } else null,
                 open = { display, window -> open(app, display, window) },
                 openAdjacent = { display -> open(app, display, false, adjacent = true) },
                 appInfo = androidPage(null),

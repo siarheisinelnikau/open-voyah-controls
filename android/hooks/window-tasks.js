@@ -314,6 +314,25 @@ export function systemTasks(Java, sdk, panelWidth) {
         });
     }
 
+    /**
+     * Before [task] of [pkg] leaves the central display for another screen: its native placement and density come
+     * back (as on release) and it becomes a fullscreen task, which is what the other screen shows. Needs the
+     * global lock, which the caller already holds.
+     */
+    function prepareMove(task, pkg, user) {
+        const id = key(task);
+        const entry = saved.get(id);
+        const records = activities(task, pkg, user, 0);
+        if (!records || !knownMode(task)) throw error('unsupported_task');
+        if (entry) {
+            if (entry.central) restore(task, records, entry.central, true, entry.dpi);
+            else restoreDensity(task, records, entry);
+            saved.delete(id);
+        }
+        if (task.getWindowingMode() !== framework.fullscreen) api.place(task, null);
+        if (task.getWindowingMode() !== framework.fullscreen) throw error('placement_changed');
+    }
+
     function release(user) {
         return api.lock(() => {
             if (api.user() !== user || api.isLocked()) throw error('unsupported_task');
@@ -338,7 +357,7 @@ export function systemTasks(Java, sdk, panelWidth) {
     }
 
     return {
-        Rect, framework, boundsFor, apply, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf,
+        Rect, framework, boundsFor, apply, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf, prepareMove,
         freeformAvailable: () => api.supportsFreeform() && !api.isLocked(),
         /** After a start of home: hides the tasks that home, now on top of display 0, covers. */
         revealHome: () => api.lock(() => api.revealHome()),

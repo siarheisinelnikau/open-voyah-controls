@@ -14,11 +14,14 @@ class PinnedVehicleTelemetryReducerTest {
     private fun PinnedVehicleTelemetryReducer.read(code: Int, values: List<Int>, at: Long = 100) =
         accept(code, values, at, 1_000)
 
-    @Test fun sharedDoorBaselineAndLockOnlyCallbacksCannotCreateDoorEvidence() {
+    @Test fun firstDoorCallbackGivesStartingPositionsAndLockOnlyCallbacksDoNotRefreshThem() {
         val reader = reducer()
-        assertTrue(reader.read(1, doors()).doors.isEmpty())
-        assertTrue(reader.read(1, doors(lock = 1), 200).doors.isEmpty())
-        assertTrue(VehicleSignalKind.DOORS in reader.telemetry.unavailable)
+        val first = reader.read(1, doors())
+        assertEquals(VehicleDoor.entries.toSet(), first.doors.keys)
+        assertTrue(first.doors.values.all { it.value == VehicleDoorState.CLOSED && it.observedAtElapsedNanos == 100L })
+        val locked = reader.read(1, doors(lock = 1), 200)
+        assertTrue(locked.doors.values.all { it.observedAtElapsedNanos == 100L })
+        assertFalse(VehicleSignalKind.DOORS in locked.unavailable)
     }
 
     @Test fun doorDeltaRefreshesOnlyChangedPositionAndNeverTheOtherDoors() {
@@ -29,17 +32,19 @@ class PinnedVehicleTelemetryReducerTest {
         val current = reader.read(1, doors(driver = 1, passenger = 1, lock = 1), 300)
         assertSame(driver, current.doors[VehicleDoor.DRIVER])
         assertEquals(300L, current.doors[VehicleDoor.PASSENGER]?.observedAtElapsedNanos)
-        assertNull(current.doors[VehicleDoor.REAR_LEFT])
+        assertEquals(100L, current.doors[VehicleDoor.REAR_LEFT]?.observedAtElapsedNanos)
         assertFalse(VehicleSignalKind.DOORS in current.unavailable)
     }
 
-    @Test fun expiredUnrelatedDoorDoesNotBlockANewSelectedDoorDelta() {
+    @Test fun olderDoorPositionsStayKnownForTheSession() {
+        // The producer reports doors only when they change, so an old position is still the current one.
         val reader = reducer()
         reader.read(1, doors())
         reader.read(1, doors(driver = 1), 200)
         val current = reader.read(1, doors(driver = 1, passenger = 1), 6_000_000_000)
-        assertNull(current.doors[VehicleDoor.DRIVER])
-        assertEquals(setOf(VehicleDoor.PASSENGER), current.doors.keys)
+        assertEquals(200L, current.doors[VehicleDoor.DRIVER]?.observedAtElapsedNanos)
+        assertEquals(VehicleDoorState.OPEN, current.doors[VehicleDoor.DRIVER]?.value)
+        assertEquals(6_000_000_000L, current.doors[VehicleDoor.PASSENGER]?.observedAtElapsedNanos)
     }
 
     @Test fun unknownDoorPositionRevokesOnlyItsOwnSample() {
@@ -51,10 +56,11 @@ class PinnedVehicleTelemetryReducerTest {
         assertEquals(200L, current.doors[VehicleDoor.PASSENGER]?.observedAtElapsedNanos)
     }
 
-    @Test fun climateBaselineAndCabinOrFanChangesNeverRefreshOutsideTemperature() {
+    @Test fun firstClimateCallbackGivesOutsideTemperatureAndCabinOrFanChangesNeverRefreshIt() {
         val reader = reducer()
-        assertNull(reader.read(4, climate(20)).outsideCelsius)
-        assertNull(reader.read(4, climate(20, 2), 200).outsideCelsius)
+        val first = reader.read(4, climate(20)).outsideCelsius
+        assertEquals(20f, first?.value)
+        assertSame(first, reader.read(4, climate(20, 2), 200).outsideCelsius)
         val outside = reader.read(4, climate(21, 2), 300).outsideCelsius
         assertEquals(21f, outside?.value)
         assertSame(outside, reader.read(4, climate(21, 3), 400).outsideCelsius)
@@ -80,12 +86,13 @@ class PinnedVehicleTelemetryReducerTest {
         assertTrue(VehicleSignalKind.DRIVING_MODE in unknown.unavailable)
     }
 
-    @Test fun ambiguousFactorySpeedZeroCannotAuthorizeStationary() {
+    @Test fun ambiguousFactorySpeedIsNeverAdmitted() {
         val reader = reducer()
         reader.read(12, listOf(1, 0, 0))
         val zero = reader.read(16, listOf(0), 200)
         assertNull(zero.speedKph)
-        assertFalse(zero.isStationary(200))
+        // Standstill then rests on Park alone; the agent reads live gear and speed before Park-only writes.
+        assertEquals(zero.gear?.value == VehicleGear.PARK, zero.isStationary(200))
         assertNull(reader.read(16, listOf(40), 300).speedKph)
     }
 
@@ -97,7 +104,8 @@ class PinnedVehicleTelemetryReducerTest {
         assertFalse(before.confirmationWindow!!.isOpen)
         assertNotEquals(before.sessionId, invalid.sessionId)
         assertTrue(invalid.unavailable.containsAll(VehicleSignalKind.entries))
-        assertTrue(reader.read(1, doors(driver = 1), 400).doors.isEmpty())
+        val seeded = reader.read(1, doors(driver = 1), 400)
+        assertTrue(seeded.doors.values.all { it.sessionId == invalid.sessionId && it.observedAtElapsedNanos == 400L })
     }
 
     @Test fun regressingTimestampRevokesTheSessionWithoutPublishingTheRegressedEvent() {

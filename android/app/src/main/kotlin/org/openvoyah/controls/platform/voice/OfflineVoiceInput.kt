@@ -34,11 +34,11 @@ import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.ListeningWindow
 import org.openvoyah.controls.diagnostics.ControlsLog
+import org.openvoyah.controls.data.settings.VoiceSettings
+import org.openvoyah.controls.domain.voice.SpeechEngine
 import org.openvoyah.controls.domain.voice.SpeechEvent
 import org.openvoyah.controls.domain.voice.VoiceInput
 import org.openvoyah.controls.domain.voice.VoiceOutcome
-import org.vosk.Model
-import org.vosk.Recognizer
 
 /** The speech lock of [SpeechModels] protects the microphone and native model across both voice entry points. */
 class OfflineVoiceInput(
@@ -48,6 +48,8 @@ class OfflineVoiceInput(
     private val readyCue: (suspend () -> Unit)? = null,
     private val endCue: (suspend () -> Unit)? = null,
     private val listeningWindow: ListeningWindow = ListeningWindow.FOUR_SECONDS,
+    /** Null uses the engine chosen in Recognition when its model is on the device, otherwise Vosk. */
+    private val engine: SpeechEngine? = null,
 ) : VoiceInput {
     private val context = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
@@ -81,7 +83,7 @@ class OfflineVoiceInput(
     }
 
     private suspend fun capture(
-        speech: PreparedSpeech<Model, Recognizer>,
+        speech: PreparedSpeech<LoadedSpeechModel, SpeechDecoder>,
         language: String,
         grammar: Set<String>,
         stage: (String) -> Unit,
@@ -94,19 +96,22 @@ class OfflineVoiceInput(
         val captureContext = currentCoroutineContext()
         stage("model_load")
         // Usually prepared at process start; a warm-up still running is awaited through the lock, never repeated.
-        val prepared = speech.prepare(language, speechGrammar(grammar), "request") { captureContext.isActive }
-        val model = prepared.model
+        val engine = engine ?: SpeechModels.engineFor(context, VoiceSettings(context), language)
+        val prepared = speech.prepare(SpeechModels.key(engine, language), speechGrammar(grammar), "request") {
+            captureContext.isActive
+        }
         captureContext.ensureActive()
-        // Speech that is not a command is replayed once without the grammar, so the popup can show what was heard.
+        // The captured audio stays available after the microphone is released: Vosk replays a phrase that is not a
+        // command without the grammar, so the popup can show what was heard, and the Zipformer decodes the phrase.
         val replay = ShortArray(sampleLimit)
         val focusLost = CompletableDeferred<Unit>()
         stage("recognizer")
-        val captured = checkNotNull(prepared.recognizer).let { recognizer ->
+        val decoder = checkNotNull(prepared.recognizer)
+        decoder.reset()
+        val captured = run {
             stage("buffer_size")
             val size = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             if (size <= 0) throw IOException(UiText.get(R.string.ui_140))
-            recognizer.setWords(true)
-            recognizer.setEndpointerDelays(2.5f, 0.6f, 20f)
             stage("recorder_init")
             val audio = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(size, 6400))
@@ -127,14 +132,14 @@ class OfflineVoiceInput(
                     }
                     captureContext.ensureActive()
                 }
-                if (focusLost.isCompleted) return@let Captured(interrupted())
+                if (focusLost.isCompleted) return@run Captured(interrupted())
                 stage("start_recording")
                 audio.startRecording()
                 if (audio.recordingState != AudioRecord.RECORDSTATE_RECORDING) throw IOException(UiText.get(R.string.ui_142))
                 val deadline = SystemClock.elapsedRealtime() + listeningWindow.millis()
                 listening()
                 stage("read")
-                read(audio, recognizer, focusLost, replay, deadline)
+                read(audio, decoder, focusLost, replay, deadline)
             } finally {
                 try {
                     if (audio.recordingState == AudioRecord.RECORDSTATE_RECORDING) audio.stop()
@@ -151,27 +156,10 @@ class OfflineVoiceInput(
             endCue.invoke()
             captureContext.ensureActive()
         }
-        if (captured.replaySamples > 0) {
-            stage("transcript")
-            captureContext.ensureActive()
-            transcribe(model, replay, captured.replaySamples, naturalPhrases && captured.completed)?.let { return it }
-        }
-        return captured.event
+        stage("transcript")
+        captureContext.ensureActive()
+        return decoder.finish(captured, replay, naturalPhrases)
     }
-
-    /**
-     * One pass without the grammar over the captured audio. Only a completed, confident and short phrase may go on to
-     * online interpretation; anything else heard is shown and never acted on.
-     */
-    private fun transcribe(model: Model, samples: ShortArray, count: Int, natural: Boolean): SpeechEvent? =
-        Recognizer(model, SAMPLE_RATE.toFloat()).use { recognizer ->
-            recognizer.setWords(true)
-            val result = if (recognizer.acceptWaveForm(samples, count)) recognizer.result else recognizer.finalResult
-            val heard = heardText(result) ?: return@use null
-            val text = (decodeEndpoint(result) as? SpeechEvent.Recognized)?.text
-            if (natural && text != null && text.length <= 160 && text.count { it == ' ' } <= 13) SpeechEvent.Natural(text)
-            else SpeechEvent.Unmatched(heard)
-        }
 
     private fun requestFocus(manager: AudioManager, focusLost: CompletableDeferred<Unit>): AudioFocusRequest? {
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
@@ -186,12 +174,9 @@ class OfflineVoiceInput(
         return request.takeIf { manager.requestAudioFocus(it) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED }
     }
 
-    /** [completed] is true when the speaker finished the phrase, false when the listening window cut it off. */
-    private data class Captured(val event: SpeechEvent, val replaySamples: Int = 0, val completed: Boolean = false)
-
     private suspend fun read(
         audio: AudioRecord,
-        recognizer: Recognizer,
+        decoder: SpeechDecoder,
         focusLost: CompletableDeferred<Unit>,
         replay: ShortArray,
         deadline: Long,
@@ -209,18 +194,14 @@ class OfflineVoiceInput(
             }
             samples.copyInto(replay, recorded, endIndex = count)
             recorded += count
-            if (recognizer.acceptWaveForm(samples, count)) {
+            val ended = decoder.accept(samples, count, recorded)
+            if (ended != null) {
                 if (focusLost.isCompleted) break
-                val endpoint = recognizer.result
-                val event = decodeEndpoint(endpoint)
-                val unclear = event is SpeechEvent.Failed && JSONObject(endpoint).optString("text").isNotBlank()
-                return Captured(event, if (unclear) recorded else 0, completed = true)
+                return ended
             }
         }
         if (focusLost.isCompleted) return Captured(interrupted())
-        val partial = JSONObject(recognizer.partialResult).optString("partial")
-        // An unfinished phrase never reaches an action; its transcript only explains the result.
-        return if (partial.isBlank()) Captured(noSpeech()) else Captured(unrecognized(), recorded)
+        return decoder.cutOff(recorded)
     }
 
     private fun error(failure: Throwable) = SpeechEvent.Failed(
@@ -233,8 +214,6 @@ class OfflineVoiceInput(
 }
 
 private fun interrupted() = SpeechEvent.Failed(UiText.get(R.string.voice_audio_interrupted), VoiceOutcome.AUDIO_INTERRUPTED)
-private fun noSpeech() = SpeechEvent.Failed(UiText.get(R.string.voice_no_speech), VoiceOutcome.NO_SPEECH)
-private fun unrecognized() = SpeechEvent.Failed(UiText.get(R.string.unknown_command), VoiceOutcome.UNRECOGNIZED)
 
 /** The words of a free pass for display, without unknown-word markers, or null when nothing was heard. */
 internal fun heardText(json: String): String? {
@@ -242,7 +221,7 @@ internal fun heardText(json: String): String? {
     return words.joinToString(" ").take(MAX_HEARD_CHARACTERS).trim().takeUnless { VoiceCatalog.isBlank(it) }
 }
 
-private const val MAX_HEARD_CHARACTERS = 120
+internal const val MAX_HEARD_CHARACTERS = 120
 
 internal fun decodeEndpoint(json: String): SpeechEvent {
     val result = JSONObject(json)

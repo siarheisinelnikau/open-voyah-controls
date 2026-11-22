@@ -12,16 +12,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyGridScope
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +28,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -99,71 +97,70 @@ internal fun rememberDesktopInfoCards(desktop: AppGridDesktop): List<DesktopInfo
     }
 }
 
-internal fun LazyGridScope.desktopInfoCards(
-    cards: List<DesktopInfoTile>,
-    gridState: LazyGridState,
+/**
+ * One desktop card as a cell of the app grid. [visible] is true while its page is on screen: pages are composed while
+ * they slide in, so a card subscribes to its source only once it can be seen.
+ */
+@Composable
+internal fun LazyGridItemScope.DesktopInfoCardItem(
+    tile: DesktopInfoTile,
+    visible: Boolean,
     showOutlines: Boolean,
     navigate: (ControlsRoute) -> Unit,
+    enabled: Boolean = true,
 ) {
-    for (tile in cards) {
-        item(key = tile.key, span = { GridItemSpan(tile.size.span(maxLineSpan)) }) {
-            // Lazy grids precompose offscreen items. Subscribe only once the tile is in the viewport.
-            val visible by remember(gridState, tile.key) {
-                derivedStateOf { gridState.layoutInfo.visibleItemsInfo.any { it.key == tile.key } }
-            }
-            val routeAction = if (tile.card == DesktopInfoCard.ROUTE) when (tile.routeOpenTarget) {
-                DesktopRouteOpenTarget.DISPLAY -> R.string.virtual_display
-                DesktopRouteOpenTarget.NAVIGATOR -> R.string.desktop_info_route_open_navigator_action
-                DesktopRouteOpenTarget.NONE -> null
-            } else null
-            // A card hidden by a search leaves at once, so the results take its place without waiting for it to fade.
-            val modifier = gridItemMotion(leave = false).fillMaxWidth().heightIn(min = 116.dp)
-                .semantics {
-                    testTagsAsResourceId = true
-                    routeAction?.let { onClick(label = UiText.get(it), action = null) }
-                }.testTag(tile.key)
-            val shape = MaterialTheme.shapes.medium
-            val colors = MaterialTheme.colorScheme
-            val border = if (showOutlines) BorderStroke(1.dp, colors.outlineVariant) else null
-            val destination = when (tile.card) {
-                DesktopInfoCard.SERVICE -> ControlsRoute.SERVICE_REMINDER
-                DesktopInfoCard.HEADLIGHTS -> ControlsRoute.VEHICLE
-                DesktopInfoCard.MEDIA -> ControlsRoute.DISPLAY.takeUnless { tile.mediaOpenTarget == DesktopMediaOpenTarget.NONE }
-                DesktopInfoCard.ROUTE -> ControlsRoute.DISPLAY.takeUnless { tile.routeOpenTarget == DesktopRouteOpenTarget.NONE }
-                else -> null
-            }
-            val details = if (visible && tile.card != DesktopInfoCard.PHONE) DesktopInfoDetails(tile) else TileDetails()
-            val mediaActionLabel = if (tile.card == DesktopInfoCard.MEDIA && destination != null) {
-                if (details.playerPackage == null) R.string.desktop_info_media_open_display_action
-                else R.string.desktop_info_media_open_player_action
-            } else null
-            val content: @Composable () -> Unit = {
-                if (tile.card == DesktopInfoCard.PHONE) DesktopPhoneFavoritesCard(tile.phoneFavorites, visible)
-                else DesktopInfoContent(tile, details, destination != null, mediaActionLabel)
-            }
-            if (destination != null) {
-                val showDestination = { navigate(destination) }
-                val playerPackage = details.playerPackage
-                val open = when {
-                    tile.card == DesktopInfoCard.MEDIA && playerPackage != null ->
-                        externalAppCardOpen(showDestination) { activity, stillActive ->
-                            openDesktopMediaPlayer(activity, playerPackage, stillActive)
-                        }
-                    tile.card == DesktopInfoCard.ROUTE && tile.routeOpenTarget == DesktopRouteOpenTarget.NAVIGATOR ->
-                        externalAppCardOpen(showDestination, ::openDesktopNavigator)
-                    tile.card == DesktopInfoCard.MEDIA || tile.card == DesktopInfoCard.ROUTE -> {
-                        val lifecycle = LocalLifecycleOwner.current.lifecycle
-                        val showWhileResumed = { if (lifecycle.currentState == Lifecycle.State.RESUMED) showDestination() }
-                        showWhileResumed
-                    }
-                    else -> showDestination
+    val routeAction = if (tile.card == DesktopInfoCard.ROUTE) when (tile.routeOpenTarget) {
+        DesktopRouteOpenTarget.DISPLAY -> R.string.virtual_display
+        DesktopRouteOpenTarget.NAVIGATOR -> R.string.desktop_info_route_open_navigator_action
+        DesktopRouteOpenTarget.NONE -> null
+    } else null
+    // A card hidden by a search leaves at once, so the results take its place without waiting for it to fade.
+    val modifier = gridItemMotion(leave = false).fillMaxWidth().heightIn(min = 116.dp).alpha(if (enabled) 1f else 0.5f)
+        .semantics {
+            testTagsAsResourceId = true
+            routeAction?.let { onClick(label = UiText.get(it), action = null) }
+        }.testTag(tile.key)
+    val shape = MaterialTheme.shapes.medium
+    val colors = MaterialTheme.colorScheme
+    val border = if (showOutlines) BorderStroke(1.dp, colors.outlineVariant) else null
+    val destination = when (tile.card) {
+        DesktopInfoCard.SERVICE -> ControlsRoute.SERVICE_REMINDER
+        DesktopInfoCard.HEADLIGHTS -> ControlsRoute.VEHICLE
+        DesktopInfoCard.MEDIA -> ControlsRoute.DISPLAY.takeUnless { tile.mediaOpenTarget == DesktopMediaOpenTarget.NONE }
+        DesktopInfoCard.ROUTE -> ControlsRoute.DISPLAY.takeUnless { tile.routeOpenTarget == DesktopRouteOpenTarget.NONE }
+        else -> null
+    }
+    val details = if (visible && tile.card != DesktopInfoCard.PHONE) DesktopInfoDetails(tile) else TileDetails()
+    val mediaActionLabel = if (tile.card == DesktopInfoCard.MEDIA && destination != null) {
+        if (details.playerPackage == null) R.string.desktop_info_media_open_display_action
+        else R.string.desktop_info_media_open_player_action
+    } else null
+    val content: @Composable () -> Unit = {
+        if (tile.card == DesktopInfoCard.PHONE) DesktopPhoneFavoritesCard(tile.phoneFavorites, visible)
+        else DesktopInfoContent(tile, details, destination != null, mediaActionLabel)
+    }
+    // While apps are being moved, a card stays in place but does not open anything.
+    if (destination != null && enabled) {
+        val showDestination = { navigate(destination) }
+        val playerPackage = details.playerPackage
+        val open = when {
+            tile.card == DesktopInfoCard.MEDIA && playerPackage != null ->
+                externalAppCardOpen(showDestination) { activity, stillActive ->
+                    openDesktopMediaPlayer(activity, playerPackage, stillActive)
                 }
-                Surface(onClick = open, modifier = modifier, shape = shape,
-                    color = colors.surfaceContainerHigh, border = border, content = content)
-            } else {
-                Surface(modifier = modifier, shape = shape, color = colors.surfaceContainerHigh, border = border, content = content)
+            tile.card == DesktopInfoCard.ROUTE && tile.routeOpenTarget == DesktopRouteOpenTarget.NAVIGATOR ->
+                externalAppCardOpen(showDestination, ::openDesktopNavigator)
+            tile.card == DesktopInfoCard.MEDIA || tile.card == DesktopInfoCard.ROUTE -> {
+                val lifecycle = LocalLifecycleOwner.current.lifecycle
+                val showWhileResumed = { if (lifecycle.currentState == Lifecycle.State.RESUMED) showDestination() }
+                showWhileResumed
             }
+            else -> showDestination
         }
+        Surface(onClick = open, modifier = modifier, shape = shape,
+            color = colors.surfaceContainerHigh, border = border, content = content)
+    } else {
+        Surface(modifier = modifier, shape = shape, color = colors.surfaceContainerHigh, border = border, content = content)
     }
 }
 

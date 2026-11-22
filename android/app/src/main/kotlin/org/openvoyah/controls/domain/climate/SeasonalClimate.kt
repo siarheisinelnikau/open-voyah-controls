@@ -5,7 +5,6 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleDoor
 import org.openvoyah.controls.domain.vehicle.automation.VehicleDoorState
 import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
 import org.openvoyah.controls.domain.vehicle.automation.VehicleIdentity
-import org.openvoyah.controls.domain.vehicle.automation.VehicleSignalKind
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetrySession
 
@@ -51,7 +50,11 @@ internal enum class ClimateConditionState {
 }
 
 internal object SeasonalClimatePolicy {
-    /** Historical readings and cached getters cannot satisfy an automatic or confirmed request. */
+    /**
+     * Gear, outside temperature and doors are reported only when they change, so their last value in the current
+     * session counts; a reconnect or wake starts with unknown values. Park holds the car: this source admits no speed,
+     * and the launcher agent reads live gear and speed again before every Park-only write.
+     */
     fun assess(
         season: ClimateSeason,
         preset: SeasonalClimatePreset,
@@ -60,30 +63,21 @@ internal object SeasonalClimatePolicy {
     ): ClimateConditionState {
         if (!preset.enabled) return ClimateConditionState.DISABLED
         val current = telemetry ?: return ClimateConditionState.WAITING_GEAR
-        val gear = current.gear?.takeIf {
-            VehicleSignalKind.GEAR !in current.unavailable && it.isFreshFor(current, nowElapsedNanos)
-        }?.value ?: return ClimateConditionState.WAITING_GEAR
+        val gear = current.gear?.takeIf { it.isCurrentIn(current, nowElapsedNanos) }?.value
+            ?: return ClimateConditionState.WAITING_GEAR
         val required = if (preset.gearCondition == ClimateGearCondition.PARK) VehicleGear.PARK else VehicleGear.DRIVE
         if (gear != required) return if (required == VehicleGear.PARK) ClimateConditionState.PARK_REQUIRED else ClimateConditionState.DRIVE_REQUIRED
-        if (required == VehicleGear.PARK) {
-            val speed = current.speedKph?.takeIf {
-                VehicleSignalKind.SPEED !in current.unavailable && it.isFreshFor(current, nowElapsedNanos) &&
-                    it.value.isFinite() && it.value >= 0f
-            }?.value ?: return ClimateConditionState.WAITING_SPEED
-            if (speed != 0f) return ClimateConditionState.PARK_REQUIRED
-        }
+        if (required == VehicleGear.PARK && !current.isStationary(nowElapsedNanos)) return ClimateConditionState.PARK_REQUIRED
         val temperature = current.outsideCelsius?.takeIf {
-            VehicleSignalKind.OUTSIDE_TEMPERATURE !in current.unavailable && it.isFreshFor(current, nowElapsedNanos) &&
-                it.value.isFinite() && it.value in -60f..70f
+            it.isCurrentIn(current, nowElapsedNanos) && it.value.isFinite() && it.value in -60f..70f
         }?.value ?: return ClimateConditionState.WAITING_TEMPERATURE
         val reached = if (season == ClimateSeason.SUMMER) temperature >= preset.outsideThresholdCelsius
             else temperature <= preset.outsideThresholdCelsius
         if (!reached) return ClimateConditionState.TEMPERATURE_NOT_MET
         if (preset.requireDoorsClosed) {
-            val doors = VehicleDoor.entries.map { door -> current.doors[door]?.takeIf {
-                VehicleSignalKind.DOORS !in current.unavailable && it.isFreshFor(current, nowElapsedNanos)
-            }?.value ?: return ClimateConditionState.WAITING_DOORS }
-            if (doors.any { it != VehicleDoorState.CLOSED }) return ClimateConditionState.DOORS_OPEN
+            val known = current.doors.filterValues { it.isCurrentIn(current, nowElapsedNanos) }
+            if (known.values.any { it.value != VehicleDoorState.CLOSED }) return ClimateConditionState.DOORS_OPEN
+            if (known.size < VehicleDoor.entries.size) return ClimateConditionState.WAITING_DOORS
         }
         return ClimateConditionState.READY
     }

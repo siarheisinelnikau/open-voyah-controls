@@ -53,6 +53,10 @@ export function readWindowConfig(raw) {
     const systemInsets = config.systemInsets ?? false;
     const systemInsetsAttempt = config.systemInsetsAttempt ?? 0;
     if (typeof systemInsets !== 'boolean' || !Number.isInteger(systemInsetsAttempt) || systemInsetsAttempt < 0) return null;
+    // The swipe that moves app windows between screens: absent or null when off.
+    const displayMove = config.displayMove ?? null;
+    if (displayMove !== null && (typeof displayMove !== 'object' || Array.isArray(displayMove) ||
+        (displayMove.fingers !== 2 && displayMove.fingers !== 3) || Object.keys(displayMove).length !== 1)) return null;
     const apps = new Map();
     for (const entry of config.apps) {
         const profile = normalizeProfile(entry);
@@ -61,7 +65,8 @@ export function readWindowConfig(raw) {
         if (apps.has(pkg)) return null;
         apps.set(pkg, profile);
     }
-    return {enabled: config.enabled, user: config.user, apps, displayDpi, passengerDisplayId, systemInsets, systemInsetsAttempt};
+    return {enabled: config.enabled, user: config.user, apps, displayDpi, passengerDisplayId, systemInsets, systemInsetsAttempt,
+        displayMove: displayMove === null ? null : {fingers: displayMove.fingers}};
 }
 
 /**
@@ -99,8 +104,8 @@ export function readWindowRequest(raw, now) {
     if (!value || value.schema !== 1 || !/^[a-f0-9]{32}$/.test(value.id ?? '') ||
         !Number.isInteger(value.user) || value.user < 0 || !Number.isInteger(value.expires) ||
         value.expires < now || value.expires > now + 10000) return null;
-    // Neither releasing the service nor asking for the state of the reserved strip names an app.
-    if (value.operation === 'release' || value.operation === 'insets') {
+    // Releasing the service, asking for the state of the reserved strip and bringing moved windows back name no app.
+    if (value.operation === 'release' || value.operation === 'insets' || value.operation === 'recall') {
         return {id:value.id, user:value.user, operation:value.operation};
     }
     const component = componentKey(value.component);

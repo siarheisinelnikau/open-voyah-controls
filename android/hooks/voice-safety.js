@@ -28,6 +28,37 @@ export class VoiceCommandFailure extends Error {
     }
 }
 
+// Commands a driver can also use while moving, as with the factory controls: lighting that keeps the road lit,
+// screen brightness, climate, seat and wheel comfort, windows and roof, and drive, energy and regeneration modes.
+// Everything else (lights off, doors, trunk, ports, seat memory, service modes, accounts, unknown commands) keeps
+// the Park and zero-speed check. A new command needs Park until it is added here on purpose.
+export const MOTION_COMMANDS = new Set([
+    'LowBeam', 'AutoMode', 'RearFog', 'AdaptiveLightOn', 'AdaptiveLightOff',
+    'BackLightModeNight', 'BackLightModeDay', 'BackLightModeAuto',
+    'DecreaseTemperature', 'FastDecreaseTemperature', 'IncreaseTemperature', 'FastIncreaseTemperature',
+    'FlowBody', 'FlowBodyLegs', 'FlowLegs', 'FlowWindow', 'FlowWindowLegs',
+    'SetDriverTemperature', 'SetPassengerTemperature', 'SetFanSpeed',
+    ...['Driver', 'Passenger'].flatMap(seat => ['Heat', 'Condition', 'Massage'].flatMap(kind =>
+        ['Default', 'One', 'Two', 'Tree'].map(level => `Enable${kind}${seat}Level${level}`))),
+    'DisableDriverHeat', 'DisableDriverCondition', 'DisableDriverMassage',
+    'DisablePassengerHeat', 'DisablePassengerCondition', 'DisablePassengerMassage',
+    ...['RearLeft', 'RearRight'].flatMap(seat => [`Disable${seat}Heat`,
+        ...['Default', 'One', 'Two', 'Tree'].map(level => `EnableHeat${seat}Level${level}`)]),
+    'EnableAllHeating', 'DisableAllHeating', 'EnableWheelHeat', 'DisableWheelHeat',
+    'OpenDriverWindowCommand', 'CloseDriverWindowCommand', 'OpenPassengerWindowCommand', 'ClosePassengerWindowCommand',
+    'OpenAllWindowCommand', 'CloseAllWindowCommand', 'SmokeCommand', 'VentilationCommand',
+    'OpenSunroof', 'CloseSunroof', 'OpenSunroofVentilation', 'OpenSunroofWithPercent',
+    'OpenSunshade', 'CloseSunshade', 'OpenSunshadeWithPercent',
+    'EcoMode', 'ComfortMode', 'SportMode', 'OffroadMode', 'SnowMode', 'IndividualMode',
+    'ElectroMode', 'ForcedElectroMode', 'FuelMode', 'HybridMode', 'IntellectMode', 'SaveMode', 'SaveModeWithSOC',
+    'EnableMinRecuperation', 'EnableStandardRecuperation', 'EnableMaxRecuperation',
+]);
+
+/** Park-only commands read the live gear and speed before every write; motion commands only honor the deadline. */
+export function requireSafeState(command, manager, now) {
+    if (!MOTION_COMMANDS.has(command)) requireStationary(manager, now);
+}
+
 export function requireStationary(manager, now) {
     const started = now();
     let gear, speed;

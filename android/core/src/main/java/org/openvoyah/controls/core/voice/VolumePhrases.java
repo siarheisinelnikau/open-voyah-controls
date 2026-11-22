@@ -10,15 +10,24 @@ import org.openvoyah.controls.core.VoiceCatalog;
 /** Percentage commands shared by typed input and both offline grammars. */
 public final class VolumePhrases {
     public static final String COMMAND_ID = "SetVolume";
-    private static final Map<String, Integer> EN = phrases(true);
-    private static final Map<String, Integer> RU = phrases(false);
+    private static final Map<String, Integer> EN = phrases("en");
+    private static final Map<String, Integer> RU = phrases("ru");
+    private static final Map<String, Integer> KK = phrases("kk");
 
     private VolumePhrases() { }
 
     public static Command command(String language) {
-        Map<String, Integer> phrases = language.equals("en") ? EN : RU;
+        Map<String, Integer> phrases = switch (language) {
+            case "en" -> EN;
+            case "kk" -> KK;
+            default -> RU;
+        };
         List<String> ordered = new ArrayList<>(phrases.keySet());
-        String example = language.equals("en") ? "volume fifty percent" : "громкость пятьдесят процентов";
+        String example = switch (language) {
+            case "en" -> "volume fifty percent";
+            case "kk" -> "дыбыс деңгейі елу пайыз";
+            default -> "громкость пятьдесят процентов";
+        };
         ordered.remove(example);
         ordered.add(0, example);
         return new Command(COMMAND_ID, "Media", ordered);
@@ -28,16 +37,25 @@ public final class VolumePhrases {
         String normalized = VoiceCatalog.normalize(phrase);
         Integer value = EN.get(normalized);
         if (value == null) value = RU.get(normalized);
+        if (value == null) value = KK.get(normalized);
         if (value == null) throw new IllegalArgumentException("Expected a volume percentage from 0 to 100");
         return value;
     }
 
-    private static Map<String, Integer> phrases(boolean english) {
+    private static Map<String, Integer> phrases(String language) {
         Map<String, Integer> result = new LinkedHashMap<>();
-        String prefix = english ? "volume " : "громкость ";
+        String prefix = switch (language) {
+            case "en" -> "volume ";
+            case "kk" -> "дыбыс деңгейі ";
+            default -> "громкость ";
+        };
         for (int number = 0; number <= 100; number++) {
-            String words = SpokenNumbers.words(number, english);
-            String unit = english ? " percent" : " " + SpokenNumbers.russianUnit(number, "процент", "процента", "процентов");
+            String words = SpokenNumbers.words(number, language);
+            String unit = switch (language) {
+                case "en" -> " percent";
+                case "kk" -> " пайыз";
+                default -> " " + SpokenNumbers.russianUnit(number, "процент", "процента", "процентов");
+            };
             result.put(prefix + words, number);
             result.put(prefix + words + unit, number);
             result.put(prefix + number, number);

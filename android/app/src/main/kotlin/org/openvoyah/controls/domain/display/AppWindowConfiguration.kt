@@ -18,7 +18,7 @@ internal sealed interface WindowProfileDelivery {
     }
 }
 
-internal enum class DisplayDefaultsDelivery { SAVED, CENTRAL_ONLY, NEXT_LAUNCH }
+internal enum class DisplayDefaultsDelivery { SAVED, CENTRAL_ONLY, NEXT_LAUNCH, MOVE_UNAVAILABLE }
 
 internal interface WindowProfileStorage {
     fun load(component: String): AppWindowProfile
@@ -33,7 +33,9 @@ internal interface WindowProfileService {
     fun connection(): WindowConnection
     fun enable()
     fun apply(component: String, change: WindowProfileChange): WindowProfileDelivery
-    fun publishDefaults(passengerRequested: Boolean): DisplayDefaultsDelivery
+    fun publishDefaults(passengerRequested: Boolean, moveRequested: Boolean): DisplayDefaultsDelivery
+    /** Brings every window the swipe moved back to the central display; false when nobody confirmed it. */
+    fun recallMovedWindows(): Boolean
 }
 
 internal class AppWindowConfiguration(
@@ -83,7 +85,10 @@ internal class AppWindowConfiguration(
     suspend fun changeDisplayDefaults(defaults: AppDisplayDefaults): DisplayDefaultsDelivery = withContext(io) {
         writes.withLock {
             storage.saveDefaults(defaults)
-            service.publishDefaults(passengerRequested = defaults.secondaryDpi != null)
+            service.publishDefaults(passengerRequested = defaults.secondaryDpi != null,
+                moveRequested = defaults.moveFingers != 0)
         }
     }
+
+    suspend fun recallMovedWindows(): Boolean = withContext(io) { writes.withLock { service.recallMovedWindows() } }
 }

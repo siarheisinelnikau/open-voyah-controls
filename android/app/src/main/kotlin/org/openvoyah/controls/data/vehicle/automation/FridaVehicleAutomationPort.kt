@@ -22,7 +22,6 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleAutomationCapabil
 import org.openvoyah.controls.domain.vehicle.automation.VehicleAutomationOutcome
 import org.openvoyah.controls.domain.vehicle.automation.VehicleAutomationPort
 import org.openvoyah.controls.domain.vehicle.automation.VehicleIdentity
-import org.openvoyah.controls.domain.vehicle.automation.VehicleSignalKind
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
 import org.openvoyah.controls.domain.voice.VoiceOutcome
 
@@ -69,8 +68,7 @@ internal class FridaVehicleAutomationPort(
         if (!settings.drivingMode.enabled || current.identity != record.identity || current.identity != identity ||
             current.sessionId != telemetry.sessionId || current.sessionStartedAtElapsedNanos != telemetry.sessionStartedAtElapsedNanos ||
             current.drivingMode != telemetry.drivingMode || !current.isStationary(now) ||
-            VehicleSignalKind.DRIVING_MODE in current.unavailable ||
-            current.drivingMode?.isFreshFor(current, now) != true ||
+            current.drivingMode?.isCurrentIn(current, now) != true ||
             record.mode !in capabilities(current.identity).drivingModes) return VehicleAutomationOutcome.BLOCKED
         return send(modeCommands.getValue(record.mode), "driving_mode")
     }

@@ -43,13 +43,13 @@ internal class PinnedVehicleTelemetryReducer(initial: VehicleTelemetry) {
                 val positions = requireNotNull(PinnedVehicleCallbacks.doorPositions(values))
                 val previous = doorBaseline
                 doorBaseline = positions
-                // A first/shared-object callback does not identify the position producer.
-                // Only a changed position gets a new timestamp. Lock-only callbacks do not.
-                if (previous == null) return telemetry
-                val doors = telemetry.doors.filterValues { it.isFreshFor(telemetry, elapsed) }.toMutableMap()
+                // The first callback of a session gives the starting positions. After it, only a changed
+                // position gets a new timestamp; lock-only callbacks do not. Positions stay known for the
+                // session, because the producer reports doors only when they change.
+                val doors = telemetry.doors.toMutableMap()
                 for ((door, position) in positions) {
                     if (position == null) doors.remove(door)
-                    else if (position != previous[door]) doors[door] = sample(position)
+                    else if (previous == null || position != previous[door]) doors[door] = sample(position)
                 }
                 telemetry = telemetry.copy(doors = doors.toMap(),
                     unavailable = availability(VehicleSignalKind.DOORS, doors.isNotEmpty()))
@@ -61,7 +61,8 @@ internal class PinnedVehicleTelemetryReducer(initial: VehicleTelemetry) {
                 val temperature = PinnedVehicleCallbacks.outsideTemperature(values)
                 if (temperature == null) telemetry = telemetry.copy(outsideCelsius = null,
                     unavailable = availability(VehicleSignalKind.OUTSIDE_TEMPERATURE, false))
-                else if (previous != null && previous != raw) telemetry = telemetry.copy(outsideCelsius = sample(temperature),
+                else if (previous == null || previous != raw || telemetry.outsideCelsius == null)
+                    telemetry = telemetry.copy(outsideCelsius = sample(temperature),
                     unavailable = availability(VehicleSignalKind.OUTSIDE_TEMPERATURE, true))
             }
             // The factory speed callback collapses invalid input and a real standstill

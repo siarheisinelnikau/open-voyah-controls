@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.openvoyah.controls.BuildConfig;
@@ -31,6 +30,7 @@ import org.openvoyah.controls.domain.display.WindowProfileDelivery;
 import org.openvoyah.controls.domain.display.WindowStripState;
 import org.openvoyah.controls.data.settings.LocalizationSettings;
 import org.openvoyah.controls.data.settings.SettingsStore;
+import org.openvoyah.controls.platform.apps.PanelIcons;
 import org.openvoyah.controls.diagnostics.ControlsLog;
 import org.openvoyah.controls.platform.boot.RecoveryJobs;
 
@@ -38,10 +38,13 @@ import org.openvoyah.controls.platform.boot.RecoveryJobs;
 public final class FridaBridge {
     private static final String KEY = "org.openvoyah.controls.panel";
     private static final String WINDOW_PROFILES = "org.openvoyah.controls.windowProfiles";
+    private static final String HOME_WEATHER = "org.openvoyah.controls.homeWeather";
     private static final String WINDOW_REQUEST = "org.openvoyah.controls.windowRequest";
     private static final String WINDOW_STRIP = "windowSystemInsets";
     private static final String WINDOW_STRIP_ATTEMPT = "windowSystemInsetsAttempt";
     private static final String WINDOW_STRIP_READY = "^OVC_WINDOW_READY protocol=3 .*systemInsets=1( |$)";
+    private static final String DISPLAY_MOVE_READY = "^OVC_WINDOW_READY protocol=3 .*displayMove=1( |$)";
+    private static final String KEYBOARD_READY = "^OVC_KEYBOARD_READY protocol=1( |$)";
     private static final String FIXTURE_BASE = "/data/local/tmp/open-voyah-controls";
     private static final String[] CHANNELS = {"", "/locale-setting", "/locale-vehicle", "/locale-bluetooth", "/locale-hiboard", "/window", "/navigation", "/can"};
     private static final String FIXTURE_INJECTOR = "/data/local/tmp/open-voyah-controls-frida-17.26.2";
@@ -95,25 +98,31 @@ public final class FridaBridge {
     boolean passengerWindowReviewed() {
         return production == null || windowReviewed() && production.operationReviewed(ReviewedFirmware.PASSENGER_WINDOW_DPI);
     }
+    /** The swipe that moves app windows to the cluster and passenger displays is a separately reviewed operation. */
+    boolean displayMoveReviewed() {
+        return production == null || windowReviewed() && production.operationReviewed(ReviewedFirmware.WINDOW_DISPLAY_MOVE);
+    }
     private boolean navigationReviewed() { return packageReviewed(ReviewedFirmware.CLUSTER); }
     private boolean canReviewed() {
         return production != null && (production.operationReviewed(ReviewedFirmware.CAN_STEERING)
             || production.operationReviewed(ReviewedFirmware.CAN_STEERING_EDGES))
             && packageReviewed(ReviewedFirmware.CAN_SERVICE);
     }
-    private String deploymentConfig(SettingsStore.State state) {
+    /** [icons] names the custom panel icons that [publishPanelIcons] wrote just before. */
+    private String deploymentConfig(SettingsStore.State state, String icons) {
         try {
             String source = !canReviewed() ? "qg" : production.operationReviewed(ReviewedFirmware.CAN_STEERING_EDGES) ? "can-edges" : "can-terminal";
-            return new JSONObject(config(state)).put("steeringSource", source).toString();
+            return new JSONObject(config(state)).put("steeringSource", source).put("customIcons", icons).toString();
         } catch (JSONException ex) { throw new IllegalArgumentException(ex); }
     }
     public static String config(SettingsStore.State state) {
         try {
-            // Packages whose panel icon is the foreground of their adaptive icon, without its background plate.
-            JSONArray foregroundIcons = new JSONArray();
-            if (state.plainNavigatorIcon) foregroundIcons.put(SettingsStore.YANDEX_NAVIGATOR);
-            return new JSONObject().put("schema", 1).put("enabled", state.panelEnabled).put("actions", hookActions(state.panelActions))
-                .put("foregroundIcons", foregroundIcons)
+            JSONObject root = new JSONObject().put("schema", 1).put("enabled", state.panelEnabled).put("actions", hookActions(state.panelActions));
+            // The launcher agent covers the factory navigation card with this app's card; absent keeps the Baidu map.
+            if (state.navigatorHomeCard) root.put("homeCard", new JSONObject().put("package", SettingsStore.YANDEX_NAVIGATOR));
+            // The launcher agent shows Controls' weather (HOME_WEATHER) in the factory weather card, or this text without it.
+            if (state.weatherCard) root.put("weatherCard", new JSONObject().put("noData", UiText.get(R.string.home_weather_no_data)));
+            return root
                 .put("steeringEnabled", state.enabled).put("steering", hookActions(state.steeringActions))
                 .put("steeringHoldMs", state.holdMs).put("steeringDebounceMs", state.debounceMs).toString();
         } catch (JSONException ex) { throw new IllegalArgumentException(ex); }
@@ -159,7 +168,9 @@ public final class FridaBridge {
                 try {
                     requireRoot();
                     // Read the latest local state after obtaining the lock. Never replay an old UI snapshot.
-                    command(activationGuard() + "settings put global " + KEY + " " + quote(deploymentConfig(new SettingsStore(context).load())));
+                    SettingsStore.State state = new SettingsStore(context).load();
+                    String icons = publishPanelIcons(state);
+                    command(activationGuard() + "settings put global " + KEY + " " + quote(deploymentConfig(state, icons)));
                     if (windowHookEnabled(context) && windowHookSupported() && windowReviewed()) publishWindowProfiles();
                 } catch (IOException | RuntimeException ex) {
                     health(UiText.get(R.string.ui_10) + FridaFailureText.message(ex));
@@ -293,6 +304,22 @@ public final class FridaBridge {
         return ButtonServiceGrant.script(context.getPackageName(), ButtonAccessibilityService.class.getName(), explicit);
     }
 
+    /** Whether the window agent in system_server announced the keyboard policy; see {@link KeyboardSelection}. */
+    public boolean keyboardPolicyReady() throws IOException {
+        synchronized (IO_LOCK) {
+            return runtimeConfigured() && windowHookEnabled(context) && windowHookSupported() && windowReviewed()
+                && channelReady("/window", KEYBOARD_READY);
+        }
+    }
+
+    /** Runs a {@link KeyboardSelection} script through the provisioned root channel on the owner's request. */
+    public String keyboardCommand(String script) throws IOException {
+        synchronized (IO_LOCK) {
+            if (!knownAuthorization()) throw new ProductionRootAccess.Refused(UiText.get(R.string.production_connect_required));
+            return command(script);
+        }
+    }
+
     private boolean resumeVerifiedDeployment(SettingsStore.State state) throws IOException {
         String entry = quote(base + "/boot-start.sh");
         String digest = assetDigest("hooks/boot-start.sh");
@@ -304,7 +331,8 @@ public final class FridaBridge {
             + " ] && [ \"$(sha256sum " + launcher + " | cut -d ' ' -f 1)\" = '" + launcherDigest + "' ]; then "
             + "/system/bin/sh " + entry + " --verify 2>/dev/null || true; fi");
         if (!"OVC_BOOT_VERIFIED".equals(verified)) return false;
-        command(activationGuard() + "settings put global " + KEY + " " + quote(deploymentConfig(state)));
+        String icons = publishPanelIcons(state);
+        command(activationGuard() + "settings put global " + KEY + " " + quote(deploymentConfig(state, icons)));
         if (windowHookEnabled(context) && windowHookSupported() && windowReviewed()) publishWindowProfiles();
         command(activationGuard() + "/system/bin/sh " + entry);
         return true;
@@ -333,8 +361,9 @@ public final class FridaBridge {
         upload("hooks/launcher-buttons.bundle.js", base + "/launcher-buttons.js");
         upload("hooks/supervise.sh", base + "/supervise.sh");
         upload("hooks/boot-start.sh", base + "/boot-start.sh");
+        String icons = publishPanelIcons(state);
         command(activationGuard() + "chmod 700 " + base + "/supervise.sh " + base + "/boot-start.sh"
-            + " && settings put global " + KEY + " " + quote(deploymentConfig(state)));
+            + " && settings put global " + KEY + " " + quote(deploymentConfig(state, icons)));
         Set<String> channels = new LinkedHashSet<>();
         stageLocalizationWorkers(channels);
         command("settings delete global " + WINDOW_REQUEST);
@@ -612,11 +641,35 @@ public final class FridaBridge {
         return WindowStripReceipt.parse(reply);
     }
 
+    /**
+     * Writes the panel apps' custom icons before the configuration that names them, so the agent never looks
+     * for icons that have not arrived. Returns the name the configuration carries.
+     */
+    private String publishPanelIcons(SettingsStore.State state) throws IOException {
+        Set<String> packages = new LinkedHashSet<>();
+        for (Action action : state.panelActions.values()) {
+            switch (action.kind) {
+                case LAUNCH_APP -> packages.add(action.component.substring(0, Math.max(0, action.component.indexOf('/'))));
+                case CONTROLS_APPS, CONTROLS_SETTINGS, START_VOICE -> packages.add(context.getPackageName());
+                default -> { }
+            }
+        }
+        String document = PanelIcons.document(context, packages);
+        String encoded = Base64.encodeToString(document.getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
+        StringBuilder script = new StringBuilder(activationGuard() + "settings put global " + PanelIcons.KEY
+            + " \"$(base64 -d <<'OVC_ICONS'\n");
+        for (int i = 0; i < encoded.length(); i += 768) {
+            script.append(encoded, i, Math.min(i + 768, encoded.length())).append('\n');
+        }
+        command(script.append("OVC_ICONS\n)\"").toString());
+        return PanelIcons.version(document);
+    }
+
     private void publishWindowProfiles() throws IOException {
         var store = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
         Integer stripAttempt = store.getBoolean(WINDOW_STRIP, false) ? Integer.valueOf(store.getInt(WINDOW_STRIP_ATTEMPT, 0)) : null;
         String profiles = new AppWindowPreferences(context).agentConfig(true, passengerWindowReviewed(),
-            production != null ? Integer.valueOf(1) : null, stripAttempt);
+            production != null ? Integer.valueOf(1) : null, stripAttempt, displayMoveReviewed());
         String encoded = Base64.encodeToString(profiles.getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
         StringBuilder script = new StringBuilder(activationGuard() + "settings put global " + WINDOW_PROFILES
             + " \"$(base64 -d <<'OVC_WINDOWS'\n");
@@ -670,6 +723,33 @@ public final class FridaBridge {
             }
             diagnostic.complete(Outcome.PROFILES_PUBLISHED);
             return true;
+        }
+    }
+
+    /** Whether the running window agent offers the swipe between screens on this reviewed firmware. */
+    public boolean displayMoveReady() throws IOException {
+        synchronized (IO_LOCK) {
+            if (!runtimeConfigured() || !windowHookEnabled(context) || !windowHookSupported() || !displayMoveReviewed()) {
+                return false;
+            }
+            requireRoot();
+            return channelReady("/window", DISPLAY_MOVE_READY);
+        }
+    }
+
+    /** Asks the window agent to bring every window it moved to another screen back to the central display. */
+    public boolean recallMovedWindows() throws IOException {
+        synchronized (IO_LOCK) {
+            if (!runtimeConfigured() || !windowHookEnabled(context) || !windowHookSupported() || !windowReviewed()) {
+                return false;
+            }
+            requireRoot();
+            if (!channelReady("/window", DISPLAY_MOVE_READY)) return false;
+            try {
+                return "applied".equals(new JSONObject(windowRequest("recall", "")).optString("status"));
+            } catch (JSONException invalid) {
+                throw new IOException(UiText.get(R.string.window_service_unavailable), invalid);
+            }
         }
     }
 
@@ -943,6 +1023,14 @@ public final class FridaBridge {
             return command(activationGuard() + "set -e\n" + script);
         }
     }
+    /** Weather for the launcher's home card (see HomeWeatherSource.payload); kept across reboots, aged out by the agent. */
+    public void publishHomeWeather(String payload) throws IOException {
+        synchronized (IO_LOCK) {
+            if (!runtimeConfigured()) return;
+            requireRoot();
+            command(activationGuard() + "settings put global " + HOME_WEATHER + " " + quote(payload));
+        }
+    }
     public void publishClusterMedia(Media media) throws IOException {
         synchronized (IO_LOCK) {
             if (!runtimeConfigured()) return;
@@ -998,8 +1086,9 @@ public final class FridaBridge {
                 span.field("icons_restored", iconsRestored).field("windows_restored", windowsRestored);
                 if (!iconsRestored || !windowsRestored) recordVisualRecovery();
                 clearWindowSettings();
-                command("settings delete global " + KEY + "; settings delete global org.openvoyah.controls.voice; "
-                    + "settings delete global org.openvoyah.controls.localization; settings delete global org.openvoyah.controls.clusterMedia");
+                command("settings delete global " + KEY + "; settings delete global " + PanelIcons.KEY
+                    + "; settings delete global org.openvoyah.controls.voice; "
+                    + "settings delete global org.openvoyah.controls.localization; settings delete global org.openvoyah.controls.clusterMedia; settings delete global " + HOME_WEATHER);
                 String outcome = UiText.get(windowsRestored ? (iconsRestored ? R.string.ui_22 : R.string.panel_restore_unconfirmed)
                     : R.string.window_restore_unconfirmed);
                 // The result of the stop is recorded before its journal entry is cleared, so a failure to clear

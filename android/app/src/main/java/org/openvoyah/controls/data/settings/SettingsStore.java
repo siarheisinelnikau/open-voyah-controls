@@ -26,7 +26,7 @@ public final class SettingsStore {
     public static boolean isDefaultSteering(String slot, Action action) {
         return DEFAULT_STEERING_SLOT.equals(slot) && action.kind == Action.Kind.START_VOICE;
     }
-    /** Its launcher icon is a yellow arrow on a white plate; the panel can show the arrow alone. */
+    /** Yandex Navigator. Its launcher icon is a yellow arrow on a white plate. */
     public static final String YANDEX_NAVIGATOR = "ru.yandex.yandexnavi";
     public static final class State {
         public boolean enabled = true;
@@ -34,8 +34,10 @@ public final class SettingsStore {
         public int debounceMs = 100;
         public final List<Binding> bindings = new ArrayList<>();
         public boolean panelEnabled = false;
-        /** Draw Yandex Navigator on the panel without the white plate of its launcher icon. On unless turned off. */
-        public boolean plainNavigatorIcon = true;
+        /** Show Yandex Navigator instead of the Baidu map in the factory home screen's navigation card. Off unless turned on. */
+        public boolean navigatorHomeCard = false;
+        /** Feed the factory home screen's weather card with Open-Meteo weather. Off unless turned on. */
+        public boolean weatherCard = false;
         public final java.util.Map<String, Action> panelActions = new java.util.LinkedHashMap<>();
         public final java.util.Map<String, Action> steeringActions = new java.util.LinkedHashMap<>();
         public State() {
@@ -69,7 +71,8 @@ public final class SettingsStore {
         state.holdMs = root.getInt("holdMs");
         state.debounceMs = root.getInt("debounceMs");
         state.panelEnabled = root.optBoolean("panelEnabled", false);
-        state.plainNavigatorIcon = root.optBoolean("plainNavigatorIcon", true);
+        state.navigatorHomeCard = root.optBoolean("navigatorHomeCard", false);
+        state.weatherCard = root.optBoolean("weatherCard", false);
         JSONObject panel = root.optJSONObject("panelActions");
         if (panel != null) {
             java.util.Iterator<String> slots = panel.keys();
@@ -123,6 +126,8 @@ public final class SettingsStore {
             .put("keyCode", b.keyCode).put("enabled", b.enabled).put("short", action(b.shortPress)).put("long", action(b.longPress)));
         return new JSONObject().put("schema", SCHEMA).put("enabled", state.enabled).put("holdMs", state.holdMs)
             .put("debounceMs", state.debounceMs).put("bindings", rows).put("panelEnabled", state.panelEnabled)
-            .put("plainNavigatorIcon", state.plainNavigatorIcon).put("panelActions", panel).put("steeringActions", steering).toString(2);
+            .put("navigatorHomeCard", state.navigatorHomeCard)
+            .put("weatherCard", state.weatherCard)
+            .put("panelActions", panel).put("steeringActions", steering).toString(2);
     }
 }

@@ -3,13 +3,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const source = ['report.js', 'panel-icons.js', 'panel-state.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+const source = ['report.js', 'panel-icons.js', 'panel-state.js', 'home-navi-card.js', 'home-weather-card.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import .*;$/gm, '').replaceAll('export function', 'function')).join('\n') + '\ninstall(Java);';
 
 function harness(config, options = {}) {
     let originalCalls = 0;
     const launched = [], logs = [], retries = [], timers = [];
-    let inClick = false, inTheme = false;
+    let inClick = false, inTheme = false, iconReads = 0, decodes = 0;
     const click = { call(nav, view) {
         if (!inClick) return dispatchClick(nav, view);
         originalCalls++;
@@ -51,12 +51,7 @@ function harness(config, options = {}) {
             return {
                 activityInfo: {value:{packageName:{value:packageName}}},
                 loadIcon() {
-                    const component = intent.component ?? intent.action;
-                    // options.adaptive lists packages whose launcher icon is an adaptive icon.
-                    if (options.adaptive?.includes(packageName)) return {component, adaptive:true,
-                        getIntrinsicWidth:() => 128, getIntrinsicHeight:() => 128,
-                        getForeground:() => ({foreground:component, getIntrinsicWidth:() => 192, getIntrinsicHeight:() => 192})};
-                    return {component, getIntrinsicWidth:() => 128, getIntrinsicHeight:() => 64};
+                    return {component:intent.component ?? intent.action, getIntrinsicWidth:() => 128, getIntrinsicHeight:() => 64};
                 }
             };
         },
@@ -94,6 +89,7 @@ function harness(config, options = {}) {
             stock: object({resource}), draws: 0, holdEnabled: options.stockHolds?.includes(resource) ?? false,
             getId: () => 10 + Object.keys(nav.views).indexOf(resource),
             getResources: () => ({getResourceEntryName: () => resource}),
+            getContext: () => context,
             getLayoutParams: () => ({width: {value:116}, height: {value:90}}), getWidth: () => 0, getHeight: () => 0,
             getPaddingLeft: () => 4, getPaddingTop: () => 5, getPaddingRight: () => 6, getPaddingBottom: () => 7,
             setPadding(...insets) { this.insets = insets; },
@@ -141,7 +137,23 @@ function harness(config, options = {}) {
         },
         'android.view.View': { performLongClick: { overload(...coordinates) { return holds[coordinates.length ? 1 : 0]; } } },
         'android.widget.RadioGroup': {},
-        'android.provider.Settings$Global': { getString(resolver, key) { assert.equal(key, 'org.openvoyah.controls.panel'); return typeof config === 'string' ? config : JSON.stringify(config); } },
+        'android.provider.Settings$Global': { getString(resolver, key) {
+            if (key === 'org.openvoyah.controls.panelIcons') {
+                iconReads++;
+                return options.panelIcons === undefined ? null : JSON.stringify(options.panelIcons);
+            }
+            assert.equal(key, 'org.openvoyah.controls.panel'); return typeof config === 'string' ? config : JSON.stringify(config);
+        } },
+        'android.util.Base64': {decode(data, flags) { assert.equal(flags, 0); return Array.from(data, c => c.charCodeAt(0)); }},
+        'android.graphics.BitmapFactory': {decodeByteArray(bytes, offset, length) {
+            decodes++;
+            const text = String.fromCharCode(...bytes.slice(offset, offset + length));
+            return text === 'broken' ? null : {png: text, $dispose() {}};
+        }},
+        'android.graphics.drawable.BitmapDrawable': {$new(resources, bitmap) {
+            const [width, height] = options.publishedSize ?? [112, 112];
+            return {bitmap, getIntrinsicWidth: () => width, getIntrinsicHeight: () => height};
+        }},
         'android.content.Intent': { $new(action) { return {
             action, addCategory(c) { this.category = c; }, setComponent(c) { this.component = c; }, addFlags(f) { this.flags = (this.flags ?? 0) | f; },
             putExtra: { overload() { return { call(intent, key, value) { intent.extras = {[key]:value}; } }; } }
@@ -157,7 +169,6 @@ function harness(config, options = {}) {
         }; }},
         'android.graphics.drawable.RippleDrawable': {$new(color, layer, mask) { return object({color, layer, mask}); }},
         'android.graphics.drawable.GradientDrawable': {$new() { return {setColor(color) { this.color = color; }, setCornerRadius(radius) { this.radius = radius; }}; }},
-        'android.graphics.drawable.AdaptiveIconDrawable': {class: {isInstance: value => value?.adaptive === true}},
         'android.content.res.ColorStateList': {valueOf:color => color},
         'android.view.Gravity': {CENTER:{value:17}},
         'java.lang.ref.WeakReference': {$new(referent) { return {get: () => referent, $dispose() {}}; }},
@@ -171,7 +182,12 @@ function harness(config, options = {}) {
                 existing.forEach(nav => callbacks.onMatch(Object.assign(nav, {$dispose(){}}))); callbacks.onComplete();
             },
             scheduleOnMainThread(fn) { fn(); }, perform(fn) { fn(); },
-            use(name) { if (options.noNav && name.endsWith('NavigationBar')) throw Error('class not loaded'); assert.ok(classes[name], name); return classes[name]; }
+            use(name) {
+                if (options.noNav && name.endsWith('NavigationBar')) throw Error('class not loaded');
+                // A launcher without the factory navigation card: the home card reports it and stays off.
+                if (name.startsWith('com.qinggan.app.launcher.homecard.')) throw Error('java.lang.ClassNotFoundException: ' + name);
+                assert.ok(classes[name], name); return classes[name];
+            }
         },
         Process: { id: 42 }, console: { log(line) { logs.push(line); } },
         setTimeout(fn,ms) { retries.push({fn,ms}); }, setInterval(fn) { timers.push(fn); return fn; },
@@ -189,7 +205,7 @@ function harness(config, options = {}) {
         return holds[coordinates.length ? 1 : 0].implementation.call(view, ...coordinates);
     }
     return {
-        retries, logs, existing,
+        retries, logs, existing, get iconReads() { return iconReads; }, get decodes() { return decodes; },
         hooks: {click, init, selection, holds, theme, release},
         holdView(view, ...coordinates) { return performHold(view, coordinates); },
         bar,
@@ -572,45 +588,53 @@ test('panel glyphs stay inside their button', () => {
     }
 });
 
-test('a listed package draws its adaptive icon foreground without the plate and follows the setting', () => {
+test('icons Controls published for the panel win over every other icon and follow their version', () => {
     const navigator = {kind:'LAUNCH_APP', component:'ru.yandex.yandexnavi/.core.NavigatorActivity'};
-    const other = {kind:'LAUNCH_APP', component:'test.maps/.Maps'};
-    const actions = {navbar01:navigator, navbar02:other};
-    const h = harness({schema:1, enabled:true, actions, foregroundIcons:['ru.yandex.yandexnavi']},
-        {adaptive:['ru.yandex.yandexnavi', 'test.maps']});
-    const bar = h.bar(0), view = bar.views.screen_up_icon_1, music = bar.views.screen_up_icon_2;
-    assert.equal(view.background.layer.icon.foreground, navigator.component);
-    // The middle 72 of 108 dp shows 1.3 times larger than on the 56 px plate.
-    assert.deepEqual(view.background.layer.size, [109,109]);
-    assert.deepEqual(view.background.layer.gravity, [0, 17]);
-    assert.equal(view.background.mask.radius, 90 * 0.12);
-    // Adaptive icons of packages that are not listed keep their plate.
-    assert.equal(music.background.layer.icon.component, other.component);
-    assert.equal(music.background.mask, null);
-    for (const icons of [[], undefined]) {
-        h.setConfig({schema:1, enabled:true, actions, ...(icons && {foregroundIcons:icons})});
-        h.tick();
-        assert.equal(view.background.layer.icon.component, navigator.component);
-        assert.equal(view.background.mask, null);
-        h.setConfig({schema:1, enabled:true, actions, foregroundIcons:['ru.yandex.yandexnavi']});
-        h.tick();
-        assert.equal(view.background.layer.icon.foreground, navigator.component);
+    const player = {kind:'LAUNCH_APP', component:'com.example.player/.Main'};
+    const actions = {navbar01:navigator, navbar02:player, mainApps:{kind:'CONTROLS_APPS'}};
+    const options = {glyphs:{'org.openvoyah.controls':0x7f080042},
+        panelIcons:{schema:1, icons:{'ru.yandex.yandexnavi':'arrow', 'org.openvoyah.controls':'wings'}}};
+    const h = harness({schema:1, enabled:true, actions, customIcons:'v1'}, options);
+    const bar = h.bar(0);
+    for (const [name, png] of [['screen_up_icon_1', 'arrow'], ['screen_up_all_app_icon', 'wings']]) {
+        const {background} = bar.views[name];
+        assert.equal(background.layer.icon.bitmap.png, png);
+        assert.deepEqual(background.layer.size, [56,56]);
+        assert.equal(background.mask.radius, 90 * 0.12);
     }
-    const token = 'c'.repeat(32);
+    // An app without a published icon keeps its own.
+    assert.equal(bar.views.screen_up_icon_2.background.layer.icon.component, player.component);
+    assert.equal(h.iconReads, 1);
+    assert.equal(h.decodes, 2);
+    h.theme(bar);
+    assert.equal(h.iconReads, 1);
+    assert.equal(h.decodes, 2);
+    // A new version is read again; without one the other icons return.
+    options.panelIcons = {schema:1, icons:{'com.example.player':'note'}};
+    h.setConfig({schema:1, enabled:true, actions, customIcons:'v2'});
+    h.tick();
+    assert.equal(h.iconReads, 2);
+    assert.equal(bar.views.screen_up_icon_2.background.layer.icon.bitmap.png, 'note');
+    assert.equal(bar.views.screen_up_icon_1.background.layer.icon.component, navigator.component);
+    assert.equal(bar.views.screen_up_all_app_icon.background.layer.icon.glyph, 0x7f080042);
+    h.setConfig({schema:1, enabled:true, actions});
+    h.tick();
+    assert.equal(bar.views.screen_up_icon_2.background.layer.icon.component, player.component);
+    const token = 'd'.repeat(32);
     h.setConfig({schema:1, enabled:false, restoreIcons:token});
     h.tick();
-    assert.equal(view.background, view.stock);
-    assert.equal(music.background, music.stock);
-    assert.ok(h.logs.includes('OVC_PANEL_ICONS_RESTORED ' + token));
+    for (const view of Object.values(bar.views)) assert.equal(view.background, view.stock);
 });
 
-test('a listed package without an adaptive icon keeps its launcher icon', () => {
-    const navigator = {kind:'LAUNCH_APP', component:'ru.yandex.yandexnavi/.core.NavigatorActivity'};
-    const h = harness({schema:1, enabled:true, actions:{navbar01:navigator}, foregroundIcons:['ru.yandex.yandexnavi']});
-    const {background} = h.bar(0).views.screen_up_icon_1;
-    assert.equal(background.layer.icon.component, navigator.component);
-    assert.deepEqual(background.layer.size, [56,28]);
-    assert.equal(background.mask, null);
+test('a missing, damaged or unreadable published icon document leaves the other icons', () => {
+    const player = {kind:'LAUNCH_APP', component:'com.example.player/.Main'};
+    for (const panelIcons of [undefined, {schema:2, icons:{'com.example.player':'note'}}, {schema:1, icons:null},
+        {schema:1, icons:{'com.example.player':'broken'}}, {schema:1, icons:{'com.example.player':7}}]) {
+        const h = harness({schema:1, enabled:true, actions:{navbar02:player}, customIcons:'v1'}, {panelIcons});
+        const {background} = h.bar(0).views.screen_up_icon_2;
+        assert.equal(background.layer.icon.component, player.component);
+        assert.equal(background.mask, null);
+    }
 });
 
 test('a missing or unreadable panel glyph falls back to the launcher icon', () => {
@@ -812,6 +836,8 @@ test('a failed installation resets every hook even when dispose throws and retri
     for (const hook of [click, init, selection, ...holds, theme, release]) assert.equal(hook.implementation, null);
     assert.deepEqual(h.retries.map(retry => retry.ms), [30000]);
     assert.deepEqual(h.logs.filter(line => line.startsWith('OVC_')), [
+        'OVC_HOME_CARD_ERROR stage=install kind=ClassNotFoundException',
+        'OVC_HOME_WEATHER_ERROR stage=install kind=ClassNotFoundException',
         'OVC_PANEL_ERROR stage=install kind=IllegalStateException',
         'OVC_PANEL_ERROR stage=rollback kind=IllegalStateException',
     ]);

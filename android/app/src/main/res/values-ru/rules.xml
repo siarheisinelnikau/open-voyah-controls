@@ -2,7 +2,7 @@
     <string name="rules_title">Правила «Если — тогда»</string>
     <string name="rules_description">Запуск сохранённого сценария по условиям коробки и дверей.</string>
     <string name="rules_scope_hint">В фоне правила работают через службу Controls и ждут свежих проверенных показаний. Открытие приложения и переподключение сами по себе не запускают правило.</string>
-    <string name="rules_unavailable">Запуск по машине приостановлен до проверки сигналов коробки и дверей на этой прошивке. Правила уже можно сохранить.</string>
+    <string name="rules_unavailable">Ожидание первого сигнала коробки передач в этой поездке. Правила уже можно сохранить.</string>
     <string name="rules_create">Добавить правило</string>
     <string name="rules_edit">Изменить правило</string>
     <string name="rules_empty">Сначала создайте сценарий, затем выберите для него условие коробки или дверей.</string>

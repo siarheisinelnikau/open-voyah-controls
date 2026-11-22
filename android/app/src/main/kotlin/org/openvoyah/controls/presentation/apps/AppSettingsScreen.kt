@@ -78,6 +78,8 @@ internal fun AppSettingsScreen(
     shortcut: AppShortcutGridState?,
     setPinned: (Boolean) -> Unit,
     setHidden: (Boolean) -> Unit,
+    /** Starts moving the app on the grid; null where the current desktop does not show it. */
+    move: (() -> Unit)?,
     open: (Int?, Boolean) -> Unit,
     openAdjacent: (Int) -> Unit,
     appInfo: (() -> Unit)?,
@@ -114,6 +116,7 @@ internal fun AppSettingsScreen(
                     } else if (pinned) R.string.apps_unpin else R.string.apps_pin
                     CockpitAction(text(label), { setPinned(!pinned) }, enabled = !busy && !shortcut.working)
                 }
+                move?.let { CockpitAction(text(R.string.apps_move), it, enabled = !busy && shortcut?.working != true) }
                 CockpitAction(text(R.string.choose_display), { choices = displays() }, enabled = !busy)
                 CockpitAction(text(R.string.open_app), { open(null, false) }, enabled = !busy, primary = true)
             }
@@ -147,10 +150,15 @@ internal fun AppSettingsScreen(
                             Modifier.weight(1.15f).fillMaxHeight(), scroll = true) {
                             AppWindowSettings(requireNotNull(window), model)
                         }
-                        SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK,
-                            Modifier.weight(1f).fillMaxHeight(), scroll = true) {
-                            PermissionSettings(permissions, busy, model::permission, model::specialAccess,
-                                model::refreshPermissions, appInfo, specialAccess)
+                        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = spacing) {
+                            SettingsPane(R.string.app_icon_title, CockpitIcon.APPS, Modifier.fillMaxWidth()) {
+                                AppIconSettings(app)
+                            }
+                            SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK,
+                                Modifier.weight(1f).fillMaxWidth(), scroll = true) {
+                                PermissionSettings(permissions, busy, model::permission, model::specialAccess,
+                                    model::refreshPermissions, appInfo, specialAccess)
+                            }
                         }
                     }
                 } else {
@@ -159,6 +167,9 @@ internal fun AppSettingsScreen(
                             SettingsPane(R.string.app_window_title, CockpitIcon.DISPLAY, Modifier.fillMaxWidth()) {
                                 AppWindowSettings(it, model)
                             }
+                        }
+                        SettingsPane(R.string.app_icon_title, CockpitIcon.APPS, Modifier.fillMaxWidth()) {
+                            AppIconSettings(app)
                         }
                         SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK, Modifier.fillMaxWidth()) {
                             PermissionSettings(permissions, busy, model::permission, model::specialAccess,

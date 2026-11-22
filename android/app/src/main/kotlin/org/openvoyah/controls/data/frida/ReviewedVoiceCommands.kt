@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import org.json.JSONObject
 import org.openvoyah.controls.core.Firmware
+import org.openvoyah.controls.data.settings.VehicleCommandSwitches
 
 /** Immutable, operation-specific hardware evidence packaged with the signed app and hook. */
 internal class ReviewedVoiceCommands(context: Context) {
@@ -15,12 +16,18 @@ internal class ReviewedVoiceCommands(context: Context) {
         }.getOrNull()
     }
 
-    fun profileFor(command: String): String? = approval?.profileFor(command)
+    private val switches = VehicleCommandSwitches(application)
+
+    /** Null when the command is not approved for this head unit or the owner switched it off in Voice settings. */
+    fun profileFor(command: String): String? = approval?.profileFor(command)?.takeUnless { switches.isSwitchedOff(command) }
     fun hasApprovedCommands(): Boolean = approval != null
+    /** Approved for this head unit, in catalog order, whether or not the owner switched them off. */
+    fun approvedCommands(): Set<String> = approval?.commands.orEmpty()
+    fun isSwitchedOff(command: String): Boolean = approval?.profileFor(command) != null && switches.isSwitchedOff(command)
 
     data class Identity(val product: String, val fingerprint: String, val sdk: Int, val abi: String?)
 
-    data class Approval(private val profile: String, private val commands: Set<String>) {
+    data class Approval(private val profile: String, val commands: Set<String>) {
         fun profileFor(command: String): String? = profile.takeIf { command in commands }
     }
 

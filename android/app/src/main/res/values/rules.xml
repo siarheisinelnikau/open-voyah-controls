@@ -2,7 +2,7 @@
     <string name="rules_title">If–then rules</string>
     <string name="rules_description">Run a saved routine when gearbox and door conditions become true.</string>
     <string name="rules_scope_hint">Background rules need Controls Accessibility and fresh, verified readings. Reopening or reconnecting never triggers a rule.</string>
-    <string name="rules_unavailable">Vehicle triggers are paused until gearbox and door feedback is verified for this firmware. You can save rules now.</string>
+    <string name="rules_unavailable">Waiting for the first gearbox reading from the vehicle in this trip. You can save rules now.</string>
     <string name="rules_create">Add rule</string>
     <string name="rules_edit">Edit rule</string>
     <string name="rules_empty">Create a routine first, then choose its gearbox or door trigger.</string>

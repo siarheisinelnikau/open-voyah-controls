@@ -92,7 +92,26 @@ kotlin {
     compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 }
 }
 
+// sherpa-onnx runs the downloadable Zipformer recognizer. The AAR is not on Maven Central; it is pinned like the
+// Vosk model archives and kept in dist/ (see docs/VOICE.md).
+def sherpaAar = rootProject.file('dist/sherpa-onnx-2.0.2.aar')
+def sherpaAarSha256 = '6420cfb86c2ef8462dadd77b2202b7430487bdfb2bc715e9ce2864871209a80e'
+
+android {
+    packaging {
+        jniLibs {
+            // The Zipformer runs on the arm64 head unit only; other ABIs keep Vosk. The JNI library needs only
+            // onnxruntime, not the C and C++ APIs that the AAR also carries for other languages.
+            excludes += ['lib/*/libsherpa-onnx-c-api.so', 'lib/*/libsherpa-onnx-cxx-api.so',
+                         'lib/armeabi-v7a/libonnxruntime.so', 'lib/armeabi-v7a/libsherpa-onnx-jni.so',
+                         'lib/x86/libonnxruntime.so', 'lib/x86/libsherpa-onnx-jni.so',
+                         'lib/x86_64/libonnxruntime.so', 'lib/x86_64/libsherpa-onnx-jni.so']
+        }
+    }
+}
+
 dependencies {
+    implementation files(sherpaAar)
     implementation project(':core')
     implementation platform('androidx.compose:compose-bom:2025.05.01')
     implementation 'androidx.activity:activity-compose:1.10.1'
@@ -172,4 +191,16 @@ def verifyVoiceAssets = tasks.register('verifyVoiceAssets', Exec) {
     workingDir rootProject.projectDir
     commandLine 'python', 'tools/verify_voice_assets.py'
 }
-tasks.named('preBuild').configure { dependsOn 'compileFridaHook', stageRuntimeMetadata, verifyVoiceAssets }
+def verifySherpaRuntime = tasks.register('verifySherpaRuntime') {
+    group = 'verification'
+    description = 'Check the pinned sherpa-onnx Android runtime in dist/.'
+    inputs.file(sherpaAar).optional()
+    doLast {
+        if (!sherpaAar.isFile()) {
+            throw new GradleException('Put sherpa-onnx-2.0.2.aar from https://github.com/k2-fsa/sherpa-onnx/releases/tag/v2.0.2 into android/dist.')
+        }
+        def actual = java.security.MessageDigest.getInstance('SHA-256').digest(sherpaAar.bytes).encodeHex().toString()
+        if (actual != sherpaAarSha256) throw new GradleException('dist/sherpa-onnx-2.0.2.aar does not match its pinned SHA-256.')
+    }
+}
+tasks.named('preBuild').configure { dependsOn 'compileFridaHook', stageRuntimeMetadata, verifyVoiceAssets, verifySherpaRuntime }

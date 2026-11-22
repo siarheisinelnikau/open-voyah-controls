@@ -1,6 +1,6 @@
 import {planFor, executePlan} from './voice-engine.js';
 import {QingganBus} from './qinggan-bus.js';
-import {approvedVoiceCommands, requireStationary, VoiceCommandFailure} from './voice-safety.js';
+import {approvedVoiceCommands, requireSafeState, VoiceCommandFailure} from './voice-safety.js';
 import {createReporter} from './report.js';
 
 export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR')) {
@@ -43,9 +43,9 @@ export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR
                 }
                 return approval.commands.has(command);
             }
-            function guard(manager, expires) {
+            function guard(manager, expires, command = '') {
                 if (now() >= expires) throw new VoiceCommandFailure('blocked', 'Vehicle command expired');
-                requireStationary(manager, now);
+                requireSafeState(command, manager, now);
                 if (now() >= expires) throw new VoiceCommandFailure('blocked', 'Vehicle command expired');
             }
             setInterval(() => Java.perform(() => {
@@ -111,7 +111,7 @@ export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR
                         if(mode===undefined) throw Error('Unknown brightness mode');
                         const Backlight=Java.use('com.qinggan.system.BackLightManager');
                         const light=Backlight.getInstance(ActivityThread.currentApplication(),null);
-                        guard(canManager(), request.expires);
+                        guard(canManager(), request.expires, request.command);
                         attempted = true;
                         if(!light.setDimmer.overload('int','int').call(light,mode,0)) throw Error('Brightness service rejected the command');
                         report(request.id,'accepted','Brightness mode requested'); return;
@@ -156,7 +156,7 @@ export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR
                     }
                     const adapter = {
                         prepare(op) {
-                            guard(manager, request.expires);
+                            guard(manager, request.expires, request.command);
                             if(op.bus==='individual') {
                                 // Read the OEM user's saved settings instead of imposing hardcoded defaults.
                                 const Properties=Java.use('com.qinggan.os.SystemProperties');
@@ -212,12 +212,12 @@ export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR
                             return {target, property, value};
                         },
                         write(p) {
-                            guard(manager, request.expires);
+                            guard(manager, request.expires, request.command);
                             if(p.individual) {
                                 if(manager.setVehicleAndAirConditionBundleState(null,p.bundle)!==0) throw Error('CAN rejected individual mode');
                                 if (p.second) {
                                     try {
-                                        guard(manager, request.expires);
+                                        guard(manager, request.expires, request.command);
                                         if (manager.setVehicleAndAirConditionBundleState(null,p.second)!==0)
                                             throw Error('EPS/PROP request was rejected');
                                     } catch (error) {
@@ -254,11 +254,11 @@ export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR
                                 try { resolve(Math.abs(readRoofPosition(p.property)-p.op.target)<=2); }
                                 catch (_) { resolve(false); }
                             };
-                            guard(manager, request.expires);
+                            guard(manager, request.expires, request.command);
                             try { write(opening?p.op.open:p.op.close); } catch(error) { finish(error); return; }
                             function tick() { Java.performNow(()=>{
                                 try {
-                                    guard(manager, request.expires);
+                                    guard(manager, request.expires, request.command);
                                     const value=readRoofPosition(p.property);
                                     if(Math.abs(value-p.op.target)<=2 || (opening?value>=p.op.target:value<=p.op.target)) { finish();return; }
                                     if(now()-started>8000) throw Error('Roof target not reached before the deadline');

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_weather_card">Weather on the home screen (Open-Meteo)</string>
+    <string name="home_weather_city">City for the weather when the car\'s location is unknown</string>
+    <string name="home_weather_no_data">No data</string>
+    <string name="home_weather_clear">Clear</string>
+    <string name="home_weather_cloudy">Cloudy</string>
+    <string name="home_weather_overcast">Overcast</string>
+    <string name="home_weather_fog">Fog</string>
+    <string name="home_weather_rain">Rain</string>
+    <string name="home_weather_snow">Snow</string>
+    <string name="home_weather_thunderstorm">Thunderstorm</string>
+    <string name="home_weather_hail">Hail</string>
+</resources>

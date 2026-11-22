@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_recognition">Распознавание</string>
+    <string name="voice_recognition_engine">Движок</string>
+    <string name="voice_recognition_engines_hint">Zipformer распознаёт только русский. Для английского и казахского работает Vosk.</string>
+    <string name="speech_engine_vosk">Vosk</string>
+    <string name="speech_engine_vosk_detail">На магнитоле, без интернета. Узнаёт фразы из списка команд.</string>
+    <string name="speech_engine_zipformer">Zipformer</string>
+    <string name="speech_engine_zipformer_detail">На магнитоле, без интернета. Реже срабатывает на похожих фразах. Только русский.</string>
+    <string name="voice_recognition_online_detail">Через интернет. Отправляется только текст фразы, которой нет в списке команд, звук не отправляется.</string>
+    <string name="voice_recognition_on">Включено</string>
+    <string name="voice_recognition_off">Выключено</string>
+    <string name="voice_model_not_downloaded">Модель распознавания для этого языка или движка не скачана. Скачайте её в Голосовые настройки → Распознавание.</string>
+    <string name="voice_model_download">Скачать · %1$s</string>
+    <string name="voice_model_downloading">Загрузка %1$d%%</string>
+    <string name="voice_model_cancel">Отменить</string>
+    <string name="voice_model_delete">Удалить модель</string>
+    <string name="voice_model_needed">Нужна загрузка модели (%1$s).</string>
+    <string name="voice_model_failed_network">Загрузка не удалась. Проверьте интернет и попробуйте снова.</string>
+    <string name="voice_model_failed_storage">Не хватает свободного места для модели.</string>
+    <string name="voice_model_failed_verification">Скачанный файл не совпал с ожидаемым. Ничего не установлено.</string>
+    <string name="voice_model_megabytes">%1$d МБ</string>
+</resources>

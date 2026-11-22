@@ -10,38 +10,51 @@ import org.openvoyah.controls.core.VoiceCatalog;
 /** Bounded front climate settings. The injected adapter verifies the OEM branch before dispatch. */
 public final class ClimatePhrases {
     private enum Target {
-        DRIVER("SetDriverTemperature", "driver temperature ", "температура водителя ", 16, 30, 22),
-        PASSENGER("SetPassengerTemperature", "passenger temperature ", "температура пассажира ", 16, 30, 22),
-        FAN("SetFanSpeed", "fan speed ", "скорость вентилятора ", 1, 8, 3);
+        DRIVER("SetDriverTemperature", "driver temperature ", "температура водителя ", "жүргізуші температурасы ",
+            16, 30, 22),
+        PASSENGER("SetPassengerTemperature", "passenger temperature ", "температура пассажира ", "жолаушы температурасы ",
+            16, 30, 22),
+        FAN("SetFanSpeed", "fan speed ", "скорость вентилятора ", "желдеткіш жылдамдығы ", 1, 8, 3);
 
-        final String id, english, russian;
+        final String id, english, russian, kazakh;
         final int minimum, maximum, example;
 
-        Target(String id, String english, String russian, int minimum, int maximum, int example) {
+        Target(String id, String english, String russian, String kazakh, int minimum, int maximum, int example) {
             this.id = id;
             this.english = english;
             this.russian = russian;
+            this.kazakh = kazakh;
             this.minimum = minimum;
             this.maximum = maximum;
             this.example = example;
         }
 
-        String prefix(boolean english) { return english ? this.english : russian; }
+        String prefix(String language) {
+            return switch (language) {
+                case "en" -> english;
+                case "kk" -> kazakh;
+                default -> russian;
+            };
+        }
     }
 
     private record Setpoint(Target target, int value) { }
-    private static final Map<String, Setpoint> EN = phrases(true);
-    private static final Map<String, Setpoint> RU = phrases(false);
+    private static final Map<String, Setpoint> EN = phrases("en");
+    private static final Map<String, Setpoint> RU = phrases("ru");
+    private static final Map<String, Setpoint> KK = phrases("kk");
 
     private ClimatePhrases() { }
 
     public static List<Command> commands(String language) {
-        boolean english = language.equals("en");
-        Map<String, Setpoint> phrases = english ? EN : RU;
+        Map<String, Setpoint> phrases = switch (language) {
+            case "en" -> EN;
+            case "kk" -> KK;
+            default -> RU;
+        };
         List<Command> result = new ArrayList<>();
         for (Target target : Target.values()) {
             List<String> labels = new ArrayList<>();
-            String example = target.prefix(english) + SpokenNumbers.words(target.example, english);
+            String example = target.prefix(language) + SpokenNumbers.words(target.example, language);
             labels.add(example);
             for (var phrase : phrases.entrySet()) {
                 if (phrase.getValue().target() == target && !phrase.getKey().equals(example)) labels.add(phrase.getKey());
@@ -60,23 +73,27 @@ public final class ClimatePhrases {
         String normalized = VoiceCatalog.normalize(phrase);
         Setpoint setpoint = EN.get(normalized);
         if (setpoint == null) setpoint = RU.get(normalized);
+        if (setpoint == null) setpoint = KK.get(normalized);
         if (setpoint == null || !setpoint.target().id.equals(id))
             throw new IllegalArgumentException("Climate value is outside the supported range");
         return setpoint.value();
     }
 
-    private static Map<String, Setpoint> phrases(boolean english) {
+    private static Map<String, Setpoint> phrases(String language) {
         Map<String, Setpoint> result = new LinkedHashMap<>();
         for (Target target : Target.values()) {
-            String prefix = target.prefix(english);
+            String prefix = target.prefix(language);
             for (int value = target.minimum; value <= target.maximum; value++) {
-                String words = SpokenNumbers.words(value, english);
+                String words = SpokenNumbers.words(value, language);
                 Setpoint setpoint = new Setpoint(target, value);
                 result.put(prefix + words, setpoint);
                 result.put(prefix + value, setpoint);
                 if (target != Target.FAN) {
-                    String unit = english ? " degrees"
-                        : " " + SpokenNumbers.russianUnit(value, "градус", "градуса", "градусов");
+                    String unit = switch (language) {
+                        case "en" -> " degrees";
+                        case "kk" -> " градус";
+                        default -> " " + SpokenNumbers.russianUnit(value, "градус", "градуса", "градусов");
+                    };
                     result.put(prefix + words + unit, setpoint);
                     result.put(prefix + value + unit, setpoint);
                 }

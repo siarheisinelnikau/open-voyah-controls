@@ -2,6 +2,13 @@ package org.openvoyah.controls.presentation.voice
 
 import android.Manifest
 import android.content.Context
+import org.openvoyah.controls.platform.voice.SpeechModelDownloads
+import org.openvoyah.controls.domain.voice.SpeechEngine
+import org.openvoyah.controls.data.voice.SpeechModelCatalog
+import org.openvoyah.controls.data.voice.SpeechModel
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.LaunchedEffect
 import android.content.ContextWrapper
 import android.content.Intent
 import android.provider.Settings
@@ -10,6 +17,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +30,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.Lifecycle
@@ -43,9 +53,11 @@ import org.openvoyah.controls.data.settings.VoiceSettingsRepository
 import org.openvoyah.controls.platform.voice.MicrophonePermission
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAppPicker
+import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitDialogs
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitModal
+import org.openvoyah.controls.presentation.theme.CockpitOptionRow
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.theme.CockpitTextField
@@ -181,8 +193,11 @@ internal fun VoiceDestination(back: () -> Unit, tryVoice: () -> Unit) {
         VoiceDestinationDialogs(dialogs, settings,
             save = { systemAction { saveVoice.launch("controls-voice.json") } },
             load = { systemAction { loadVoice.launch(arrayOf("*/*")) } },
-            mediaAccess = { systemAction { activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } })
+            mediaAccess = { systemAction { activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } },
+            app = activity.applicationContext)
     }
+    val downloads by SpeechModelDownloads.state.collectAsState()
+    LaunchedEffect(activity) { withContext(Dispatchers.IO) { SpeechModelDownloads.refresh(activity) } }
     val config = state.configuration
     if (config == null) {
         CockpitDetail(voiceText(R.string.voice_options_title), null, back) {
@@ -196,18 +211,20 @@ internal fun VoiceDestination(back: () -> Unit, tryVoice: () -> Unit) {
     }
 
     val status = state.message?.let { (it.resource?.let(::voiceText).orEmpty() + it.detail.orEmpty()) }
-    VoiceSettingsScreen(config.catalog, config.language, config.vehicleCommandsReviewed, config.assigned, status,
+    VoiceSettingsScreen(config.catalog, config.language,
+        RecognitionEngine.effective(config.engine, config.language, downloads.installed),
+        config.vehicleCommandsReviewed, config.assigned, status,
         microphoneState, { pendingTry = false; recoverMicrophone() }, { command ->
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) actions.showCommand(command)
         }, { option ->
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && !settings.state.value.busy) {
                 when (option) {
                     VoiceOption.TRY_VOICE -> { pendingTry = true; recoverMicrophone() }
-                    VoiceOption.LANGUAGE -> actions.showLanguage()
+                    VoiceOption.RECOGNITION -> actions.showRecognition()
                     VoiceOption.LEVELS -> actions.showDefaultLevels()
                     VoiceOption.WINDOWS -> actions.showWindowOptions()
+                    VoiceOption.VEHICLE -> actions.showVehicleCommands()
                     VoiceOption.AUDIO -> settings.openAudio()
-                    VoiceOption.ONLINE -> settings.openOnline()
                     VoiceOption.RECOVERY -> actions.showRecovery()
                 }
             }
@@ -229,6 +246,13 @@ private tailrec fun Context.voiceActivity(): ComponentActivity? = when (this) {
 
 private fun voiceText(id: Int): String = UiText.get(id)
 
+
+@Composable
+private fun RecognitionHeading(title: String) {
+    Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary)
+}
+
 /** Dialog drafts are composition/window-owned; every accepted change goes through the model. */
 private class VoiceDestinationDialogs(
     private val dialogs: CockpitDialogs,
@@ -236,11 +260,87 @@ private class VoiceDestinationDialogs(
     private val save: () -> Unit,
     private val load: () -> Unit,
     private val mediaAccess: () -> Unit,
+    private val app: Context,
 ) {
-    fun showLanguage() = dialogs.choices(voiceText(R.string.voice_language),
-        arrayOf(voiceText(R.string.language_name_russian), voiceText(R.string.language_name_english)), {
-        model.language(if (it == 0) "ru" else "en")
-    })
+    /**
+     * Engine, recognition language, downloadable models and online interpretation in one place. Choosing an engine
+     * or a language closes the section; downloads keep running when it closes.
+     */
+    fun showRecognition() {
+        val config = model.state.value.configuration ?: return
+        dialogs.show { close ->
+            val downloads by SpeechModelDownloads.state.collectAsState()
+            val zipformer = SpeechModelCatalog.ZIPFORMER_RU
+            CockpitModal(voiceText(R.string.voice_recognition), footer = {
+                CockpitTextAction(voiceText(R.string.ui_172), close)
+            }) {
+                val running = RecognitionEngine.effective(config.engine, config.language, downloads.installed)
+                RecognitionHeading(voiceText(R.string.voice_recognition_engine))
+                for (engine in RecognitionEngine.entries) {
+                    val needed = SpeechModelCatalog.forEngine(engine.engine, config.language)
+                        ?: SpeechModelCatalog.forEngine(engine.engine, "ru")?.takeIf { engine.engine == SpeechEngine.ZIPFORMER }
+                    val available = engine.engine.supports(config.language) &&
+                        (needed == null || needed.id in downloads.installed)
+                    CockpitOptionRow(voiceText(engine.label), voiceText(engine.detail), engine == running, enabled = available) {
+                        close()
+                        if (engine.engine.key != config.engine) model.engine(engine.engine.key)
+                    }
+                    if (engine.engine == SpeechEngine.ZIPFORMER) ModelDownload(zipformer, downloads)
+                }
+                Text(voiceText(R.string.voice_recognition_engines_hint), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                RecognitionHeading(voiceText(R.string.voice_language))
+                for (code in SpeechEngine.LANGUAGES) {
+                    val needed = SpeechModelCatalog.forEngine(SpeechEngine.VOSK, code)
+                    val available = needed == null || needed.id in downloads.installed
+                    CockpitOptionRow(voiceText(recognitionLanguageName(code)),
+                        if (available) null else voiceText(R.string.voice_model_needed).format(megabytes(needed!!)),
+                        config.language == code, enabled = available) {
+                        close()
+                        if (config.language != code) model.language(code)
+                    }
+                    if (needed != null) ModelDownload(needed, downloads)
+                }
+                RecognitionHeading(voiceText(R.string.voice_online_title))
+                CockpitChoice(voiceText(if (config.onlineConfigured) R.string.voice_recognition_on else R.string.voice_recognition_off),
+                    voiceText(R.string.voice_recognition_online_detail)) {
+                    close()
+                    model.openOnline()
+                }
+            }
+        }
+    }
+
+    /** Download, progress, failure and delete actions for one downloadable model. */
+    @Composable
+    private fun ModelDownload(speechModel: SpeechModel, downloads: SpeechModelDownloads.State) {
+        val progress = downloads.active[speechModel.id]
+        val failure = downloads.failed[speechModel.id]
+        when {
+            progress != null -> {
+                val percent = if (progress.total > 0) (progress.done * 100 / progress.total).toInt() else 0
+                Text(voiceText(R.string.voice_model_downloading).format(percent), style = MaterialTheme.typography.bodyMedium)
+                LinearProgressIndicator({ percent / 100f }, Modifier.fillMaxWidth())
+                CockpitTextAction(voiceText(R.string.voice_model_cancel)) { SpeechModelDownloads.cancel(speechModel) }
+            }
+            speechModel.id in downloads.installed ->
+                CockpitTextAction(voiceText(R.string.voice_model_delete)) { SpeechModelDownloads.delete(app, speechModel) }
+            else -> {
+                failure?.let {
+                    Text(voiceText(when (it) {
+                        SpeechModelDownloads.Failure.STORAGE -> R.string.voice_model_failed_storage
+                        SpeechModelDownloads.Failure.VERIFICATION -> R.string.voice_model_failed_verification
+                        SpeechModelDownloads.Failure.NETWORK -> R.string.voice_model_failed_network
+                    }), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                }
+                CockpitAction(voiceText(R.string.voice_model_download).format(megabytes(speechModel)),
+                    { SpeechModelDownloads.download(app, speechModel) })
+            }
+        }
+    }
+
+    private fun megabytes(speechModel: SpeechModel) =
+        voiceText(R.string.voice_model_megabytes).format((speechModel.downloadSize + 999_999) / 1_000_000)
 
     fun showDefaultLevels() {
         val config = model.state.value.configuration ?: return
@@ -250,6 +350,11 @@ private class VoiceDestinationDialogs(
             val command = defaults[index]
             dialogs.choices(command.title(), arrayOf("1", "2", "3"), { level -> model.level(command.id(), level + 1) })
         })
+    }
+
+    fun showVehicleCommands() {
+        val config = model.state.value.configuration ?: return
+        dialogs.show { close -> VehicleCommandsDialog(config.catalog, close) }
     }
 
     fun showWindowOptions() {

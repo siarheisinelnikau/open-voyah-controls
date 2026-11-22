@@ -469,6 +469,7 @@ fn firmware_rows<'a>(
             *name,
             "window-service"
                 | "passenger-window-dpi"
+                | "window-display-move"
                 | "oem-profiles"
                 | "tbox-reboot"
                 | "cluster-write"

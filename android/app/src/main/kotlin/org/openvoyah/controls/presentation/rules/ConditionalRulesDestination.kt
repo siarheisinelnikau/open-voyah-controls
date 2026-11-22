@@ -39,7 +39,6 @@ import org.openvoyah.controls.domain.rules.ConditionalRule
 import org.openvoyah.controls.domain.rules.ConditionalRuleLibrary
 import org.openvoyah.controls.domain.rules.DoorRequirement
 import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
-import org.openvoyah.controls.domain.vehicle.automation.VehicleSignalKind
 import org.openvoyah.controls.presentation.vehicle.automation.vehicleSignalsModel
 import org.openvoyah.controls.presentation.routines.RoutinePicker
 import org.openvoyah.controls.presentation.theme.CockpitAction
@@ -69,8 +68,8 @@ internal fun ConditionalRulesDestination(back: () -> Unit, editRoutines: () -> U
     val state by model.state.collectAsStateWithLifecycle()
     val signals = remember(activity) { activity.vehicleSignalsModel() }
     val telemetry by signals.telemetry.collectAsStateWithLifecycle()
-    val message = availabilityMessage ?: if (VehicleSignalKind.GEAR in telemetry.unavailable ||
-        VehicleSignalKind.DOORS in telemetry.unavailable) text(R.string.rules_unavailable) else null
+    // The gearbox reports only changes; its last reading in this trip stays valid for the rules.
+    val message = availabilityMessage ?: if (telemetry.gear == null) text(R.string.rules_unavailable) else null
     BackHandler(enabled = state.form.draft != null, onBack = model::closeEditor)
     val motion = LocalCockpitMotion.current
     val offset = with(LocalDensity.current) { 20.dp.roundToPx() }

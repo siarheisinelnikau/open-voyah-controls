@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -24,8 +25,15 @@ internal fun HomeButtons(state: HomeControlsState, actions: HomeActions) {
     CockpitSection(UiText.get(R.string.ui_67), CockpitIcon.BUTTONS, UiText.get(R.string.ui_68)) {
         CockpitFeedback(state.health)
         CockpitSwitch(UiText.get(R.string.ui_69), state.panelEnabled, change = actions::panelEnabled)
-        CockpitSwitch(UiText.get(R.string.panel_plain_navigator_icon), state.plainNavigatorIcon,
-            change = actions::plainNavigatorIcon)
+        if (state.navigatorHomeCardSupported) {
+            CockpitSwitch(UiText.get(R.string.home_navigator_card), state.navigatorHomeCard,
+                change = actions::navigatorHomeCard)
+            CockpitSwitch(UiText.get(R.string.home_weather_card), state.weatherCard, change = actions::weatherCard)
+            if (state.weatherCard) {
+                OutlinedTextField(state.weatherCity, actions::weatherCity, singleLine = true,
+                    label = { Text(UiText.get(R.string.home_weather_city)) }, modifier = Modifier.fillMaxWidth())
+            }
+        }
         state.panels.forEach { row -> key(row.slot) {
             CockpitChoice(row.title, row.action) { actions.choosePanel(row.slot) }
         } }

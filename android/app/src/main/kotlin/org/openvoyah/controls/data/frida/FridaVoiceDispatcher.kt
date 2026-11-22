@@ -11,6 +11,7 @@ import kotlinx.coroutines.sync.Mutex
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.voice.ClimatePhrases
+import org.openvoyah.controls.core.voice.AgentPhrases
 import org.openvoyah.controls.core.voice.VoiceCommandUseCase.Destination
 import org.openvoyah.controls.core.voice.VoiceCommandUseCase.Request
 import org.openvoyah.controls.data.settings.VoiceSettings
@@ -46,11 +47,13 @@ internal class FridaVoiceDispatcher(
 
     private fun send(request: Request, stillAllowed: (() -> Boolean)?): VoiceResult {
         val id = request.command().id()
+        if (reviewed.isSwitchedOff(id)) return result(R.string.voice_vehicle_switched_off, VoiceOutcome.VEHICLE_BLOCKED, failed = true)
         val profile = reviewed.profileFor(id)?.takeIf { request.destination() == Destination.VEHICLE }
             ?: return result(R.string.voice_vehicle_approval_required, VoiceOutcome.VEHICLE_APPROVAL_REQUIRED, failed = true)
         if (id in drivers) return direct(id) { bridge.switchDriver(id.substring(6)) }
         if (id == "RebootTbox") return direct(id) { bridge.rebootTbox() }
-        val planPhrase = request.phrase().takeIf { id in phraseDrivenPlans }.orEmpty()
+        // The agent parses Russian or English number words; a Kazakh phrase goes in its Russian form.
+        val planPhrase = request.phrase().takeIf { id in phraseDrivenPlans }?.let { AgentPhrases.forAgent(id, it) }.orEmpty()
         val options = settings.options(planPhrase).put("profile", profile)
         if (ClimatePhrases.supports(id)) options.put("climateValue", ClimatePhrases.value(id, request.phrase()))
         val reply = try {

@@ -65,6 +65,7 @@ internal class AppDisplayDefaultsViewModel(private val windows: AppWindowConfigu
                     DisplayDefaultsDelivery.SAVED -> R.string.app_display_defaults_pending
                     DisplayDefaultsDelivery.CENTRAL_ONLY -> R.string.app_display_defaults_central_only
                     DisplayDefaultsDelivery.NEXT_LAUNCH -> R.string.app_display_defaults_synced
+                    DisplayDefaultsDelivery.MOVE_UNAVAILABLE -> R.string.window_swipe_unavailable
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled

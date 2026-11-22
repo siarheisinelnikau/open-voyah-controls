@@ -20,6 +20,7 @@ internal object ReviewedFirmware {
     const val CAN_STEERING_EDGES = "can-steering-edges"
     const val WINDOW_SERVICE = "window-service"
     const val PASSENGER_WINDOW_DPI = "passenger-window-dpi"
+    const val WINDOW_DISPLAY_MOVE = "window-display-move"
     const val OEM_PROFILES = "oem-profiles"
     const val TBOX_REBOOT = "tbox-reboot"
     const val CLUSTER_WRITE = "cluster-write"
@@ -31,7 +32,7 @@ internal object ReviewedFirmware {
         "hiboard" to "com.qinggan.app.hiboard",
     )
     private val packages = setOf(LAUNCHER, FRAMEWORK, CLUSTER, CAN_SERVICE, LOGIN) + localizationTargets.values
-    private val operations = setOf(WINDOW_SERVICE, PASSENGER_WINDOW_DPI, OEM_PROFILES, TBOX_REBOOT, CLUSTER_WRITE, CAN_STEERING, CAN_STEERING_EDGES)
+    private val operations = setOf(WINDOW_SERVICE, PASSENGER_WINDOW_DPI, WINDOW_DISPLAY_MOVE, OEM_PROFILES, TBOX_REBOOT, CLUSTER_WRITE, CAN_STEERING, CAN_STEERING_EDGES)
     private val fingerprint = Regex("[A-Za-z0-9][A-Za-z0-9._:/+,\\-]{0,255}")
     private val product = Regex("[A-Za-z0-9][A-Za-z0-9_.\\-]{0,63}")
     val sha256 = Regex("[0-9a-f]{64}")

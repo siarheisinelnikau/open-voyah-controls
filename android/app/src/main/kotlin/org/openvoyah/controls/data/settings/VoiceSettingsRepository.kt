@@ -26,12 +26,13 @@ internal class VoiceSettingsRepository(context: Context) : VoiceSettingsSource {
             commands.filter { it.id().endsWith("LevelDefault") }.associate { it.id() to settings.level(it.id()) },
             settings.option("doubleSmoke"), settings.option("doubleVentilation"),
             settings.option("duckMedia"), settings.option("spokenFeedback"), online.configured(), settings.audioOptions(),
-            settings.offlineVoice(language), settings.readyPrompt(language))
+            settings.offlineVoice(language), settings.readyPrompt(language), settings.engine())
     }
 
     override fun change(change: VoiceSettingsChange) {
         when (change) {
             is VoiceSettingsChange.Language -> settings.language(change.language)
+            is VoiceSettingsChange.Engine -> settings.engine(change.engine)
             is VoiceSettingsChange.App -> settings.app(change.command, change.component)
             is VoiceSettingsChange.Level -> settings.level(change.command, change.level)
             is VoiceSettingsChange.Windows -> settings.windowOptions(change.smoke, change.ventilation)
@@ -41,7 +42,7 @@ internal class VoiceSettingsRepository(context: Context) : VoiceSettingsSource {
             VoiceSettingsChange.RestorePrevious -> settings.restore()
         }
         // The prepared model and command grammar follow the language and the contact list.
-        if (change is VoiceSettingsChange.Language || change is VoiceSettingsChange.Contact ||
+        if (change is VoiceSettingsChange.Language || change is VoiceSettingsChange.Engine || change is VoiceSettingsChange.Contact ||
             change == VoiceSettingsChange.RestorePrevious) SpeechModels.warmUp(app, "settings")
     }
 

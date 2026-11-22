@@ -42,7 +42,7 @@ export function translated(config, packageName, product, source, presets = PRESE
 
 export function installLocalization(Java, report = createReporter('OVC_LOCALIZATION_ERROR')) {
     Java.perform(() => {
-        const installed = [];
+        let detach = () => { };
         try {
             const app = Java.use('android.app.ActivityThread').currentApplication();
             const packageName = String(app.getPackageName());
@@ -70,9 +70,8 @@ export function installLocalization(Java, report = createReporter('OVC_LOCALIZAT
                 try { table = tableFor(JSON.parse(raw), packageName, product); }
                 catch (error) { report('config', error, {bytes:raw.length}); }
             };
-            reload();
             function convert(value) {
-                // Most processes run without a dictionary: skip the JNI toString() for every text then.
+                // A hook can still run once while it is being removed.
                 if (table === null || value === null) return value;
                 try {
                     const source = String(value), replacement = lookup(table, source);
@@ -83,40 +82,62 @@ export function installLocalization(Java, report = createReporter('OVC_LOCALIZAT
                     return value;
                 }
             }
-            const TextView = Java.use('android.widget.TextView');
-            const text = TextView.setText.overload('java.lang.CharSequence', 'android.widget.TextView$BufferType');
-            text.implementation = function(value, type) { return text.call(this, convert(value), type); };
-            installed.push(text);
-            const hint = TextView.setHint.overload('java.lang.CharSequence');
-            hint.implementation = function(value) { return hint.call(this, convert(value)); };
-            installed.push(hint);
-            const typed = Java.use('android.content.res.TypedArray').getText.overload('int');
-            typed.implementation = function(index) { return convert(typed.call(this, index)); };
-            installed.push(typed);
-            // getString and getString(id, args) read through getText(int), so a template such as "%1$s connected" is
-            // translated before the app formats it, and the formatted text needs no entry of its own.
-            const resource = Java.use('android.content.res.Resources').getText.overload('int');
-            resource.implementation = function(id) { return convert(resource.call(this, id)); };
-            installed.push(resource);
-            // Refresh text already visible when attaching to a running process.
-            Java.choose('android.widget.TextView', {
-                onMatch(view) {
-                    const retained = Java.retain(view);
-                    Java.scheduleOnMainThread(() => {
-                        try {
-                            const old = retained.getText(), next = convert(old);
-                            if (next !== old) retained.setText.overload('java.lang.CharSequence').call(retained, next);
-                            const oldHint = retained.getHint(), nextHint = convert(oldHint);
-                            if (nextHint !== oldHint) hint.call(retained, nextHint);
-                        } catch (error) { report('refresh', error); }
-                        finally { retained.$dispose(); }
-                    });
-                }, onComplete() { }
-            });
-            setInterval(() => Java.perform(reload), 1000);
+            // The hooks exist only while a dictionary applies to this process. With translation off, the launcher's
+            // text calls run without passing through Frida at all.
+            const installed = [];
+            detach = () => {
+                while (installed.length) { try { installed.pop().implementation = null; } catch (_) { } }
+            };
+            const attach = () => {
+                const TextView = Java.use('android.widget.TextView');
+                const text = TextView.setText.overload('java.lang.CharSequence', 'android.widget.TextView$BufferType');
+                text.implementation = function(value, type) { return text.call(this, convert(value), type); };
+                installed.push(text);
+                const hint = TextView.setHint.overload('java.lang.CharSequence');
+                hint.implementation = function(value) { return hint.call(this, convert(value)); };
+                installed.push(hint);
+                const typed = Java.use('android.content.res.TypedArray').getText.overload('int');
+                typed.implementation = function(index) { return convert(typed.call(this, index)); };
+                installed.push(typed);
+                // getString and getString(id, args) read through getText(int), so a template such as "%1$s connected"
+                // is translated before the app formats it, and the formatted text needs no entry of its own.
+                const resource = Java.use('android.content.res.Resources').getText.overload('int');
+                resource.implementation = function(id) { return convert(resource.call(this, id)); };
+                installed.push(resource);
+                // Refresh text that is already visible.
+                Java.choose('android.widget.TextView', {
+                    onMatch(view) {
+                        const retained = Java.retain(view);
+                        Java.scheduleOnMainThread(() => {
+                            try {
+                                const old = retained.getText(), next = convert(old);
+                                if (next !== old) retained.setText.overload('java.lang.CharSequence').call(retained, next);
+                                const oldHint = retained.getHint(), nextHint = convert(oldHint);
+                                if (nextHint !== oldHint) hint.call(retained, nextHint);
+                            } catch (error) { report('refresh', error); }
+                            finally { retained.$dispose(); }
+                        });
+                    }, onComplete() { }
+                });
+            };
+            // A failed attach after start-up is retried no sooner than 30 s later, like a failed installation.
+            let retryAt = 0;
+            const follow = () => {
+                if (table === null) { detach(); return; }
+                if (installed.length || Date.now() < retryAt) return;
+                try { attach(); }
+                catch (error) {
+                    detach();
+                    report('install', error);
+                    retryAt = Date.now() + 30000;
+                }
+            };
+            reload();
+            if (table !== null) attach();
+            setInterval(() => Java.perform(() => { reload(); follow(); }), 1000);
             console.log('OVC_LOCALIZATION_READY ' + packageName);
         } catch (error) {
-            for (const method of installed) { try { method.implementation = null; } catch (_) { } }
+            detach();
             report('install', error);
             setTimeout(() => installLocalization(Java, report), 30000);
         }

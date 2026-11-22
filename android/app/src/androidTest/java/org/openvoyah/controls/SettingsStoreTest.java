@@ -214,18 +214,29 @@ public class SettingsStoreTest extends AndroidTestCase {
         assertEquals(2, config.getJSONObject("actions").length());
         assertEquals(1, config.getJSONObject("steering").length());
     }
-    public void testYandexNavigatorPanelIconIsPlainUnlessTurnedOff() throws Exception {
-        assertTrue(new SettingsStore.State().plainNavigatorIcon);
+    public void testNavigatorHomeCardIsOffUntilTurnedOnAndIndependentOfPanelAssignments() throws Exception {
+        assertFalse(new SettingsStore.State().navigatorHomeCard);
         String old = "{\"schema\":1,\"enabled\":true,\"holdMs\":650,\"debounceMs\":100,\"bindings\":[]}";
-        assertTrue(SettingsStore.decode(old).plainNavigatorIcon);
-        JSONObject config = new JSONObject(FridaBridge.config(new SettingsStore.State()));
-        assertEquals(1, config.getJSONArray("foregroundIcons").length());
-        assertEquals("ru.yandex.yandexnavi", config.getJSONArray("foregroundIcons").getString(0));
-        SettingsStore.State state = sample(); state.plainNavigatorIcon = false;
+        assertFalse(SettingsStore.decode(old).navigatorHomeCard);
+        assertFalse(new JSONObject(FridaBridge.config(new SettingsStore.State())).has("homeCard"));
+        SettingsStore.State state = sample(); state.navigatorHomeCard = true; state.panelEnabled = false;
         store.save(state);
         SettingsStore.State loaded = new SettingsStore(getContext()).load();
-        assertFalse(loaded.plainNavigatorIcon);
-        assertEquals(0, new JSONObject(FridaBridge.config(loaded)).getJSONArray("foregroundIcons").length());
+        assertTrue(loaded.navigatorHomeCard);
+        JSONObject config = new JSONObject(FridaBridge.config(loaded));
+        assertFalse(config.getBoolean("enabled"));
+        assertEquals("ru.yandex.yandexnavi", config.getJSONObject("homeCard").getString("package"));
+    }
+    public void testHomeWeatherCardIsOffUntilTurnedOnAndCarriesTheNoDataText() throws Exception {
+        assertFalse(new SettingsStore.State().weatherCard);
+        assertFalse(new JSONObject(FridaBridge.config(new SettingsStore.State())).has("weatherCard"));
+        SettingsStore.State state = sample(); state.weatherCard = true;
+        store.save(state);
+        SettingsStore.State loaded = new SettingsStore(getContext()).load();
+        assertTrue(loaded.weatherCard);
+        String noData = new JSONObject(FridaBridge.config(loaded)).getJSONObject("weatherCard").getString("noData");
+        assertFalse(noData.isEmpty());
+        assertTrue(noData.length() <= 40);
     }
     public void testDisabledConfigAndResetRemoveCustomActions() throws Exception {
         store.save(sample()); store.save(new SettingsStore.State());

@@ -219,7 +219,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         const token = valid && config.enabled === false && /^[0-9a-f]{32}$/.test(config.restoreIcons)
             ? config.restoreIcons : '';
         // Icon choices redraw the panel like assignments do.
-        const assignments = valid && config.enabled === true ? [config.actions, config.foregroundIcons ?? null] : null;
+        const assignments = valid && config.enabled === true ? [config.actions, config.customIcons ?? null] : null;
         return {key: JSON.stringify([assignments, token]), token};
     }
 

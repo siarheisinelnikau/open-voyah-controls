@@ -37,10 +37,10 @@ export function planFor(id, options = {}) {
         return [op(ihbc ? 'IHBCFunction' : 'ADB_SWITCH', id.endsWith('On') ? 1 : ihbc ? 2 : 0)];
     }
     if (id==='SmokeCommand') return [op('DRIVER_WINDOW_CONTROL',4)];
-    if (id==='CarWashMode') return [{...op('CAR_CLEANING_MODE_SWITCH',1),parked:true},op('CAR_CLEANING_MODE_SWITCH',0,'post')];
+    if (id==='CarWashMode') return [op('CAR_CLEANING_MODE_SWITCH',1),op('CAR_CLEANING_MODE_SWITCH',0,'post')];
     if (id==='WiperMaintain') {
         if (!['FREE','FREE_REST','DREAMER'].includes(profile)) throw Error('Select a vehicle profile');
-        return [{...op('WIPPER_MAINTAIN_SWITCH',1),parked:true,toggle:options.profile==='DREAMER'}];
+        return [{...op('WIPPER_MAINTAIN_SWITCH',1),toggle:options.profile==='DREAMER'}];
     }
     if (id==='OpenSunroofWithPercent' || id==='OpenSunshadeWithPercent') {
         const target = percentFrom(options.phrase);

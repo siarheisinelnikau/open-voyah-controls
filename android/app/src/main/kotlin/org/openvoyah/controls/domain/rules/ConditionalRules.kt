@@ -6,7 +6,6 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleDoor
 import org.openvoyah.controls.domain.vehicle.automation.VehicleDoorState
 import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
 import org.openvoyah.controls.domain.vehicle.automation.VehicleIdentity
-import org.openvoyah.controls.domain.vehicle.automation.VehicleSignalKind
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
 
 internal enum class DoorRequirement(val key: String) { ALL_CLOSED("all_closed"), ANY_OPEN("any_open") }
@@ -136,7 +135,7 @@ internal class ConditionalRuleEngine {
                 state.previousTelemetry = null
                 return@mapNotNull null
             }
-            // A silent source can expire between callbacks; its old false state cannot arm a later true sample.
+            // The previous state must still be valid in this session to arm a transition.
             val wasMatching = state.previousMatch?.takeIf { previous ->
                 state.previousTelemetry?.let { rule.evidence(it, nowElapsedNanos).matches } == previous
             }
@@ -183,15 +182,13 @@ private fun ConditionalRule.evidence(telemetry: VehicleTelemetry, now: Long): Ru
     val stamps = mutableMapOf<String, SignalStamp>()
     val matches = mutableListOf<Boolean>()
     if (gear != null) {
-        val sample = telemetry.gear?.takeIf {
-            VehicleSignalKind.GEAR !in telemetry.unavailable && it.isFreshFor(telemetry, now)
-        } ?: return RuleEvidence(null, emptyMap())
+        // Gear and doors are reported only on change, so their last value in this session stays valid.
+        val sample = telemetry.gear?.takeIf { it.isCurrentIn(telemetry, now) } ?: return RuleEvidence(null, emptyMap())
         stamps["gear"] = SignalStamp(sample.observedAtElapsedNanos, sample.value.key, sample.sourceId)
         matches += sample.value == gear
     }
     if (doors != null) {
-        if (VehicleSignalKind.DOORS in telemetry.unavailable) return RuleEvidence(null, emptyMap())
-        val known = telemetry.doors.filterValues { it.isFreshFor(telemetry, now) }
+        val known = telemetry.doors.filterValues { it.isCurrentIn(telemetry, now) }
         known.forEach { (door, sample) -> stamps[door.key] = SignalStamp(sample.observedAtElapsedNanos, sample.value.key, sample.sourceId) }
         val anyOpen = known.values.any { it.value == VehicleDoorState.OPEN }
         val allClosed = known.size == VehicleDoor.entries.size && known.values.all { it.value == VehicleDoorState.CLOSED }
