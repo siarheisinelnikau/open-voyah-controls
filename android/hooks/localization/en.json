@@ -86,7 +86,8 @@
       "请开启手机蓝牙设置多媒体权限": "Enable media access in your phone’s Bluetooth settings",
       "USB未连接": "USB not connected",
       "订阅取消": "Unsubscribed",
-      "订阅成功": "Subscribed"
+      "订阅成功": "Subscribed",
+      "请在手机上播放": "Play on your phone"
     },
     "com.qinggan.app.setting": {
       "设置": "Settings",
