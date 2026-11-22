@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
@@ -30,6 +31,8 @@ internal class AppsViewModel(
         val apps: List<LocalApp> = emptyList(),
         val loading: Boolean = true,
         val status: Int? = null,
+        /** A short confirmation shown beside the page dots for a few seconds, so it never takes the grid's height. */
+        val notice: Int? = null,
         val grid: Result<AppGridConfiguration>? = null,
         val gridEdit: GridEdit? = null,
         val selection: DesktopSelection? = null,
@@ -65,6 +68,17 @@ internal class AppsViewModel(
     }
 
     fun status(message: Int) = mutableState.update { it.copy(status = message) }
+
+    private var noticeJob: Job? = null
+
+    fun notice(message: Int) {
+        noticeJob?.cancel()
+        mutableState.update { it.copy(notice = message) }
+        noticeJob = viewModelScope.launch {
+            delay(NOTICE_MILLIS)
+            mutableState.update { if (it.notice == message) it.copy(notice = null) else it }
+        }
+    }
 
     fun selectDesktop(entry: Long, desktop: AppGridDesktop) {
         if (state.value.grid?.getOrNull()?.desktops?.enabled != true) return
@@ -112,3 +126,6 @@ internal class AppsViewModel(
         if (state.gridEdit?.error != null) state.copy(gridEdit = null) else state
     }
 }
+
+/** How long a notice beside the page dots stays. */
+private const val NOTICE_MILLIS = 4_000L

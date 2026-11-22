@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Rows of the first-run check (SetupActivity). -->
+    <string name="setup_step_root">Local root channel</string>
+    <string name="setup_step_firmware">Firmware review</string>
+    <string name="setup_step_deploy">Agent deployment</string>
+    <string name="setup_step_agent_launcher">Launcher: panel, buttons and voice</string>
+    <string name="setup_step_agent_locale_setting">Translation: Settings</string>
+    <string name="setup_step_agent_locale_vehicle">Translation: Vehicle</string>
+    <string name="setup_step_agent_locale_bluetooth">Translation: Phone</string>
+    <string name="setup_step_agent_locale_hiboard">Translation: HiBoard</string>
+    <string name="setup_step_agent_window">App windows</string>
+    <string name="setup_step_agent_navigation">Navigation on the instrument cluster</string>
+    <string name="setup_step_agent_can">Steering wheel keys (CAN)</string>
+    <string name="setup_step_voice">Offline speech model</string>
+    <string name="setup_step_microphone">Microphone access</string>
+    <string name="setup_step_buttons">Button service</string>
+
+    <string name="setup_state_pending">Waiting</string>
+    <string name="setup_state_running">Running · %1$s</string>
+    <string name="setup_state_done">Done · %1$s</string>
+    <string name="setup_state_attention">Needs attention</string>
+    <string name="setup_state_skipped">Skipped</string>
+    <string name="setup_state_failed">Failed · %1$s</string>
+    <string name="setup_elapsed_seconds">%1$d s</string>
+    <string name="setup_elapsed_minutes">%1$d min %2$02d s</string>
+    <string name="setup_running_summary">%1$d of %2$d steps finished · %3$s</string>
+
+    <string name="setup_note_root">Signing in to the channel prepared by the installer</string>
+    <string name="setup_note_firmware">Comparing the installed firmware and apps with the reviewed profile</string>
+    <string name="setup_note_firmware_reviewed">This firmware has a reviewed profile</string>
+    <string name="setup_note_unreviewed">This exact firmware has no reviewed profile</string>
+    <string name="setup_note_deploy_checking">Checking Frida and the deployment directory</string>
+    <string name="setup_note_deploy_stopping">Restoring the screen and stopping the previous agents</string>
+    <string name="setup_note_deploy_verifying">Comparing %1$s with the copy on the head unit (%2$d of %3$d)</string>
+    <string name="setup_note_deploy_uploading">Sending %1$s (%2$d of %3$d)</string>
+    <string name="setup_note_deploy_reused">%1$s is already current (%2$d of %3$d)</string>
+    <string name="setup_note_deploy_copied">%1$s copied on the head unit (%2$d of %3$d)</string>
+    <string name="setup_note_deploy_sealing">Pinning the file digests in the trust receipt</string>
+    <string name="setup_note_deploy_starting">Starting the agent supervisors</string>
+    <string name="setup_note_deploy_files">Files sent: %1$d, already current: %2$d</string>
+    <string name="setup_reason_text" translatable="false">%1$s</string>
+    <string name="setup_note_voice">Loading the offline model; keep this window open</string>
+    <string name="setup_note_microphone_granted">Allowed</string>
+    <string name="setup_note_microphone_missing">Not allowed yet: allow the microphone in Controls</string>
+    <string name="setup_note_buttons_connected">Connected</string>
+    <string name="setup_note_buttons_waiting">Waiting for Android to connect the service</string>
+    <string name="setup_note_buttons_missing">Not connected: enable Controls in Accessibility settings</string>
+    <string name="setup_note_not_reached">Not checked because an earlier step stopped the check</string>
+    <string name="setup_note_timeout">No result within %1$d s</string>
+    <string name="setup_note_budget">The installer waits at most 4 minutes for this check, so it stopped here</string>
+
+    <string name="setup_agent_worker_starting">Starting the agent\'s supervisor</string>
+    <string name="setup_agent_waiting_target">Waiting for the target process</string>
+    <string name="setup_agent_waiting_app">The app is not running; translation starts when it is opened</string>
+    <string name="setup_agent_attaching">Attaching to the process</string>
+    <string name="setup_agent_starting">Waiting for the agent\'s answer</string>
+    <string name="setup_agent_error_detail">Still trying. Last error: %1$s</string>
+    <string name="setup_agent_stopped">The supervisor stopped without a reason</string>
+    <string name="setup_agent_stopped_detail">The supervisor stopped: %1$s</string>
+    <string name="setup_agent_target_missing">The target process did not start within %1$d s</string>
+    <string name="setup_agent_timeout">No answer within %1$d s</string>
+    <string name="setup_agent_timeout_detail">No answer within %1$d s. Last error: %2$s</string>
+    <string name="setup_agent_none">No agent reported after the deployment</string>
+
+    <string name="setup_retry">Retry the check</string>
+    <string name="setup_open_diagnostics">Open the diagnostic log</string>
+    <string name="setup_copy_details">Copy the details</string>
+    <string name="setup_details_copied">Details copied</string>
+    <string name="setup_details_title">Open Voyah Controls first-run check</string>
+    <string name="setup_next_retry">Retry the check, then open the diagnostic log if a step fails again.</string>
+</resources>

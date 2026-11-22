@@ -30,10 +30,62 @@ const OEM_PACKAGES: &[&str] = &[
     "com.qinggan.app.login",
 ];
 
+pub const YOUTUBE_PACKAGE: &str = "org.openvoyah.youtube";
+
+/// An app the installer verifies against its own pinned release certificate.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Product {
+    Controls,
+    /// The YouTube web wrapper. It has its own release key and never touches the Controls runtime or boot entry.
+    YouTube,
+}
+
+impl Product {
+    pub fn package(self) -> &'static str {
+        match self {
+            Product::Controls => PACKAGE,
+            Product::YouTube => YOUTUBE_PACKAGE,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Product::Controls => "Controls",
+            Product::YouTube => "YouTube",
+        }
+    }
+
+    fn signer(self) -> Result<&'static str> {
+        #[cfg(not(test))]
+        let pin = match self {
+            Product::Controls => option_env!("OPEN_VOYAH_RELEASE_CERT_SHA256"),
+            Product::YouTube => option_env!("OPEN_VOYAH_YOUTUBE_CERT_SHA256"),
+        };
+        #[cfg(test)]
+        let pin = Some(match self {
+            Product::Controls => "1111111111111111111111111111111111111111111111111111111111111111",
+            Product::YouTube => "3333333333333333333333333333333333333333333333333333333333333333",
+        });
+        pin.filter(|value| is_sha256(value)).ok_or_else(|| {
+            format!(
+                "This installer build has no {} release certificate pin. Use a verified production installer.",
+                self.name()
+            )
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct ReleaseApk {
     pub version: Version,
     pub sha256: String,
+}
+
+/// A local APK and, when it came from Releases, the official version and digest it must match.
+#[derive(Clone, Copy)]
+pub struct ApkChoice<'a> {
+    pub path: &'a Path,
+    pub expected: Option<&'a ReleaseApk>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -120,19 +172,11 @@ pub fn field<'a>(text: &'a str, key: &str) -> Result<&'a str> {
     }
 }
 
-fn release_signer() -> Result<&'static str> {
-    #[cfg(not(test))]
-    let pin = option_env!("OPEN_VOYAH_RELEASE_CERT_SHA256");
-    #[cfg(test)]
-    let pin = Some("1111111111111111111111111111111111111111111111111111111111111111");
-    pin.filter(|value| is_sha256(value))
-        .ok_or_else(|| "This installer build has no release certificate pin. Use a verified production installer.".into())
-}
-
-fn release_metadata(apk: &ApkInfo, sdk: u32) -> Result<(u64, Version)> {
-    if apk.package != PACKAGE {
+fn release_metadata(apk: &ApkInfo, sdk: u32, product: Product) -> Result<(u64, Version)> {
+    if apk.package != product.package() {
         return Err(format!(
-            "Expected APK package {PACKAGE}; found {}.",
+            "Expected APK package {}; found {}.",
+            product.package(),
             apk.package
         ));
     }
@@ -224,7 +268,7 @@ impl Drop for ScratchFile {
 }
 
 pub fn apk_path(target: &Target<'_>, package: &str) -> Result<Option<String>> {
-    if package != PACKAGE && !OEM_PACKAGES.contains(&package) {
+    if package != PACKAGE && package != YOUTUBE_PACKAGE && !OEM_PACKAGES.contains(&package) {
         return Err("Unknown package in the reviewed firmware catalog.".into());
     }
     let output = target.script(
@@ -265,25 +309,84 @@ fn pull_apk(target: &Target<'_>, remote: &str, storage: &Path) -> Result<Scratch
     Ok(staged)
 }
 
-pub(crate) fn verify_installed_controls(
+/// Checks an installed release of `product`: package, version, release certificate and its bytes' digest.
+fn verify_installed(
     target: &Target<'_>,
+    product: Product,
     sdk: u32,
     remote: &str,
     storage: &Path,
 ) -> Result<(u64, Version, String)> {
-    let pin = release_signer()?;
+    let pin = product.signer()?;
     let current = pull_apk(target, remote, storage)?;
     let _locked = current.lock()?;
     let metadata = target.adb.apk_info(&current.path, target.stop)?;
-    let (code, version) = release_metadata(&metadata, sdk)?;
+    let (code, version) = release_metadata(&metadata, sdk, product)?;
     if !target
         .adb
         .apk_signer(&current.path, sdk, target.stop)?
         .eq_ignore_ascii_case(pin)
     {
-        return Err("The installed Controls APK has a different signer. Export its settings and use the rollback workflow before replacing it.".into());
+        return Err(match product {
+            Product::Controls => "The installed Controls APK has a different signer. Export its settings and use the rollback workflow before replacing it.".into(),
+            Product::YouTube => "The installed YouTube app has a different signer.".into(),
+        });
     }
     Ok((code, version, digest(&current.path, target.stop)?))
+}
+
+/// The checks every release APK passes on the PC before it reaches the head unit: package, standalone and
+/// non-debuggable, stable version, the official release digest when it came from Releases, and the pinned signer.
+fn check_staged(
+    target: &Target<'_>,
+    staged: &ScratchFile,
+    expected: Option<&ReleaseApk>,
+    sdk: u32,
+    product: Product,
+) -> Result<(u64, Version, String)> {
+    let pin = product.signer()?;
+    let metadata = target.adb.apk_info(&staged.path, target.stop)?;
+    let (code, version) = release_metadata(&metadata, sdk, product)?;
+    let sha = digest(&staged.path, target.stop)?;
+    if expected.is_some_and(|release| {
+        !release.sha256.eq_ignore_ascii_case(&sha) || release.version != version
+    }) {
+        return Err("The selected APK bytes or version differ from the official release.".into());
+    }
+    if !target
+        .adb
+        .apk_signer(&staged.path, sdk, target.stop)?
+        .eq_ignore_ascii_case(pin)
+    {
+        return Err(format!(
+            "The APK signer does not match the pinned {} release certificate.",
+            product.name()
+        ));
+    }
+    Ok((code, version, sha))
+}
+
+/// Android reported an installation; the APK it now holds must be the verified input byte for byte.
+fn verify_install(
+    target: &Target<'_>,
+    identity: &Identity,
+    product: Product,
+    sha: &str,
+    storage: &Path,
+) -> Result<()> {
+    let verify = (|| {
+        identity.recheck(target)?;
+        let remote =
+            apk_path(target, product.package())?.ok_or("The installed package path is missing.")?;
+        let installed = pull_apk(target, &remote, storage)?;
+        if digest(&installed.path, target.stop)? != sha {
+            return Err("The installed APK differs from the verified input.".into());
+        }
+        Ok(())
+    })();
+    verify.map_err(|error: String| {
+        format!("Android reported an installation. Device verification was incomplete. {error}")
+    })
 }
 
 pub fn install_controls(
@@ -295,31 +398,16 @@ pub fn install_controls(
 ) -> Result<String> {
     let identity = Identity::read(target)?;
     require_owner_user(target)?;
-    let pin = release_signer()?;
+    Product::Controls.signer()?;
     progress("Checking the selected APK and release certificate…".into());
     let staged = ScratchFile::copy_from(storage, source, target)?;
     let _locked = staged.lock()?;
-    let metadata = target.adb.apk_info(&staged.path, target.stop)?;
-    let (code, version) = release_metadata(&metadata, identity.sdk)?;
-    let sha = digest(&staged.path, target.stop)?;
-    if expected.is_some_and(|release| {
-        !release.sha256.eq_ignore_ascii_case(&sha) || release.version != version
-    }) {
-        return Err("The selected APK bytes or version differ from the official release.".into());
-    }
-    if !target
-        .adb
-        .apk_signer(&staged.path, identity.sdk, target.stop)?
-        .eq_ignore_ascii_case(pin)
-    {
-        return Err(
-            "The APK signer does not match the pinned Controls release certificate.".into(),
-        );
-    }
+    let (code, version, sha) =
+        check_staged(target, &staged, expected, identity.sdk, Product::Controls)?;
     let current = apk_path(target, PACKAGE)?;
     if let Some(remote) = current.as_deref() {
         let (installed_code, installed_version, installed_sha) =
-            verify_installed_controls(target, identity.sdk, remote, storage).map_err(|error| {
+            verify_installed(target, Product::Controls, identity.sdk, remote, storage).map_err(|error| {
                 format!("The existing APK could not be verified for an in-place update. Export settings, roll back Controls, then use Remove old app for signer migration. {error}")
             })?;
         if installed_sha == sha {
@@ -345,20 +433,59 @@ pub fn install_controls(
             error
         }
     })?;
-    let verify = (|| {
-        identity.recheck(target)?;
-        let remote = apk_path(target, PACKAGE)?.ok_or("The installed package path is missing.")?;
-        let installed = pull_apk(target, &remote, storage)?;
-        if digest(&installed.path, target.stop)? != sha {
-            return Err("The installed APK differs from the verified input.".into());
-        }
-        Ok(())
-    })();
-    verify.map_err(|error: String| {
-        format!("Android reported an installation. Device verification was incomplete. {error}")
-    })?;
+    verify_install(target, &identity, Product::Controls, &sha, storage)?;
     Ok(format!(
         "Controls {version} installed and verified. Check Device status separately for Frida and boot readiness."
+    ))
+}
+
+/// Installs or updates the YouTube web wrapper with the same checks as Controls. For Android it is an ordinary
+/// app: no root, no rollback check and no change to the Controls APK, its runtime or its boot entry.
+pub fn install_youtube(
+    target: &Target<'_>,
+    source: &Path,
+    expected: Option<&ReleaseApk>,
+    storage: &Path,
+    progress: impl Fn(String),
+) -> Result<String> {
+    let identity = Identity::read(target)?;
+    require_owner_user(target)?;
+    Product::YouTube.signer()?;
+    progress("Checking the selected YouTube APK and its release certificate…".into());
+    let staged = ScratchFile::copy_from(storage, source, target)?;
+    let _locked = staged.lock()?;
+    let (code, version, sha) =
+        check_staged(target, &staged, expected, identity.sdk, Product::YouTube)?;
+    if let Some(remote) = apk_path(target, YOUTUBE_PACKAGE)?.as_deref() {
+        let (installed_code, installed_version, installed_sha) =
+            verify_installed(target, Product::YouTube, identity.sdk, remote, storage).map_err(|error| {
+                format!("The installed YouTube app is not a verified release, for example a debug build, so it cannot be updated in place. Uninstall it on the head unit first; that also removes its sign-in and watch history. {error}")
+            })?;
+        if installed_sha == sha {
+            identity.recheck(target)?;
+            return Ok(format!(
+                "The verified YouTube {version} APK is already installed."
+            ));
+        }
+        if code < installed_code || version < installed_version {
+            return Err(
+                "A newer YouTube release is already installed. Its app data was left in place."
+                    .into(),
+            );
+        }
+    }
+    identity.recheck(target)?;
+    progress(format!("Installing verified YouTube {version}…"));
+    target.install_owner(&staged.path).map_err(|error| {
+        if error.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") {
+            format!("Android retained a YouTube app with a different signer. Uninstall it on the head unit first; that also removes its sign-in and watch history. {error}")
+        } else {
+            error
+        }
+    })?;
+    verify_install(target, &identity, Product::YouTube, &sha, storage)?;
+    Ok(format!(
+        "YouTube {version} installed and verified. Controls, its runtime and boot activation were not changed."
     ))
 }
 
@@ -367,23 +494,40 @@ pub fn check_candidate(
     source: &Path,
     expected: Option<&ReleaseApk>,
     storage: &Path,
+    product: Product,
 ) -> Result<()> {
     let identity = Identity::read(target)?;
     let staged = ScratchFile::copy_from(storage, source, target)?;
     let _locked = staged.lock()?;
-    let metadata = target.adb.apk_info(&staged.path, target.stop)?;
-    let (_, version) = release_metadata(&metadata, identity.sdk)?;
-    let sha = digest(&staged.path, target.stop)?;
-    if expected.is_some_and(|release| {
-        !release.sha256.eq_ignore_ascii_case(&sha) || release.version != version
-    }) || !target
-        .adb
-        .apk_signer(&staged.path, identity.sdk, target.stop)?
-        .eq_ignore_ascii_case(release_signer()?)
-    {
-        return Err("The selected APK does not match the verified release and certificate.".into());
-    }
+    check_staged(target, &staged, expected, identity.sdk, product).map_err(|error| {
+        format!(
+            "The selected {} APK does not match the verified release and certificate. {error}",
+            product.name()
+        )
+    })?;
     Ok(())
+}
+
+/// The version name Android reports for an installed `package`, or `None` when it is absent for user 0.
+pub fn installed_version(target: &Target<'_>, package: &str) -> Result<Option<String>> {
+    let output = target.script(
+        "set -e\nif pm list packages --user 0 \"$1\" | grep -Fxq \"package:$1\"; then dumpsys package \"$1\" | sed -n 's/^ *versionName=//p' | head -n 1; else printf 'OVC_PACKAGE_ABSENT\\n'; fi\n",
+        &[package],
+        25,
+    )?;
+    if output == "OVC_PACKAGE_ABSENT" {
+        return Ok(None);
+    }
+    let version = output.trim();
+    if version.is_empty()
+        || version.len() > 64
+        || !version
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || b".+-_".contains(&c))
+    {
+        return Ok(Some("unknown version".into()));
+    }
+    Ok(Some(version.into()))
 }
 
 struct FirmwareRow<'a> {
@@ -557,7 +701,7 @@ pub fn verify_preparation(target: &Target<'_>, identity: &Identity, storage: &Pa
     check_setup_device(target, identity)?;
     require_root(target)?;
     let remote = apk_path(target, PACKAGE)?.ok_or("Install the verified Controls APK first.")?;
-    verify_installed_controls(target, identity.sdk, &remote, storage)?;
+    verify_installed(target, Product::Controls, identity.sdk, &remote, storage)?;
     identity.recheck(target)
 }
 

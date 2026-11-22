@@ -234,12 +234,16 @@ function adapterHarness(options = {}) {
     };
     const appContext = {
         getPackageManager: () => packages, getPackageName: () => 'com.qinggan.app.launcher',
-        getResources: () => ({getIdentifier: () => 0, getDimension: () => 0, getDisplayMetrics: () => ({density: {value: 1}})})
+        getResources: () => ({getIdentifier: () => 0, getDimension: () => 0, getDisplayMetrics: () => ({density: {value: 1}}),
+            getConfiguration: () => 'config'}),
+        createConfigurationContext(config) { assert.equal(config, 'config'); return plainContext; }
     };
+    // A context without the activity's view factories, for the widget's RemoteViews.
+    const plainContext = {plain: true};
     const card = view('card', {isCard: true, isShown: () => true, getWidth: () => 576, getHeight: () => 652,
         onResume() { events.push(['card_resume']); }});
     const widget = {providers: options.widgets ?? [], bound: new Map(), next: 7, refuse: options.refuseBind === true,
-        listening: false, deleted: [], hostDeleted: 0, sizes: []};
+        listening: false, deleted: [], hostDeleted: 0, sizes: [], contexts: []};
     const widgetHost = {
         getAppWidgetIds: () => [...widget.bound.keys()],
         allocateAppWidgetId: () => widget.next++,
@@ -247,6 +251,7 @@ function adapterHarness(options = {}) {
         startListening() { widget.listening = true; }, stopListening() { widget.listening = false; },
         deleteHost() { widget.hostDeleted++; widget.bound.clear(); },
         createView(context, id, info) {
+            widget.contexts.push(context);
             return view('widget', {id, info, updateAppWidgetSize(options, ...size) { widget.sizes.push(size); }});
         },
         $dispose() {}
@@ -439,6 +444,8 @@ test('the navigator traffic widget fills the card when the navigator has one', (
     assert.equal(hosted.kind, 'widget');
     assert.equal(hosted.info.provider.value.name, '2x2');
     assert.deepEqual(h.widget.sizes, [[576, 652, 576, 652]]);
+    assert.equal(h.widget.contexts.length, 1);
+    assert.equal(h.widget.contexts[0].plain, true);
     assert.equal(h.widget.listening, true);
     assert.deepEqual(h.logs, ['OVC_HOME_CARD_READY']);
     // Its own taps are the widget's; elsewhere the card still opens the navigator.

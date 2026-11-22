@@ -1,7 +1,7 @@
 use crate::{
     adb::{self, Adb, Device, Result},
     device::{self, OemAction, message},
-    production::{self, Identity, ReleaseApk},
+    production::{self, ApkChoice, Identity, Product, ReleaseApk},
     recovery,
     releases::{self, Catalog},
     setup,
@@ -127,6 +127,9 @@ const RELEASE: u16 = 53;
 const DOWNLOAD: u16 = 54;
 const COLLECT: u16 = 55;
 const LOGS: u16 = 56;
+const YOUTUBE_APK: u16 = 57;
+const BROWSE_YOUTUBE: u16 = 58;
+const INSTALL_YOUTUBE: u16 = 59;
 const STATUS: u16 = 60;
 const CANCEL: u16 = 61;
 const TABS: [u16; 4] = [70, 71, 72, 73];
@@ -202,10 +205,15 @@ enum Job {
         path: PathBuf,
         expected: Option<ReleaseApk>,
     },
+    InstallYouTube {
+        path: PathBuf,
+        expected: Option<ReleaseApk>,
+    },
     Prepare {
         path: PathBuf,
         expected: Option<ReleaseApk>,
         runtime: PathBuf,
+        youtube: Option<(PathBuf, Option<ReleaseApk>)>,
     },
     Batch(PathBuf),
     Launch,
@@ -227,7 +235,7 @@ enum Output {
     Status(String),
     Devices(Vec<Device>, String),
     Fingerprint(String),
-    Apk(PathBuf, ReleaseApk),
+    Apk(PathBuf, ReleaseApk, Product),
     Update(PathBuf, String),
 }
 
@@ -266,6 +274,7 @@ struct State {
     storage: PathBuf,
     catalog: Catalog,
     apk_release: Option<(PathBuf, ReleaseApk)>,
+    youtube_release: Option<(PathBuf, ReleaseApk)>,
     events: Events,
     rx: Receiver<Event>,
     cancel: Option<Arc<AtomicBool>>,
@@ -343,15 +352,23 @@ fn run_job(
                     .into(),
             )
         } else {
+            let (version, product) = match releases::apk_version(&asset) {
+                Some(version) => (version, Product::Controls),
+                None => (
+                    releases::youtube_version(&asset)
+                        .ok_or("The release has an invalid APK version.")?,
+                    Product::YouTube,
+                ),
+            };
             Output::Apk(
                 path,
                 ReleaseApk {
-                    version: releases::apk_version(&asset)
-                        .ok_or("The release has an invalid APK version.")?,
+                    version,
                     sha256: releases::checksum(&asset)
                         .ok_or("Missing release digest.")?
                         .into(),
                 },
+                product,
             )
         });
     }
@@ -361,14 +378,21 @@ fn run_job(
         path,
         expected,
         runtime,
+        youtube,
     } = job
     {
         let selected = device.ok_or("Select the intended head unit before setup.")?;
         let result = setup::prepare(
             &adb,
             &selected,
-            &path,
-            expected.as_ref(),
+            ApkChoice {
+                path: &path,
+                expected: expected.as_ref(),
+            },
+            youtube.as_ref().map(|(path, expected)| ApkChoice {
+                path,
+                expected: expected.as_ref(),
+            }),
             &runtime,
             store,
             stop,
@@ -402,6 +426,9 @@ fn run_job(
     let result = match job {
         Job::Install { path, expected } => {
             production::install_controls(&target, &path, expected.as_ref(), &verification, progress)
+        }
+        Job::InstallYouTube { path, expected } => {
+            production::install_youtube(&target, &path, expected.as_ref(), &verification, progress)
         }
         Job::Batch(folder) => device::install_apks(
             &target,
@@ -671,11 +698,19 @@ impl State {
         self.button(tab, LAUNCH, "Open on device", [468, 398, 154, 37]);
         self.button(tab, REMOVE, "Remove app", [634, 398, 134, 37]);
         self.button(tab, INSTALL_APK, "APK only", [780, 398, 177, 37]);
-        self.styled_label(tab, WORKSPACE_TEXT, "Other tools", [236, 471, 700, 27], 1);
-        self.button(tab, BATCH, "Install APK folder…", [236, 502, 183, 36]);
-        self.button(tab, RUNTIME, "Install Frida injector…", [431, 502, 198, 36]);
-        self.button(tab, INFO, "Device status", [641, 502, 143, 36]);
-        self.button(tab, RECOVERY_PAGE, "Boot and recovery", [795, 502, 163, 36]);
+        // The YouTube web wrapper: its own APK and certificate pin, never part of the boot setup.
+        self.edit(
+            tab,
+            YOUTUBE_APK,
+            [252, 449, 380, 31],
+            "Optional YouTube app APK",
+        );
+        self.button(tab, BROWSE_YOUTUBE, "YouTube APK…", [644, 447, 148, 34]);
+        self.button(tab, INSTALL_YOUTUBE, "Install YouTube", [804, 447, 153, 34]);
+        self.button(tab, BATCH, "Install APK folder…", [236, 510, 183, 36]);
+        self.button(tab, RUNTIME, "Install Frida injector…", [431, 510, 198, 36]);
+        self.button(tab, INFO, "Device status", [641, 510, 143, 36]);
+        self.button(tab, RECOVERY_PAGE, "Boot and recovery", [795, 510, 163, 36]);
 
         let tab = Some(1);
         self.styled_label(
@@ -998,6 +1033,29 @@ impl State {
         self.index(DEVICE).and_then(|i| self.devices.get(i))
     }
 
+    /// The Releases list: Controls APKs first, then the YouTube app's, each newest first.
+    fn release_apks(&self) -> impl Iterator<Item = &releases::Asset> {
+        self.catalog
+            .apk
+            .iter()
+            .chain(&self.catalog.youtube)
+            .map(|(_, asset)| asset)
+    }
+
+    /// The YouTube APK in its field, with the official release it must match when it was downloaded here.
+    fn youtube_choice(&self) -> Option<(PathBuf, Option<ReleaseApk>)> {
+        let path = PathBuf::from(self.text(YOUTUBE_APK).trim());
+        if !path.is_file() {
+            return None;
+        }
+        let expected = self
+            .youtube_release
+            .as_ref()
+            .filter(|(downloaded, _)| downloaded == &path)
+            .map(|(_, release)| release.clone());
+        Some((path, expected))
+    }
+
     fn enable(&self, id: u16, enabled: bool) {
         unsafe { EnableWindow(self.controls[&id], i32::from(enabled)) };
     }
@@ -1008,6 +1066,7 @@ impl State {
         for id in [
             INSTALL,
             INSTALL_APK,
+            INSTALL_YOUTUBE,
             LAUNCH,
             REMOVE,
             BATCH,
@@ -1026,6 +1085,7 @@ impl State {
             DISCONNECT,
             ADB_PATH,
             BROWSE_APK,
+            BROWSE_YOUTUBE,
             BROWSE_KEYBOARD,
             RECOVERY_PAGE,
         ] {
@@ -1034,7 +1094,10 @@ impl State {
         self.enable(CANCEL, !free);
         self.enable(CHECK, !self.checking);
         self.enable(UPDATE, free && self.catalog.installer.is_some());
-        self.enable(DOWNLOAD, free && !self.catalog.apk.is_empty());
+        self.enable(
+            DOWNLOAD,
+            free && !(self.catalog.apk.is_empty() && self.catalog.youtube.is_empty()),
+        );
         self.set(
             DEVICE_BADGE,
             if self.selected().is_some_and(Device::ready) {
@@ -1108,11 +1171,18 @@ impl State {
                             self.set(FINGERPRINT, &s);
                             self.status("Verify the displayed build before running maintenance.");
                         }
-                        Ok(Output::Apk(path, release)) => {
-                            self.set(APK, &path.to_string_lossy());
-                            self.apk_release = Some((path, release));
+                        Ok(Output::Apk(path, release, product)) => {
+                            let (field, slot) = match product {
+                                Product::Controls => (APK, &mut self.apk_release),
+                                Product::YouTube => (YOUTUBE_APK, &mut self.youtube_release),
+                            };
+                            *slot = Some((path.clone(), release));
+                            self.set(field, &path.to_string_lossy());
                             self.switch(0);
-                            self.status("Release download matched its SHA-256. Select Install or update to check its APK signer and the selected device.");
+                            self.status(match product {
+                                Product::Controls => "Release download matched its SHA-256. Select Prepare and install or APK only to check its APK signer and the selected device.",
+                                Product::YouTube => "YouTube release download matched its SHA-256. Select Install YouTube, or Prepare and install to add it after Controls.",
+                            });
                         }
                         Ok(Output::Update(_, _)) => {
                             unsafe { DestroyWindow(self.hwnd) };
@@ -1130,25 +1200,23 @@ impl State {
                     match result {
                         Ok(catalog) => {
                             self.catalog = catalog;
-                            if self.catalog.apk.is_empty() {
+                            if self.catalog.apk.is_empty() && self.catalog.youtube.is_empty() {
                                 self.set_items(
                                     RELEASE,
                                     ["No official APK releases are available"],
                                     Some(0),
                                 );
                             } else {
-                                self.set_items(
-                                    RELEASE,
-                                    self.catalog.apk.iter().map(|(_, a)| a.name.as_str()),
-                                    Some(0),
-                                );
+                                let names: Vec<String> =
+                                    self.release_apks().map(|a| a.name.clone()).collect();
+                                self.set_items(RELEASE, names.iter().map(String::as_str), Some(0));
                             }
                             if self.cancel.is_none() {
                                 if let Some((version, _)) = &self.catalog.installer {
                                     self.status(&format!("Installer {version} is available. Use Download and install under Releases & logs."));
                                 } else if !automatic {
-                                    self.status(&format!("Installer {} is current. Found {} verified APK release(s).",
-                                        env!("CARGO_PKG_VERSION"), self.catalog.apk.len()));
+                                    self.status(&format!("Installer {} is current. Found {} verified Controls and {} YouTube APK release(s).",
+                                        env!("CARGO_PKG_VERSION"), self.catalog.apk.len(), self.catalog.youtube.len()));
                                 }
                             }
                         }
@@ -1214,21 +1282,35 @@ impl State {
                     address: adb::endpoint(&address)?,
                 });
             }
-            BROWSE_APK | BROWSE_KEYBOARD => {
+            BROWSE_APK | BROWSE_YOUTUBE | BROWSE_KEYBOARD => {
                 if let Some(path) = choose_file(self.hwnd, "Android packages\0*.apk\0\0") {
-                    if id == BROWSE_APK
-                        && self
-                            .apk_release
+                    let release = match id {
+                        BROWSE_APK => Some(&mut self.apk_release),
+                        BROWSE_YOUTUBE => Some(&mut self.youtube_release),
+                        _ => None,
+                    };
+                    if let Some(release) = release
+                        && release
                             .as_ref()
                             .is_some_and(|(downloaded, _)| downloaded != &path)
                     {
-                        self.apk_release = None;
+                        *release = None;
                     }
                     self.set(
-                        if id == BROWSE_APK { APK } else { KEYBOARD },
+                        match id {
+                            BROWSE_APK => APK,
+                            BROWSE_YOUTUBE => YOUTUBE_APK,
+                            _ => KEYBOARD,
+                        },
                         &path.to_string_lossy(),
                     );
                 }
+            }
+            INSTALL_YOUTUBE => {
+                let (path, expected) = self
+                    .youtube_choice()
+                    .ok_or("Choose a YouTube app APK first.")?;
+                self.start(Job::InstallYouTube { path, expected });
             }
             INSTALL | INSTALL_APK => {
                 let path = PathBuf::from(self.text(APK).trim());
@@ -1243,18 +1325,31 @@ impl State {
                 if id == INSTALL_APK {
                     self.start(Job::Install { path, expected });
                 } else {
+                    let youtube = if self.text(YOUTUBE_APK).trim().is_empty() {
+                        None
+                    } else {
+                        Some(self.youtube_choice().ok_or(
+                            "The YouTube app APK was not found. Choose it again or clear its field.",
+                        )?)
+                    };
                     let runtime = setup::portable_runtime().or_else(|| choose_file(self.hwnd,
                         "Verified ARM64 Frida injector\0open-voyah-controls-frida-*\0All files\0*.*\0\0"));
+                    let question = format!(
+                        "Prepare and install Controls on the selected head unit? Setup requests ADB root, saves the original startup script on this PC, enables local startup access, microphone and button service. The head unit may restart once while preparing its system partition.{}",
+                        if youtube.is_some() {
+                            "\n\nThe selected YouTube app is installed afterwards as a separate step."
+                        } else {
+                            ""
+                        }
+                    );
                     if let Some(runtime) = runtime
-                        && confirm(
-                            self.hwnd,
-                            "Prepare and install Controls on the selected head unit? Setup requests ADB root, saves the original startup script on this PC, enables local startup access, microphone and button service. The head unit may restart once while preparing its system partition.",
-                        )
+                        && confirm(self.hwnd, &question)
                     {
                         self.start(Job::Prepare {
                             path,
                             expected,
                             runtime,
+                            youtube,
                         });
                     }
                 }
@@ -1417,11 +1512,12 @@ impl State {
             }
             CHECK => self.check(false),
             DOWNLOAD => {
-                let (_, asset) = self
+                let asset = self
                     .index(RELEASE)
-                    .and_then(|i| self.catalog.apk.get(i))
-                    .ok_or("Select an APK release.")?;
-                self.start(Job::Download(asset.clone(), false));
+                    .and_then(|i| self.release_apks().nth(i))
+                    .ok_or("Select an APK release.")?
+                    .clone();
+                self.start(Job::Download(asset, false));
             }
             UPDATE => {
                 let (version, asset) = self
@@ -1765,7 +1861,7 @@ unsafe fn paint_header(hwnd: HWND, dc: HDC) {
                 let bottom = match page {
                     2 => 544,
                     3 => 435,
-                    _ => 453,
+                    _ => 496,
                 };
                 card([234, 279, 975, bottom], WHITE, LINE);
             }
@@ -2049,6 +2145,7 @@ pub fn run() {
             storage: store,
             catalog: Catalog::default(),
             apk_release: None,
+            youtube_release: None,
             events: Events {
                 hwnd: hwnd as usize,
                 tx,
@@ -2080,6 +2177,7 @@ pub fn run() {
                 state.devices.push(sample);
                 if tab == 0 {
                     state.set(APK, "OpenVoyahControls-v0.17.0.apk");
+                    state.set(YOUTUBE_APK, "ovcYouTube-v0.1.0.apk");
                     state.status("Preview device and signed release selected.");
                 } else {
                     state.set(
@@ -2490,6 +2588,7 @@ mod tests {
                 path: root.join("unused.apk"),
                 expected: None,
                 runtime: root.join("missing-runtime"),
+                youtube: None,
             },
             Some(adb.clone()),
             Some(selected.clone()),
@@ -2553,6 +2652,7 @@ mod tests {
                 path: root.join("unused.apk"),
                 expected: None,
                 runtime: root.join("runtime"),
+                youtube: None,
             },
             Some(adb.clone()),
             Some(selected),
@@ -2636,8 +2736,8 @@ mod tests {
         assert_eq!(fs::read(&current).unwrap(), b"previous");
     }
 
-    #[test]
-    fn installer_jobs_validate_apks_and_use_only_the_selected_transport() {
+    /// A portable SDK layout whose adb, aapt2 and java are the offline fixture; the ADB DLLs are left to the caller.
+    fn mock_sdk() -> (PathBuf, PathBuf, PathBuf) {
         let project = Path::new(env!("CARGO_MANIFEST_DIR"));
         let root = device::new_folder(&project.join("target"), "mock-sdk").unwrap();
         let platform = root.join("platform-tools");
@@ -2661,6 +2761,125 @@ mod tests {
         let java = root.join("jre/bin/java.exe");
         fs::create_dir_all(java.parent().unwrap()).unwrap();
         fs::copy(&executable, java).unwrap();
+        (root, platform, executable)
+    }
+
+    #[test]
+    fn youtube_install_uses_its_own_pin_and_leaves_controls_setup_alone() {
+        let (root, platform, executable) = mock_sdk();
+        for library in ["AdbWinApi.dll", "AdbWinUsbApi.dll"] {
+            fs::write(platform.join(library), b"mock adb library").unwrap();
+        }
+        for name in [
+            "youtube",
+            "youtube-update",
+            "youtube-newer",
+            "youtube-debug",
+            "youtube-controls-key",
+            "valid",
+        ] {
+            fs::write(root.join(format!("{name}.apk")), name).unwrap();
+        }
+        let adb = Adb::from_path(executable).unwrap();
+        let stop = AtomicBool::new(false);
+        let device = adb.devices(&stop).unwrap().remove(0);
+        let perform = |job| {
+            run_job(
+                job,
+                Some(adb.clone()),
+                Some(device.clone()),
+                &root,
+                &stop,
+                |_| {},
+            )
+        };
+        let youtube = |name: &str, expected: Option<ReleaseApk>| Job::InstallYouTube {
+            path: root.join(format!("{name}.apk")),
+            expected,
+        };
+        let status = |job| match perform(job) {
+            Ok(Output::Status(text)) => Ok(text),
+            Ok(_) => Err("unexpected output".to_string()),
+            Err(error) => Err(error),
+        };
+
+        assert!(
+            status(Job::Info)
+                .unwrap()
+                .contains("YouTube app (Android user 0): Absent")
+        );
+        // An active Controls deployment stays as it is: the wrapper needs no rollback and no root.
+        fs::write(platform.join("active-hooks"), "running").unwrap();
+        assert!(
+            status(youtube("youtube", None))
+                .unwrap()
+                .contains("YouTube 0.1.0 installed and verified")
+        );
+        assert_eq!(
+            fs::read_to_string(platform.join("installed-youtube")).unwrap(),
+            "youtube"
+        );
+        assert!(platform.join("active-hooks").is_file());
+        assert!(!platform.join("installed-apk").exists());
+        assert!(
+            status(Job::Info)
+                .unwrap()
+                .contains("YouTube app (Android user 0): Installed, version 0.1.0")
+        );
+        assert!(
+            status(youtube("youtube", None))
+                .unwrap()
+                .contains("already installed")
+        );
+
+        for (name, error) in [
+            ("youtube-controls-key", "pinned YouTube release certificate"),
+            ("valid", "Expected APK package org.openvoyah.youtube"),
+            ("youtube-debug", "non-debuggable"),
+        ] {
+            assert!(
+                matches!(status(youtube(name, None)), Err(e) if e.contains(error)),
+                "{name}"
+            );
+        }
+        let official = ReleaseApk {
+            version: semver::Version::new(0, 3, 0),
+            sha256: "0".repeat(64),
+        };
+        assert!(matches!(
+            status(youtube("youtube-newer", Some(official))),
+            Err(e) if e.contains("official release")
+        ));
+
+        assert!(
+            status(youtube("youtube-update", None))
+                .unwrap()
+                .contains("YouTube 0.2.0 installed")
+        );
+        assert!(
+            matches!(status(youtube("youtube", None)), Err(e) if e.contains("newer YouTube release"))
+        );
+        assert_eq!(
+            fs::read_to_string(platform.join("installed-youtube")).unwrap(),
+            "youtube-update"
+        );
+
+        // A debug build on the unit has another signer; Android would refuse the update, so the user is told first.
+        fs::write(platform.join("installed-youtube"), "youtube-debug").unwrap();
+        assert!(matches!(
+            status(youtube("youtube-newer", None)),
+            Err(e) if e.contains("Uninstall it on the head unit first")
+        ));
+        assert_eq!(
+            fs::read_to_string(platform.join("installed-youtube")).unwrap(),
+            "youtube-debug"
+        );
+        assert!(platform.join("active-hooks").is_file());
+    }
+
+    #[test]
+    fn installer_jobs_validate_apks_and_use_only_the_selected_transport() {
+        let (root, platform, executable) = mock_sdk();
         for (file, data) in [
             ("valid.apk", "valid"),
             ("update.apk", "update"),

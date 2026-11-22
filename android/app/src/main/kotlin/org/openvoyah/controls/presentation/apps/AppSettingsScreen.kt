@@ -164,14 +164,16 @@ internal fun AppSettingsScreen(
                             Modifier.weight(1.15f).fillMaxHeight(), scroll = true) {
                             AppWindowSettings(requireNotNull(window), model)
                         }
-                        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = spacing) {
-                            SettingsPane(R.string.app_icon_title, CockpitIcon.APPS, Modifier.fillMaxWidth()) {
-                                AppIconSettings(app)
-                            }
-                            SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK,
-                                Modifier.weight(1f).fillMaxWidth(), scroll = true) {
+                        // The column scrolls as a whole and each pane keeps its own height, so a tall pane never
+                        // squeezes another one to nothing; Permissions comes first because it matters most here.
+                        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                            verticalArrangement = spacing) {
+                            SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK, Modifier.fillMaxWidth()) {
                                 PermissionSettings(permissions, busy, model::permission, model::specialAccess,
                                     model::refreshPermissions, appInfo, specialAccess)
+                            }
+                            SettingsPane(R.string.app_icon_title, CockpitIcon.APPS, Modifier.fillMaxWidth()) {
+                                AppIconSettings(app)
                             }
                         }
                     }
@@ -182,12 +184,12 @@ internal fun AppSettingsScreen(
                                 AppWindowSettings(it, model)
                             }
                         }
-                        SettingsPane(R.string.app_icon_title, CockpitIcon.APPS, Modifier.fillMaxWidth()) {
-                            AppIconSettings(app)
-                        }
                         SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK, Modifier.fillMaxWidth()) {
                             PermissionSettings(permissions, busy, model::permission, model::specialAccess,
                                 model::refreshPermissions, appInfo, specialAccess)
+                        }
+                        SettingsPane(R.string.app_icon_title, CockpitIcon.APPS, Modifier.fillMaxWidth()) {
+                            AppIconSettings(app)
                         }
                     }
                 }

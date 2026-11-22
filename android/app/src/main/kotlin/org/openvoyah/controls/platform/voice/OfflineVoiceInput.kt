@@ -34,6 +34,8 @@ import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.ListeningWindow
 import org.openvoyah.controls.diagnostics.ControlsLog
+import org.openvoyah.controls.domain.audio.DuckTrigger
+import org.openvoyah.controls.platform.audio.MediaDuck
 import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.domain.voice.SpeechEngine
 import org.openvoyah.controls.domain.voice.SpeechEvent
@@ -117,11 +119,17 @@ class OfflineVoiceInput(
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(size, 6400))
             val manager = context.getSystemService(AudioManager::class.java)
             var focus: AudioFocusRequest? = null
+            var ducking = false
             try {
                 if (audio.state != AudioRecord.STATE_INITIALIZED) throw IOException(UiText.get(R.string.ui_141))
                 captureContext.ensureActive()
                 stage("ready_cue")
                 if (duckMedia && manager != null) focus = requestFocus(manager, focusLost)
+                // The OEM focus engine decides itself whether focus ducks; the media level is lowered directly.
+                if (duckMedia) {
+                    MediaDuck.begin(context, DuckTrigger.LISTENING)
+                    ducking = true
+                }
                 if (readyCue != null) {
                     if (!focusLost.isCompleted) coroutineScope {
                         val cue = launch { readyCue.invoke() }
@@ -146,6 +154,8 @@ class OfflineVoiceInput(
                 } finally {
                     audio.release()
                     focus?.let { manager?.abandonAudioFocusRequest(it) }
+                    // Before the command runs, so a volume command steps from the restored level.
+                    if (ducking) MediaDuck.end(context, DuckTrigger.LISTENING)
                 }
             }
         }

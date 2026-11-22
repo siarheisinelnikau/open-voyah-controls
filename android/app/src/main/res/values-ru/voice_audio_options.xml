@@ -51,4 +51,14 @@
     <string name="voice_outcome_vehicle_sent">Запрос отправлен автомобилю. Выполнение не подтверждено.</string>
     <string name="voice_outcome_blocked">Действие заблокировано.</string>
     <string name="voice_outcome_unavailable">Команда недоступна.</string>
+    <string name="voice_duck_calls">Приглушать медиа во время звонка</string>
+    <string name="voice_duck_level">Громкость медиа при приглушении</string>
+    <string name="voice_duck_level_silent">Тишина</string>
+    <string name="voice_duck_level_10">10%</string>
+    <string name="voice_duck_level_20">20%</string>
+    <string name="voice_duck_level_35">35%</string>
+    <string name="voice_duck_hint">Когда распознавание и звонок закончатся, громкость плавно вернётся. Если в это время вы сами измените громкость, рукой или голосом, останется ваша.</string>
+    <string name="voice_startup_volume">Громкость при запуске</string>
+    <string name="voice_startup_volume_level">Громкость медиа после запуска магнитолы</string>
+    <string name="voice_startup_volume_hint">Задаётся один раз при каждом запуске магнитолы, в процентах от максимальной. Повторный запуск Controls её не меняет.</string>
 </resources>

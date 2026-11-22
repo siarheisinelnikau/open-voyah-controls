@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_navigator_widget_settings">Navigator widget settings: theme, map scale</string>
+    <string name="home_navigator_widget_opened">Yandex Navigator\'s widget settings are open on the central display.</string>
+    <string name="home_navigator_widget_missing">The home screen has no Navigator widget yet. Turn on the Yandex Navigator card and open the home screen once.</string>
+</resources>

@@ -71,6 +71,26 @@ fn main() {
         }
         Err(_) => "Development installer without a Controls release certificate".into(),
     };
+    // The YouTube web wrapper is signed with its own release key. Without this pin the installer refuses it.
+    const YOUTUBE_CERT: &str = "OPEN_VOYAH_YOUTUBE_CERT_SHA256";
+    println!("cargo:rerun-if-env-changed={YOUTUBE_CERT}");
+    let release_pin = match env::var(YOUTUBE_CERT) {
+        Ok(pin) => {
+            assert!(
+                pin.len() == 64 && pin.bytes().all(|byte| byte.is_ascii_hexdigit()),
+                "{YOUTUBE_CERT} must be a SHA-256 certificate fingerprint without separators"
+            );
+            assert!(
+                !env::var(RELEASE_CERT).is_ok_and(|controls| controls.eq_ignore_ascii_case(&pin)),
+                "{YOUTUBE_CERT} must name the YouTube app's own release key, not the Controls key"
+            );
+            format!(
+                "{release_pin}; YouTube release certificate SHA-256 {}",
+                pin.to_ascii_lowercase()
+            )
+        }
+        Err(_) => release_pin,
+    };
     winresource::WindowsResource::new()
         .set("ProductName", "Open Voyah Controls Installer")
         .set("FileDescription", "Open Voyah Controls Installer")

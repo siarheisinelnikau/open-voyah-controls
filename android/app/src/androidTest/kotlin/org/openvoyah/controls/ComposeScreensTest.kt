@@ -178,6 +178,14 @@ class ComposeScreensTest : InstrumentationTestCase() {
         val setup = launch(Intent(app, SetupActivity::class.java).putExtra("request", "d".repeat(32)))
         awaitText(UiText.get(R.string.setup_result), 45_000)
         assertComposeContent(setup)
+        // The emulator has no provisioned root channel: the root row fails with its reason, later rows are skipped,
+        // and the recovery actions are offered.
+        val rootRow = UiText.get(R.string.setup_step_root)
+        assertTrue("The first-run check must show its root step row",
+            nodes().any { it.isVisibleToUser && it.text?.toString()?.contains(rootRow) == true })
+        assertTrue("A skipped step must say why", nodes().any { it.text?.toString()?.contains(UiText.get(R.string.setup_note_not_reached)) == true })
+        awaitText(UiText.get(R.string.setup_retry))
+        awaitText(UiText.get(R.string.setup_copy_details))
         capture("setup")
         instrumentation.runOnMainSync { setup.finish() }
         assertEquals("The ordinary app must not hold the privileged external-entry permission",
@@ -674,6 +682,19 @@ class ComposeScreensTest : InstrumentationTestCase() {
     }
 
     fun testAppSettingsUninstallsAManagedAppOnlyAfterConfirmationAndReturnsToTheGrid() {
+        val preferences = AppGridPreferences(app)
+        val original = preferences.exportSettings()
+        val apps = gridApps().sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label() })
+        check(apps.size > 11) { "The fixture needs two full rows of apps" }
+        preferences.restoreSettings(pagedGridFixture())
+        try {
+            uninstallThroughSettings(apps)
+        } finally {
+            preferences.restoreSettings(original)
+        }
+    }
+
+    private fun uninstallThroughSettings(apps: List<InstalledApps.Entry>) {
         val fixture = AppControlFixture(refusal = null)
         openFixtureAppSettings(fixture)
         val uninstall = UiText.get(R.string.apps_remove)
@@ -689,15 +710,27 @@ class ComposeScreensTest : InstrumentationTestCase() {
         clickText(uninstall)
         awaitText(title)
         clickText(UiText.get(R.string.apps_remove_confirm))
-        // The page closes and the grid says the app is gone.
-        awaitText(UiText.get(R.string.apps_remove_done))
+        // The page closes and the grid says the app is gone, beside the page dots: the grid keeps its two rows.
+        val notice = UiText.get(R.string.apps_remove_done)
+        awaitText(notice)
         assertNull("The settings page stayed open", textNode(UiText.get(R.string.app_settings_title)))
         assertEquals(listOf(fixture.identity), fixture.removals.toList())
+        awaitText(apps[5].label())
+        val firstRow = Rect().also(checkNotNull(textNode(apps[0].label()))::getBoundsInScreen)
+        val secondRow = Rect().also(checkNotNull(textNode(apps[5].label()))::getBoundsInScreen)
+        assertTrue("The grid lost its second row while the notice showed", secondRow.top > firstRow.bottom)
+        capture("app-uninstalled")
+        // The notice leaves by itself.
+        val deadline = SystemClock.uptimeMillis() + 8_000
+        while (textNode(notice) != null && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(100)
+        assertNull("The removal notice stayed", textNode(notice))
     }
 
     fun testAppSettingsChangesPermissionsAndSpecialAccessOfAManagedApp() {
         val fixture = AppControlFixture(refusal = null)
         openFixtureAppSettings(fixture)
+        // Permissions is the first pane beside or under the window layout, visible without scrolling.
+        awaitText(UiText.get(R.string.apps_permissions))
         awaitText(UiText.get(R.string.apps_permission_managed))
         awaitSwitch(FIXTURE_CAMERA, checked = true)
         clickText(FIXTURE_CAMERA)

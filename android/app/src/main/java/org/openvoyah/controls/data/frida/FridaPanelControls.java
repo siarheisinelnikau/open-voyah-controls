@@ -57,6 +57,10 @@ public final class FridaPanelControls implements PanelControls {
                 bridge.enableButtonService();
                 yield UiText.get(awaitButtonService() ? R.string.button_service_connected : R.string.button_service_pending);
             }
+            case NAVIGATOR_WIDGET -> {
+                bridge.openNavigatorWidgetSettings();
+                yield UiText.get(R.string.home_navigator_widget_opened);
+            }
         };
     }
 

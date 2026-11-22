@@ -13,7 +13,7 @@ import org.openvoyah.controls.core.PanelControls
 import org.openvoyah.controls.core.PanelSlots
 import org.openvoyah.controls.data.settings.SettingsStore
 
-enum class HomeCommand { ACCESSIBILITY, CAPTURE, MANUAL, STEERING, TIMINGS, RESET, EXPORT, IMPORT, CONNECT, STATUS, DISCONNECT }
+enum class HomeCommand { ACCESSIBILITY, CAPTURE, MANUAL, STEERING, TIMINGS, RESET, EXPORT, IMPORT, CONNECT, STATUS, DISCONNECT, NAVIGATOR_WIDGET }
 
 interface HomeActions {
     fun command(command: HomeCommand)

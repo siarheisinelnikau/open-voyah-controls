@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setup_step_root">Локальный root-канал</string>
+    <string name="setup_step_firmware">Проверка прошивки</string>
+    <string name="setup_step_deploy">Развёртывание агентов</string>
+    <string name="setup_step_agent_launcher">Лаунчер: панель, кнопки и голос</string>
+    <string name="setup_step_agent_locale_setting">Перевод: Настройки</string>
+    <string name="setup_step_agent_locale_vehicle">Перевод: Автомобиль</string>
+    <string name="setup_step_agent_locale_bluetooth">Перевод: Телефон</string>
+    <string name="setup_step_agent_locale_hiboard">Перевод: HiBoard</string>
+    <string name="setup_step_agent_window">Окна приложений</string>
+    <string name="setup_step_agent_navigation">Навигация на приборной панели</string>
+    <string name="setup_step_agent_can">Кнопки руля (CAN)</string>
+    <string name="setup_step_voice">Офлайн-модель речи</string>
+    <string name="setup_step_microphone">Доступ к микрофону</string>
+    <string name="setup_step_buttons">Служба кнопок</string>
+
+    <string name="setup_state_pending">Ожидает</string>
+    <string name="setup_state_running">Выполняется · %1$s</string>
+    <string name="setup_state_done">Готово · %1$s</string>
+    <string name="setup_state_attention">Требует внимания</string>
+    <string name="setup_state_skipped">Пропущено</string>
+    <string name="setup_state_failed">Ошибка · %1$s</string>
+    <string name="setup_elapsed_seconds">%1$d с</string>
+    <string name="setup_elapsed_minutes">%1$d мин %2$02d с</string>
+    <string name="setup_running_summary">Завершено шагов: %1$d из %2$d · %3$s</string>
+
+    <string name="setup_note_root">Входим в канал, подготовленный установщиком</string>
+    <string name="setup_note_firmware">Сверяем прошивку и приложения с проверенным профилем</string>
+    <string name="setup_note_firmware_reviewed">Для этой прошивки есть проверенный профиль</string>
+    <string name="setup_note_unreviewed">Для этой точной прошивки нет проверенного профиля</string>
+    <string name="setup_note_deploy_checking">Проверяем Frida и каталог развёртывания</string>
+    <string name="setup_note_deploy_stopping">Восстанавливаем экран и останавливаем прежних агентов</string>
+    <string name="setup_note_deploy_verifying">Сверяем %1$s с копией на магнитоле (%2$d из %3$d)</string>
+    <string name="setup_note_deploy_uploading">Передаём %1$s (%2$d из %3$d)</string>
+    <string name="setup_note_deploy_reused">%1$s уже актуален (%2$d из %3$d)</string>
+    <string name="setup_note_deploy_copied">%1$s скопирован на магнитоле (%2$d из %3$d)</string>
+    <string name="setup_note_deploy_sealing">Закрепляем хеши файлов в доверенной квитанции</string>
+    <string name="setup_note_deploy_starting">Запускаем супервизоры агентов</string>
+    <string name="setup_note_deploy_files">Передано файлов: %1$d, уже актуальны: %2$d</string>
+    <string name="setup_note_voice">Загружаем офлайн-модель; не закрывайте окно</string>
+    <string name="setup_note_microphone_granted">Разрешён</string>
+    <string name="setup_note_microphone_missing">Ещё не разрешён: разрешите микрофон в Controls</string>
+    <string name="setup_note_buttons_connected">Подключена</string>
+    <string name="setup_note_buttons_waiting">Ждём, пока Android подключит службу</string>
+    <string name="setup_note_buttons_missing">Не подключена: включите Controls в специальных возможностях</string>
+    <string name="setup_note_not_reached">Не проверялось: проверка остановилась на предыдущем шаге</string>
+    <string name="setup_note_timeout">Нет результата за %1$d с</string>
+    <string name="setup_note_budget">Установщик ждёт эту проверку не больше 4 минут, поэтому она остановлена</string>
+
+    <string name="setup_agent_worker_starting">Запускаем супервизор агента</string>
+    <string name="setup_agent_waiting_target">Ждём процесс приложения</string>
+    <string name="setup_agent_waiting_app">Приложение не запущено; перевод включится, когда его откроют</string>
+    <string name="setup_agent_attaching">Подключаемся к процессу</string>
+    <string name="setup_agent_starting">Ждём ответа агента</string>
+    <string name="setup_agent_error_detail">Продолжаем попытки. Последняя ошибка: %1$s</string>
+    <string name="setup_agent_stopped">Супервизор остановился без причины</string>
+    <string name="setup_agent_stopped_detail">Супервизор остановился: %1$s</string>
+    <string name="setup_agent_target_missing">Процесс приложения не запустился за %1$d с</string>
+    <string name="setup_agent_timeout">Нет ответа за %1$d с</string>
+    <string name="setup_agent_timeout_detail">Нет ответа за %1$d с. Последняя ошибка: %2$s</string>
+    <string name="setup_agent_none">После развёртывания ни один агент не отчитался</string>
+
+    <string name="setup_retry">Повторить проверку</string>
+    <string name="setup_open_diagnostics">Открыть журнал диагностики</string>
+    <string name="setup_copy_details">Скопировать подробности</string>
+    <string name="setup_details_copied">Подробности скопированы</string>
+    <string name="setup_details_title">Проверка первого запуска Open Voyah Controls</string>
+    <string name="setup_next_retry">Повторите проверку; если шаг снова завершится ошибкой, откройте журнал диагностики.</string>
+</resources>

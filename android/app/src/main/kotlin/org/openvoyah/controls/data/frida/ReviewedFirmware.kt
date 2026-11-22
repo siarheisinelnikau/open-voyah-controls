@@ -24,6 +24,10 @@ internal object ReviewedFirmware {
     const val OEM_PROFILES = "oem-profiles"
     const val TBOX_REBOOT = "tbox-reboot"
     const val CLUSTER_WRITE = "cluster-write"
+    /** Settings → Restart multimedia: kills the OEM media center and factory players (see SystemRestartScripts). */
+    const val MEDIA_RESTART = "media-restart"
+    /** Settings → Restart the system: an orderly reboot of the head unit while parked. */
+    const val SYSTEM_REBOOT = "system-reboot"
 
     val localizationTargets = mapOf(
         "setting" to "com.qinggan.app.setting",
@@ -32,7 +36,8 @@ internal object ReviewedFirmware {
         "hiboard" to "com.qinggan.app.hiboard",
     )
     private val packages = setOf(LAUNCHER, FRAMEWORK, CLUSTER, CAN_SERVICE, LOGIN) + localizationTargets.values
-    private val operations = setOf(WINDOW_SERVICE, PASSENGER_WINDOW_DPI, WINDOW_DISPLAY_MOVE, OEM_PROFILES, TBOX_REBOOT, CLUSTER_WRITE, CAN_STEERING, CAN_STEERING_EDGES)
+    private val operations = setOf(WINDOW_SERVICE, PASSENGER_WINDOW_DPI, WINDOW_DISPLAY_MOVE, OEM_PROFILES, TBOX_REBOOT, CLUSTER_WRITE, CAN_STEERING, CAN_STEERING_EDGES,
+        MEDIA_RESTART, SYSTEM_REBOOT)
     private val fingerprint = Regex("[A-Za-z0-9][A-Za-z0-9._:/+,\\-]{0,255}")
     private val product = Regex("[A-Za-z0-9][A-Za-z0-9_.\\-]{0,63}")
     val sha256 = Regex("[0-9a-f]{64}")

@@ -64,7 +64,8 @@ foreach ($path in $inputs) {
 $targetInfo = (Get-Item -LiteralPath $target).VersionInfo
 if ($targetInfo.ProductVersion -ne $version) { throw 'Build the current release before preparing a portable copy.' }
 if (-not $Development) {
-    if ($targetInfo.Comments -notmatch '^Controls release certificate SHA-256 [a-f0-9]{64}$') {
+    # The YouTube app pin is optional: without it the installer refuses YouTube APKs and keeps every Controls check.
+    if ($targetInfo.Comments -notmatch '^Controls release certificate SHA-256 [a-f0-9]{64}(; YouTube release certificate SHA-256 [a-f0-9]{64})?$') {
         throw 'Build the release installer with its Controls APK release certificate pin.'
     }
     if ($LocalSignerSha256) {

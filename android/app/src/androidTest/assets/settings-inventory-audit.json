@@ -429,6 +429,10 @@
           "doubleSmoke": "true",
           "doubleVentilation": "false",
           "duckMedia": "true",
+          "duckCalls": "false",
+          "duckLevelPercent": "35",
+          "startupVolume": "false",
+          "startupVolumePercent": "25",
           "spokenFeedback": "false",
           "speechFeedbackStyle": "readback",
           "speechRatePercent": "75",
@@ -929,6 +933,10 @@
           "doubleSmoke": "false",
           "doubleVentilation": "true",
           "duckMedia": "false",
+          "duckCalls": "true",
+          "duckLevelPercent": "10",
+          "startupVolume": "true",
+          "startupVolumePercent": "15",
           "spokenFeedback": "true",
           "speechFeedbackStyle": "outcome",
           "speechRatePercent": "125",
@@ -1075,8 +1083,28 @@
     },
     {
       "area": "Voice",
-      "name": "media ducking",
+      "name": "media ducking while listening",
       "path": "/voice/values/duckMedia"
+    },
+    {
+      "area": "Voice",
+      "name": "media ducking during calls",
+      "path": "/voice/values/duckCalls"
+    },
+    {
+      "area": "Voice",
+      "name": "media level while lowered",
+      "path": "/voice/values/duckLevelPercent"
+    },
+    {
+      "area": "Voice",
+      "name": "media volume at startup",
+      "path": "/voice/values/startupVolume"
+    },
+    {
+      "area": "Voice",
+      "name": "media volume at startup level",
+      "path": "/voice/values/startupVolumePercent"
     },
     {
       "area": "Voice",

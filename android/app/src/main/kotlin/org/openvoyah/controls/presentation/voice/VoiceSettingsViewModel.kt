@@ -18,6 +18,8 @@ import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
 import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.core.voice.VoiceAudioOptions
+import org.openvoyah.controls.domain.audio.DuckSettings
+import org.openvoyah.controls.domain.audio.StartupVolume
 
 internal data class VoiceSettingsConfiguration(
     val catalog: VoiceCatalog,
@@ -35,6 +37,10 @@ internal data class VoiceSettingsConfiguration(
     val readyPrompt: String = "",
     /** The stored speech engine key; Recognition shows whether it can run for [language]. */
     val engine: String = "vosk",
+    val duckCalls: Boolean = DuckSettings.DEFAULT.calls,
+    val duckLevelPercent: Int = DuckSettings.DEFAULT_LEVEL,
+    val startupVolume: Boolean = StartupVolume.DEFAULT.enabled,
+    val startupVolumePercent: Int = StartupVolume.DEFAULT_PERCENT,
 )
 
 internal sealed interface VoiceSettingsChange {
@@ -46,6 +52,10 @@ internal sealed interface VoiceSettingsChange {
     data class Audio(
         val duck: Boolean, val feedback: Boolean, val options: VoiceAudioOptions, val language: String, val offlineVoiceName: String,
         val readyPrompt: String,
+        val duckCalls: Boolean = DuckSettings.DEFAULT.calls,
+        val duckLevel: Int = DuckSettings.DEFAULT_LEVEL,
+        val startupVolume: Boolean = StartupVolume.DEFAULT.enabled,
+        val startupPercent: Int = StartupVolume.DEFAULT_PERCENT,
     ) : VoiceSettingsChange
     data class Contact(val name: String, val phone: String) : VoiceSettingsChange
     data object RestorePrevious : VoiceSettingsChange

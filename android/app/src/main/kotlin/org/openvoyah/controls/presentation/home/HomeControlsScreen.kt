@@ -28,6 +28,10 @@ internal fun HomeButtons(state: HomeControlsState, actions: HomeActions) {
         if (state.navigatorHomeCardSupported) {
             CockpitSwitch(UiText.get(R.string.home_navigator_card), state.navigatorHomeCard,
                 change = actions::navigatorHomeCard)
+            if (state.navigatorHomeCard) {
+                CockpitAction(UiText.get(R.string.home_navigator_widget_settings),
+                    { actions.command(HomeCommand.NAVIGATOR_WIDGET) })
+            }
             CockpitSwitch(UiText.get(R.string.home_weather_card), state.weatherCard, change = actions::weatherCard)
             if (state.weatherCard) {
                 OutlinedTextField(state.weatherCity, actions::weatherCity, singleLine = true,

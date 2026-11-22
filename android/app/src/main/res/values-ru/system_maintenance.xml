@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="system_section_title">О приложении и перезапуск</string>
+    <string name="system_version_title">Версия Open Voyah Controls</string>
+    <string name="system_version_build">Сборка</string>
+    <string name="system_version_commit">коммит</string>
+    <string name="system_version_installed">Установлено</string>
+    <string name="system_version_copy">Копировать версию</string>
+    <string name="system_version_copied">Версия скопирована</string>
+    <string name="system_restart_confirm">Перезапустить</string>
+
+    <string name="system_restart_app">Перезапустить Open Voyah Controls</string>
+    <string name="system_restart_app_hint">Закрывает и снова открывает приложение. Агенты в машине продолжают работать.</string>
+    <string name="system_restart_app_title">Перезапустить Open Voyah Controls?</string>
+    <string name="system_restart_app_message">Приложение закроется и откроется снова через пару секунд. Настройки сохранятся. Агенты в машине продолжают работать, активация при загрузке не меняется.</string>
+
+    <string name="system_restart_media">Перезапустить мультимедиа</string>
+    <string name="system_restart_media_hint">Перезапускает штатный медиацентр и плееры музыки, радио и видео. Сервисы машины не затрагиваются.</string>
+    <string name="system_restart_media_title">Перезапустить мультимедиа?</string>
+    <string name="system_restart_media_message">Воспроизведение остановится. Штатный медиацентр и плееры музыки, радио и видео закроются; медиацентр Android запустит снова через несколько секунд. Сервисы машины, лаунчер, приборная панель и предупреждающие сигналы не затрагиваются.</string>
+    <string name="system_restart_media_working">Перезапуск мультимедиа…</string>
+    <string name="system_restart_media_done_title">Мультимедиа перезапущена</string>
+    <string name="system_restart_media_stopped">Остановлено процессов: %d.</string>
+    <string name="system_restart_media_center_back">Медиацентр снова работает через %d с.</string>
+    <string name="system_restart_media_center_missing">Медиацентр пока не запустился. Если звук не вернётся в течение минуты, перезагрузите систему.</string>
+    <string name="system_restart_media_failed">Не удалось остановить: %s.</string>
+
+    <string name="system_reboot">Перезагрузить систему</string>
+    <string name="system_reboot_hint">Полностью перезагружает магнитолу. Только на парковке (P).</string>
+    <string name="system_reboot_title">Перезагрузить систему?</string>
+    <string name="system_reboot_message">Магнитола полностью перезагрузится: все экраны погаснут, музыка, навигация и звонки прервутся примерно на минуту. Агенты Open Voyah Controls в машине запустятся снова после загрузки. Доступно только на парковке (P).</string>
+    <string name="system_reboot_confirm">Перезагрузить</string>
+    <string name="system_reboot_working">Проверка парковки и перезагрузка…</string>
+    <string name="system_reboot_requested">Магнитола перезагружается. Open Voyah Controls и агенты в машине запустятся снова после загрузки.</string>
+</resources>

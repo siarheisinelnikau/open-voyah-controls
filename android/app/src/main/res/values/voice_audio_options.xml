@@ -51,4 +51,14 @@
     <string name="voice_outcome_vehicle_sent">The request was sent to the vehicle. Completion is unconfirmed.</string>
     <string name="voice_outcome_blocked">The action was blocked.</string>
     <string name="voice_outcome_unavailable">The command is unavailable.</string>
+    <string name="voice_duck_calls">Lower media during phone calls</string>
+    <string name="voice_duck_level">Media level while lowered</string>
+    <string name="voice_duck_level_silent">Silent</string>
+    <string name="voice_duck_level_10">10%</string>
+    <string name="voice_duck_level_20">20%</string>
+    <string name="voice_duck_level_35">35%</string>
+    <string name="voice_duck_hint">Media fades back when listening and the call are over. A volume you set in the meantime, by hand or by voice, stays.</string>
+    <string name="voice_startup_volume">Media volume at startup</string>
+    <string name="voice_startup_volume_level">Media volume after the head unit starts</string>
+    <string name="voice_startup_volume_hint">Set once per head unit start, as a share of the maximum volume. Starting Controls again later does not change it.</string>
 </resources>

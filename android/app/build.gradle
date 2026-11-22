@@ -39,6 +39,21 @@ def voiceApprovals = layout.buildDirectory.dir('generated/voice-approvals')
 def localVoiceApprovals = localVehicleDir == null ? null : new File(localVehicleDir, 'verified-commands.json')
 if (localVoiceApprovals != null && !localVoiceApprovals.isFile()) localVoiceApprovals = null
 
+// Short commit of the tree the APK was built from, with "+" when tracked files had uncommitted changes.
+def gitOutput = { List<String> arguments ->
+    try {
+        providers.exec {
+            commandLine(['git'] + arguments)
+            ignoreExitValue = true
+        }.standardOutput.asText.get().trim()
+    } catch (Exception ignored) {
+        ''
+    }
+}
+def gitHead = gitOutput(['rev-parse', '--short=8', 'HEAD'])
+def gitCommit = !gitHead.matches('[0-9a-f]{7,40}') ? '' :
+    gitHead + (gitOutput(['status', '--porcelain', '--untracked-files=no']).isEmpty() ? '' : '+')
+
 android {
     namespace 'org.openvoyah.controls'
     compileSdk 35
@@ -56,6 +71,8 @@ android {
         buildConfigField 'boolean', 'OVC_EMULATOR_FIXTURE', 'false'
         buildConfigField 'boolean', 'LOCAL_VEHICLE', 'false'
         buildConfigField 'String', 'LOCAL_SIGNER_SHA256', '""'
+        // Shown with the version at the end of Settings for bug reports; empty when git is unavailable.
+        buildConfigField 'String', 'GIT_COMMIT', '"' + gitCommit + '"'
     }
     signingConfigs {
         if (signingReady && validReleasePin) {

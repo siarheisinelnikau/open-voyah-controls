@@ -102,7 +102,7 @@ class QuickVoiceActivity : ComponentActivity() {
             popupOptions = audio
             val configuration = withContext(Dispatchers.IO) {
                 val language = settings.language()
-                Configuration(settings.withContacts(), language, settings.option("duckMedia"),
+                Configuration(settings.withContacts(), language, settings.mediaDuck().listening,
                     settings.option("spokenFeedback"), settings.offlineVoice(language), settings.readyPrompt(language))
             }
             val hasReadyCue = audio.readyCue() && audio.readyCueGain() > 0f

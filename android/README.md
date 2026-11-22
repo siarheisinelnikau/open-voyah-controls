@@ -89,6 +89,10 @@ Open **Settings → Updates** to check official releases, see the installed vers
 
 Open **Settings → Diagnostic log** to read what Controls recorded on this head unit: connection attempts, update checks, refused operations and failures, newest first. The log can be limited to warnings and errors, copied, saved to a file or cleared; the app sends it nowhere. Entries name operations, outcomes and error types and never contain voice phrases, contacts, media titles or keys. See [Diagnostics and logging](docs/DIAGNOSTICS.md).
 
+## About and restart
+
+The end of **Settings** shows the version, build type, commit and install date, which can be selected or copied for a bug report. **Restart Open Voyah Controls** reopens the app while the car agents keep running. **Restart multimedia** restarts the factory media center and the music, radio and video players without touching car services. **Restart the system** reboots the head unit after a confirmation and only in Park. Both root restarts need their own reviewed operation (`media-restart`, `system-reboot`). See [Saved settings: About and restart](docs/SETTINGS.md#about-and-restart).
+
 ## Vehicle settings and maintenance
 
 Open **Settings → Vehicle settings** for the original driving, cabin and infotainment menus. A shortcut appears when Android offers a public launcher entry from the matching built-in app. Use the factory panel when a shortcut is unavailable. The driver uses the original controls to enable and use driving assistance, including Apollo on applicable models. The page also links to the [VOYAH owner manuals](https://www.voyah-global.com/service).

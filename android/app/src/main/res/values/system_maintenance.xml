@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="system_section_title">About and restart</string>
+    <string name="system_version_title">Open Voyah Controls version</string>
+    <string name="system_version_build">Build</string>
+    <string name="system_version_commit">commit</string>
+    <string name="system_version_installed">Installed</string>
+    <string name="system_version_copy">Copy version</string>
+    <string name="system_version_copied">Version copied</string>
+    <string name="system_restart_confirm">Restart</string>
+
+    <string name="system_restart_app">Restart Open Voyah Controls</string>
+    <string name="system_restart_app_hint">Closes and reopens this app. The car agents keep running.</string>
+    <string name="system_restart_app_title">Restart Open Voyah Controls?</string>
+    <string name="system_restart_app_message">The app closes and opens again in a couple of seconds. Your settings are kept. The car agents keep running and the boot activation does not change.</string>
+
+    <string name="system_restart_media">Restart multimedia</string>
+    <string name="system_restart_media_hint">Restarts the factory media center and the music, radio and video players. Car services are not touched.</string>
+    <string name="system_restart_media_title">Restart multimedia?</string>
+    <string name="system_restart_media_message">Playback stops. The factory media center and the music, radio and video players are closed; Android starts the media center again within a few seconds. Car services, the launcher, the cluster and warning sounds are not touched.</string>
+    <string name="system_restart_media_working">Restarting multimedia…</string>
+    <string name="system_restart_media_done_title">Multimedia restarted</string>
+    <string name="system_restart_media_stopped">Processes stopped: %d.</string>
+    <string name="system_restart_media_center_back">The media center is running again after %d s.</string>
+    <string name="system_restart_media_center_missing">The media center has not started yet. If sound does not return within a minute, restart the system.</string>
+    <string name="system_restart_media_failed">Could not stop: %s.</string>
+
+    <string name="system_reboot">Restart the system</string>
+    <string name="system_reboot_hint">Reboots the whole head unit. Only in Park.</string>
+    <string name="system_reboot_title">Restart the system?</string>
+    <string name="system_reboot_message">The head unit restarts completely: all screens go dark and music, navigation and calls stop for about a minute. The Open Voyah Controls car agents start again after the boot. Only available in Park.</string>
+    <string name="system_reboot_confirm">Restart the system</string>
+    <string name="system_reboot_working">Checking Park and restarting…</string>
+    <string name="system_reboot_requested">The head unit is restarting. Open Voyah Controls and its car agents start again after the boot.</string>
+</resources>

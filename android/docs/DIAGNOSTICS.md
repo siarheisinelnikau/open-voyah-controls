@@ -44,6 +44,27 @@ OVC_PANEL_ERROR stage=click kind=SecurityException slot=navbar01 repeated=10
 - These hooks sit on hot paths. A problem is printed when it first happens and again at 10, 100, 1000… occurrences, and each agent tracks at most 32 distinct problems, so a failing callback cannot flood the log.
 - Readiness and result markers (`OVC_READY`, `OVC_WINDOW_READY protocol=3 …`, `OVC_WINDOW_RESULT <id> <json>` and the others) are a contract with the supervisor and the app. Their text is covered by tests on both sides; change them only together.
 
+## First-run check
+
+`SetupActivity` shows the installer's first-run check as one row per step instead of a single waiting line: local root channel, firmware review, agent deployment, one row for each agent this deployment started (launcher, the translation channels, app windows, cluster navigation, CAN keys), offline speech model, microphone access and the button service. Each row says whether it waits, runs (with its own elapsed seconds), is done (with its time), needs attention, was skipped or failed, and why.
+
+- The rows read real state. Deployment reports each stage of `FridaBridge.connect` through `DeploymentProgress`: checking Frida, stopping the previous agents, each agent file by name and position, sealing and starting the supervisors. Agent rows come from `FridaBridge.setupReadiness()`, polled once a second: one `OVC_AGENT <channel> <phase> <detail>` line per channel, built from the supervisor's own files (worker and injector processes, `target.pid`, the fresh `ready` markers). `AgentReadiness` turns them into rows.
+- An agent row shows the latest `OVC_*_ERROR` line of its `hook.log` while the supervisor keeps retrying, and the last `OVC_WORKER_*` line of `worker.log` when the supervisor stopped (for example `Retry limit reached for this boot`). A supervisor that is not running 20 s after the deployment fails its row at once instead of waiting for the limit.
+- A translation agent whose app is not running yet (Settings, Vehicle, Phone and HiBoard start only when opened) is marked **Needs attention** and does not hold the check back; its worker attaches when the app opens.
+- Every step has a limit (root 35 s, deployment 120 s, agents 75 s, speech model 150 s, button service 5 s) and all of them stay inside 225 s, because the installer and `provision.ps1` wait 240 s for the report. A step that runs out of time fails with the seconds it waited, or says that the installer's wait ran out. A changed package or a recovery marker (root exit 77 or 78) fails the agent rows at once with the localized reason. Steps that could not run after a failure are marked as skipped.
+- The speech model is prepared while the agents deploy: one is app CPU and storage work, the other waits on the root shell.
+- When the check ends, the page keeps the summary and offers **Retry the check**, **Open the diagnostic log** and **Copy the details** after a failure. The copied text holds the step names, times, localized reasons and agent error codes; it never holds the root key, scripts or their output.
+
+The journal records the result as before, with the total time and the first failed row:
+
+```text
+event=first_run_check outcome=failed phase=hooks microphone=true buttons=true reported=true elapsed_ms=96210 failed_step=agent_locale_setting
+event=first_run_check phase=agents outcome=failed elapsed_ms=21034 waiting=locale_setting
+event=bridge_connect outcome=connected elapsed_ms=18412 uploaded=2 reused=6 copied=0 sent_kib=1424
+```
+
+`bridge_connect` counts the agent files it sent, kept and copied. A file the head unit already holds with the same SHA-256, a single link, root owner and the expected mode is not sent again: the seal checks exactly these facts, and sending several megabytes of base64 through the Telnet PTY took most of a connection's 45 to 70 s. The four translation channels run the same bundle, so it is sent once and copied on the device for the others. Every sent or copied file is checked against its SHA-256 before it replaces the previous one.
+
 ## What must never be written
 
 - The root channel key, its nonce, proof and response values, and any script sent to or output returned from the root shell. Scripts embed the panel configuration, dictionaries, window profiles and trust receipts.

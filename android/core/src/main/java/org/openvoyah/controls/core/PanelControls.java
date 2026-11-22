@@ -3,8 +3,11 @@ package org.openvoyah.controls.core;
 import java.util.function.Consumer;
 
 public interface PanelControls {
-    /** BUTTON_SERVICE enables the hardware-button accessibility service through the same root channel. */
-    enum Operation { CONNECT, STATUS, DISCONNECT, BUTTON_SERVICE }
+    /**
+     * BUTTON_SERVICE enables the hardware-button accessibility service through the same root channel.
+     * NAVIGATOR_WIDGET opens Yandex Navigator's own settings for the widget in the home screen card.
+     */
+    enum Operation { CONNECT, STATUS, DISCONNECT, BUTTON_SERVICE, NAVIGATOR_WIDGET }
     record Result(boolean successful, String message) { }
 
     String health();

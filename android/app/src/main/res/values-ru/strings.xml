@@ -5,7 +5,7 @@
     <string name="voice_model_repair_failed">Не удалось сбросить модель распознавания</string>
     <string name="voice_audio_interrupted">Распознавание остановилось, потому что звук перехватило другое приложение</string>
     <string name="voice_audio_settings">Звук голосовых команд</string>
-    <string name="voice_duck_media">Приглушать музыку во время распознавания</string>
+    <string name="voice_duck_media">Приглушать медиа во время распознавания</string>
     <string name="voice_spoken_feedback">Голосовые ответы</string>
     <string name="voice_volume_examples">Выберите значение от 0 до 100 процентов. Например, можно сказать «%1$s».</string>
     <string name="settings_archive_title">Резервная копия настроек</string>

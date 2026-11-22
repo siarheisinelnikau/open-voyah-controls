@@ -110,7 +110,7 @@ internal fun AppsDestination(
     LaunchedEffect(settings) {
         settings.removed.collect {
             model.refresh()
-            model.status(R.string.apps_remove_done)
+            model.notice(R.string.apps_remove_done)
         }
     }
     LaunchedEffect(pendingPicker, lifecycle) {

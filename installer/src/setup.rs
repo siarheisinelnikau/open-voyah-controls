@@ -2,7 +2,7 @@ use crate::{
     adb::{Adb, Device, Result, Target},
     device::{self, PACKAGE},
     init_service,
-    production::{self, Identity, ReleaseApk},
+    production::{self, ApkChoice, Identity, Product},
     recovery,
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -161,13 +161,14 @@ pub fn portable_runtime() -> Option<PathBuf> {
 pub fn prepare(
     adb: &Adb,
     device: &Device,
-    apk: &Path,
-    expected: Option<&ReleaseApk>,
+    controls: ApkChoice<'_>,
+    youtube: Option<ApkChoice<'_>>,
     runtime: &Path,
     storage: &Path,
     stop: &AtomicBool,
     progress: impl Fn(String),
 ) -> Result<String> {
+    let (apk, expected) = (controls.path, controls.expected);
     let metadata: serde_json::Value =
         serde_json::from_str(include_str!("../../android/dist/FRIDA_RUNTIME.json"))
             .map_err(device::message)?;
@@ -180,7 +181,23 @@ pub fn prepare(
     }
     let initial = adb.target(device, stop)?;
     production::check_setup_device(&initial, &Identity::read(&initial)?)?;
-    production::check_candidate(&initial, apk, expected, &storage.join("verification"))?;
+    production::check_candidate(
+        &initial,
+        apk,
+        expected,
+        &storage.join("verification"),
+        Product::Controls,
+    )?;
+    // A YouTube APK that cannot pass its checks stops setup before the first device change, not after Controls.
+    if let Some(choice) = youtube {
+        production::check_candidate(
+            &initial,
+            choice.path,
+            choice.expected,
+            &storage.join("verification"),
+            Product::YouTube,
+        )?;
+    }
     let (device, identity) = root_device(adb, device, stop, &progress)?;
     let target = adb.target(&device, stop)?;
     target.script(FIND_TELNET, &[], 15)?;
@@ -241,8 +258,28 @@ pub fn prepare(
     );
     let result = probe_app(&target)?;
     identity.recheck(&target)?;
+    // A separate step after Controls is ready. It changes nothing Controls relies on, so a failure here leaves the
+    // verified setup in place and is reported beside it.
+    let youtube = match youtube {
+        None => String::new(),
+        Some(choice) => {
+            progress("Installing the YouTube app as a separate step…".into());
+            match production::install_youtube(
+                &target,
+                choice.path,
+                choice.expected,
+                &storage.join("verification"),
+                &progress,
+            ) {
+                Ok(status) => format!(" {status}"),
+                Err(error) => format!(
+                    " The YouTube app was not installed; Controls setup is unaffected. Retry with Install YouTube. {error}"
+                ),
+            }
+        }
+    };
     Ok(format!(
-        "Installation and root access verified from Android. Microphone: {}. Button service: {}. Startup backup: {}. {}",
+        "Installation and root access verified from Android. Microphone: {}. Button service: {}. Startup backup: {}. {}{youtube}",
         if result.mic {
             "allowed"
         } else {

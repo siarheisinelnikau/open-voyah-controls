@@ -13,16 +13,29 @@ fn main() {
     let blocked = state.join("recovery-blocked");
     let legacy = state.join("legacy-files");
     let foreign = state.join("foreign-transport");
+    let youtube = state.join("installed-youtube");
     if executable.file_stem().and_then(|s| s.to_str()) == Some("aapt2") {
         if let ["dump", "badging", apk] = command.as_slice() {
             let bytes = fs::read_to_string(apk).unwrap();
-            let package = if bytes == "wrong" { "com.example.wrong" } else { "org.openvoyah.controls" };
+            let package = if bytes == "wrong" {
+                "com.example.wrong"
+            } else if bytes.starts_with("youtube") {
+                "org.openvoyah.youtube"
+            } else {
+                "org.openvoyah.controls"
+            };
             let (code, version) = match bytes.as_str() {
                 "newer" => (16, "0.13.0"),
                 "update" => (15, "0.12.1"),
+                "youtube-newer" => (5, "0.3.0"),
+                "youtube-update" => (4, "0.2.0"),
+                "youtube" | "youtube-controls-key" | "youtube-debug" => (3, "0.1.0"),
                 _ => (14, "0.12.0"),
             };
             println!("package: name='{package}' versionCode='{code}' versionName='{version}'\nsdkVersion:'28'");
+            if bytes == "youtube-debug" {
+                println!("application-debuggable");
+            }
             return;
         }
     }
@@ -30,7 +43,15 @@ fn main() {
         && command.first() == Some(&"-jar")
     {
         let bytes = fs::read_to_string(command.last().unwrap()).unwrap();
-        let cert = if bytes == "wrong-signer" { "2" } else { "1" }.repeat(64);
+        // The YouTube app has its own release key; one built with the Controls key must be refused.
+        let cert = if bytes == "wrong-signer" {
+            "2"
+        } else if bytes.starts_with("youtube") && bytes != "youtube-controls-key" {
+            "3"
+        } else {
+            "1"
+        }
+        .repeat(64);
         println!("Signer #1 certificate SHA-256 digest: {cert}");
         return;
     }
@@ -62,6 +83,23 @@ fn main() {
                 assert_eq!(fs::read_to_string(state.join("setup-nonce")).unwrap(), *nonce);
                 let result = fs::read_to_string(state.join("setup-result")).unwrap_or("unreviewed\tfirmware\t1\t1".into());
                 println!("{nonce}\t{result}"); return;
+            }
+            ["org.openvoyah.youtube"] if script.contains("pm path --user 0") => {
+                if youtube.exists() {
+                    println!("package:/data/app/youtube/base.apk");
+                } else {
+                    println!("OVC_PACKAGE_ABSENT");
+                }
+                return;
+            }
+            ["org.openvoyah.youtube"] if script.contains("dumpsys package") => {
+                match fs::read_to_string(&youtube).as_deref() {
+                    Ok("youtube-newer") => println!("0.3.0"),
+                    Ok("youtube-update") => println!("0.2.0"),
+                    Ok(_) => println!("0.1.0"),
+                    Err(_) => println!("OVC_PACKAGE_ABSENT"),
+                }
+                return;
             }
             ["org.openvoyah.controls"] if script.contains("pm path --user 0") => {
                 if installed.exists() {
@@ -112,6 +150,20 @@ fn main() {
             println!("List of devices attached\nunit-a device model:Demo transport_id:{transport}\nunit-b unauthorized transport_id:8");
         }
         ["-t", "7", "get-serialno"] => println!("{}", if foreign.exists() { "different-unit" } else { "unit-a" }),
+        // The YouTube app installs beside an active Controls setup; it must not need a rollback.
+        ["-t", "7", "install", "-r", "--user", "0", path]
+            if path.ends_with(".apk") && fs::read_to_string(path).unwrap().starts_with("youtube") =>
+        {
+            if state.join("youtube-incompatible").exists() {
+                println!("Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match]");
+                return;
+            }
+            fs::copy(path, &youtube).unwrap();
+            println!("Success");
+        }
+        ["-t", "7", "pull", "/data/app/youtube/base.apk", destination] => {
+            fs::copy(&youtube, destination).unwrap();
+        }
         ["-t", "7", "install", "-r", "--user", "0", path] if path.ends_with(".apk") => {
             assert!(!active.exists() && !legacy.exists());
             fs::copy(path, &installed).unwrap();

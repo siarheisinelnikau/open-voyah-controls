@@ -220,7 +220,11 @@ function createWidgetSlot(Java) {
         create(context, name, width, height) {
             const info = bind(name, width / height);
             if (info === null) return null;
-            const view = host.createView(context, id, info);
+            // The launcher activity's inflater carries AppCompat's and the skin engine's view factories, which
+            // replace the widget's TextViews; RemoteViews then refuses the layout ("Couldn't add widget"). A
+            // configuration context of the same display has a plain inflater of its own.
+            const plain = context.createConfigurationContext(context.getResources().getConfiguration());
+            const view = host.createView(plain, id, info);
             users++;
             const density = context.getResources().getDisplayMetrics().density.value;
             const w = Math.round(width / density), h = Math.round(height / density);

@@ -174,6 +174,7 @@ internal class HomeSettingsCoordinator(
             HomeCommand.EXPORT -> document(launchExport)
             HomeCommand.IMPORT -> document(launchImport)
             HomeCommand.CONNECT -> model.run(PanelControls.Operation.CONNECT)
+            HomeCommand.NAVIGATOR_WIDGET -> model.run(PanelControls.Operation.NAVIGATOR_WIDGET)
             HomeCommand.STATUS -> model.run(PanelControls.Operation.STATUS)
             HomeCommand.DISCONNECT -> model.run(PanelControls.Operation.DISCONNECT)
         }

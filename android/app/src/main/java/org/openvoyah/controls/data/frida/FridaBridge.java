@@ -39,6 +39,10 @@ public final class FridaBridge {
     private static final String KEY = "org.openvoyah.controls.panel";
     private static final String WINDOW_PROFILES = "org.openvoyah.controls.windowProfiles";
     private static final String HOME_WEATHER = "org.openvoyah.controls.homeWeather";
+    /** 0x4f56, the widget host id of the launcher agent's home card. */
+    private static final int NAVIGATOR_WIDGET_HOST = 20310;
+    private static final String NAVIGATOR_WIDGET_SETTINGS =
+        "ru.yandex.yandexnavi/ru.yandex.yandexmaps.widget.traffic.internal.configuration.TrafficWidgetConfigurationActivity";
     private static final String WINDOW_REQUEST = "org.openvoyah.controls.windowRequest";
     private static final String WINDOW_STRIP = "windowSystemInsets";
     private static final String WINDOW_STRIP_ATTEMPT = "windowSystemInsetsAttempt";
@@ -186,11 +190,15 @@ public final class FridaBridge {
             return Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP);
         }
     }
-    public void connect(SettingsStore.State state) throws IOException {
+    public void connect(SettingsStore.State state) throws IOException { connect(state, DeploymentProgress.NONE); }
+
+    /** [progress] hears each deployment stage on this thread, so the first-run check can show where it is. */
+    public void connect(SettingsStore.State state, DeploymentProgress progress) throws IOException {
         synchronized (IO_LOCK) {
             try (ControlsLog.Span span = ControlsLog.span("bridge_connect")) {
                 try {
                     if (pendingUpdate(context) != null) throw new ProductionRootAccess.Refused(UiText.get(R.string.runtime_update_paused));
+                    progress.report(DeploymentProgress.Stage.CHECKING, null, 0, 0);
                     prepareActivation();
                     if (production != null && !context.getSharedPreferences("bridge", Context.MODE_PRIVATE)
                             .edit().putBoolean("productionAuthorized", true).commit()) {
@@ -198,7 +206,7 @@ public final class FridaBridge {
                     }
                     configured(true); // Persist desired state only after production verification.
                     stopPending(false);
-                    connectLocked(state, true);
+                    connectLocked(state, true, progress, span);
                     health(UiText.get(R.string.ui_12));
                     RecoveryJobs.cancel(context);
                     span.outcome("connected");
@@ -243,7 +251,7 @@ public final class FridaBridge {
                     path = "resume";
                     if (production == null || !resumeVerifiedDeployment(state)) {
                         path = "deploy";
-                        connectLocked(state, false);
+                        connectLocked(state, false, DeploymentProgress.NONE, span);
                     }
                     health(UiText.get(R.string.ui_14));
                     span.outcome("completed");
@@ -338,12 +346,20 @@ public final class FridaBridge {
         return true;
     }
 
-    private void connectLocked(SettingsStore.State state, boolean resetRetries) throws IOException {
+    private void connectLocked(SettingsStore.State state, boolean resetRetries, DeploymentProgress progress,
+                               ControlsLog.Span span) throws IOException {
         requireRoot();
         String version = checkedInjectorVersion();
         String expected = production == null ? "17.26.2" : production.injectorVersion();
         if (!version.equals(expected)) throw new IOException(UiText.get(R.string.ui_16) + version);
         command("test ! -L " + base + " && mkdir -p " + base + " && test \"$(stat -c %u " + base + ")\" = 0 && chmod 700 " + base);
+        // Decide the optional channels once, so the upload count shown to the owner matches the work below.
+        boolean window = windowHookEnabled(context) && windowHookSupported() && windowReviewed();
+        boolean navigation = navigationHookEnabled(context) && navigationReviewed();
+        boolean can = canReviewed();
+        java.util.List<String> locales = localizationChannels();
+        Uploads uploads = new Uploads(progress, 3 + locales.size() + (window ? 1 : 0) + (navigation ? 1 : 0) + (can ? 1 : 0));
+        progress.report(DeploymentProgress.Stage.STOPPING, null, 0, 0);
         // Stop only this project's prior worker. Never kill another Frida instance.
         boolean panelRestored = restorePanelIcons();
         boolean windowRestored = releaseWindowLocked();
@@ -358,35 +374,66 @@ public final class FridaBridge {
         if (resetRetries) resetRetryBudget();
         command(activationGuard() + "settings put global org.openvoyah.controls.localization "
             + quote(new LocalizationSettings(context).exportJson()));
-        upload("hooks/launcher-buttons.bundle.js", base + "/launcher-buttons.js");
-        upload("hooks/supervise.sh", base + "/supervise.sh");
-        upload("hooks/boot-start.sh", base + "/boot-start.sh");
+        uploads.install("hooks/launcher-buttons.bundle.js", base + "/launcher-buttons.js", "600", null);
+        uploads.install("hooks/supervise.sh", base + "/supervise.sh", "700", null);
+        uploads.install("hooks/boot-start.sh", base + "/boot-start.sh", "700", null);
         String icons = publishPanelIcons(state);
         command(activationGuard() + "chmod 700 " + base + "/supervise.sh " + base + "/boot-start.sh"
             + " && settings put global " + KEY + " " + quote(deploymentConfig(state, icons)));
         Set<String> channels = new LinkedHashSet<>();
-        stageLocalizationWorkers(channels);
+        // Every translation worker runs the same bundle: send it once and copy it on the device for the others.
+        String localeSource = null;
+        for (String channel : locales) {
+            prepareChannelDirectory(channel);
+            String path = base + "/" + channel + "/launcher-buttons.js";
+            uploads.install("hooks/localization.bundle.js", path, "600", localeSource);
+            if (localeSource == null) localeSource = path;
+            channels.add(channel);
+        }
         command("settings delete global " + WINDOW_REQUEST);
-        if (windowHookEnabled(context) && windowHookSupported() && windowReviewed()) {
+        if (window) {
             publishWindowProfiles();
-            stageOptionalHook("window");
+            stageOptionalHook("window", uploads);
             channels.add("window");
         } else {
             command("settings delete global " + WINDOW_PROFILES);
         }
-        if (navigationHookEnabled(context) && navigationReviewed()) {
-            stageOptionalHook("navigation");
+        if (navigation) {
+            stageOptionalHook("navigation", uploads);
             channels.add("navigation");
         }
-        if (canReviewed()) {
-            stageOptionalHook("can");
+        if (can) {
+            stageOptionalHook("can", uploads);
             channels.add("can");
         }
+        progress.report(DeploymentProgress.Stage.SEALING, null, 0, 0);
         sealDeployment(channels);
         for (String channel : channels) enableChannel(channel);
+        progress.report(DeploymentProgress.Stage.STARTING, null, 0, 0);
         command(activationGuard() + "rm -f " + base + "/hook.log " + base + "/ready && touch " + base + "/enabled"
             + " && " + fixtureEnvironment() + "/system/bin/sh " + base + "/boot-start.sh");
         configured(true);
+        span.field("uploaded", uploads.sent).field("reused", uploads.reused).field("copied", uploads.copied)
+            .field("sent_kib", uploads.bytes / 1024);
+    }
+
+    /** Counts and reports the agent files of one deployment; see {@link #install}. */
+    private final class Uploads {
+        final DeploymentProgress progress;
+        final int count;
+        int index, sent, reused, copied;
+        long bytes;
+        Uploads(DeploymentProgress progress, int count) { this.progress = progress; this.count = count; }
+
+        void install(String asset, String path, String mode, String copyFrom) throws IOException {
+            index++;
+            String file = asset.substring(asset.lastIndexOf('/') + 1);
+            switch (FridaBridge.this.install(asset, path, mode, copyFrom, this, file)) {
+                case REUSING -> reused++;
+                case COPYING -> copied++;
+                default -> sent++;
+            }
+        }
     }
 
     /** Only a new user connection may renew the bounded budget after verified restoration and stop. */
@@ -419,14 +466,29 @@ public final class FridaBridge {
         return command(guard + quote(injectorPath()) + " --version").trim();
     }
 
-    private void stageLocalizationWorkers(Set<String> channels) throws IOException {
-        if (!new LocalizationSettings(context).enabled()) return;
+    /** Translation channels whose target package this firmware review covers, in a stable order. */
+    private java.util.List<String> localizationChannels() {
+        java.util.List<String> channels = new java.util.ArrayList<>();
+        if (!new LocalizationSettings(context).enabled()) return channels;
         for (var entry : ReviewedFirmware.INSTANCE.getLocalizationTargets().entrySet()) {
-            if (!packageReviewed(entry.getValue())) continue;
-            String channel = "locale-" + entry.getKey();
-            prepareChannelDirectory(channel);
-            upload("hooks/localization.bundle.js", base + "/" + channel + "/launcher-buttons.js");
-            channels.add(channel);
+            if (packageReviewed(entry.getValue()) && runs64Bit(entry.getValue())) channels.add("locale-" + entry.getKey());
+        }
+        return channels;
+    }
+
+    /**
+     * The Frida agent crashes 32-bit ART processes (the 32-bit Settings and Bluetooth phone of a 97C head unit), so a
+     * translation worker is staged only for an app that Android runs 64-bit. supervise.sh checks the process as well.
+     */
+    private boolean runs64Bit(String packageName) {
+        try {
+            var info = context.getPackageManager().getApplicationInfo(packageName, 0);
+            // Hidden but stable since Android 5; null means no native code, so the app runs with the 64-bit zygote.
+            Object abi = android.content.pm.ApplicationInfo.class.getField("primaryCpuAbi").get(info);
+            return abi == null || String.valueOf(abi).contains("64");
+        } catch (ReflectiveOperationException | RuntimeException | android.content.pm.PackageManager.NameNotFoundException unknown) {
+            // Leave the decision to the supervisor, which refuses a 32-bit process before attaching.
+            return true;
         }
     }
     public static boolean windowHookSupported() {
@@ -511,10 +573,14 @@ public final class FridaBridge {
             }
         }
     }
-    private void stageOptionalHook(String channel) throws IOException {
+    private void stageOptionalHook(String channel) throws IOException { stageOptionalHook(channel, null); }
+
+    private void stageOptionalHook(String channel, Uploads uploads) throws IOException {
         String dir = base + "/" + channel;
         prepareChannelDirectory(channel);
-        upload("hooks/" + channel + ".bundle.js", dir + "/launcher-buttons.js");
+        String asset = "hooks/" + channel + ".bundle.js";
+        if (uploads == null) upload(asset, dir + "/launcher-buttons.js");
+        else uploads.install(asset, dir + "/launcher-buttons.js", "600", null);
         if (channel.equals("window")) command("rm -f " + dir + "/ready " + dir + "/hook.log");
     }
 
@@ -568,16 +634,63 @@ public final class FridaBridge {
         }
     }
     private void upload(String name, String path) throws IOException {
+        command(uploadScript(name, path, asset(name), assetDigest(name)));
+    }
+
+    /**
+     * Puts one agent file in place and says how. A file the device already holds with the same SHA-256, a single
+     * link and the expected owner and [mode] is kept: the seal checks exactly these facts, and sending megabytes of
+     * base64 through the Telnet PTY was most of a connection's time. [copyFrom] names a file of this deployment
+     * that is already in place, so the same bundle is copied on the device instead of being sent again.
+     */
+    private DeploymentProgress.Stage install(String name, String path, String mode, String copyFrom, Uploads uploads,
+                                             String file) throws IOException {
+        String digest = assetDigest(name);
+        String target = quote(path);
+        String current = "[ ! -L " + target + " ] && [ -f " + target + " ] && [ \"$(stat -c '%u:%a:%h' " + target
+            + " 2>/dev/null)\" = 0:" + mode + ":1 ] && ovc_hash=$(sha256sum " + target + " 2>/dev/null) && [ \"${ovc_hash%% *}\" = '"
+            + digest + "' ]";
+        String check = activationGuard() + "if " + current + "; then echo OVC_ASSET_CURRENT; exit 0; fi\n";
+        uploads.progress.report(DeploymentProgress.Stage.VERIFYING, file, uploads.index, uploads.count);
+        if (copyFrom != null) {
+            String source = quote(copyFrom);
+            String fresh = quote(path + ".new");
+            String reply = command(check + "[ ! -L " + source + " ] && ovc_hash=$(sha256sum " + source + ") && [ \"${ovc_hash%% *}\" = '"
+                + digest + "' ] || { echo OVC_ASSET_SEND; exit 0; }\n"
+                + "test ! -L " + fresh + " && cp " + source + " " + fresh + " || exit 1\n"
+                + "ovc_hash=$(sha256sum " + fresh + ") && [ \"${ovc_hash%% *}\" = '" + digest + "' ] || { rm -f " + fresh + "; exit 1; }\n"
+                + "test ! -L " + target + " && chmod 600 " + fresh + " && mv " + fresh + " " + target + " && echo OVC_ASSET_COPIED");
+            if (reply.equals("OVC_ASSET_CURRENT")) return report(uploads, DeploymentProgress.Stage.REUSING, file);
+            if (reply.equals("OVC_ASSET_COPIED")) return report(uploads, DeploymentProgress.Stage.COPYING, file);
+        } else if (command(check + "echo OVC_ASSET_SEND").equals("OVC_ASSET_CURRENT")) {
+            return report(uploads, DeploymentProgress.Stage.REUSING, file);
+        }
+        uploads.progress.report(DeploymentProgress.Stage.UPLOADING, file, uploads.index, uploads.count);
         String encoded = asset(name);
-        StringBuilder lines = new StringBuilder(activationGuard() + "test ! -L " + quote(path + ".new")
-            + " && base64 -d > " + quote(path + ".new") + " <<'OVC_ASSET'\n");
+        uploads.bytes += encoded.length();
+        command(uploadScript(name, path, encoded, digest));
+        return DeploymentProgress.Stage.UPLOADING;
+    }
+
+    private static DeploymentProgress.Stage report(Uploads uploads, DeploymentProgress.Stage stage, String file) {
+        uploads.progress.report(stage, file, uploads.index, uploads.count);
+        return stage;
+    }
+
+    /** One root command: decode into a fresh file, check its SHA-256, then replace the target. */
+    private String uploadScript(String name, String path, String encoded, String digest) {
+        String fresh = quote(path + ".new");
+        StringBuilder lines = new StringBuilder(activationGuard() + "test ! -L " + fresh
+            + " && base64 -d > " + fresh + " <<'OVC_ASSET' || exit 1\n");
         // Emulator terminals may truncate long lines. Keep each heredoc line below 1 KiB.
         for (int i = 0; i < encoded.length(); i += 768)
             lines.append(encoded, i, Math.min(i + 768, encoded.length())).append('\n');
         lines.append("OVC_ASSET\n");
-        command(lines.toString());
-        command(activationGuard() + "test ! -L " + quote(path) + " && chmod 600 " + quote(path + ".new")
-            + " && mv " + quote(path + ".new") + " " + quote(path));
+        lines.append("ovc_hash=$(sha256sum ").append(fresh).append(") && [ \"${ovc_hash%% *}\" = '").append(digest)
+            .append("' ] || { rm -f ").append(fresh).append("; exit 1; }\n");
+        lines.append("test ! -L ").append(quote(path)).append(" && chmod 600 ").append(fresh)
+            .append(" && mv ").append(fresh).append(" ").append(quote(path));
+        return lines.toString();
     }
     /** Experimental: Android itself keeps the launcher panel strip clear. Device-only, like the service switch. */
     public static boolean windowStripEnabled(Context context) {
@@ -853,14 +966,23 @@ public final class FridaBridge {
             .getString("health", UiText.get(R.string.ui_18)));
     }
 
-    /** Requires live workers, fresh heartbeat and each enabled channel's protocol marker. */
-    public boolean setupReady() throws IOException {
+    /**
+     * One `OVC_AGENT <channel> <phase> <detail>` line per running channel, read from the supervisor's own files; see
+     * {@link org.openvoyah.controls.domain.setup.AgentReadiness}. Ready needs a live worker and injector, a fresh
+     * heartbeat and the channel's protocol markers. The detail is the latest `OVC_*_ERROR` line, which carries codes
+     * only; a stopped worker reports the last line it wrote.
+     */
+    public String setupReadiness() throws IOException {
         synchronized (IO_LOCK) {
-            requireRoot();
-            StringBuilder script = new StringBuilder(workerIdentityScript());
+            StringBuilder script = new StringBuilder("test \"$(id -u)\" = 0 || exit 1\n").append(workerIdentityScript())
+                .append("ovc_agent() { printf 'OVC_AGENT\\t%s\\t%s\\t%s\\n' \"$1\" \"$2\" \"$3\"; }\n")
+                .append("ovc_line() { tr -d '\\t\\r' | cut -c1-160; }\n");
             SettingsStore.State assignments = new SettingsStore(context).load();
+            boolean steering = assignments.enabled && assignments.steeringActions.entrySet().stream().anyMatch(entry ->
+                entry.getValue().isAssigned() && !SettingsStore.isDefaultSteering(entry.getKey(), entry.getValue()));
             for (String suffix : CHANNELS) {
                 String dir = base + suffix;
+                String name = suffix.isEmpty() ? "main" : suffix.substring(1);
                 String pattern = switch (suffix) {
                     case "" -> "^OVC_READY NavigationBar click\\+hold ";
                     case "/window" -> "^OVC_WINDOW_READY protocol=3 ";
@@ -868,20 +990,22 @@ public final class FridaBridge {
                     case "/can" -> "^OVC_CAN_READY protocol=2 terminal edges ";
                     default -> "^OVC_LOCALIZATION_READY";
                 };
-                script.append("if ").append(suffix.isEmpty() ? "true" : "test -f " + dir + "/enabled").append("; then\n")
-                    .append("ovc_worker_live ").append(dir).append(" && ovc_child_live ").append(dir)
-                    .append(" && ovc_ready_fresh ").append(dir).append(" && grep -Eq ").append(quote(pattern))
-                    .append(" ").append(dir).append("/ready || { echo pending; exit 0; }\n");
-                if (suffix.isEmpty()) script.append("grep -Eq '^OVC_VOICE_READY protocol=3( |$)' ").append(dir)
-                    .append("/ready || { echo pending; exit 0; }\n");
-                if (suffix.isEmpty() && assignments.enabled && assignments.steeringActions.entrySet().stream().anyMatch(entry ->
-                        entry.getValue().isAssigned() && !SettingsStore.isDefaultSteering(entry.getKey(), entry.getValue()))) {
-                    script.append("grep -Eq '^OVC_STEERING_READY protocol=2( |$)' ").append(dir)
-                        .append("/ready || { echo pending; exit 0; }\n");
+                StringBuilder markers = new StringBuilder("grep -Eq ").append(quote(pattern)).append(" ").append(dir).append("/ready");
+                if (suffix.isEmpty()) {
+                    markers.append(" && grep -Eq '^OVC_VOICE_READY protocol=3( |$)' ").append(dir).append("/ready");
+                    if (steering) markers.append(" && grep -Eq '^OVC_STEERING_READY protocol=2( |$)' ").append(dir).append("/ready");
                 }
-                script.append("fi\n");
+                script.append("if ").append(suffix.isEmpty() ? "true" : "test -f " + dir + "/enabled").append("; then\n")
+                    .append("if ! ovc_worker_live ").append(dir).append("; then ovc_agent ").append(name)
+                    .append(" stopped \"$(tail -n 1 ").append(dir).append("/worker.log 2>/dev/null | grep -E '^OVC_WORKER_' | ovc_line)\"\n")
+                    .append("else ovc_error=$(grep -E '^OVC_[A-Z_]+_ERROR' ").append(dir).append("/hook.log 2>/dev/null | tail -n 1 | ovc_line)\n")
+                    .append("ovc_target=$(cat ").append(dir).append("/target.pid 2>/dev/null)\n")
+                    .append("if ! ovc_number \"$ovc_target\" || [ ! -d \"/proc/$ovc_target\" ]; then ovc_agent ").append(name).append(" waiting_target ''\n")
+                    .append("elif ! ovc_child_live ").append(dir).append("; then ovc_agent ").append(name).append(" attaching \"$ovc_error\"\n")
+                    .append("elif ovc_ready_fresh ").append(dir).append(" && ").append(markers).append("; then ovc_agent ").append(name).append(" ready ''\n")
+                    .append("else ovc_agent ").append(name).append(" starting \"$ovc_error\"; fi\nfi\nfi\n");
             }
-            return "ready".equals(command(script.append("echo ready\n").toString()));
+            return command(script.append("true\n").toString());
         }
     }
     private void health(String value) {
@@ -1016,11 +1140,61 @@ public final class FridaBridge {
             return command(activationGuard() + "dumpsys dls_tbox_service reboot");
         }
     }
+    /** Settings → Restart multimedia. Touches only the packages in SystemRestartScripts.MEDIA_PACKAGES. */
+    public SystemRestartScripts.MediaRestart restartMultimedia() throws IOException {
+        synchronized (IO_LOCK) {
+            requireReviewedOperation(ReviewedFirmware.MEDIA_RESTART);
+            try (ControlsLog.Span span = ControlsLog.span("media_restart")) {
+                try {
+                    SystemRestartScripts.MediaRestart result = SystemRestartScripts.INSTANCE.parseMediaRestart(
+                        command(activationGuard() + SystemRestartScripts.INSTANCE.mediaRestart(SystemRestartScripts.INSTANCE.getMEDIA_PACKAGES())));
+                    span.field("stopped", result.getStopped().size()).field("failed", result.getFailed().size())
+                        .field("center", result.getCenterBack() ? "back" : "missing");
+                    if (result.getSuccessful()) span.outcome("completed"); else span.warning("incomplete");
+                    return result;
+                } catch (IOException | RuntimeException ex) {
+                    record(span, ex);
+                    throw ex;
+                }
+            }
+        }
+    }
+    /** Settings → Restart the system. Refused unless the CAN agent confirms Park, like the T-Box restart. */
+    public void rebootSystem() throws IOException {
+        synchronized (IO_LOCK) {
+            requireReviewedOperation(ReviewedFirmware.SYSTEM_REBOOT);
+            VoiceReply parking = sendRecognizedVoice("ParkingPreflight", new JSONObject());
+            if (!parking.accepted()) {
+                ControlsLog.warn("system_reboot", "outcome", "refused", "reason", "not_parked");
+                throw new ProductionRootAccess.Refused(parking.message());
+            }
+            String reply = command(activationGuard() + SystemRestartScripts.REBOOT);
+            if (!reply.contains(SystemRestartScripts.REBOOT_SCHEDULED)) {
+                ControlsLog.warn("system_reboot", "outcome", "failed", "reason", "not_scheduled");
+                throw new IOException(UiText.get(R.string.ui_84));
+            }
+            ControlsLog.info("system_reboot", "outcome", "requested");
+        }
+    }
     public String clusterRoot(String script) throws IOException {
         synchronized (IO_LOCK) {
             requireReviewedOperation(ReviewedFirmware.CLUSTER_WRITE);
             if (!packageReviewed(ReviewedFirmware.CLUSTER)) throw unreviewedOperation();
             return command(activationGuard() + "set -e\n" + script);
+        }
+    }
+    /**
+     * Opens Yandex Navigator's settings screen for the traffic widget the launcher agent hosts in the home card
+     * (colour theme, map scale, traffic, update period). Navigator keeps them per widget. The activity is not
+     * exported, so root starts it; the widget is the one bound to the agent's host (home-navi-card.js WIDGET_HOST).
+     */
+    public void openNavigatorWidgetSettings() throws IOException {
+        synchronized (IO_LOCK) {
+            requireRoot();
+            String id = command("dumpsys appwidget | awk '/^  \\[[0-9]+\\] id=/{sub(/.*id=/, \"\"); id=$0}"
+                + " /hostId:" + NAVIGATOR_WIDGET_HOST + "[,}]/{print id; exit}'").trim();
+            if (!id.matches("[0-9]{1,9}")) throw new IOException(UiText.get(R.string.home_navigator_widget_missing));
+            command("am start --user 0 -n " + NAVIGATOR_WIDGET_SETTINGS + " --ei appWidgetId " + id + " >/dev/null");
         }
     }
     /** Weather for the launcher's home card (see HomeWeatherSource.payload); kept across reboots, aged out by the agent. */

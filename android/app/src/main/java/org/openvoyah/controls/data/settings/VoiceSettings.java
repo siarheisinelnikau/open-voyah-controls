@@ -14,6 +14,8 @@ import org.openvoyah.controls.core.voice.ClimatePhrases;
 import org.openvoyah.controls.core.voice.VoiceAudioOptions;
 import org.openvoyah.controls.core.voice.VolumePhrases;
 import org.openvoyah.controls.diagnostics.ControlsLog;
+import org.openvoyah.controls.domain.audio.DuckSettings;
+import org.openvoyah.controls.domain.audio.StartupVolume;
 import org.openvoyah.controls.domain.voice.SpeechEngine;
 
 /** Voice preferences have independent ownership; a panel failure cannot corrupt them. */
@@ -39,6 +41,13 @@ public final class VoiceSettings {
     private static final String READY_PROMPT_KK = "readyPrompt.kk";
     /** The speech engine the user chose; it applies to the languages it supports, others use Vosk. */
     private static final String ENGINE = "engine";
+    /** Media ducking: while listening (the historical key), during phone calls, and the share of media that stays. */
+    private static final String DUCK_LISTENING = "duckMedia";
+    private static final String DUCK_CALLS = "duckCalls";
+    private static final String DUCK_LEVEL = "duckLevelPercent";
+    /** The media level set once per head unit boot. */
+    private static final String STARTUP_VOLUME = "startupVolume";
+    private static final String STARTUP_VOLUME_PERCENT = "startupVolumePercent";
     private static final Set<String> LANGUAGES = Set.of("ru", "en", "kk");
     private static final String CONTACT_PREFIX = "contact.";
     private static final Pattern CONTACT_PHONE = Pattern.compile("\\+?[0-9]{3,15}");
@@ -93,9 +102,25 @@ public final class VoiceSettings {
     public void audio(boolean duckMedia, boolean spokenFeedback, VoiceAudioOptions options, String language, String voiceName,
                       String readyPrompt) {
         synchronized (WRITE_LOCK) {
+            DuckSettings current = mediaDuck();
+            audio(new DuckSettings(duckMedia, current.getCalls(), current.getLevelPercent()), spokenFeedback, options, language,
+                voiceName, readyPrompt);
+        }
+    }
+
+    public void audio(DuckSettings duck, boolean spokenFeedback, VoiceAudioOptions options, String language, String voiceName,
+                      String readyPrompt) {
+        synchronized (WRITE_LOCK) { audio(duck, startupVolume(), spokenFeedback, options, language, voiceName, readyPrompt); }
+    }
+
+    public void audio(DuckSettings duck, StartupVolume startup, boolean spokenFeedback, VoiceAudioOptions options, String language,
+                      String voiceName, String readyPrompt) {
+        if (!DuckSettings.validLevel(duck.getLevelPercent())) throw new IllegalArgumentException("Invalid media duck level");
+        if (!StartupVolume.validPercent(startup.getPercent())) throw new IllegalArgumentException("Invalid startup volume");
+        synchronized (WRITE_LOCK) {
             try {
                 JSONObject root = new JSONObject(exportJson());
-                JSONObject values = root.getJSONObject("values").put("duckMedia", Boolean.toString(duckMedia))
+                JSONObject values = writeStartup(writeDuck(root.getJSONObject("values"), duck), startup)
                     .put("spokenFeedback", Boolean.toString(spokenFeedback));
                 writeAudioOptions(values, options);
                 if (language != null) {
@@ -110,6 +135,34 @@ public final class VoiceSettings {
     }
 
     public VoiceAudioOptions audioOptions() { return readAudioOptions(prefs.getAll()); }
+
+    /** Both duck switches are on until the owner turns them off. */
+    public DuckSettings mediaDuck() { return readDuck(prefs.getAll()); }
+
+    private static DuckSettings readDuck(Map<String, ?> values) {
+        int level = storedPercent(values.get(DUCK_LEVEL), 0, 100, DuckSettings.DEFAULT_LEVEL);
+        return new DuckSettings(!"false".equals(values.get(DUCK_LISTENING)), !"false".equals(values.get(DUCK_CALLS)),
+            DuckSettings.validLevel(level) ? level : DuckSettings.DEFAULT_LEVEL);
+    }
+
+    /** On at 10 % until the owner changes it. */
+    public StartupVolume startupVolume() { return readStartup(prefs.getAll()); }
+
+    private static StartupVolume readStartup(Map<String, ?> values) {
+        return new StartupVolume(!"false".equals(values.get(STARTUP_VOLUME)), storedPercent(values.get(STARTUP_VOLUME_PERCENT),
+            StartupVolume.MIN_PERCENT, StartupVolume.MAX_PERCENT, StartupVolume.DEFAULT_PERCENT));
+    }
+
+    private static JSONObject writeStartup(JSONObject values, StartupVolume startup) throws JSONException {
+        return values.put(STARTUP_VOLUME, Boolean.toString(startup.getEnabled()))
+            .put(STARTUP_VOLUME_PERCENT, Integer.toString(startup.getPercent()));
+    }
+
+    private static JSONObject writeDuck(JSONObject values, DuckSettings duck) throws JSONException {
+        return values.put(DUCK_LISTENING, Boolean.toString(duck.getListening()))
+            .put(DUCK_CALLS, Boolean.toString(duck.getCalls()))
+            .put(DUCK_LEVEL, Integer.toString(duck.getLevelPercent()));
+    }
 
     public String offlineVoice(String language) {
         return storedVoice(prefs.getAll().get(languageKey(language, OFFLINE_VOICE_EN, OFFLINE_VOICE_RU, OFFLINE_VOICE_KK)));
@@ -196,6 +249,7 @@ public final class VoiceSettings {
     }
 
     private static JSONObject writeAudioSettings(JSONObject values, Map<String, ?> snapshot) throws JSONException {
+        writeStartup(writeDuck(values, readDuck(snapshot)), readStartup(snapshot));
         return writeAudioOptions(values, readAudioOptions(snapshot))
             .put(OFFLINE_VOICE_EN, storedVoice(snapshot.get(OFFLINE_VOICE_EN)))
             .put(OFFLINE_VOICE_RU, storedVoice(snapshot.get(OFFLINE_VOICE_RU)))
@@ -315,9 +369,14 @@ public final class VoiceSettings {
             else if(key.startsWith("level.")) {
                 if(!key.endsWith("LevelDefault") || commands.byId(key.substring(6))==null || !value.matches("[123]")) throw new IllegalArgumentException("Invalid default level");
             }
-            else if(key.equals("doubleSmoke") || key.equals("doubleVentilation") || key.equals("duckMedia") || key.equals("spokenFeedback")) {
+            else if(key.equals("doubleSmoke") || key.equals("doubleVentilation") || key.equals(DUCK_LISTENING) || key.equals(DUCK_CALLS) || key.equals(STARTUP_VOLUME)
+                || key.equals("spokenFeedback")) {
                 if(!value.equals("true") && !value.equals("false")) throw new IllegalArgumentException("Invalid voice option");
             }
+            else if (key.equals(DUCK_LEVEL)) {
+                if (!DuckSettings.validLevel(percent(values.get(key), 0, 100))) throw new IllegalArgumentException("Invalid media duck level");
+            }
+            else if (key.equals(STARTUP_VOLUME_PERCENT)) percent(values.get(key), StartupVolume.MIN_PERCENT, StartupVolume.MAX_PERCENT);
             else if (key.equals(SPEECH_RATE)) percent(values.get(key), VoiceAudioOptions.MIN_RATE, VoiceAudioOptions.MAX_RATE);
             else if (key.equals(SPEECH_VOLUME) || key.equals(READY_CUE_VOLUME)) {
                 percent(values.get(key), VoiceAudioOptions.MIN_VOLUME, VoiceAudioOptions.MAX_VOLUME);

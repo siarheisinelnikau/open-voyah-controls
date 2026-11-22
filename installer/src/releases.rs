@@ -34,6 +34,8 @@ struct Release {
 #[derive(Default)]
 pub struct Catalog {
     pub apk: Vec<(Version, Asset)>,
+    /// The YouTube web wrapper's `ovcYouTube-vVERSION.apk` assets, newest first.
+    pub youtube: Vec<(Version, Asset)>,
     pub installer: Option<(Version, Asset)>,
 }
 
@@ -70,6 +72,10 @@ pub fn apk_version(asset: &Asset) -> Option<Version> {
     stable_asset(&asset.name, "OpenVoyahControls-v", ".apk")
 }
 
+pub fn youtube_version(asset: &Asset) -> Option<Version> {
+    stable_asset(&asset.name, "ovcYouTube-v", ".apk")
+}
+
 pub fn check() -> Result<Catalog> {
     let mut response = agent(15)
         .get(API)
@@ -93,6 +99,8 @@ pub fn check() -> Result<Catalog> {
         {
             if let Some(version) = apk_version(&asset) {
                 catalog.apk.push((version, asset));
+            } else if let Some(version) = youtube_version(&asset) {
+                catalog.youtube.push((version, asset));
             } else if let Some(version) =
                 stable_asset(&asset.name, "OpenVoyahControlsInstaller-v", ".exe")
                 && version > installed
@@ -102,8 +110,10 @@ pub fn check() -> Result<Catalog> {
             }
         }
     }
-    catalog.apk.sort_by(|(a, _), (b, _)| b.cmp(a));
-    catalog.apk.dedup_by(|(a, _), (b, _)| a == b);
+    for list in [&mut catalog.apk, &mut catalog.youtube] {
+        list.sort_by(|(a, _), (b, _)| b.cmp(a));
+        list.dedup_by(|(a, _), (b, _)| a == b);
+    }
     Ok(catalog)
 }
 
@@ -428,6 +438,24 @@ mod tests {
             "OpenVoyahControlsInstaller-v1.12.3.apk",
         ] {
             assert!(parse(invalid).is_none());
+        }
+        let asset = |name: &str| Asset {
+            name: name.into(),
+            ..fixture_asset(b"apk")
+        };
+        assert_eq!(
+            youtube_version(&asset("ovcYouTube-v0.2.0.apk")),
+            Some(Version::new(0, 2, 0))
+        );
+        assert!(apk_version(&asset("ovcYouTube-v0.2.0.apk")).is_none());
+        assert!(youtube_version(&asset("OpenVoyahControls-v0.2.0.apk")).is_none());
+        for invalid in [
+            "ovcYouTube-v0.2.0-rc.1.apk",
+            "ovcyoutube-v0.2.0.apk",
+            "ovcYouTube-v0.2.0.exe",
+            "ovcYouTube-0.2.0.apk",
+        ] {
+            assert!(youtube_version(&asset(invalid)).is_none());
         }
     }
 }

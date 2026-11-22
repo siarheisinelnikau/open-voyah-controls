@@ -106,6 +106,7 @@ internal fun ControlsSettingsDestination(
             }
             AppGridSettingsSection()
             HomeSettings(state, coordinator)
+            SystemMaintenanceSection()
         }
     }
 }

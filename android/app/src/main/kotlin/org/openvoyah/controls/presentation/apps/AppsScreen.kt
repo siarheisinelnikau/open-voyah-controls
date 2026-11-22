@@ -381,8 +381,10 @@ internal fun AppsScreen(
                         LauncherTile(app.label, tiles, open = {}, modifier = modifier, showLabel = grid.showAppLabels) { AppIcon(app, Modifier.size(tiles.iconSize), grid.iconStyle) }
                     },
                     modifier = Modifier.fillMaxSize(),
-                    footer = if (move == null) null else { dots ->
-                        MoveBar(move, visible, state.gridEdit?.takeIf { it.desktop == desktop }?.error, dots, endMove)
+                    footer = when {
+                        move != null -> { dots -> MoveBar(move, visible, state.gridEdit?.takeIf { it.desktop == desktop }?.error, dots, endMove) }
+                        state.notice != null -> { dots -> NoticeBar(state.notice, dots) }
+                        else -> null
                     })
             } }
         }
@@ -521,6 +523,17 @@ private fun PinMark(modifier: Modifier) {
         scale(size.width / 24f, size.height / 24f, Offset.Zero) {
             drawPath(pin, colors.primary, style = Stroke(1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
+    }
+}
+
+/** A short confirmation in place of the page dots' row, which keeps the grid's rows while it shows. */
+@Composable
+private fun NoticeBar(message: Int, dots: @Composable () -> Unit) {
+    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(text(message), Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        dots()
     }
 }
 

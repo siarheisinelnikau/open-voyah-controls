@@ -643,6 +643,12 @@ while may_start; do
     done
     may_start || break
     if ! is_number "$target_pid" || [ "$target_pid" -le 1 ]; then log 'OVC_WORKER_ERROR Reviewed target is unavailable.'; break; fi
+    # The Frida agent crashes 32-bit ART processes (SIGSEGV seen in the 32-bit Settings and Bluetooth phone apps of a
+    # 97C head unit), so translation is attached to 64-bit app processes only.
+    if [ "$locale" = 1 ] && [ "$fixture" = 0 ] && [ "$(readlink "/proc/$target_pid/exe" 2>/dev/null)" != /system/bin/app_process64 ]; then
+        log 'OVC_WORKER_ERROR Translation is not supported in a 32-bit app process.'
+        break
+    fi
     system_start=$(start_of "$system_pid")
     target_start=$(start_of "$target_pid")
     if ! is_number "$system_start" || ! is_number "$target_start"; then log 'OVC_WORKER_ERROR Target identity is unavailable.'; break; fi

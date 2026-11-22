@@ -96,8 +96,13 @@ pub fn device_status(target: &Target<'_>) -> Result<String> {
         }
         Err(_) => "Boot and Frida state: Unverified. Check the authorized root session and retry Device status.".into(),
     };
+    let youtube = match production::installed_version(target, production::YOUTUBE_PACKAGE) {
+        Ok(Some(version)) => format!("Installed, version {version}"),
+        Ok(None) => "Absent".into(),
+        Err(_) => "Unverified".into(),
+    };
     Ok(format!(
-        "Controls APK (Android user 0): {installed}\r\n{hook_status}\r\nProduction review: {review}\r\nProduct: {}\r\nAndroid SDK: {} • {}\r\nBuild: {}\r\nHardware serial: {}",
+        "Controls APK (Android user 0): {installed}\r\nYouTube app (Android user 0): {youtube}\r\n{hook_status}\r\nProduction review: {review}\r\nProduct: {}\r\nAndroid SDK: {} • {}\r\nBuild: {}\r\nHardware serial: {}",
         identity.product, identity.sdk, identity.abi, identity.fingerprint, identity.serial,
     ))
 }

@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
 import org.openvoyah.controls.data.voice.CloudVoiceSettings
+import org.openvoyah.controls.domain.audio.DuckSettings
+import org.openvoyah.controls.domain.audio.StartupVolume
 import org.openvoyah.controls.platform.voice.OfflineVoiceInput
 import org.openvoyah.controls.platform.voice.SpeechModels
 import org.openvoyah.controls.presentation.voice.VoiceSettingsChange
@@ -21,12 +23,15 @@ internal class VoiceSettingsRepository(context: Context) : VoiceSettingsSource {
         val language = settings.language()
         val catalog = settings.withContacts()
         val commands = catalog.all()
+        val duck = settings.mediaDuck()
+        val startup = settings.startupVolume()
         return VoiceSettingsConfiguration(catalog, language, ReviewedVoiceCommands(app).hasApprovedCommands(),
             commands.mapNotNull { it.id().takeIf { id -> settings.app(id).isNotEmpty() } }.toSet(),
             commands.filter { it.id().endsWith("LevelDefault") }.associate { it.id() to settings.level(it.id()) },
             settings.option("doubleSmoke"), settings.option("doubleVentilation"),
-            settings.option("duckMedia"), settings.option("spokenFeedback"), online.configured(), settings.audioOptions(),
-            settings.offlineVoice(language), settings.readyPrompt(language), settings.engine())
+            duck.listening, settings.option("spokenFeedback"), online.configured(), settings.audioOptions(),
+            settings.offlineVoice(language), settings.readyPrompt(language), settings.engine(), duck.calls, duck.levelPercent,
+            startup.enabled, startup.percent)
     }
 
     override fun change(change: VoiceSettingsChange) {
@@ -36,8 +41,8 @@ internal class VoiceSettingsRepository(context: Context) : VoiceSettingsSource {
             is VoiceSettingsChange.App -> settings.app(change.command, change.component)
             is VoiceSettingsChange.Level -> settings.level(change.command, change.level)
             is VoiceSettingsChange.Windows -> settings.windowOptions(change.smoke, change.ventilation)
-            is VoiceSettingsChange.Audio -> settings.audio(change.duck, change.feedback, change.options, change.language,
-                change.offlineVoiceName, change.readyPrompt)
+            is VoiceSettingsChange.Audio -> settings.audio(DuckSettings(change.duck, change.duckCalls, change.duckLevel),
+                StartupVolume(change.startupVolume, change.startupPercent), change.feedback, change.options, change.language, change.offlineVoiceName, change.readyPrompt)
             is VoiceSettingsChange.Contact -> settings.contact(change.name, change.phone)
             VoiceSettingsChange.RestorePrevious -> settings.restore()
         }

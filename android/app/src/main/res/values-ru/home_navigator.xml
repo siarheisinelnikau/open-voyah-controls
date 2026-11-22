@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_navigator_widget_settings">Настройки виджета Навигатора: тема, масштаб карты</string>
+    <string name="home_navigator_widget_opened">Настройки виджета Яндекс Навигатора открыты на центральном экране.</string>
+    <string name="home_navigator_widget_missing">На главном экране пока нет виджета Навигатора. Включите карточку Яндекс Навигатора и откройте главный экран.</string>
+</resources>
