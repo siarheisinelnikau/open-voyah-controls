@@ -55,6 +55,15 @@ internal data class VehicleSignal<T>(
         ) return false
         return nowElapsedNanos - observedAtElapsedNanos <= maxAgeMillis * 1_000_000
     }
+
+    /**
+     * The gear, door, outside-temperature and actual-mode callbacks arrive only when the value changes. Their last value
+     * in the current session stays valid until the source replaces or clears it: the source clears a value it reports as
+     * invalid, and a disconnect, screen-off or wake starts a new session.
+     */
+    fun isCurrentIn(telemetry: VehicleTelemetry, nowElapsedNanos: Long): Boolean =
+        telemetry.confirmationWindow?.isOpen != false && sessionId == telemetry.sessionId &&
+            observedAtElapsedNanos >= telemetry.sessionStartedAtElapsedNanos && nowElapsedNanos >= observedAtElapsedNanos
 }
 
 /** A reconnect or wake creates a new session and starts with unknown values. */
@@ -76,10 +85,17 @@ internal data class VehicleTelemetry(
         require(sessionStartedAtElapsedNanos > 0)
     }
 
-    fun isStationary(nowElapsedNanos: Long): Boolean =
-        VehicleSignalKind.GEAR !in unavailable && VehicleSignalKind.SPEED !in unavailable &&
-            gear?.let { it.value == VehicleGear.PARK && it.isFreshFor(this, nowElapsedNanos) } == true &&
-            speedKph?.let { it.value == 0f && it.isFreshFor(this, nowElapsedNanos) } == true
+    /**
+     * Park holds the car. The factory speed callback reports zero both for a stop and for invalid input, so this source
+     * admits no speed; a fresh speed from another source must still be zero. The launcher agent reads the live gear and
+     * speed again before every Park-only write.
+     */
+    fun isStationary(nowElapsedNanos: Long): Boolean {
+        gear?.takeIf { it.value == VehicleGear.PARK && it.isCurrentIn(this, nowElapsedNanos) } ?: return false
+        val speed = speedKph?.takeIf { VehicleSignalKind.SPEED !in unavailable && it.isFreshFor(this, nowElapsedNanos) }
+            ?: return true
+        return speed.value == 0f
+    }
 }
 
 /** The source can revoke a session before its replacement reaches observers. */

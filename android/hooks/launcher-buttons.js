@@ -1,23 +1,43 @@
+import { installHomeNavigationCard } from './home-navi-card.js';
+import { installHomeWeatherCard } from './home-weather-card.js';
 import { installPanelState } from './panel-state.js';
 import { createReporter } from './report.js';
 
 const PREFIX = 'org.openvoyah.controls';
 const LEFT_PANEL = PREFIX + '.extra.LEFT_PANEL_PX';
+const UP_GROUP = 'mScreenUpRadioGroup';
+const DOWN_GROUP = 'mScreenDownRadioGroup';
+// [field, resource, slot, radio group field]. The lowered-screen menu (`screen_down_navigation`, H97 launchers
+// only) shows a Home of its own, which takes the Home slot of its display.
 const PANELS = [
     [
         ['mScreenUpItemView1', 'screen_up_icon_1', 'navbar01'],
         ['mScreenUpItemView2', 'screen_up_icon_2', 'navbar02'],
         ['mScreenUpHomeView', 'screen_up_home_icon', 'mainHome'],
-        ['mScreenUpAllAppView', 'screen_up_all_app_icon', 'mainApps']
+        ['mScreenUpAllAppView', 'screen_up_all_app_icon', 'mainApps'],
+        ['mScreenDownHomeView', 'screen_down_home_icon', 'mainHome', DOWN_GROUP]
     ],
     [
         ['mScreenUpHomeView', 'screen_up_home_icon', 'navbar11'],
         ['mScreenUpItemView1', 'screen_up_icon_1', 'navbar12'],
         ['mScreenUpItemView2', 'screen_up_icon_2', 'navbar13'],
         ['mScreenUpItemView3', 'screen_up_icon_3', 'navbar14'],
-        ['mScreenUpItemView4', 'screen_up_icon_4', 'navbar15']
+        ['mScreenUpItemView4', 'screen_up_icon_4', 'navbar15'],
+        ['mScreenDownHomeView', 'screen_down_home_icon', 'navbar11', DOWN_GROUP]
     ]
 ];
+// The lowered menu has no other position (its Phone button is hidden and never wired), so the other assigned slots
+// get buttons of our own after its Home, in the normal panel's order. Each stands for the normal view in `field`:
+// a hold or a failed launch runs that view's OEM click.
+const LOWERED = {
+    button: 'com.qinggan.launcher.base.widget.NoToggleRadioButton',
+    screens: [
+        [['mScreenUpItemView1', 'navbar01'], ['mScreenUpItemView2', 'navbar02'], ['mScreenUpAllAppView', 'mainApps']],
+        [['mScreenUpItemView1', 'navbar12'], ['mScreenUpItemView2', 'navbar13'], ['mScreenUpItemView3', 'navbar14'],
+            ['mScreenUpItemView4', 'navbar15']]
+    // The normal panel spaces its 90 px buttons 32 px apart; the lowered frame is 560 px tall.
+    ].map(added => ({group: DOWN_GROUP, anchor: 'mScreenDownHomeView', frame: 'mScreenDownView', gap: 32, added}))
+};
 
 function panelView(nav, field) {
     // Optional positions differ between launcher builds; keep other assignments usable.
@@ -73,9 +93,9 @@ export function createActionLauncher(Java, buildIntent = createActionIntent(Java
 /** Installs the panel adapter for the Qinggan launcher. */
 export function install(Java, onNavigation = () => {}, startup, report = createReporter('OVC_PANEL_ERROR')) {
 Java.perform(function () {
-    let clickHook, initHook, selectionHook;
+    let clickHook, initHook, initDownHook, selectionHook;
     const holdHooks = [];
-    let panelState;
+    let panelState, homeCard = null, weatherCard = null;
     try {
     const Nav = Java.use('com.qinggan.mainlauncher.navigation.NavigationBar');
     const Global = Java.use('android.provider.Settings$Global');
@@ -83,15 +103,25 @@ Java.perform(function () {
     const launch = createActionLauncher(Java, buildIntent);
     const Log = Java.use('android.util.Log');
     const CONFIG = PREFIX + '.panel';
+    const WEATHER = PREFIX + '.homeWeather';
     const onClick = Nav.onClick.overload('android.view.View');
     const View = Java.use('android.view.View');
     const initViews = Nav.initScreenUpViews.overload();
     clickHook=onClick; initHook=initViews;
+    // A bar built while the agent runs inflates the lowered menu after its normal panel (H97 launchers only).
+    let initDown = null;
+    try { initDown = Nav.initScreenDownViews.overload(); } catch (_) { /* No lowered menu in this launcher. */ }
+    initDownHook = initDown;
     holdHooks.push(View.performLongClick.overload(), View.performLongClick.overload('float', 'float'));
     let stockClickView = null;
 
     function readConfig(context) {
         const raw = Global.getString(context.getContentResolver(), CONFIG);
+        try { return raw === null ? null : JSON.parse(raw.toString()); }
+        catch (error) { return null; }
+    }
+    function readWeather(context) {
+        const raw = Global.getString(context.getContentResolver(), WEATHER);
         try { return raw === null ? null : JSON.parse(raw.toString()); }
         catch (error) { return null; }
     }
@@ -105,6 +135,9 @@ Java.perform(function () {
     }
     function slotFor(nav, view) {
         if (view === null) return null;
+        // Added buttons reuse their normal view's id, so they are known by identity, never by resource name.
+        const added = panelState?.addedSlot(nav, view);
+        if (added) return added;
         const slots = PANELS[nav.mScreenId.value];
         if (!slots) return null;
         const name = view.getResources().getResourceEntryName(view.getId()).toString();
@@ -121,8 +154,10 @@ Java.perform(function () {
 
     onClick.implementation = function (view) {
         if (stockClickView !== null && view?.equals(stockClickView)) return onClick.call(this, view);
-        let slot, action;
+        let slot, action, native = view;
         try {
+            // An added lowered-menu button falls back to the OEM click of the normal view it stands for.
+            if (view) native = panelState?.nativeView(this, view) ?? view;
             slot = slotFor(this, view);
             const candidate = slot && actionFor(readConfig(this.mContext.value), slot);
             if (candidate && panelState?.active(this, view, candidate)) action = candidate;
@@ -145,7 +180,7 @@ Java.perform(function () {
             catch (error) { report('restore', error, {slot}); }
         }
         // Call OEM code exactly once if unmapped, disabled, or the replacement failed.
-        return onClick.call(this, view);
+        return onClick.call(this, native);
     };
 
     try {
@@ -161,18 +196,23 @@ Java.perform(function () {
                 const fullName = name => name.startsWith('.') ? packageName + name : name;
                 const active = fullName(String(activity));
                 const config = readConfig(this.mContext.value);
-                const ids = [];
-                for (const [field, , slot] of PANELS[this.mScreenId.value] ?? []) {
+                // The normal panel and the lowered menu are separate radio groups; each marks its own button.
+                const targets = (PANELS[this.mScreenId.value] ?? [])
+                    .map(([field, , slot, group = UP_GROUP]) => ({slot, group, view: panelView(this, field)}))
+                    .concat(panelState?.added(this) ?? []);
+                const ids = new Map();
+                for (const {slot, group, view} of targets) {
                     const action = actionFor(config, slot);
                     if (action?.kind !== 'LAUNCH_APP') continue;
                     const [targetPackage, targetActivity] = action.component.split('/');
                     if (packageName !== targetPackage || active !== fullName(targetActivity)) continue;
-                    const view = panelView(this, field);
-                    if (view !== null && panelState?.active(this, view, action) && view.getId() > 0) ids.push(view.getId());
+                    if (view === null || !panelState?.active(this, view, action) || view.getId() <= 0) continue;
+                    if (!ids.has(group)) ids.set(group, []);
+                    ids.get(group).push(view.getId());
                 }
-                if (ids.length) {
-                    const group = this.mScreenUpRadioGroup.value;
-                    if (group !== null && !ids.includes(group.getCheckedRadioButtonId())) panelState.select(this, group, ids[0]);
+                for (const [field, list] of ids) {
+                    const group = this[field].value;
+                    if (group !== null && !list.includes(group.getCheckedRadioButtonId())) panelState.select(this, group, list[0]);
                 }
             } catch (error) { report('selection', error); }
             return result;
@@ -196,8 +236,11 @@ Java.perform(function () {
             if (owner !== null) {
                 // A virtual call from a different hook can re-enter the click implementation.
                 const previous = stockClickView;
-                stockClickView = this;
-                try { onClick.call(owner, this); }
+                let native = this;
+                try { native = panelState.nativeView(owner, this) ?? this; }
+                catch (error) { report('hold', error, {slot}); }
+                stockClickView = native;
+                try { onClick.call(owner, native); }
                 catch (error) { report('hold', error, {slot}); }
                 finally { stockClickView = previous; }
                 // Android suppresses the release click after a handled long press.
@@ -212,7 +255,25 @@ Java.perform(function () {
         panelState?.track(this);
         return result;
     };
-    panelState = installPanelState(Java, Nav, PANELS, readConfig, actionFor, buildIntent, ownsView, {startup});
+    if (initDown) initDown.implementation = function () {
+        const result = initDown.call(this);
+        panelState?.track(this);
+        return result;
+    };
+    // Its own failure leaves the factory navigation card and does not affect the panel.
+    homeCard = installHomeNavigationCard(Java, {readConfig, onNavigation,
+        launch: (context, component) => launch(context, 0, {kind: 'LAUNCH_APP', component})});
+    weatherCard = installHomeWeatherCard(Java, {readConfig, readWeather});
+    panelState = installPanelState(Java, Nav, PANELS, readConfig, actionFor, buildIntent, ownsView, {startup, lowered: LOWERED,
+        // Controls detaches only after this line, so the factory navigation card must be back as well.
+        restored(token) {
+            let restored = false;
+            try { restored = homeCard === null || homeCard.restoreAll(); }
+            catch (error) { report('home_card', error); }
+            try { if (weatherCard !== null && !weatherCard.restoreAll()) restored = false; }
+            catch (error) { restored = false; report('home_weather', error); }
+            if (restored) console.log('OVC_PANEL_ICONS_RESTORED ' + token);
+        }});
     // Injection normally occurs after launcher has already constructed the bars.
     Java.choose('com.qinggan.mainlauncher.navigation.NavigationBar', {
         onMatch(nav) {
@@ -236,11 +297,13 @@ Java.perform(function () {
         report('install', error);
         // Roll back a partially installed feature before the next attempt. The hooks go first, so a failing
         // dispose can neither leave them in place nor prevent the retry.
-        for (const hook of [clickHook, initHook, selectionHook, ...holdHooks]) {
+        for (const hook of [clickHook, initHook, initDownHook, selectionHook, ...holdHooks]) {
             if (!hook) continue;
             try { hook.implementation = null; } catch (resetError) { report('rollback', resetError); }
         }
         try { panelState?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
+        try { homeCard?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
+        try { weatherCard?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
         setTimeout(() => install(Java, onNavigation, startup, report), 30000);
     }
 });

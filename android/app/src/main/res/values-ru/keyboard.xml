@@ -1,0 +1,26 @@
+<resources>
+    <string name="keyboard_title">Клавиатура</string>
+    <string name="keyboard_page_summary">Экранная клавиатура центрального дисплея</string>
+    <string name="keyboard_current_section">Сейчас используется</string>
+    <string name="keyboard_choice_section">Выбор клавиатуры</string>
+    <string name="keyboard_choice_info">Выбор сохраняется, только если Android подключил выбранную клавиатуру. Если её удалят, отключат или она будет постоянно падать, вернётся заводская.</string>
+    <string name="keyboard_factory">Заводская клавиатура</string>
+    <string name="keyboard_factory_detail">Прошивка выбирает её по языку системы</string>
+    <string name="keyboard_active">Центральный дисплей: %1$s</string>
+    <string name="keyboard_passenger">Дисплей пассажира: %1$s (всегда заводская)</string>
+    <string name="keyboard_none">клавиатура не подключена</string>
+    <string name="keyboard_reading">Читаем состояние клавиатуры…</string>
+    <string name="keyboard_read_failed">Не удалось прочитать состояние клавиатуры.</string>
+    <string name="keyboard_working">Переключаем клавиатуру…</string>
+    <string name="keyboard_applied">На центральном дисплее используется %1$s.</string>
+    <string name="keyboard_not_confirmed">Android не подключил %1$s, поэтому осталась заводская клавиатура.</string>
+    <string name="keyboard_not_enabled">Android не считает %1$s включённой, поэтому она не выбрана.</string>
+    <string name="keyboard_factory_restored">Клавиатуру снова выбирает прошивка.</string>
+    <string name="keyboard_failed">Не удалось переключить клавиатуру.</string>
+    <string name="keyboard_fallback_crashed">%1$s постоянно падала, поэтому вернулась заводская клавиатура.</string>
+    <string name="keyboard_fallback_unavailable">%1$s удалена или отключена, поэтому вернулась заводская клавиатура.</string>
+    <string name="keyboard_window_service_off">Эта прошивка всегда выбирает свою клавиатуру. Чтобы выбрать другую, включите управление окнами в разделе «Прошивка и профили OEM» и подключите Controls.</string>
+    <string name="keyboard_setup_required">Завершите настройку, чтобы выбрать клавиатуру. До тех пор её выбирает прошивка.</string>
+    <string name="keyboard_unsupported">Выбор клавиатуры работает на Android 9 и 11.</string>
+    <string name="keyboard_empty">Другие клавиатуры не установлены. Установите клавиатуру как приложение и вернитесь сюда.</string>
+</resources>

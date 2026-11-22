@@ -1,0 +1,26 @@
+<resources>
+    <string name="keyboard_title">Keyboard</string>
+    <string name="keyboard_page_summary">The on-screen keyboard of the central display</string>
+    <string name="keyboard_current_section">In use now</string>
+    <string name="keyboard_choice_section">Choose a keyboard</string>
+    <string name="keyboard_choice_info">The choice is kept only when Android binds the chosen keyboard. If it is removed, switched off or keeps crashing, the factory keyboard returns.</string>
+    <string name="keyboard_factory">Factory keyboard</string>
+    <string name="keyboard_factory_detail">The firmware chooses by system language</string>
+    <string name="keyboard_active">Central display: %1$s</string>
+    <string name="keyboard_passenger">Passenger display: %1$s (always the factory keyboard)</string>
+    <string name="keyboard_none">no keyboard bound</string>
+    <string name="keyboard_reading">Reading the keyboard state…</string>
+    <string name="keyboard_read_failed">The keyboard state could not be read.</string>
+    <string name="keyboard_working">Switching the keyboard…</string>
+    <string name="keyboard_applied">%1$s is in use on the central display.</string>
+    <string name="keyboard_not_confirmed">Android did not bind %1$s, so the factory keyboard stays.</string>
+    <string name="keyboard_not_enabled">Android does not list %1$s as enabled, so it was not chosen.</string>
+    <string name="keyboard_factory_restored">The firmware chooses the keyboard again.</string>
+    <string name="keyboard_failed">The keyboard could not be switched.</string>
+    <string name="keyboard_fallback_crashed">%1$s kept crashing, so the factory keyboard returned.</string>
+    <string name="keyboard_fallback_unavailable">%1$s was removed or switched off, so the factory keyboard returned.</string>
+    <string name="keyboard_window_service_off">This firmware always selects its own keyboard. To choose another one, turn on the window service in Firmware and OEM profiles and connect Controls.</string>
+    <string name="keyboard_setup_required">Finish setup to choose a keyboard. Until then the firmware chooses it.</string>
+    <string name="keyboard_unsupported">Choosing a keyboard needs Android 9 or 11.</string>
+    <string name="keyboard_empty">No other keyboard is installed. Install one as an app, then come back.</string>
+</resources>

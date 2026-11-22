@@ -100,6 +100,12 @@ internal object RootAppCommands {
         """.trimIndent() + "\n"
     }
 
+    /** Removes the package with its data for every user, which is what an uninstall from Android's settings does. */
+    fun uninstall(packageName: String): String {
+        require(qualifiedName.matches(packageName))
+        return "$ROOT && pm uninstall $packageName"
+    }
+
     /** True once the package left, false when it is still running, null when the output is not one of ours. */
     fun stopped(output: String): Boolean? {
         val lines = output.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()

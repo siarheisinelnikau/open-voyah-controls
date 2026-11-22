@@ -64,7 +64,9 @@ internal class AppDisplayDefaultsViewModel(private val windows: AppWindowConfigu
                 when (windows.changeDisplayDefaults(draft)) {
                     DisplayDefaultsDelivery.SAVED -> R.string.app_display_defaults_pending
                     DisplayDefaultsDelivery.CENTRAL_ONLY -> R.string.app_display_defaults_central_only
-                    DisplayDefaultsDelivery.NEXT_LAUNCH -> R.string.app_display_defaults_synced
+                    // The densities were published; only the swipe saved with them is unavailable.
+                    DisplayDefaultsDelivery.NEXT_LAUNCH, DisplayDefaultsDelivery.MOVE_UNAVAILABLE ->
+                        R.string.app_display_defaults_synced
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled

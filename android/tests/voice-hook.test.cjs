@@ -240,10 +240,10 @@ test('a reviewed fingerprint with a comma approves only its listed driver-memory
     assert.equal(changed.canRequests, 0);
 });
 
-test('motion and unavailable or slow telemetry fail closed before each write', async () => {
+test('motion and unavailable or slow telemetry fail closed before each Park-only write', async () => {
     for (const options of [{speed:1},{speed:-1},{speed:null},{gear:'Unknown'},{stateDelay:501}]) {
         const h = harness(options);
-        h.send('EnableHeatDriverLevelOne');
+        h.send('OpenTrunkCommand');
         await settle();
         assert.equal(h.writes.length,0);
         assert.ok(h.logs.some(line=>line.includes('"status":"blocked"')));
@@ -319,4 +319,38 @@ test('an unavailable settings provider is reported once and does not stop the co
     await settle();
     assert.deepEqual(h.writes,[['FRONT_SEAT_HEATING_COMMAND_LEFT',1]]);
     assert.equal(h.logs.some(line=>line.includes('private')),false);
+});
+
+test('comfort, lighting, window and mode commands also run while driving', async () => {
+    const drive = harness({gear:'Drive', speed:60});
+    drive.send('EnableHeatDriverLevelOne');
+    await settle();
+    assert.deepEqual(drive.writes, [['FRONT_SEAT_HEATING_COMMAND_LEFT', 1]]);
+    assert.ok(drive.logs.some(line => line.includes('"status":"accepted"')));
+    const unknownState = harness({gear:'Unknown', speed:null});
+    unknownState.send('IncreaseTemperature');
+    await settle();
+    assert.deepEqual(unknownState.writes, [['AC_LEFT_TEMP', 260]]);
+    for (const command of ['OpenTrunkCommand', 'LampOff', 'GetFromMemoryCellOne', 'CarWashMode', 'PowerHold']) {
+        const h = harness({gear:'Drive', speed:60});
+        h.send(command);
+        await settle();
+        assert.equal(h.writes.length, 0, command);
+        assert.equal(h.events.length, 0, command);
+        assert.ok(h.logs.some(line => line.includes('requires Parking gear')), command);
+    }
+});
+
+test('every command allowed in motion exists in the voice catalog', () => {
+    const context = {catalog: {}};
+    vm.runInNewContext(source('voice-safety.js') + '\nthis.ids = [...MOTION_COMMANDS];', context);
+    const catalog = fs.readFileSync(path.join(__dirname, '../core/src/main/resources/voice-catalog-en.tsv'), 'utf8')
+        .split(/\r?\n/).filter(line => line && !line.startsWith('#')).map(line => line.split('\t')[0]);
+    const known = new Set([...catalog, 'SetDriverTemperature', 'SetPassengerTemperature', 'SetFanSpeed']);
+    assert.equal(JSON.stringify(context.ids.filter(id => !known.has(id))), '[]');
+    assert.ok(context.ids.length > 60);
+    for (const parked of ['LampOff', 'PositionLamp', 'OpenTrunkCommand', 'CloseTrunkCommand', 'EnableTrunkCommand',
+        'DisableTrunkCommand', 'OpenElectricityPort', 'OpenFuelPort', 'GetFromMemoryCellOne', 'GetFromMemoryCellTwo',
+        'GetFromMemoryCellThree', 'CarWashMode', 'WiperMaintain', 'PowerHold', 'Sentry', 'Magic', 'RebootTbox',
+        'DriverA', 'DriverB', 'DriverC']) assert.equal(context.ids.includes(parked), false, parked);
 });

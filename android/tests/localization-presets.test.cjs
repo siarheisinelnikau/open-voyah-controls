@@ -12,7 +12,7 @@ const PACKAGES=new Set([...declared[1].matchAll(/"([a-z.]+)"/g)].map(match=>matc
 const CJK=/[㐀-鿿]/, CYRILLIC=/[Ѐ-ӿ]/;
 // Templates such as "%1$s connected" are replaced through Resources.getText before the app formats them, so a
 // translation must keep exactly the same specifiers in the same order, or String.format in the OEM app would throw.
-const SPEC=/%(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z%]/g;
+const SPEC=/%(?:\d+\$)?[-#+0,(]*\d*(?:\.\d+)?[sdcfxXoeEgGbBhHn%]/g;
 const MARKUP=/\{\d+\}|<\/?[a-z]+>/;
 const specs=text=>text.match(SPEC) ?? [];
 
@@ -25,12 +25,13 @@ test('presets are schema 1 documents for the declared packages only',()=>{
     }
 });
 
+// Presets are bundled into the agent, so one entry may hold a long factory dialog (custom dictionaries stay at 512).
 test('every entry is a real, bounded replacement',()=>{
     for(const [name,preset] of Object.entries(presets)) for(const [pkg,table] of Object.entries(preset.packages)) {
         for(const [source,value] of Object.entries(table)) {
             const where=`${name} ${pkg} ${JSON.stringify(source)}`;
             assert.equal(typeof value,'string',where);
-            assert.ok(source.trim().length>0 && source.length<=512 && value.trim().length>0 && value.length<=512,where);
+            assert.ok(source.trim().length>0 && source.length<=1024 && value.trim().length>0 && value.length<=1024,where);
             assert.notEqual(value,source,where);
             assert.ok(!MARKUP.test(source) && !MARKUP.test(value),where);
             assert.deepEqual(specs(value),specs(source),`${where}: same format specifiers`);

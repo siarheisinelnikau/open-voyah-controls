@@ -33,10 +33,13 @@ internal data class VoiceSettingsConfiguration(
     val audioOptions: VoiceAudioOptions = VoiceAudioOptions.DEFAULTS,
     val offlineVoiceName: String = "",
     val readyPrompt: String = "",
+    /** The stored speech engine key; Recognition shows whether it can run for [language]. */
+    val engine: String = "vosk",
 )
 
 internal sealed interface VoiceSettingsChange {
     data class Language(val language: String) : VoiceSettingsChange
+    data class Engine(val engine: String) : VoiceSettingsChange
     data class App(val command: String, val component: String) : VoiceSettingsChange
     data class Level(val command: String, val level: Int) : VoiceSettingsChange
     data class Windows(val smoke: Boolean, val ventilation: Boolean) : VoiceSettingsChange
@@ -99,6 +102,7 @@ internal class VoiceSettingsViewModel(
 
     fun refresh(): Boolean = start(Work.LOAD) { null }
     fun language(value: String) = change(VoiceSettingsChange.Language(value))
+    fun engine(value: String) = change(VoiceSettingsChange.Engine(value))
     fun app(command: String, component: String) = change(VoiceSettingsChange.App(command, component))
     fun level(command: String, value: Int) = change(VoiceSettingsChange.Level(command, value))
     fun windows(smoke: Boolean, ventilation: Boolean) = change(VoiceSettingsChange.Windows(smoke, ventilation))

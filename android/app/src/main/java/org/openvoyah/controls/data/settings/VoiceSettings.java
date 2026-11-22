@@ -14,6 +14,7 @@ import org.openvoyah.controls.core.voice.ClimatePhrases;
 import org.openvoyah.controls.core.voice.VoiceAudioOptions;
 import org.openvoyah.controls.core.voice.VolumePhrases;
 import org.openvoyah.controls.diagnostics.ControlsLog;
+import org.openvoyah.controls.domain.voice.SpeechEngine;
 
 /** Voice preferences have independent ownership; a panel failure cannot corrupt them. */
 public final class VoiceSettings {
@@ -34,6 +35,11 @@ public final class VoiceSettings {
     private static final String OFFLINE_VOICE_RU = "offlineVoice.ru";
     private static final String READY_PROMPT_EN = "readyPrompt.en";
     private static final String READY_PROMPT_RU = "readyPrompt.ru";
+    private static final String OFFLINE_VOICE_KK = "offlineVoice.kk";
+    private static final String READY_PROMPT_KK = "readyPrompt.kk";
+    /** The speech engine the user chose; it applies to the languages it supports, others use Vosk. */
+    private static final String ENGINE = "engine";
+    private static final Set<String> LANGUAGES = Set.of("ru", "en", "kk");
     private static final String CONTACT_PREFIX = "contact.";
     private static final Pattern CONTACT_PHONE = Pattern.compile("\\+?[0-9]{3,15}");
     private static final int MAX_VOICE_VALUES = 512 + 16;
@@ -48,8 +54,16 @@ public final class VoiceSettings {
         commands.add(VolumePhrases.command(language));
         return commands;
     }
-    public String language() { return prefs.getString("language", "ru"); }
+    public String language() {
+        String stored = prefs.getString("language", "ru");
+        return LANGUAGES.contains(stored) ? stored : "ru";
+    }
     public void language(String value) { update("language", value); }
+    public String engine() { return prefs.getString(ENGINE, SpeechEngine.VOSK.getKey()); }
+    public void engine(String value) {
+        if (SpeechEngine.Companion.fromKey(value) == null) throw new IllegalArgumentException("Invalid speech engine");
+        update(ENGINE, value);
+    }
     public int level(String command) { return Integer.parseInt(prefs.getString("level."+command,"2")); }
     public void level(String command,int value) { update("level."+command,Integer.toString(value)); }
     public boolean option(String key) { return prefs.getString(key,"false").equals("true"); }
@@ -85,8 +99,10 @@ public final class VoiceSettings {
                     .put("spokenFeedback", Boolean.toString(spokenFeedback));
                 writeAudioOptions(values, options);
                 if (language != null) {
-                    values.put(languageKey(language, OFFLINE_VOICE_EN, OFFLINE_VOICE_RU), voiceName);
-                    if (readyPrompt != null) values.put(languageKey(language, READY_PROMPT_EN, READY_PROMPT_RU), readyPrompt);
+                    values.put(languageKey(language, OFFLINE_VOICE_EN, OFFLINE_VOICE_RU, OFFLINE_VOICE_KK), voiceName);
+                    if (readyPrompt != null) {
+                        values.put(languageKey(language, READY_PROMPT_EN, READY_PROMPT_RU, READY_PROMPT_KK), readyPrompt);
+                    }
                 }
                 importJson(root.toString());
             } catch (Exception ex) { throw new IllegalStateException(UiText.get(R.string.ui_219), ex); }
@@ -96,17 +112,18 @@ public final class VoiceSettings {
     public VoiceAudioOptions audioOptions() { return readAudioOptions(prefs.getAll()); }
 
     public String offlineVoice(String language) {
-        return storedVoice(prefs.getAll().get(languageKey(language, OFFLINE_VOICE_EN, OFFLINE_VOICE_RU)));
+        return storedVoice(prefs.getAll().get(languageKey(language, OFFLINE_VOICE_EN, OFFLINE_VOICE_RU, OFFLINE_VOICE_KK)));
     }
 
     public String readyPrompt(String language) {
-        return storedReadyPrompt(prefs.getAll().get(languageKey(language, READY_PROMPT_EN, READY_PROMPT_RU)));
+        return storedReadyPrompt(prefs.getAll().get(languageKey(language, READY_PROMPT_EN, READY_PROMPT_RU, READY_PROMPT_KK)));
     }
 
-    private static String languageKey(String language, String english, String russian) {
+    private static String languageKey(String language, String english, String russian, String kazakh) {
         return switch (language) {
             case "en" -> english;
             case "ru" -> russian;
+            case "kk" -> kazakh;
             default -> throw new IllegalArgumentException("Invalid voice language");
         };
     }
@@ -182,8 +199,10 @@ public final class VoiceSettings {
         return writeAudioOptions(values, readAudioOptions(snapshot))
             .put(OFFLINE_VOICE_EN, storedVoice(snapshot.get(OFFLINE_VOICE_EN)))
             .put(OFFLINE_VOICE_RU, storedVoice(snapshot.get(OFFLINE_VOICE_RU)))
+            .put(OFFLINE_VOICE_KK, storedVoice(snapshot.get(OFFLINE_VOICE_KK)))
             .put(READY_PROMPT_EN, storedReadyPrompt(snapshot.get(READY_PROMPT_EN)))
-            .put(READY_PROMPT_RU, storedReadyPrompt(snapshot.get(READY_PROMPT_RU)));
+            .put(READY_PROMPT_RU, storedReadyPrompt(snapshot.get(READY_PROMPT_RU)))
+            .put(READY_PROMPT_KK, storedReadyPrompt(snapshot.get(READY_PROMPT_KK)));
     }
 
     public JSONObject options(String phrase) throws Exception {
@@ -192,8 +211,27 @@ public final class VoiceSettings {
         return new JSONObject().put("profile",profile()).put("phrase",phrase).put("levels",levels)
             .put("doubleSmoke",option("doubleSmoke")).put("doubleVentilation",option("doubleVentilation"));
     }
-    private String callPrefix() { return language().equals("en") ? "call " : "\u043f\u043e\u0437\u0432\u043e\u043d\u0438 "; }
-    private String catalogPath() { return language().equals("en") ? "/voice-catalog-en.tsv" : "/voice-catalog.tsv"; }
+    private String callPrefix() {
+        return switch (language()) {
+            case "en" -> "call ";
+            case "kk" -> "\u049b\u043e\u04a3\u044b\u0440\u0430\u0443 \u0448\u0430\u043b ";
+            default -> "\u043f\u043e\u0437\u0432\u043e\u043d\u0438 ";
+        };
+    }
+    private String dialPrefix() {
+        return switch (language()) {
+            case "en" -> "dial ";
+            case "kk" -> "\u0445\u0430\u0431\u0430\u0440\u043b\u0430\u0441 ";
+            default -> "\u043d\u0430\u0431\u0435\u0440\u0438 ";
+        };
+    }
+    private String catalogPath() {
+        return switch (language()) {
+            case "en" -> "/voice-catalog-en.tsv";
+            case "kk" -> "/voice-catalog-kk.tsv";
+            default -> "/voice-catalog.tsv";
+        };
+    }
 
     public record LocalContact(String id, String name, String phone) { }
 
@@ -226,7 +264,7 @@ public final class VoiceSettings {
         for(var entry:prefs.getAll().entrySet()) if(entry.getKey().startsWith(CONTACT_PREFIX)) {
             try {
                 JSONObject contact=new JSONObject((String)entry.getValue()); String name=contact.getString("name");
-                extra.add(new VoiceCatalog.Command("Call_"+entry.getKey().substring(CONTACT_PREFIX.length()),"Contacts",Arrays.asList(callPrefix()+name,(language().equals("en")?"dial ":"\u043d\u0430\u0431\u0435\u0440\u0438 ")+name)));
+                extra.add(new VoiceCatalog.Command("Call_"+entry.getKey().substring(CONTACT_PREFIX.length()),"Contacts",Arrays.asList(callPrefix()+name,dialPrefix()+name)));
             } catch(Exception ex) { throw new IOException(UiText.get(R.string.ui_210),ex); }
         }
         return new VoiceCatalog(VoiceSettings.class.getResourceAsStream(catalogPath()),extra);
@@ -272,7 +310,8 @@ public final class VoiceSettings {
         while(keys.hasNext()) {
             String key=keys.next(), value=values.getString(key);
             if(value.length()>1024) throw new IllegalArgumentException(UiText.get(R.string.ui_214));
-            if(key.equals("language")) { if(!value.equals("ru") && !value.equals("en")) throw new IllegalArgumentException("Invalid voice language"); }
+            if(key.equals("language")) { if(!LANGUAGES.contains(value)) throw new IllegalArgumentException("Invalid voice language"); }
+            else if(key.equals(ENGINE)) { if(SpeechEngine.Companion.fromKey(value) == null) throw new IllegalArgumentException("Invalid speech engine"); }
             else if(key.startsWith("level.")) {
                 if(!key.endsWith("LevelDefault") || commands.byId(key.substring(6))==null || !value.matches("[123]")) throw new IllegalArgumentException("Invalid default level");
             }
@@ -321,12 +360,12 @@ public final class VoiceSettings {
                     throw new IllegalArgumentException("Invalid result display time");
                 }
             }
-            else if (key.equals(OFFLINE_VOICE_EN) || key.equals(OFFLINE_VOICE_RU)) {
+            else if (key.equals(OFFLINE_VOICE_EN) || key.equals(OFFLINE_VOICE_RU) || key.equals(OFFLINE_VOICE_KK)) {
                 if (!(values.get(key) instanceof String name) || !VoiceAudioOptions.validOfflineVoiceName(name)) {
                     throw new IllegalArgumentException("Invalid offline voice name");
                 }
             }
-            else if (key.equals(READY_PROMPT_EN) || key.equals(READY_PROMPT_RU)) {
+            else if (key.equals(READY_PROMPT_EN) || key.equals(READY_PROMPT_RU) || key.equals(READY_PROMPT_KK)) {
                 if (!(values.get(key) instanceof String prompt) || !VoiceAudioOptions.validReadyPrompt(prompt)) {
                     throw new IllegalArgumentException(String.format(Locale.getDefault(), UiText.get(R.string.voice_ready_phrase_invalid),
                         VoiceAudioOptions.MAX_READY_PROMPT_CHARACTERS));

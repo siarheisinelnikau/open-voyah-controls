@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Home screen weather: the last known position, rounded to about 1 km, for Open-Meteo. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
@@ -21,6 +23,7 @@
         <package android:name="com.qinggan.app.login" />
         <package android:name="android" />
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
+        <intent><action android:name="android.view.InputMethod" /></intent>
         <intent><action android:name="android.settings.ACCESSIBILITY_SETTINGS" /></intent>
         <intent><action android:name="android.media.browse.MediaBrowserService" /></intent>
         <intent>
@@ -69,6 +72,8 @@
             </intent-filter>
         </receiver>
         <service android:name=".BootHookService" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+        <service android:name=".platform.weather.HomeWeatherJobService" android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
         <receiver android:name=".LocalNavigationReceiver" android:exported="true"
             android:permission="android.permission.WRITE_SECURE_SETTINGS" />

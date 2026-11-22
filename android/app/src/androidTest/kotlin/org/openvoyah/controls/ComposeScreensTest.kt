@@ -76,6 +76,8 @@ import org.openvoyah.controls.platform.apps.AppPermissionControl
 import org.openvoyah.controls.platform.apps.AppPermissions
 import org.openvoyah.controls.platform.apps.AppSpecialAccess
 import org.openvoyah.controls.platform.apps.AppStop
+import org.openvoyah.controls.platform.apps.AppRemoveControl
+import org.openvoyah.controls.platform.apps.AppRemoval
 import org.openvoyah.controls.platform.apps.AppStopControl
 import org.openvoyah.controls.platform.apps.InstalledAppIdentity
 import org.openvoyah.controls.platform.apps.LocalApp
@@ -488,6 +490,164 @@ class ComposeScreensTest : InstrumentationTestCase() {
         }
     }
 
+    /** The emulator's launcher apps in All apps, all shown, named order, large tiles, no extra shortcuts. */
+    private fun pagedGridFixture(): JSONObject = JSONObject().put("pinnedApps", JSONArray()).put("tileSize", "large")
+        .put("columns", "auto").put("showAppLabels", true).put("hideByDefault", false).put("sortOrder", "name")
+        .put("manualAppOrder", JSONArray()).put("visibleShortcuts", JSONArray()).put("hiddenApps", JSONArray())
+        .put("shownApps", JSONArray())
+
+    private fun gridApps(): List<InstalledApps.Entry> = InstalledApps.list(app)
+        .filter { AppGridPins.supports(it.component().flattenToString()) }
+        .distinctBy { it.component().flattenToString() }
+
+    private fun pageDots(): List<AccessibilityNodeInfo> = nodes().filter {
+        it.isVisibleToUser && it.contentDescription?.toString()?.let { name ->
+            Regex(UiText.get(R.string.apps_grid_go_to_page).replace("%1\$d", "\\d+")).matches(name)
+        } == true
+    }.toList()
+
+    fun testAppGridShowsPagesThatSwipeAndOpenFromTheirDots() {
+        val preferences = AppGridPreferences(app)
+        val original = preferences.exportSettings()
+        val apps = gridApps().sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label() })
+        check(apps.size > 12) { "The fixture needs more apps than one page holds" }
+        val first = apps.first().label()
+        val last = apps.last().label()
+        try {
+            preferences.restoreSettings(pagedGridFixture())
+            val activity = launch(MainActivity.appsIntent(app)) as MainActivity
+            assertAppGrid(activity)
+            awaitText(first)
+            assertNull("The last app should be on a later page", textNode(last))
+            val dots = pageDots()
+            assertTrue("A grid with several pages shows a dot per page", dots.size >= 2)
+            capture("app-grid-page-1")
+
+            // A dot opens its page.
+            val lastPage = UiText.get(R.string.apps_grid_go_to_page).format(dots.size)
+            clickText(lastPage, contentDescription = true)
+            awaitText(last)
+            assertNull("The first page left the screen", textNode(first))
+            awaitPageState(UiText.get(R.string.apps_grid_page).format(dots.size, dots.size))
+            capture("app-grid-page-last")
+
+            // A swipe to the right goes back one page at a time.
+            repeat(dots.size - 1) {
+                swipeGrid(activity, towardsEnd = false)
+            }
+            awaitText(first)
+            awaitPageState(UiText.get(R.string.apps_grid_page).format(1, dots.size))
+        } finally {
+            preferences.restoreSettings(original)
+        }
+    }
+
+    fun testMoveModeDragsAnAppToAnotherPageAndSavesAManualOrder() {
+        val preferences = AppGridPreferences(app)
+        val original = preferences.exportSettings()
+        val apps = gridApps().sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label() })
+        check(apps.size > 12) { "The fixture needs more apps than one page holds" }
+        val moved = apps.first()
+        val component = moved.component().flattenToString()
+        try {
+            preferences.restoreSettings(pagedGridFixture())
+            val activity = launch(MainActivity.appsIntent(app)) as MainActivity
+            assertAppGrid(activity)
+            clickText(moved.label(), longPress = true)
+            clickText(UiText.get(R.string.apps_move))
+            awaitText(UiText.get(R.string.apps_move_picked).format(moved.label()))
+            capture("app-grid-move-mode")
+
+            // Drag the first app to the right edge, hold it there until the page turns, and drop it on the next page.
+            val tile = Rect().also(checkNotNull(textNode(moved.label()))::getBoundsInScreen)
+            val content = Rect().also { activity.window.decorView.getGlobalVisibleRect(it) }
+            injectDrag(tile.exactCenterX(), tile.exactCenterY() - tile.height() / 4f,
+                listOf(content.right - 20f to tile.exactCenterY()), holdMillis = 1_400,
+                end = content.exactCenterX() to tile.exactCenterY())
+            val deadline = SystemClock.uptimeMillis() + 5_000
+            while (preferences.exportSettings().getString("sortOrder") != "manual" && SystemClock.uptimeMillis() < deadline) {
+                SystemClock.sleep(50)
+            }
+            val saved = preferences.exportSettings()
+            assertEquals("manual", saved.getString("sortOrder"))
+            val order = saved.getJSONArray("manualAppOrder")
+            val rank = (0 until order.length()).first { order.getString(it) == component }
+            assertTrue("The app should have moved past the first page, rank $rank", rank >= 11)
+            capture("app-grid-moved")
+
+            // The accessible way: Move earlier on the moved app puts it one place back.
+            val node = checkNotNull(textNode(moved.label()))
+            val earlier = generateSequence(node) { it.parent }.take(6).flatMap { it.actionList.asSequence() }
+                .first { it.label?.toString() == UiText.get(R.string.apps_move_earlier) }
+            val holder = generateSequence(node) { it.parent }.take(6).first { it.actionList.contains(earlier) }
+            assertTrue(holder.performAction(earlier.id))
+            val earlierDeadline = SystemClock.uptimeMillis() + 5_000
+            fun rankNow(): Int { val now = preferences.exportSettings().getJSONArray("manualAppOrder")
+                return (0 until now.length()).first { now.getString(it) == component } }
+            while (rankNow() != rank - 1 && SystemClock.uptimeMillis() < earlierDeadline) SystemClock.sleep(50)
+            assertEquals(rank - 1, rankNow())
+
+            clickText(UiText.get(R.string.apps_desktop_done))
+            val endDeadline = SystemClock.uptimeMillis() + 5_000
+            while (textNode(UiText.get(R.string.apps_move_hint)) != null && SystemClock.uptimeMillis() < endDeadline) SystemClock.sleep(50)
+            assertNull("Done ends the move mode", textNode(UiText.get(R.string.apps_move_hint)))
+        } finally {
+            preferences.restoreSettings(original)
+        }
+    }
+
+    private fun swipeGrid(activity: Activity, towardsEnd: Boolean) {
+        val content = Rect().also { activity.window.decorView.getGlobalVisibleRect(it) }
+        val y = content.exactCenterY()
+        val (from, to) = if (towardsEnd) content.right * 0.8f to content.right * 0.3f else content.right * 0.3f to content.right * 0.8f
+        injectDrag(from, y, emptyList(), holdMillis = 0, end = to to y, stepMillis = 12)
+        SystemClock.sleep(700)
+    }
+
+    /** A finger down at ([x], [y]), through [path], resting [holdMillis] at its last point, then to [end] and up. */
+    private fun injectDrag(x: Float, y: Float, path: List<Pair<Float, Float>>, holdMillis: Long, end: Pair<Float, Float>,
+                           stepMillis: Long = 16) {
+        val downAt = SystemClock.uptimeMillis()
+        fun send(action: Int, px: Float, py: Float) {
+            val event = MotionEvent.obtain(downAt, SystemClock.uptimeMillis(), action, px, py, 0)
+            try {
+                event.source = InputDevice.SOURCE_TOUCHSCREEN
+                assertTrue(instrumentation.uiAutomation.injectInputEvent(event, true))
+            } finally { event.recycle() }
+        }
+        send(MotionEvent.ACTION_DOWN, x, y)
+        var cx = x
+        var cy = y
+        fun glide(tx: Float, ty: Float) {
+            val steps = 20
+            for (step in 1..steps) {
+                send(MotionEvent.ACTION_MOVE, cx + (tx - cx) * step / steps, cy + (ty - cy) * step / steps)
+                SystemClock.sleep(stepMillis)
+            }
+            cx = tx
+            cy = ty
+        }
+        path.forEach { (px, py) -> glide(px, py) }
+        val holdUntil = SystemClock.uptimeMillis() + holdMillis
+        while (SystemClock.uptimeMillis() < holdUntil) {
+            send(MotionEvent.ACTION_MOVE, cx, cy)
+            SystemClock.sleep(50)
+        }
+        glide(end.first, end.second)
+        SystemClock.sleep(150)
+        send(MotionEvent.ACTION_UP, cx, cy)
+        instrumentation.waitForIdleSync()
+    }
+
+    private fun awaitPageState(expected: String) {
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        while (SystemClock.uptimeMillis() < deadline) {
+            if (nodes().any { it.isVisibleToUser && it.stateDescription?.toString() == expected }) return
+            SystemClock.sleep(50)
+        }
+        failWithEvidence("page-state", "The page indicator did not report: $expected")
+    }
+
     fun testAppSettingsClosesAManagedAppOnlyAfterConfirmation() {
         val fixture = AppControlFixture(refusal = null)
         openFixtureAppSettings(fixture)
@@ -511,6 +671,28 @@ class ComposeScreensTest : InstrumentationTestCase() {
         assertEquals(listOf(fixture.identity), fixture.stops.toList())
         awaitNoText(close)
         capture("app-closed")
+    }
+
+    fun testAppSettingsUninstallsAManagedAppOnlyAfterConfirmationAndReturnsToTheGrid() {
+        val fixture = AppControlFixture(refusal = null)
+        openFixtureAppSettings(fixture)
+        val uninstall = UiText.get(R.string.apps_remove)
+        val title = UiText.get(R.string.apps_remove_confirm_title).format(FIXTURE_LABEL)
+        awaitText(uninstall)
+        clickText(uninstall)
+        awaitText(title)
+        capture("app-uninstall-confirmation")
+        clickText(UiText.get(R.string.ui_89))
+        awaitNoText(title)
+        assertTrue("Cancel uninstalled the app", fixture.removals.isEmpty())
+
+        clickText(uninstall)
+        awaitText(title)
+        clickText(UiText.get(R.string.apps_remove_confirm))
+        // The page closes and the grid says the app is gone.
+        awaitText(UiText.get(R.string.apps_remove_done))
+        assertNull("The settings page stayed open", textNode(UiText.get(R.string.app_settings_title)))
+        assertEquals(listOf(fixture.identity), fixture.removals.toList())
     }
 
     fun testAppSettingsChangesPermissionsAndSpecialAccessOfAManagedApp() {
@@ -538,10 +720,11 @@ class ComposeScreensTest : InstrumentationTestCase() {
     fun testAppSettingsShowsAFirmwareAppWithoutCloseOrSwitches() {
         val fixture = AppControlFixture(refusal = AppControlRefusal.PREINSTALLED)
         openFixtureAppSettings(fixture)
-        awaitText(UiText.get(R.string.apps_permission_preinstalled))
-        awaitText(FIXTURE_CAMERA)
+        scrollTo(UiText.get(R.string.apps_permission_preinstalled))
+        scrollTo(FIXTURE_CAMERA)
         assertFalse("A firmware app offered a permission switch", switchFor(FIXTURE_CAMERA)?.isCheckable == true)
         assertNull("A firmware app offered Close", textNode(UiText.get(R.string.apps_stop)))
+        assertNull("A firmware app offered Uninstall", textNode(UiText.get(R.string.apps_remove)))
         scrollTo(UiText.get(R.string.apps_special_overlay))
         assertFalse("A firmware app offered a special access switch",
             switchFor(UiText.get(R.string.apps_special_overlay))?.isCheckable == true)
@@ -590,7 +773,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         awaitRoute(activity, ControlsRoute.SETTINGS)
         lateinit var model: AppSettingsViewModel
         instrumentation.runOnMainSync {
-            model = AppSettingsViewModel(appWindowConfiguration(app), fixture, fixture)
+            model = AppSettingsViewModel(appWindowConfiguration(app), fixture, fixture, fixture)
             val installed = ViewModelProvider(activity, viewModelFactory { initializer { model } })[
                 APP_SETTINGS_MODEL_KEY, AppSettingsViewModel::class.java
             ]
@@ -3570,11 +3753,13 @@ private const val FIXTURE_CAMERA = "Fixture camera"
 private const val FIXTURE_BACKGROUND = "Fixture background location"
 
 /** An app the settings page reads from memory: what Android would report, and a record of every requested change. */
-private class AppControlFixture(refusal: AppControlRefusal?) : AppPermissionControl, AppStopControl {
+private class AppControlFixture(refusal: AppControlRefusal?) : AppPermissionControl, AppStopControl, AppRemoveControl {
     val app = LocalApp(FIXTURE_PACKAGE, FIXTURE_PACKAGE, FIXTURE_LABEL, null, null, InstallOrigin.ADB)
     val identity = InstalledAppIdentity(FIXTURE_PACKAGE, 10_321, 1L, 2L, 3L, setOf("0".repeat(64)))
     val changes = CopyOnWriteArrayList<String>()
     val stops = CopyOnWriteArrayList<InstalledAppIdentity>()
+    val removals = CopyOnWriteArrayList<InstalledAppIdentity>()
+    @Volatile private var installed = refusal == null
     @Volatile private var running = refusal == null
     @Volatile private var details = AppPermissions(identity, InstallOrigin.ADB, refusal,
         listOf(
@@ -3599,6 +3784,14 @@ private class AppControlFixture(refusal: AppControlRefusal?) : AppPermissionCont
     }
 
     override fun canStop(packageName: String): Boolean = running && packageName == FIXTURE_PACKAGE
+
+    override fun canRemove(packageName: String): Boolean = installed && packageName == FIXTURE_PACKAGE
+
+    override fun remove(identity: InstalledAppIdentity): AppRemoval {
+        removals += identity
+        installed = false
+        return AppRemoval.Removed
+    }
 
     override fun stop(identity: InstalledAppIdentity): AppStop {
         stops += identity

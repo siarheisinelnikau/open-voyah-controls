@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.openvoyah.controls.domain.vehicle.HeadlightFeedback
 import org.openvoyah.controls.domain.vehicle.HeadlightMode
@@ -38,30 +39,40 @@ class HeadlightGearPolicyTest {
         assertNull(engine.evaluate(settings, telemetry(VehicleGear.DRIVE, 4_000), lights, 4_000))
     }
 
-    @Test fun offRequiresFreshZeroSpeedAndNeverReplaysAfterLateSpeed() {
+    @Test fun offAtParkNeedsNoSpeedSourceRefusesMotionAndNeverReplays() {
         val engine = HeadlightGearEngine()
         engine.evaluate(settings, telemetry(VehicleGear.DRIVE, 1_000), lights, 1_000)
         val parkWithoutSpeed = telemetry(VehicleGear.PARK, 2_000, speed = null)
-        assertNull(engine.evaluate(settings, parkWithoutSpeed, lights, 2_000))
+        assertEquals(HeadlightGearAction.OFF, engine.evaluate(settings, parkWithoutSpeed, lights, 2_000)?.action)
         assertNull(engine.evaluate(settings, telemetry(VehicleGear.PARK, 2_000), lights, 3_000))
         assertNull(engine.evaluate(settings, telemetry(VehicleGear.PARK, 4_000), lights, 4_000))
+
+        val moving = HeadlightGearEngine()
+        moving.evaluate(settings, telemetry(VehicleGear.DRIVE, 1_000), lights, 1_000)
+        assertNull(moving.evaluate(settings, telemetry(VehicleGear.PARK, 2_000, speed = 1f), lights, 2_000))
+        assertNull(moving.evaluate(settings, telemetry(VehicleGear.PARK, 2_000), lights, 3_000))
     }
 
-    @Test fun historyCanBeDisplayedButNeverAuthorizesARequest() {
+    @Test fun anUnknownLampModeDoesNotBlockButTheSameConfirmedModeIsSkipped() {
         val engine = HeadlightGearEngine()
         engine.evaluate(settings, telemetry(VehicleGear.PARK, 1_000), lights, 1_000)
         val car = telemetry(VehicleGear.DRIVE, 2_000)
+        // The selector reports only changes, so often only history is known. Requesting low beam again is harmless.
         val history = HeadlightStatus(lastConfirmed = HeadlightObservation(HeadlightMode.AUTOMATIC, 1_000))
-        assertNull(engine.evaluate(settings, car, history, 2_000))
-        assertNull(engine.evaluate(settings, car, lights, 3_000))
+        assertEquals(HeadlightGearAction.LOW_BEAM, engine.evaluate(settings, car, history, 2_000)?.action)
+
+        val already = HeadlightGearEngine()
+        val lowBeam = HeadlightStatus(HeadlightFeedback.Confirmed(HeadlightObservation(HeadlightMode.LOW_BEAM, 1_000), 1))
+        already.evaluate(settings, telemetry(VehicleGear.PARK, 1_000), lowBeam, 1_000)
+        assertNull(already.evaluate(settings, car, lowBeam, 2_000))
     }
 
-    @Test fun positionLampRequiresFreshZeroSpeedAndConsumesTheEdgeWhenSpeedIsMissing() {
+    @Test fun positionLampAtParkNeedsNoSpeedSourceButRefusesAFreshNonZeroSpeed() {
         val engine = HeadlightGearEngine()
         val position = settings.copy(onPark = HeadlightGearAction.POSITION)
         engine.evaluate(position, telemetry(VehicleGear.DRIVE, 1_000), lights, 1_000)
-        assertNull(engine.evaluate(position, telemetry(VehicleGear.PARK, 2_000, speed = null), lights, 2_000))
-        assertNull(engine.evaluate(position, telemetry(VehicleGear.PARK, 3_000), lights, 3_000))
+        assertEquals(HeadlightGearAction.POSITION,
+            engine.evaluate(position, telemetry(VehicleGear.PARK, 2_000, speed = null), lights, 2_000)?.action)
 
         val next = HeadlightGearEngine()
         next.evaluate(position, telemetry(VehicleGear.DRIVE, 1_000), lights, 1_000)
@@ -85,7 +96,8 @@ class HeadlightGearPolicyTest {
         val park = telemetry(VehicleGear.PARK, 1_000_000_000L)
         assertNull(engine.evaluate(settings, park, lights, 1_000_000_000L))
         val expiredPark = park.expireVehicleSignals(7_000_000_000L)
-        assertFalse(expiredPark.isStationary(7_000_000_000L))
+        // Gear arrives only on change: the aged Park of this session still means the car stands.
+        assertTrue(expiredPark.isStationary(7_000_000_000L))
         assertNull(engine.evaluate(settings, expiredPark, lights, 7_000_000_000L))
         val drive = telemetry(VehicleGear.DRIVE, 8_000_000_000L)
         assertEquals(HeadlightGearAction.LOW_BEAM, engine.evaluate(settings, drive, lights, 8_000_000_000L)?.action)

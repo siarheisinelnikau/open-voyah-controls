@@ -6,5 +6,5 @@
     <string name="panel_passenger_home">Home · passenger</string>
     <string name="panel_passenger_apps">All apps · passenger</string>
     <string name="panel_passenger_seat">Seat · passenger</string>
-    <string name="panel_plain_navigator_icon">Yandex Navigator panel icon without the white background</string>
+    <string name="home_navigator_card">Yandex Navigator instead of the Baidu map on the home screen</string>
 </resources>

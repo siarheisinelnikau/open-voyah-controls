@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="window_swipe_title">Перенос окон жестом</string>
+    <string name="window_swipe_description">Проведите по открытому приложению двумя или тремя пальцами вбок. Влево — окно уходит на приборную панель и показывается в её режиме навигации. Вправо — на экран пассажира. Чтобы вернуть окно, проведите влево на экране пассажира или вправо по главному экрану. Нужны служба окон и проверка этой операции для прошивки.</string>
+    <string name="window_swipe_fingers">Жест</string>
+    <string name="window_swipe_off">Выключен</string>
+    <string name="window_swipe_two">Двумя пальцами</string>
+    <string name="window_swipe_three">Тремя пальцами</string>
+    <string name="window_swipe_recall">Вернуть окна</string>
+    <string name="window_swipe_unreadable">Не удалось загрузить сохранённую настройку.</string>
+    <string name="window_swipe_failed">Не удалось сохранить настройку.</string>
+    <string name="window_swipe_pending">Сохранено на магнитоле. Подключите службу окон, чтобы жест заработал.</string>
+    <string name="window_swipe_ready">Сохранено. Жест уже работает.</string>
+    <string name="window_swipe_turned_off">Сохранено. Жест выключен, перенесённые окна вернулись на центральный экран.</string>
+    <string name="window_swipe_unavailable">Сохранено. Служба окон на этой магнитоле не предлагает жест: операция не проверена для этой прошивки или версии Android.</string>
+    <string name="window_swipe_recalled">Окна вернулись на центральный экран.</string>
+    <string name="window_swipe_recall_failed">Служба окон не подтвердила возврат окон.</string>
+</resources>

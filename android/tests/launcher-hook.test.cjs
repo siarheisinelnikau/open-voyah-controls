@@ -3,16 +3,18 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const source = ['report.js', 'panel-icons.js', 'panel-state.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+const source = ['report.js', 'panel-icons.js', 'panel-state.js', 'home-navi-card.js', 'home-weather-card.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import .*;$/gm, '').replaceAll('export function', 'function')).join('\n') + '\ninstall(Java);';
 
 function harness(config, options = {}) {
     let originalCalls = 0;
     const launched = [], logs = [], retries = [], timers = [];
-    let inClick = false, inTheme = false;
+    let inClick = false, inTheme = false, iconReads = 0, decodes = 0;
+    const originalViews = [];
     const click = { call(nav, view) {
         if (!inClick) return dispatchClick(nav, view);
         originalCalls++;
+        originalViews.push(view);
         if (options.failNative) throw new Error('java.lang.IllegalStateException: private native action');
         return 'oem';
     }};
@@ -30,6 +32,10 @@ function harness(config, options = {}) {
             nav.replacement = null;
         }
     } };
+    // The OEM constructor inflates the lowered menu after the normal panel.
+    const initDown = { call(nav) {
+        if (nav.lateLowered) { makeLowered(nav); nav.lateLowered = false; }
+    } };
     const theme = { call(nav) {
         if (!inTheme) return dispatchTheme(nav);
         for (const view of Object.values(nav.views ?? {})) view.background = view.stock;
@@ -43,6 +49,7 @@ function harness(config, options = {}) {
     const selection = { call(nav) {
         nav.stockUpdates++;
         nav.checked = nav.stockChecked ?? -1;
+        nav.downChecked = nav.stockDownChecked ?? -1;
     }};
     const manager = {
         resolveActivity(intent) {
@@ -50,13 +57,9 @@ function harness(config, options = {}) {
             const packageName = intent.component?.split('/')[0] ?? 'com.android.settings';
             return {
                 activityInfo: {value:{packageName:{value:packageName}}},
+                loadLabel: () => 'label ' + (intent.component ?? intent.action),
                 loadIcon() {
-                    const component = intent.component ?? intent.action;
-                    // options.adaptive lists packages whose launcher icon is an adaptive icon.
-                    if (options.adaptive?.includes(packageName)) return {component, adaptive:true,
-                        getIntrinsicWidth:() => 128, getIntrinsicHeight:() => 128,
-                        getForeground:() => ({foreground:component, getIntrinsicWidth:() => 192, getIntrinsicHeight:() => 192})};
-                    return {component, getIntrinsicWidth:() => 128, getIntrinsicHeight:() => 64};
+                    return {component:intent.component ?? intent.action, getIntrinsicWidth:() => 128, getIntrinsicHeight:() => 64};
                 }
             };
         },
@@ -94,6 +97,7 @@ function harness(config, options = {}) {
             stock: object({resource}), draws: 0, holdEnabled: options.stockHolds?.includes(resource) ?? false,
             getId: () => 10 + Object.keys(nav.views).indexOf(resource),
             getResources: () => ({getResourceEntryName: () => resource}),
+            getContext: () => context,
             getLayoutParams: () => ({width: {value:116}, height: {value:90}}), getWidth: () => 0, getHeight: () => 0,
             getPaddingLeft: () => 4, getPaddingTop: () => 5, getPaddingRight: () => 6, getPaddingBottom: () => 7,
             setPadding(...insets) { this.insets = insets; },
@@ -104,10 +108,70 @@ function harness(config, options = {}) {
                 this.holdEnabled = value;
             },
             isLongClickable() { return this.holdEnabled; },
+            getParent() { return this.parent ?? null; },
             mListenerInfo: {value: {mOnClickListener: {value: nav}}}
         });
         view.background = view.stock;
         return view;
+    }
+    // A lowered-menu button the agent creates: it takes its id, size, listener and picture from the agent.
+    function makeButton(context) {
+        return object({
+            added: true, id: -1, params: null, background: null, holdEnabled: false, parent: null, description: null,
+            mListenerInfo: {value: {mOnClickListener: {value: null}}},
+            setId(id) { this.id = id; }, getId() { return this.id; },
+            setLayoutParams(params) { this.params = params; }, getLayoutParams() { return this.params; },
+            getWidth: () => 0, getHeight: () => 0, getContext: () => context,
+            getResources() {
+                const nav = this.mListenerInfo.value.mOnClickListener.value;
+                const name = Object.keys(nav.views).find(key => nav.views[key].getId() === this.id);
+                return {getResourceEntryName: () => name};
+            },
+            getPaddingLeft: () => 0, getPaddingTop: () => 0, getPaddingRight: () => 0, getPaddingBottom: () => 0,
+            setBackground(background) {
+                if (options.failAddedIcon) throw new Error('java.lang.IllegalStateException: private drawable');
+                this.background = background;
+            },
+            getBackground() { return this.background; },
+            setContentDescription(text) { this.description = text; },
+            setOnClickListener(listener) { this.mListenerInfo.value.mOnClickListener.value = listener; },
+            setLongClickable(value) { this.holdEnabled = value; }, isLongClickable() { return this.holdEnabled; },
+            getParent() { return this.parent; }
+        });
+    }
+    // The H97 lowered-screen menu: a 560 px frame whose radio group holds Home and a hidden, unwired Phone.
+    function makeLowered(nav) {
+        const home = makeView(nav, 'screen_down_home_icon');
+        const phone = object({phone: true});
+        nav.views.screen_down_home_icon = home;
+        nav.mScreenDownHomeView = {value: home};
+        nav.downChecked = -1;
+        const group = object({
+            children: [home, phone], layouts: 0,
+            params: {topMargin: {value: 142}, bottomMargin: {value: 142}},
+            getCheckedRadioButtonId: () => nav.downChecked,
+            check(id) { nav.downChecked = id; },
+            clearCheck() { nav.downChecked = -1; },
+            indexOfChild(view) { return this.children.indexOf(view); },
+            addView: {overload(...types) {
+                assert.deepEqual(types, ['android.view.View', 'int']);
+                return {call(self, view, index) {
+                    if (options.failAddView) throw new Error('java.lang.IllegalStateException: private parent');
+                    assert.ok(!self.children.includes(view), 'a button is added once');
+                    self.children.splice(index, 0, view); view.parent = self;
+                }};
+            }},
+            removeView(view) {
+                if (options.failRemoveView) return;
+                this.children.splice(this.children.indexOf(view), 1); view.parent = null;
+            },
+            getLayoutParams() { return this.params; },
+            setLayoutParams(params) { this.params = params; this.layouts++; },
+            getPaddingTop: () => 16, getPaddingBottom: () => 16
+        });
+        home.parent = group;
+        nav.mScreenDownRadioGroup = {value: group};
+        nav.mScreenDownView = {value: {getLayoutParams: () => ({height: {value: options.frameHeight ?? 560}})}};
     }
     function makeBar(screen) {
         const nav = {isNav:true, mScreenId:{value:screen}, mContext:{value:context}, views:{}, equals(other) { return other === this; }};
@@ -129,19 +193,54 @@ function harness(config, options = {}) {
             nav[field] = {value:view};
             nav.views[resource] = view;
         }
+        if (options.lateLowered) nav.lateLowered = true;
+        else if (!options.noLowered) makeLowered(nav);
         return nav;
     }
     const existing = (options.existing ?? []).map(makeBar);
     const classes = {
         'com.qinggan.mainlauncher.navigation.NavigationBar': {
             class: { isInstance(value) { return value.isNav === true; } }, onClick: {overload:() => click},
-            initScreenUpViews: {overload:() => init}, updateTheme: options.noTheme ? undefined : {overload:() => theme},
+            initScreenUpViews: {overload:() => init},
+            initScreenDownViews: options.noLowered ? undefined : {overload:() => initDown}, updateTheme: options.noTheme ? undefined : {overload:() => theme},
             release: {overload:() => release},
             updateSelectedApp: options.noSelection ? undefined : {overload:() => selection}
         },
         'android.view.View': { performLongClick: { overload(...coordinates) { return holds[coordinates.length ? 1 : 0]; } } },
         'android.widget.RadioGroup': {},
-        'android.provider.Settings$Global': { getString(resolver, key) { assert.equal(key, 'org.openvoyah.controls.panel'); return typeof config === 'string' ? config : JSON.stringify(config); } },
+        'com.qinggan.launcher.base.widget.NoToggleRadioButton': {$new: {overload(...types) {
+            assert.deepEqual(types, ['android.content.Context', 'android.util.AttributeSet', 'int']);
+            return {call(self, context, attributes, style) {
+                assert.equal(attributes, null);
+                assert.equal(style, 0);
+                return makeButton(context);
+            }};
+        }}},
+        'android.widget.RadioGroup$LayoutParams': {$new: {overload(...types) {
+            assert.deepEqual(types, ['int', 'int']);
+            return {call(self, width, height) {
+                return {width: {value: width}, height: {value: height}, topMargin: {value: 0}, bottomMargin: {value: 0}};
+            }};
+        }}},
+        'android.view.ViewGroup$MarginLayoutParams': {},
+        'android.view.View$OnClickListener': {},
+        'android.provider.Settings$Global': { getString(resolver, key) {
+            if (key === 'org.openvoyah.controls.panelIcons') {
+                iconReads++;
+                return options.panelIcons === undefined ? null : JSON.stringify(options.panelIcons);
+            }
+            assert.equal(key, 'org.openvoyah.controls.panel'); return typeof config === 'string' ? config : JSON.stringify(config);
+        } },
+        'android.util.Base64': {decode(data, flags) { assert.equal(flags, 0); return Array.from(data, c => c.charCodeAt(0)); }},
+        'android.graphics.BitmapFactory': {decodeByteArray(bytes, offset, length) {
+            decodes++;
+            const text = String.fromCharCode(...bytes.slice(offset, offset + length));
+            return text === 'broken' ? null : {png: text, $dispose() {}};
+        }},
+        'android.graphics.drawable.BitmapDrawable': {$new(resources, bitmap) {
+            const [width, height] = options.publishedSize ?? [112, 112];
+            return {bitmap, getIntrinsicWidth: () => width, getIntrinsicHeight: () => height};
+        }},
         'android.content.Intent': { $new(action) { return {
             action, addCategory(c) { this.category = c; }, setComponent(c) { this.component = c; }, addFlags(f) { this.flags = (this.flags ?? 0) | f; },
             putExtra: { overload() { return { call(intent, key, value) { intent.extras = {[key]:value}; } }; } }
@@ -157,7 +256,6 @@ function harness(config, options = {}) {
         }; }},
         'android.graphics.drawable.RippleDrawable': {$new(color, layer, mask) { return object({color, layer, mask}); }},
         'android.graphics.drawable.GradientDrawable': {$new() { return {setColor(color) { this.color = color; }, setCornerRadius(radius) { this.radius = radius; }}; }},
-        'android.graphics.drawable.AdaptiveIconDrawable': {class: {isInstance: value => value?.adaptive === true}},
         'android.content.res.ColorStateList': {valueOf:color => color},
         'android.view.Gravity': {CENTER:{value:17}},
         'java.lang.ref.WeakReference': {$new(referent) { return {get: () => referent, $dispose() {}}; }},
@@ -171,7 +269,13 @@ function harness(config, options = {}) {
                 existing.forEach(nav => callbacks.onMatch(Object.assign(nav, {$dispose(){}}))); callbacks.onComplete();
             },
             scheduleOnMainThread(fn) { fn(); }, perform(fn) { fn(); },
-            use(name) { if (options.noNav && name.endsWith('NavigationBar')) throw Error('class not loaded'); assert.ok(classes[name], name); return classes[name]; }
+            use(name) {
+                if (options.noNav && name.endsWith('NavigationBar')) throw Error('class not loaded');
+                if (options.noButtonClass && name.endsWith('NoToggleRadioButton')) throw Error('java.lang.ClassNotFoundException: ' + name);
+                // A launcher without the factory navigation card: the home card reports it and stays off.
+                if (name.startsWith('com.qinggan.app.launcher.homecard.')) throw Error('java.lang.ClassNotFoundException: ' + name);
+                assert.ok(classes[name], name); return classes[name];
+            }
         },
         Process: { id: 42 }, console: { log(line) { logs.push(line); } },
         setTimeout(fn,ms) { retries.push({fn,ms}); }, setInterval(fn) { timers.push(fn); return fn; },
@@ -189,8 +293,9 @@ function harness(config, options = {}) {
         return holds[coordinates.length ? 1 : 0].implementation.call(view, ...coordinates);
     }
     return {
-        retries, logs, existing,
-        hooks: {click, init, selection, holds, theme, release},
+        retries, logs, existing, get iconReads() { return iconReads; }, get decodes() { return decodes; },
+        hooks: {click, init, initDown, selection, holds, theme, release},
+        initDown(nav) { initDown.implementation.call(nav); },
         holdView(view, ...coordinates) { return performHold(view, coordinates); },
         bar,
         setConfig(value) { config = value; },
@@ -203,6 +308,8 @@ function harness(config, options = {}) {
             init.implementation.call(nav);
         },
         tap(nav, name) { return dispatchClick(nav, nav.views[name]); },
+        lowered(nav) { return nav.mScreenDownRadioGroup.value; },
+        added(nav) { return nav.mScreenDownRadioGroup.value.children.filter(view => view.added); },
         tapView(nav, view) { return dispatchClick(nav, view); },
         holdAndRelease(nav, name, ...coordinates) {
             const view = nav.views[name];
@@ -215,7 +322,7 @@ function harness(config, options = {}) {
             return performHold(view, coordinates);
         },
         click(screen, resource) { const nav = bar(screen); return dispatchClick(nav, nav.views[resource] ?? makeView(nav, resource)); },
-        launched, logs, get originalCalls() { return originalCalls; }, get originalHolds() { return originalHolds; }
+        launched, logs, originalViews, get originalCalls() { return originalCalls; }, get originalHolds() { return originalHolds; }
     };
 }
 test('missing NavigationBar schedules recovery and installs when class becomes available', () => {
@@ -572,45 +679,53 @@ test('panel glyphs stay inside their button', () => {
     }
 });
 
-test('a listed package draws its adaptive icon foreground without the plate and follows the setting', () => {
+test('icons Controls published for the panel win over every other icon and follow their version', () => {
     const navigator = {kind:'LAUNCH_APP', component:'ru.yandex.yandexnavi/.core.NavigatorActivity'};
-    const other = {kind:'LAUNCH_APP', component:'test.maps/.Maps'};
-    const actions = {navbar01:navigator, navbar02:other};
-    const h = harness({schema:1, enabled:true, actions, foregroundIcons:['ru.yandex.yandexnavi']},
-        {adaptive:['ru.yandex.yandexnavi', 'test.maps']});
-    const bar = h.bar(0), view = bar.views.screen_up_icon_1, music = bar.views.screen_up_icon_2;
-    assert.equal(view.background.layer.icon.foreground, navigator.component);
-    // The middle 72 of 108 dp shows 1.3 times larger than on the 56 px plate.
-    assert.deepEqual(view.background.layer.size, [109,109]);
-    assert.deepEqual(view.background.layer.gravity, [0, 17]);
-    assert.equal(view.background.mask.radius, 90 * 0.12);
-    // Adaptive icons of packages that are not listed keep their plate.
-    assert.equal(music.background.layer.icon.component, other.component);
-    assert.equal(music.background.mask, null);
-    for (const icons of [[], undefined]) {
-        h.setConfig({schema:1, enabled:true, actions, ...(icons && {foregroundIcons:icons})});
-        h.tick();
-        assert.equal(view.background.layer.icon.component, navigator.component);
-        assert.equal(view.background.mask, null);
-        h.setConfig({schema:1, enabled:true, actions, foregroundIcons:['ru.yandex.yandexnavi']});
-        h.tick();
-        assert.equal(view.background.layer.icon.foreground, navigator.component);
+    const player = {kind:'LAUNCH_APP', component:'com.example.player/.Main'};
+    const actions = {navbar01:navigator, navbar02:player, mainApps:{kind:'CONTROLS_APPS'}};
+    const options = {glyphs:{'org.openvoyah.controls':0x7f080042},
+        panelIcons:{schema:1, icons:{'ru.yandex.yandexnavi':'arrow', 'org.openvoyah.controls':'wings'}}};
+    const h = harness({schema:1, enabled:true, actions, customIcons:'v1'}, options);
+    const bar = h.bar(0);
+    for (const [name, png] of [['screen_up_icon_1', 'arrow'], ['screen_up_all_app_icon', 'wings']]) {
+        const {background} = bar.views[name];
+        assert.equal(background.layer.icon.bitmap.png, png);
+        assert.deepEqual(background.layer.size, [56,56]);
+        assert.equal(background.mask.radius, 90 * 0.12);
     }
-    const token = 'c'.repeat(32);
+    // An app without a published icon keeps its own.
+    assert.equal(bar.views.screen_up_icon_2.background.layer.icon.component, player.component);
+    assert.equal(h.iconReads, 1);
+    assert.equal(h.decodes, 2);
+    h.theme(bar);
+    assert.equal(h.iconReads, 1);
+    assert.equal(h.decodes, 2);
+    // A new version is read again; without one the other icons return.
+    options.panelIcons = {schema:1, icons:{'com.example.player':'note'}};
+    h.setConfig({schema:1, enabled:true, actions, customIcons:'v2'});
+    h.tick();
+    assert.equal(h.iconReads, 2);
+    assert.equal(bar.views.screen_up_icon_2.background.layer.icon.bitmap.png, 'note');
+    assert.equal(bar.views.screen_up_icon_1.background.layer.icon.component, navigator.component);
+    assert.equal(bar.views.screen_up_all_app_icon.background.layer.icon.glyph, 0x7f080042);
+    h.setConfig({schema:1, enabled:true, actions});
+    h.tick();
+    assert.equal(bar.views.screen_up_icon_2.background.layer.icon.component, player.component);
+    const token = 'd'.repeat(32);
     h.setConfig({schema:1, enabled:false, restoreIcons:token});
     h.tick();
-    assert.equal(view.background, view.stock);
-    assert.equal(music.background, music.stock);
-    assert.ok(h.logs.includes('OVC_PANEL_ICONS_RESTORED ' + token));
+    for (const view of Object.values(bar.views)) assert.equal(view.background, view.stock);
 });
 
-test('a listed package without an adaptive icon keeps its launcher icon', () => {
-    const navigator = {kind:'LAUNCH_APP', component:'ru.yandex.yandexnavi/.core.NavigatorActivity'};
-    const h = harness({schema:1, enabled:true, actions:{navbar01:navigator}, foregroundIcons:['ru.yandex.yandexnavi']});
-    const {background} = h.bar(0).views.screen_up_icon_1;
-    assert.equal(background.layer.icon.component, navigator.component);
-    assert.deepEqual(background.layer.size, [56,28]);
-    assert.equal(background.mask, null);
+test('a missing, damaged or unreadable published icon document leaves the other icons', () => {
+    const player = {kind:'LAUNCH_APP', component:'com.example.player/.Main'};
+    for (const panelIcons of [undefined, {schema:2, icons:{'com.example.player':'note'}}, {schema:1, icons:null},
+        {schema:1, icons:{'com.example.player':'broken'}}, {schema:1, icons:{'com.example.player':7}}]) {
+        const h = harness({schema:1, enabled:true, actions:{navbar02:player}, customIcons:'v1'}, {panelIcons});
+        const {background} = h.bar(0).views.screen_up_icon_2;
+        assert.equal(background.layer.icon.component, player.component);
+        assert.equal(background.mask, null);
+    }
 });
 
 test('a missing or unreadable panel glyph falls back to the launcher icon', () => {
@@ -808,10 +923,12 @@ test('click, hold and selection failures are bounded error lines with their slot
 test('a failed installation resets every hook even when dispose throws and retries in 30 s', () => {
     const options = {failChoose:true, failDispose:true};
     const h = harness(config({navbar01:action}), options);
-    const {click, init, selection, holds, theme, release} = h.hooks;
-    for (const hook of [click, init, selection, ...holds, theme, release]) assert.equal(hook.implementation, null);
+    const {click, init, initDown, selection, holds, theme, release} = h.hooks;
+    for (const hook of [click, init, initDown, selection, ...holds, theme, release]) assert.equal(hook.implementation, null);
     assert.deepEqual(h.retries.map(retry => retry.ms), [30000]);
     assert.deepEqual(h.logs.filter(line => line.startsWith('OVC_')), [
+        'OVC_HOME_CARD_ERROR stage=install kind=ClassNotFoundException',
+        'OVC_HOME_WEATHER_ERROR stage=install kind=ClassNotFoundException',
         'OVC_PANEL_ERROR stage=install kind=IllegalStateException',
         'OVC_PANEL_ERROR stage=rollback kind=IllegalStateException',
     ]);
@@ -829,4 +946,193 @@ test('selection readiness is announced only after the rest of the installation s
     assert.ok(ready >= 0);
     assert.deepEqual(h.logs.slice(ready + 1).filter(line => line.startsWith('OVC_')), ['OVC_PANEL_SELECTION_READY']);
     assert.equal(harness(config({navbar01:action}), {noSelection:true}).logs.includes('OVC_PANEL_SELECTION_READY'), false);
+});
+
+const lowered = {
+    home: 'screen_down_home_icon',
+    center: config({navbar01:action, navbar02:{kind:'LAUNCH_APP', component:'org.example.music/.Main'},
+        mainHome:{kind:'LAUNCH_APP', component:'org.example.home/.Main'}, mainApps:{kind:'CONTROLS_APPS'}})
+};
+
+test('the lowered menu Home takes the Home slot and assigned positions follow it in panel order', () => {
+    const h = harness(lowered.center), bar = h.bar(0), group = h.lowered(bar);
+    const home = bar.views[lowered.home];
+    assert.equal(home.background.layer.icon.component, 'org.example.home/.Main');
+    assert.equal(home.isLongClickable(), true);
+    assert.deepEqual(group.children.slice(0, 4).map(view => view.getId()), [home.getId(),
+        ...['screen_up_icon_1', 'screen_up_icon_2', 'screen_up_all_app_icon'].map(name => bar.views[name].getId())]);
+    assert.ok(group.children[4].phone);
+    assert.deepEqual(h.added(bar).map(view => view.background.layer.icon.component),
+        [action.component, 'org.example.music/.Main', 'org.openvoyah.controls/org.openvoyah.controls.MainActivity']);
+    for (const view of h.added(bar)) {
+        assert.deepEqual([view.params.width.value, view.params.height.value, view.params.topMargin.value], [116, 90, 32]);
+        assert.equal(view.isLongClickable(), true);
+        assert.equal(view.mListenerInfo.value.mOnClickListener.value, bar);
+    }
+    assert.equal(h.added(bar)[0].description, 'label ' + action.component);
+    assert.deepEqual([group.params.topMargin.value, group.params.bottomMargin.value], [0, 0]);
+    assert.equal(h.logs.some(line => line.startsWith('OVC_PANEL') && line.includes('ERROR')), false);
+});
+
+test('only assigned positions get a lowered button, and five passenger buttons close up to fit the frame', () => {
+    const h = harness(config({navbar02:action})), center = h.bar(0);
+    assert.deepEqual(h.added(center).map(view => view.getId()), [center.views.screen_up_icon_2.getId()]);
+    assert.equal(center.views[lowered.home].background, center.views[lowered.home].stock);
+    const all = harness(config(Object.fromEntries(['navbar11', 'navbar12', 'navbar13', 'navbar14', 'navbar15']
+        .map(slot => [slot, action]))));
+    const passenger = all.bar(1), buttons = all.added(passenger);
+    assert.equal(buttons.length, 4);
+    // 560 - 2 x 16 padding - 5 x 90 leaves 78 px for four gaps.
+    assert.deepEqual(buttons.map(view => view.params.topMargin.value), [19, 19, 19, 19]);
+    assert.equal(passenger.views[lowered.home].background.layer.icon.component, action.component);
+});
+
+test('lowered buttons launch on their display while hold and a failed launch run the mirrored OEM click once', () => {
+    for (const screen of [0, 1]) {
+        const slot = screen === 0 ? 'navbar01' : 'navbar12';
+        const h = harness(config({[slot]:action})), bar = h.bar(screen), [button] = h.added(bar);
+        h.tapView(bar, button);
+        assert.deepEqual([h.launched.length, h.launched[0].display, h.launched[0].intent.component], [1, screen, action.component]);
+        assert.equal(h.originalCalls, 0);
+        for (const coordinates of [[], [18, 24]]) assert.equal(h.holdView(button, ...coordinates), true);
+        assert.equal(h.originalCalls, 2);
+        assert.ok(h.originalViews.every(view => view === bar.views.screen_up_icon_1));
+        assert.equal(h.originalHolds, 0);
+    }
+    const h = harness(config({mainApps:action}), {failLaunch:true}), bar = h.bar(0), [button] = h.added(bar);
+    assert.equal(h.tapView(bar, button), 'oem');
+    assert.deepEqual([h.originalCalls, h.originalViews[0]], [1, bar.views.screen_up_all_app_icon]);
+    // A failed slot falls back everywhere: its button leaves the lowered menu and the normal view is restored.
+    assert.equal(h.added(bar).length, 0);
+    assert.equal(bar.views.screen_up_all_app_icon.background, bar.views.screen_up_all_app_icon.stock);
+    assert.deepEqual([h.lowered(bar).params.topMargin.value, h.lowered(bar).params.bottomMargin.value], [142, 142]);
+});
+
+test('the lowered Home keeps its own OEM click for hold and failed launches', () => {
+    const h = harness(config({mainHome:action}), {failLaunch:true}), bar = h.bar(0);
+    h.holdAndRelease(bar, lowered.home);
+    assert.deepEqual([h.originalCalls, h.originalViews[0]], [1, bar.views[lowered.home]]);
+    assert.equal(h.tap(bar, lowered.home), 'oem');
+    assert.equal(h.originalViews[1], bar.views[lowered.home]);
+    assert.equal(bar.views[lowered.home].background, bar.views[lowered.home].stock);
+});
+
+test('selection marks the assigned button in each radio group and restores both', () => {
+    const h = harness(lowered.center), bar = h.bar(0), [navigation] = h.added(bar);
+    h.select(bar, 'com.example.player', '.Main');
+    assert.equal(bar.checked, bar.views.screen_up_icon_1.getId());
+    assert.equal(bar.downChecked, navigation.getId());
+    h.select(bar, 'org.example.home', '.Main');
+    assert.equal(bar.checked, bar.views.screen_up_home_icon.getId());
+    assert.equal(bar.downChecked, bar.views[lowered.home].getId());
+    bar.stockChecked = 3; bar.stockDownChecked = 4;
+    h.select(bar, 'com.example.other', '.Main');
+    assert.deepEqual([bar.checked, bar.downChecked], [3, 4]);
+    // Clearing the assignment hands a still-checked button's group back before the button leaves it.
+    h.select(bar, 'com.example.player', '.Main');
+    assert.equal(bar.downChecked, navigation.getId());
+    h.setConfig(config({})); h.tick();
+    assert.deepEqual([bar.checked, bar.downChecked], [3, 4]);
+    assert.equal(h.added(bar).length, 0);
+});
+
+test('a lowered button checked outside our selection is unchecked before it is removed', () => {
+    const h = harness(config({navbar01:action})), bar = h.bar(0), [button] = h.added(bar);
+    bar.downChecked = button.getId();
+    h.setConfig(config({})); h.tick();
+    assert.equal(bar.downChecked, -1);
+    assert.equal(button.parent, null);
+});
+
+test('reassigning, theme reload and rebuilt views keep exactly one lowered button per assignment', () => {
+    const h = harness(lowered.center), bar = h.bar(0), group = h.lowered(bar);
+    const ids = () => group.children.map(view => view.phone ? 'phone' : view.getId());
+    const before = ids();
+    assert.equal(before.length, 5);
+    h.theme(bar);
+    assert.deepEqual(ids(), before);
+    h.replace(bar, 'mScreenUpItemView2', 'screen_up_icon_2');
+    assert.deepEqual(ids(), before);
+    h.setConfig(config({navbar02:action})); h.tick();
+    assert.deepEqual(ids(), [bar.views[lowered.home].getId(), bar.views.screen_up_icon_2.getId(), 'phone']);
+    for (let i = 0; i < 3; i++) h.tick();
+    assert.equal(h.added(bar).length, 1);
+    assert.equal(group.children.length, 3);
+});
+
+test('clearing, disabling, a release token and release restore the lowered menu', () => {
+    const token = '0123456789abcdef0123456789abcdef';
+    for (const [next, release] of [[config({}), false], [{schema:1, enabled:false, restoreIcons:token}, false], [null, true]]) {
+        const h = harness(lowered.center), bar = h.bar(0), group = h.lowered(bar), home = bar.views[lowered.home];
+        if (release) h.release(bar);
+        else { h.setConfig(next); h.tick(); }
+        assert.equal(group.children.length, 2);
+        assert.equal(group.children[0], home);
+        assert.ok(group.children[1].phone);
+        assert.equal(home.background, home.stock);
+        assert.equal(home.isLongClickable(), false);
+        assert.deepEqual([group.params.topMargin.value, group.params.bottomMargin.value], [142, 142]);
+        if (next?.restoreIcons) assert.ok(h.logs.includes('OVC_PANEL_ICONS_RESTORED ' + token));
+    }
+});
+
+test('a lowered button that cannot be removed holds the release token and is retried', () => {
+    const token = '0123456789abcdef0123456789abcdef', options = {};
+    const h = harness(lowered.center, options), bar = h.bar(0);
+    options.failRemoveView = true;
+    h.setConfig({schema:1, enabled:false, restoreIcons:token}); h.tick(); h.tick();
+    assert.equal(h.logs.includes('OVC_PANEL_ICONS_RESTORED ' + token), false);
+    assert.equal(h.added(bar).length, 3);
+    assert.equal(h.lowered(bar).params.topMargin.value, 0);
+    options.failRemoveView = false; h.tick();
+    assert.equal(h.added(bar).length, 0);
+    assert.equal(h.lowered(bar).params.topMargin.value, 142);
+    assert.ok(h.logs.includes('OVC_PANEL_ICONS_RESTORED ' + token));
+});
+
+test('a lowered menu that refuses buttons keeps its Home and the normal panel without redrawing them', () => {
+    for (const failure of ['failAddView', 'failAddedIcon']) {
+        const h = harness(lowered.center, {[failure]:true}), bar = h.bar(0), group = h.lowered(bar);
+        h.tick();
+        const draws = bar.views.screen_up_icon_1.draws;
+        for (let i = 0; i < 3; i++) h.tick();
+        assert.equal(bar.views.screen_up_icon_1.draws, draws);
+        assert.equal(h.added(bar).length, 0);
+        assert.equal(group.children.length, 2);
+        assert.deepEqual([group.params.topMargin.value, group.params.bottomMargin.value], [142, 142]);
+        assert.equal(bar.views[lowered.home].background.layer.icon.component, 'org.example.home/.Main');
+        h.tap(bar, 'screen_up_icon_1');
+        assert.equal(h.launched.at(-1).intent.component, action.component);
+        const errors = h.logs.filter(line => line.startsWith('OVC_PANEL_ICONS_ERROR'));
+        assert.deepEqual(errors, ['navbar01', 'navbar02', 'mainApps']
+            .map(slot => 'OVC_PANEL_ICONS_ERROR stage=lowered kind=IllegalStateException slot=' + slot));
+        assert.equal(h.logs.some(line => line.includes('private')), false);
+    }
+});
+
+test('launchers without the lowered menu or its button class keep the normal panel', () => {
+    for (const options of [{noLowered:true}, {noButtonClass:true}]) {
+        const h = harness(lowered.center, options), bar = h.bar(0);
+        h.tap(bar, 'screen_up_icon_1');
+        assert.equal(h.launched.at(-1).intent.component, action.component);
+        assert.equal(bar.views.screen_up_icon_1.background.layer.icon.component, action.component);
+        const errors = h.logs.filter(line => line.startsWith('OVC_PANEL') && line.includes('ERROR'));
+        if (options.noLowered) assert.deepEqual(errors, []);
+        else {
+            assert.deepEqual(errors, ['OVC_PANEL_ICONS_ERROR stage=lowered kind=ClassNotFoundException']);
+            assert.equal(bar.mScreenDownRadioGroup.value.children.length, 2);
+            assert.equal(bar.views[lowered.home].background.layer.icon.component, 'org.example.home/.Main');
+        }
+    }
+});
+
+test('a bar built while the agent runs gets its lowered buttons once the OEM inflates the lowered menu', () => {
+    const h = harness(lowered.center, {lateLowered:true}), bar = h.bar(0);
+    assert.equal(bar.mScreenDownRadioGroup, undefined);
+    assert.equal(bar.views.screen_up_icon_1.background.layer.icon.component, action.component);
+    h.initDown(bar);
+    assert.equal(h.added(bar).length, 3);
+    assert.equal(bar.views[lowered.home].background.layer.icon.component, 'org.example.home/.Main');
+    h.tick();
+    assert.equal(h.added(bar).length, 3);
 });

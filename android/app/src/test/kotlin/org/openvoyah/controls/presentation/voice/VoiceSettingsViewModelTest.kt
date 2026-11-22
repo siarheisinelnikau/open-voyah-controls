@@ -84,6 +84,7 @@ class VoiceSettingsViewModelTest {
             val before = current
             current = when (change) {
                 is VoiceSettingsChange.Language -> current.copy(language = change.language, catalog = catalog(change.language))
+                is VoiceSettingsChange.Engine -> current.copy(engine = change.engine)
                 is VoiceSettingsChange.App -> current.copy(assigned = if (change.component.isEmpty())
                     current.assigned - change.command else current.assigned + change.command)
                 is VoiceSettingsChange.Level -> current.copy(levels = current.levels + (change.command to change.level))

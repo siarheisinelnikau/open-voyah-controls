@@ -42,10 +42,15 @@ class AppWindowConfigurationTest {
             events += change.name
             return delivery
         }
-        override fun publishDefaults(passengerRequested: Boolean): DisplayDefaultsDelivery {
+        override fun publishDefaults(passengerRequested: Boolean, moveRequested: Boolean): DisplayDefaultsDelivery {
             assertEquals(defaults.secondaryDpi != null, passengerRequested)
+            assertEquals(defaults.moveFingers != 0, moveRequested)
             events += "publish defaults"
-            return DisplayDefaultsDelivery.CENTRAL_ONLY
+            return if (moveRequested) DisplayDefaultsDelivery.MOVE_UNAVAILABLE else DisplayDefaultsDelivery.CENTRAL_ONLY
+        }
+        override fun recallMovedWindows(): Boolean {
+            events += "recall"
+            return true
         }
     }
     private val configuration = AppWindowConfiguration(storage, service, io = Dispatchers.Unconfined)
@@ -86,9 +91,28 @@ class AppWindowConfigurationTest {
     }
 
     @Test fun displayDefaultsAreSavedBeforePublication() = runBlocking {
-        val customDefaults = AppDisplayDefaults(190, 220)
+        val customDefaults = AppDisplayDefaults(190, 220, moveFingers = 0)
         assertEquals(DisplayDefaultsDelivery.CENTRAL_ONLY, configuration.changeDisplayDefaults(customDefaults))
         assertEquals(listOf("save defaults", "publish defaults"), events)
         assertEquals(customDefaults, configuration.readDisplayDefaults())
+    }
+
+    @Test fun theWindowSwipeIsSavedWithTheDefaultsAndReportsWhenTheServiceLacksIt() = runBlocking {
+        val swipe = AppDisplayDefaults(moveFingers = 3)
+        assertEquals(DisplayDefaultsDelivery.MOVE_UNAVAILABLE, configuration.changeDisplayDefaults(swipe))
+        assertEquals(swipe, configuration.readDisplayDefaults())
+        assertEquals(true, configuration.recallMovedWindows())
+        assertEquals(listOf("save defaults", "publish defaults", "recall"), events)
+    }
+
+    @Test fun theWindowSwipeIsOnByDefaultWithThreeFingers() {
+        assertEquals(3, AppDisplayDefaults().moveFingers)
+    }
+
+    @Test fun onlyTwoOrThreeFingersMoveWindows() {
+        for (fingers in listOf(0, 2, 3)) assertEquals(fingers, AppDisplayDefaults(moveFingers = fingers).moveFingers)
+        for (fingers in listOf(-1, 1, 4)) {
+            assertThrows(IllegalArgumentException::class.java) { AppDisplayDefaults(moveFingers = fingers) }
+        }
     }
 }

@@ -1,7 +1,15 @@
 import { createPanelIcon } from './panel-icons.js';
 import { createReporter } from './report.js';
 
-/** Owns reversible mutations of the observed launcher views on the UI thread. */
+/**
+ * Owns reversible mutations of the observed launcher views on the UI thread.
+ *
+ * `lifecycle.lowered` optionally describes the lowered-screen menu of each display:
+ * `{button: class, screens: [{group, anchor, frame, gap, added: [[field, slot], ...]}, ...]}`. That menu holds only
+ * the `anchor` (Home) in `group`, so every assigned `slot` gets a button of our own after it, in the listed order,
+ * mirroring the normal panel's view in `field`. The buttons live in the menu while their assignment does, so they
+ * follow the OEM switch between the normal and lowered layouts without hooks of their own.
+ */
 export function installPanelState(Java, Nav, panels, readConfig, actionFor, buildIntent, ownsView, lifecycle = {}) {
     const Reference = Java.use('java.lang.ref.WeakReference');
     const View = Java.use('android.view.View');
@@ -16,8 +24,20 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
     const contextOf = lifecycle.contextOf ?? (nav => nav.mContext.value);
     const report = createReporter('OVC_PANEL_ICONS_ERROR');
     const bars = [];
-    let drawIcon, theme;
+    let drawIcon, theme, lowered = null;
     let ready = false, disposed = false, queued = false, applied = '';
+    if (lifecycle.lowered) {
+        // Without these the normal panel still works; the lowered menu keeps only its own Home.
+        try {
+            lowered = {
+                ...lifecycle.lowered,
+                Button: Java.use(lifecycle.lowered.button),
+                Params: Java.use('android.widget.RadioGroup$LayoutParams'),
+                Margins: Java.use('android.view.ViewGroup$MarginLayoutParams'),
+                Listener: Java.use('android.view.View$OnClickListener')
+            };
+        } catch (error) { report('lowered', error); }
+    }
 
     function reference(object) {
         return Java.retain(Reference.$new(object));
@@ -31,6 +51,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
     function forgetView(entry) {
         entry.icon?.stock?.$dispose();
         entry.icon?.current.$dispose();
+        entry.mirror?.$dispose();
         entry.view.$dispose();
     }
 
@@ -41,9 +62,15 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
     function rememberBar(nav) {
         const current = findBar(nav);
         if (current) return current;
-        const bar = {owner: reference(nav), views: [], selection: null, released: false};
+        const bar = {owner: reference(nav), views: [], selections: [], layout: null, released: false};
         bars.push(bar);
         return bar;
+    }
+
+    function viewField(nav, field) {
+        // Optional views differ between launcher builds and models.
+        try { return nav[field].value ?? null; }
+        catch (_) { return null; }
     }
 
     function findView(bar, view) {
@@ -59,11 +86,25 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         view.setPadding(...insets);
     }
 
+    function removeAdded(view) {
+        const parent = view.getParent();
+        if (parent === null) return;
+        const group = Java.cast(parent, RadioGroup);
+        // A removed button would otherwise stay the group's checked id, and the slider would stay on its place.
+        if (group.getCheckedRadioButtonId() === view.getId()) group.clearCheck();
+        group.removeView(view);
+        if (view.getParent() !== null) throw Error('Could not remove the added button');
+    }
+
     function restoreView(entry) {
         entry.active = false;
         try {
             const view = dereference(entry.view, View);
             if (view === null) return true;
+            if (entry.added) {
+                removeAdded(view);
+                return true;
+            }
             if (entry.changedHold) {
                 view.setLongClickable(false);
                 if (view.isLongClickable()) throw Error('Could not restore the native hold flag');
@@ -91,22 +132,44 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         }
     }
 
+    // Each radio group of a bar (the normal panel and the lowered menu) keeps its own selection to restore.
     function restoreSelection(bar) {
-        const selection = bar?.selection;
-        if (!selection) return true;
-        const {original, applied} = selection;
-        bar.selection = null;
-        try {
-            const group = dereference(selection.group, RadioGroup);
-            if (group !== null && group.getCheckedRadioButtonId() === applied) {
-                group.check(original);
-                if (group.getCheckedRadioButtonId() !== original) throw Error('Could not restore the native selection');
+        if (!bar?.selections.length) return true;
+        bar.selections = bar.selections.filter(selection => {
+            const {original, applied} = selection;
+            try {
+                const group = dereference(selection.group, RadioGroup);
+                if (group !== null && group.getCheckedRadioButtonId() === applied) {
+                    group.check(original);
+                    if (group.getCheckedRadioButtonId() !== original) throw Error('Could not restore the native selection');
+                }
+                selection.group.$dispose();
+                return false;
+            } catch (error) {
+                report('selection', error);
+                return true;
             }
-            selection.group.$dispose();
+        });
+        return bar.selections.length === 0;
+    }
+
+    // The lowered menu's own spacing comes back once none of our buttons is left in it.
+    function restoreLayout(bar) {
+        const layout = bar.layout;
+        if (layout === null || bar.views.some(entry => entry.added)) return true;
+        try {
+            const group = dereference(layout.group, View);
+            if (group !== null) {
+                const params = Java.cast(group.getLayoutParams(), lowered.Margins);
+                params.topMargin.value = layout.margins[0];
+                params.bottomMargin.value = layout.margins[1];
+                group.setLayoutParams(params);
+            }
+            layout.group.$dispose();
+            bar.layout = null;
             return true;
         } catch (error) {
-            bar.selection = selection;
-            report('selection', error);
+            report('restore', error, {slot: 'lowered'});
             return false;
         }
     }
@@ -119,7 +182,93 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
             forgetView(entry);
             return false;
         });
-        return restored;
+        return restoreLayout(bar) && restored;
+    }
+
+    function resolve(manager, action) {
+        const intent = buildIntent(action);
+        if (intent === null) return null;
+        const info = manager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY.value);
+        return info === null || info.activityInfo.value === null ? null : info;
+    }
+
+    function addLowered(nav, bar, config, manager) {
+        const layout = lowered?.screens[nav.mScreenId.value];
+        if (!layout || !drawIcon) return true;
+        const group = viewField(nav, layout.group), anchor = viewField(nav, layout.anchor);
+        if (group === null || anchor === null) return true;
+        const index = group.indexOfChild(anchor);
+        if (index < 0) return true;
+        const buttons = [];
+        for (const [field, slot] of layout.added) {
+            try {
+                const action = actionFor(config, slot);
+                const mirror = action && viewField(nav, field);
+                if (!mirror || mirror.getId() <= 0 || !ownsView(nav, mirror, slot)) continue;
+                const info = resolve(manager, action);
+                if (info !== null) buttons.push({slot, action, mirror, info});
+            } catch (error) { report('lowered', error, {slot}); }
+        }
+        if (!buttons.length) return true;
+        try {
+            const size = anchor.getLayoutParams();
+            const [width, height] = [size.width.value, size.height.value];
+            // Keep the normal panel's spacing where it fits the menu's frame, and close it up where it does not.
+            const frame = viewField(nav, layout.frame)?.getLayoutParams()?.height.value ?? 0;
+            const room = frame - group.getPaddingTop() - group.getPaddingBottom() - (buttons.length + 1) * height;
+            const gap = frame > 0 ? Math.max(0, Math.min(layout.gap, Math.floor(room / buttons.length))) : layout.gap;
+            const params = Java.cast(group.getLayoutParams(), lowered.Margins);
+            bar.layout = {group: reference(group), margins: [params.topMargin.value, params.bottomMargin.value]};
+            // The menu centres its group; the group's own margins would push the added buttons off the frame.
+            params.topMargin.value = 0;
+            params.bottomMargin.value = 0;
+            group.setLayoutParams(params);
+            let position = index + 1;
+            for (const {slot, action, mirror, info} of buttons) {
+                // The OEM button class logs the resource name of its id on every touch, so the button reuses the
+                // id of the normal-panel view it stands for. Ids only need to be unique within this group.
+                const view = lowered.Button.$new.overload('android.content.Context', 'android.util.AttributeSet', 'int')
+                    .call(lowered.Button, anchor.getContext(), null, 0);
+                const entry = {slot, view: reference(view), mirror: reference(mirror), action, added: true,
+                    changedHold: false, active: false, icon: null};
+                bar.views.push(entry);
+                try {
+                    view.setId(mirror.getId());
+                    const place = lowered.Params.$new.overload('int', 'int').call(lowered.Params, width, height);
+                    place.topMargin.value = gap;
+                    view.setLayoutParams(place);
+                    const drawable = drawIcon(view, manager, info, config);
+                    if (!drawable) throw Error('No icon for the added button');
+                    entry.icon = {stock: null, current: Java.retain(drawable), insets: padding(view)};
+                    view.setBackground(drawable);
+                    try { view.setContentDescription(info.loadLabel(manager)); } catch (_) { /* Label only. */ }
+                    view.setOnClickListener(Java.cast(nav, lowered.Listener));
+                    view.setLongClickable(true);
+                    group.addView.overload('android.view.View', 'int').call(group, view, position);
+                    position++;
+                    entry.active = true;
+                } catch (error) {
+                    report('lowered', error, {slot});
+                    if (!dropAdded(bar, entry)) return false;
+                }
+            }
+        } catch (error) {
+            report('lowered', error);
+            return dropAdded(bar);
+        }
+        return restoreLayout(bar);
+    }
+
+    // A lowered menu that cannot take our buttons keeps its own Home; only a failed cleanup asks for a retry,
+    // so a persistent failure does not redraw the whole panel every second.
+    function dropAdded(bar, only = null) {
+        bar.views = bar.views.filter(entry => {
+            if (!entry.added || (only !== null && entry !== only)) return true;
+            if (!restoreView(entry)) return true;
+            forgetView(entry);
+            return false;
+        });
+        return !bar.views.some(entry => entry.added && (only === null || entry === only)) && restoreLayout(bar);
     }
 
     function refresh(nav, bar, config) {
@@ -131,12 +280,10 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
             const action = actionFor(config, slot);
             if (action === null) continue;
             try {
-                const view = nav[field].value;
+                const view = viewField(nav, field);
                 if (view === null || !ownsView(nav, view, slot)) continue;
-                const intent = buildIntent(action);
-                if (intent === null) continue;
-                const info = manager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY.value);
-                if (info === null || info.activityInfo.value === null) continue;
+                const info = resolve(manager, action);
+                if (info === null) continue;
                 const entry = {
                     slot, view: reference(view), action, changedHold: !view.isLongClickable(), active: false, icon: null
                 };
@@ -166,7 +313,11 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
                 }
             } catch (error) { report('refresh', error, {slot}); }
         }
-        return true;
+        try { return addLowered(nav, bar, config, manager); }
+        catch (error) {
+            report('lowered', error);
+            return dropAdded(bar);
+        }
     }
 
     function track(nav) {
@@ -219,7 +370,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         const token = valid && config.enabled === false && /^[0-9a-f]{32}$/.test(config.restoreIcons)
             ? config.restoreIcons : '';
         // Icon choices redraw the panel like assignments do.
-        const assignments = valid && config.enabled === true ? [config.actions, config.foregroundIcons ?? null] : null;
+        const assignments = valid && config.enabled === true ? [config.actions, config.customIcons ?? null] : null;
         return {key: JSON.stringify([assignments, token]), token};
     }
 
@@ -298,9 +449,29 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
             const bar = findBar(nav);
             const original = group.getCheckedRadioButtonId();
             if (bar && original !== id) {
-                bar.selection = {original, applied: id, group: reference(group)};
+                bar.selections.push({original, applied: id, group: reference(group)});
                 group.check(id);
             }
+        },
+        /** The slot of a button we added to the lowered menu, or null for any other view. */
+        addedSlot(nav, view) {
+            const entry = findView(findBar(nav), view);
+            return entry?.added ? entry.slot : null;
+        },
+        /** The view whose OEM click an added button stands for; any other view stands for itself. */
+        nativeView(nav, view) {
+            const entry = findView(findBar(nav), view);
+            return entry?.added ? dereference(entry.mirror, View) : view;
+        },
+        /** Live added buttons of a bar with the field of the radio group that holds them. */
+        added(nav) {
+            const group = lowered?.screens[nav.mScreenId.value]?.group;
+            const result = [];
+            for (const entry of findBar(nav)?.views ?? []) {
+                const view = entry.added && entry.active ? dereference(entry.view, View) : null;
+                if (view !== null) result.push({slot: entry.slot, view, group});
+            }
+            return result;
         },
         failed(nav, slot) {
             const bar = findBar(nav);

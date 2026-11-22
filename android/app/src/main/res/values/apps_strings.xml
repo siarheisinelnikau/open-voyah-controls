@@ -64,6 +64,13 @@
     <string name="apps_stop_refused">Controls does not close apps that are part of the firmware, run the car interface or keep an accessibility or notification service on. Android would turn such a service off.</string>
     <string name="apps_stop_package_changed">The app changed before it could be closed. Check it again.</string>
     <string name="apps_stop_failed">Could not close the app.</string>
+    <string name="apps_remove">Uninstall</string>
+    <string name="apps_remove_confirm_title">Uninstall %1$s?</string>
+    <string name="apps_remove_confirm_text">Android removes the app and all of its data. To use it again, install it again.</string>
+    <string name="apps_remove_confirm">Uninstall</string>
+    <string name="apps_remove_done">The app is uninstalled.</string>
+    <string name="apps_remove_failed">Could not uninstall the app.</string>
+    <string name="apps_remove_refused">Controls does not uninstall apps that are part of the firmware or run the car interface.</string>
     <string name="apps_permission_granted">Granted</string>
     <string name="apps_permission_not_granted">Not granted</string>
     <string name="apps_app_info">Android app info</string>
@@ -89,4 +96,15 @@
     <string name="apps_install_changed_apk">The APK changed during preparation. Choose the file again.</string>
     <string name="apps_install_cleanup_failed">A prepared APK could not be removed. Check app storage and try again.</string>
     <string name="apps_install_unverified">APK installed. Controls could not confirm that the installation came from it.</string>
+    <string name="app_icon_title">Icon</string>
+    <string name="app_icon_launcher">The app\'s own icon</string>
+    <string name="app_icon_custom">Your picture</string>
+    <string name="app_icon_choose">Choose picture…</string>
+    <string name="app_icon_reset">Use the app\'s icon</string>
+    <string name="app_icon_plain">Remove the white background (experimental)</string>
+    <string name="app_icon_plain_hint">Applies to the app grid and the launcher panel. A picture you chose takes precedence.</string>
+    <string name="app_icon_plain_not_found">This icon has no white background to remove.</string>
+    <string name="app_icon_image_failed">The picture could not be used as an icon.</string>
+    <string name="app_icon_save_failed">The icon setting could not be saved.</string>
+    <string name="app_icon_picker_unavailable">No app is available to choose a picture.</string>
 </resources>

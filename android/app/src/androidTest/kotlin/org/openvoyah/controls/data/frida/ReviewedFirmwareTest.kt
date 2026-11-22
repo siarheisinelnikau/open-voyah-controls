@@ -22,6 +22,8 @@ class ReviewedFirmwareTest : AndroidTestCase() {
         val passenger = "$identity\tpassenger-window-dpi"
         assertEquals(setOf("passenger-window-dpi"), requireNotNull(ReviewedFirmware.select(launcher, passenger, device)).operations)
         reject { ReviewedFirmware.select(launcher, "$passenger\n$passenger", device) }
+        val swipe = "$identity\twindow-display-move"
+        assertEquals(setOf("window-display-move"), requireNotNull(ReviewedFirmware.select(launcher, swipe, device)).operations)
     }
 
     fun testRejectsDuplicateMalformedOrUnanchoredReview() {

@@ -1,5 +1,6 @@
 package org.openvoyah.controls.presentation.home
 
+import android.Manifest
 import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -19,6 +20,9 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.Binding
 import org.openvoyah.controls.core.PanelControls
+import org.openvoyah.controls.data.weather.HomeWeatherPreferences
+import org.openvoyah.controls.domain.weather.HomeWeather
+import org.openvoyah.controls.platform.weather.HomeWeatherJobs
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.platform.input.ButtonInputAdapter
 import org.openvoyah.controls.platform.ui.ActionExecutor
@@ -56,7 +60,12 @@ internal class HomeSettingsCoordinator(
         archives = SettingsArchiveDialogs(activity, dialogs, Runnable(model::refresh), lifecycleOwner)
     }
 
-    fun resume() { foreground = true; model.refresh(); render(model.state.value) }
+    fun resume() {
+        foreground = true
+        model.refresh()
+        model.weatherCity(HomeWeatherPreferences(activity).city)
+        render(model.state.value)
+    }
 
     fun pause() {
         foreground = false
@@ -122,7 +131,24 @@ internal class HomeSettingsCoordinator(
 
     override fun buttonsEnabled(enabled: Boolean) { if (active) model.buttonsEnabled(enabled) }
     override fun panelEnabled(enabled: Boolean) { if (active) model.panelEnabled(enabled) }
-    override fun plainNavigatorIcon(enabled: Boolean) { if (active) model.plainNavigatorIcon(enabled) }
+    override fun navigatorHomeCard(enabled: Boolean) { if (active) model.navigatorHomeCard(enabled) }
+    override fun weatherCard(enabled: Boolean) {
+        if (!active || !model.weatherCard(enabled)) return
+        if (enabled) {
+            // Without location access the city from the settings is used.
+            if (activity.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                activity.requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), LOCATION_REQUEST)
+            }
+            HomeWeatherJobs.schedule(activity)
+        } else HomeWeatherJobs.cancel(activity)
+    }
+    override fun weatherCity(city: String) {
+        if (!active) return
+        val clean = HomeWeather.cleanCity(city)
+        HomeWeatherPreferences(activity).city = clean
+        model.weatherCity(city.take(60))
+        if (model.state.value.weatherCard) HomeWeatherJobs.refreshNow(activity, 3000)
+    }
     override fun choosePanel(slot: String) {
         if (!active || model.state.value.panels.none { it.slot == slot }) return
         bindings.choose { if (active) model.choosePanel(slot, it) }
@@ -234,5 +260,7 @@ internal class HomeSettingsCoordinator(
     private companion object {
         /** AOSP car package whose activities only show "No application can handle this action". */
         const val FRAMEWORK_STUBS = "com.android.car.frameworkpackagestubs"
+        /** The answer is not awaited: the weather job uses the location when it is granted, else the city. */
+        const val LOCATION_REQUEST = 0x5745
     }
 }

@@ -12,7 +12,7 @@
     <string name="vehicle_automation_current">текущее показание</string>
     <string name="vehicle_automation_history">последнее подтверждение</string>
     <string name="vehicle_automation_light_confirmation">%1$s · %2$s · %3$s</string>
-    <string name="vehicle_automation_lights_blocked">Сохранено, ожидается проверка на автомобиле. Нужны свежий сигнал коробки и подтверждённая команда света. Для выключения также нужны Park и нулевая скорость.</string>
+    <string name="vehicle_automation_lights_blocked">Сохранено, нужна подтверждённая команда света для этой магнитолы. Габариты и выключение отправляются только в Park.</string>
     <string name="vehicle_automation_drive_memory">Память режима вождения</string>
     <string name="vehicle_automation_memory_enabled">Запоминать подтверждённый режим</string>
     <string name="vehicle_automation_memory_empty">Нет сохранённого подтверждённого режима</string>

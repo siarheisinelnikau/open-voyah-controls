@@ -48,6 +48,7 @@ import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.apps.AppControlRefusal
 import org.openvoyah.controls.domain.display.WindowConnection
 import org.openvoyah.controls.platform.apps.AndroidAppAccess
+import org.openvoyah.controls.platform.apps.AppRemoval
 import org.openvoyah.controls.platform.apps.AppStop
 import org.openvoyah.controls.platform.apps.AppsPlatform
 import org.openvoyah.controls.presentation.theme.CockpitAction
@@ -78,6 +79,8 @@ internal fun AppSettingsScreen(
     shortcut: AppShortcutGridState?,
     setPinned: (Boolean) -> Unit,
     setHidden: (Boolean) -> Unit,
+    /** Starts moving the app on the grid; null where the current desktop does not show it. */
+    move: (() -> Unit)?,
     open: (Int?, Boolean) -> Unit,
     openAdjacent: (Int) -> Unit,
     appInfo: (() -> Unit)?,
@@ -94,11 +97,15 @@ internal fun AppSettingsScreen(
     var confirmStop by remember(app.id) { mutableStateOf(false) }
     val showStop = state.canStop || state.stop.busy
     LaunchedEffect(state.canStop) { if (!state.canStop) confirmStop = false }
+    var confirmRemove by remember(app.id) { mutableStateOf(false) }
+    val showRemove = state.canRemove || state.remove.busy
+    LaunchedEffect(state.canRemove) { if (!state.canRemove) confirmRemove = false }
     val launchActions: @Composable (Modifier) -> Unit = { modifier ->
-        if (app.launchEntry != null || showStop) {
+        if (app.launchEntry != null || showStop || showRemove) {
             FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 // Closing stays apart from opening: it never takes the primary place at the end of the row.
                 if (showStop) CockpitAction(text(R.string.apps_stop), { confirmStop = true }, enabled = !busy)
+                if (showRemove) CockpitAction(text(R.string.apps_remove), { confirmRemove = true }, enabled = !busy, destructive = true)
                 if (app.launchEntry == null) return@FlowRow
                 if (shortcut?.hidden != null) {
                     val hidden = shortcut.hidden
@@ -114,6 +121,7 @@ internal fun AppSettingsScreen(
                     } else if (pinned) R.string.apps_unpin else R.string.apps_pin
                     CockpitAction(text(label), { setPinned(!pinned) }, enabled = !busy && !shortcut.working)
                 }
+                move?.let { CockpitAction(text(R.string.apps_move), it, enabled = !busy && shortcut?.working != true) }
                 CockpitAction(text(R.string.choose_display), { choices = displays() }, enabled = !busy)
                 CockpitAction(text(R.string.open_app), { open(null, false) }, enabled = !busy, primary = true)
             }
@@ -141,16 +149,30 @@ internal fun AppSettingsScreen(
                 // Root work on this page takes a moment; the bar shows it for as long as it runs.
                 if (state.stop.busy || permissions.writing) LinearProgressIndicator(Modifier.fillMaxWidth())
                 StopResult(state.stop.result, app.label)
+                (state.remove.result as? AppRemoval.Failed)?.let { failed ->
+                    Text(listOfNotNull(text(R.string.apps_remove_failed), failed.reason).joinToString(" "),
+                        Modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = colors.error)
+                }
+                when (state.remove.result) {
+                    AppRemoval.Refused -> Text(text(R.string.apps_remove_refused), color = colors.error)
+                    AppRemoval.PackageChanged -> Text(text(R.string.apps_stop_package_changed), color = colors.error)
+                    else -> Unit
+                }
                 if (wide) {
                     Row(Modifier.weight(1f), horizontalArrangement = spacing) {
                         SettingsPane(R.string.app_window_title, CockpitIcon.DISPLAY,
                             Modifier.weight(1.15f).fillMaxHeight(), scroll = true) {
                             AppWindowSettings(requireNotNull(window), model)
                         }
-                        SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK,
-                            Modifier.weight(1f).fillMaxHeight(), scroll = true) {
-                            PermissionSettings(permissions, busy, model::permission, model::specialAccess,
-                                model::refreshPermissions, appInfo, specialAccess)
+                        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = spacing) {
+                            SettingsPane(R.string.app_icon_title, CockpitIcon.APPS, Modifier.fillMaxWidth()) {
+                                AppIconSettings(app)
+                            }
+                            SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK,
+                                Modifier.weight(1f).fillMaxWidth(), scroll = true) {
+                                PermissionSettings(permissions, busy, model::permission, model::specialAccess,
+                                    model::refreshPermissions, appInfo, specialAccess)
+                            }
                         }
                     }
                 } else {
@@ -159,6 +181,9 @@ internal fun AppSettingsScreen(
                             SettingsPane(R.string.app_window_title, CockpitIcon.DISPLAY, Modifier.fillMaxWidth()) {
                                 AppWindowSettings(it, model)
                             }
+                        }
+                        SettingsPane(R.string.app_icon_title, CockpitIcon.APPS, Modifier.fillMaxWidth()) {
+                            AppIconSettings(app)
                         }
                         SettingsPane(R.string.apps_permissions, CockpitIcon.LOCK, Modifier.fillMaxWidth()) {
                             PermissionSettings(permissions, busy, model::permission, model::specialAccess,
@@ -179,6 +204,18 @@ internal fun AppSettingsScreen(
                     primary = true)
             },
             dismissButton = { CockpitTextAction(text(R.string.ui_89)) { confirmStop = false } },
+        )
+    }
+    if (confirmRemove && state.canRemove) {
+        AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text(text(R.string.apps_remove_confirm_title).format(app.label)) },
+            text = { Text(text(R.string.apps_remove_confirm_text)) },
+            confirmButton = {
+                CockpitAction(text(R.string.apps_remove_confirm), { confirmRemove = false; model.removeApp() }, enabled = !busy,
+                    destructive = true)
+            },
+            dismissButton = { CockpitTextAction(text(R.string.ui_89)) { confirmRemove = false } },
         )
     }
     choices?.let {

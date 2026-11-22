@@ -9,8 +9,8 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleDoorState
 import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
 import org.openvoyah.controls.domain.vehicle.automation.VehicleIdentity
 import org.openvoyah.controls.domain.vehicle.automation.VehicleSignal
-import org.openvoyah.controls.domain.vehicle.automation.VehicleSignalKind
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
+import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetryWindow
 
 class SeasonalClimatePolicyTest {
     private val now = 20_000_000_000L
@@ -27,29 +27,33 @@ class SeasonalClimatePolicyTest {
         assertThrows(IllegalArgumentException::class.java) { preset.copy(fanLevel = 9) }
     }
 
-    @Test fun temperatureGearSpeedAndEveryRequiredDoorMustBeFresh() {
+    @Test fun temperatureGearAndEveryRequiredDoorMustBeKnownInThisSession() {
         val telemetry = telemetry(24f)
         assertEquals(ClimateConditionState.READY, assess(telemetry))
         assertEquals(ClimateConditionState.WAITING_TEMPERATURE, assess(telemetry.copy(outsideCelsius = null)))
         assertEquals(ClimateConditionState.WAITING_GEAR, assess(telemetry.copy(gear = null)))
-        assertEquals(ClimateConditionState.WAITING_SPEED, assess(telemetry.copy(speedKph = null)))
+        // Park holds the car; the source admits no speed, a fresh non-zero speed still refuses.
+        assertEquals(ClimateConditionState.READY, assess(telemetry.copy(speedKph = null)))
         assertEquals(ClimateConditionState.WAITING_DOORS, assess(telemetry.copy(doors = telemetry.doors - VehicleDoor.REAR_RIGHT)))
         assertEquals(ClimateConditionState.DOORS_OPEN, assess(telemetry.copy(doors = telemetry.doors +
             (VehicleDoor.REAR_RIGHT to signal(VehicleDoorState.OPEN)))))
         assertEquals(ClimateConditionState.PARK_REQUIRED, assess(telemetry.copy(speedKph = signal(1f))))
-        assertEquals(ClimateConditionState.WAITING_SPEED, assess(telemetry.copy(speedKph = signal(Float.NaN))))
+        assertEquals(ClimateConditionState.PARK_REQUIRED, assess(telemetry.copy(speedKph = signal(Float.NaN))))
         assertEquals(ClimateConditionState.WAITING_TEMPERATURE, assess(telemetry.copy(outsideCelsius = signal(Float.NaN))))
-        assertEquals(ClimateConditionState.WAITING_GEAR, assess(telemetry, now + 5_000_000_001))
+        // Gear, temperature and doors are reported only on change; the last values of the session hold.
+        assertEquals(ClimateConditionState.READY, assess(telemetry, now + 600_000_000_000))
     }
 
-    @Test fun oldSessionFutureSamplesAndExplicitUnavailableStatusCannotSatisfyConditions() {
+    @Test fun oldSessionFutureSamplesAndARevokedSessionCannotSatisfyConditions() {
         val telemetry = telemetry(25f)
         assertEquals(ClimateConditionState.WAITING_TEMPERATURE,
             assess(telemetry.copy(outsideCelsius = signal(25f).copy(sessionId = "previous"))))
         assertEquals(ClimateConditionState.WAITING_TEMPERATURE,
             assess(telemetry.copy(outsideCelsius = signal(25f).copy(observedAtElapsedNanos = now + 1))))
-        assertEquals(ClimateConditionState.WAITING_TEMPERATURE,
-            assess(telemetry.copy(unavailable = setOf(VehicleSignalKind.OUTSIDE_TEMPERATURE))))
+        val window = VehicleTelemetryWindow()
+        val revoked = telemetry.copy(confirmationWindow = window)
+        window.close()
+        assertEquals(ClimateConditionState.WAITING_GEAR, assess(revoked))
     }
 
     @Test fun driveAndOptionalDoorsAreExplicitConditionsWithInclusiveSeasonalThresholds() {
@@ -100,14 +104,15 @@ class SeasonalClimatePolicyTest {
         assertTrue(engine.observe(edited, reconnected, now + 5).isEmpty())
     }
 
-    @Test fun corruptSettingsRecoveryExpiredEvidenceAndChangedSessionStartOnlySeed() {
+    @Test fun corruptSettingsRecoveryAndChangedSessionStartOnlySeed() {
         val engine = SeasonalClimateEdgeEngine(cooldownMillis = 1_000)
         assertTrue(engine.observe(settings, telemetry(20f), now).isEmpty())
         engine.invalidate()
         assertTrue(engine.observe(settings, telemetry(25f, now + 1), now + 1).isEmpty())
         assertTrue(engine.observe(settings, telemetry(20f, now + 2), now + 2).isEmpty())
         val muchLater = now + 6_000_000_000
-        assertTrue(engine.observe(settings, telemetry(25f, muchLater), muchLater).isEmpty())
+        // A silent source keeps its last value within the session, so the old false state still arms the edge.
+        assertEquals(1, engine.observe(settings, telemetry(25f, muchLater), muchLater).size)
         assertTrue(engine.observe(settings, telemetry(20f, muchLater + 1), muchLater + 1).isEmpty())
         assertTrue(engine.observe(settings, telemetry(25f, muchLater + 2).copy(sessionStartedAtElapsedNanos = muchLater), muchLater + 2).isEmpty())
     }

@@ -3,7 +3,8 @@
     "a": {
       "appDisplayDpi": {
         "central": 170,
-        "secondary": 190
+        "secondary": 190,
+        "moveFingers": 2
       },
       "appGrid": {
         "pinnedApps": [
@@ -416,6 +417,7 @@
         "schema": 1,
         "values": {
           "language": "en",
+          "engine": "zipformer",
           "level.EnableConditionDriverLevelDefault": "1",
           "level.EnableHeatDriverLevelDefault": "2",
           "level.EnableMassageDriverLevelDefault": "3",
@@ -512,7 +514,8 @@
     "b": {
       "appDisplayDpi": {
         "central": 230,
-        "secondary": 260
+        "secondary": 260,
+        "moveFingers": 3
       },
       "appGrid": {
         "pinnedApps": [
@@ -914,6 +917,7 @@
         "schema": 1,
         "values": {
           "language": "ru",
+          "engine": "vosk",
           "level.EnableConditionDriverLevelDefault": "2",
           "level.EnableHeatDriverLevelDefault": "3",
           "level.EnableMassageDriverLevelDefault": "1",
@@ -1051,6 +1055,11 @@
     },
     {
       "area": "Voice",
+      "name": "speech engine",
+      "path": "/voice/values/engine"
+    },
+    {
+      "area": "Voice",
       "name": "default seat levels",
       "path": "/voice/values/level.EnableHeatDriverLevelDefault"
     },
@@ -1173,6 +1182,11 @@
       "area": "Windows and displays",
       "name": "per-display default DPI",
       "path": "/appDisplayDpi/central"
+    },
+    {
+      "area": "Windows and displays",
+      "name": "window swipe between screens",
+      "path": "/appDisplayDpi/moveFingers"
     },
     {
       "area": "Windows and displays",

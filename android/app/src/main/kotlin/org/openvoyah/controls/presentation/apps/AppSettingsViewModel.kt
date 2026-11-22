@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -18,6 +20,8 @@ import org.openvoyah.controls.domain.display.WindowProfileDelivery
 import org.openvoyah.controls.platform.apps.AndroidAppAccess
 import org.openvoyah.controls.platform.apps.AppPermissionControl
 import org.openvoyah.controls.platform.apps.AppPermissions
+import org.openvoyah.controls.platform.apps.AppRemoval
+import org.openvoyah.controls.platform.apps.AppRemoveControl
 import org.openvoyah.controls.platform.apps.AppStop
 import org.openvoyah.controls.platform.apps.AppStopControl
 import org.openvoyah.controls.platform.apps.LocalApp
@@ -30,6 +34,7 @@ internal class AppSettingsViewModel(
     private val windows: AppWindowConfiguration,
     private val permissions: AppPermissionControl,
     private val stopper: AppStopControl,
+    private val remover: AppRemoveControl = AppRemoveControl.None,
 ) : ViewModel() {
     data class Window(
         val component: String,
@@ -55,14 +60,25 @@ internal class AppSettingsViewModel(
         val result: AppStop? = null,
     )
 
+    /** [available] is true while Controls may uninstall the app; a removed app closes the page instead of a result. */
+    data class Remove(
+        val available: Boolean = false,
+        val busy: Boolean = false,
+        val result: AppRemoval? = null,
+    )
+
     data class State(
         val app: LocalApp,
         val window: Window?,
         val permissions: Permissions = Permissions(),
         val stop: Stop = Stop(),
+        val remove: Remove = Remove(),
         val notice: Int? = null,
     ) {
-        val busy: Boolean get() = window?.busy == true || permissions.busy || stop.busy
+        val busy: Boolean get() = window?.busy == true || permissions.busy || stop.busy || remove.busy
+
+        /** Uninstalling needs the identity Android reported with the permissions, like closing. */
+        val canRemove: Boolean get() = remove.available && permissions.details?.identity != null
 
         /** Closing needs the identity Android reported with the permissions, so a replaced package is not closed. */
         val canStop: Boolean get() = stop.available && permissions.details?.identity != null
@@ -70,6 +86,9 @@ internal class AppSettingsViewModel(
 
     private val mutable = MutableStateFlow<State?>(null)
     val state = mutable.asStateFlow()
+    private val removedApps = MutableSharedFlow<LocalApp>(extraBufferCapacity = 1)
+    /** Each app this page uninstalled, after the page closed, so the grid can drop it and say so. */
+    val removed = removedApps.asSharedFlow()
     private var gridEntry: Long? = null
     /** The package a force stop is running for; it outlives a page that was closed by a new grid entry. */
     private var stopping: String? = null
@@ -141,6 +160,51 @@ internal class AppSettingsViewModel(
     fun refresh() {
         refreshPermissions()
         refreshStop()
+        refreshRemove()
+    }
+
+    /** Called only after the page asked for confirmation; one uninstall, confirmed by Android's package list. */
+    fun removeApp() {
+        val current = mutable.value ?: return
+        val identity = current.permissions.details?.identity ?: return
+        if (current.busy || !current.canRemove) return
+        val working = current.remove.copy(busy = true, result = null)
+        mutable.update { it?.copy(remove = working) }
+        viewModelScope.launch {
+            val outcome = withContext(Dispatchers.IO) {
+                try {
+                    remover.remove(identity)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    AppRemoval.Failed(null)
+                }
+            }
+            if (outcome == AppRemoval.Removed) {
+                mutable.update { state -> if (state?.app?.id == current.app.id) null else state }
+                removedApps.tryEmit(current.app)
+            } else {
+                mutable.update { state ->
+                    if (state != null && state.remove === working) state.copy(remove = Remove(available = true, result = outcome)) else state
+                }
+            }
+        }
+    }
+
+    private fun refreshRemove() {
+        val current = mutable.value ?: return
+        if (current.remove.busy) return
+        val reading = current.remove
+        viewModelScope.launch {
+            val available = withContext(Dispatchers.IO) {
+                try { remover.canRemove(current.app.packageName) } catch (_: RuntimeException) { false }
+            }
+            mutable.update { state ->
+                if (state != null && state.app.id == current.app.id && state.remove === reading) {
+                    state.copy(remove = reading.copy(available = available))
+                } else state
+            }
+        }
     }
 
     fun refreshPermissions() = updatePermissions()

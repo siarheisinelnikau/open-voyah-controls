@@ -12,7 +12,7 @@
     <string name="vehicle_automation_current">current</string>
     <string name="vehicle_automation_history">last confirmation</string>
     <string name="vehicle_automation_light_confirmation">%1$s · %2$s · %3$s</string>
-    <string name="vehicle_automation_lights_blocked">Saved, awaiting vehicle verification. Fresh gear feedback and an approved lighting request are required. Turning lights off also requires Park and zero speed.</string>
+    <string name="vehicle_automation_lights_blocked">Saved, awaiting an approved lighting request for this head unit. Position lights and Off are sent only in Park.</string>
     <string name="vehicle_automation_drive_memory">Driving mode memory</string>
     <string name="vehicle_automation_memory_enabled">Remember confirmed driving mode</string>
     <string name="vehicle_automation_memory_empty">No confirmed mode saved</string>

@@ -1,6 +1,6 @@
 # Factory launcher home screen
 
-This maps the home screen of the factory launcher on the central display so that overrides of its cards, tiles and panels can be planned and tested without the car. Nothing here is implemented yet, and none of it is a reviewed injection target. The panel buttons that Controls already replaces are in [Injection targets and controls](INJECTION_MAP.md).
+This maps the home screen of the factory launcher on the central display so that overrides of its cards, tiles and panels can be planned and tested without the car. Two cards have overrides so far, each behind a setting that is off by default: the navigation card (see [Navigation card replacement](#navigation-card-replacement)) and the weather card's data (see [Home weather card](FRIDA_AGENTS.md#home-weather-card)). Nothing else here is implemented, and none of it is a reviewed injection target. The panel buttons that Controls already replaces are in [Injection targets and controls](INJECTION_MAP.md).
 
 **Source.** Captured on 2026-11-21 from one H97C head unit:
 
@@ -131,15 +131,55 @@ It then adds `FLAG_ACTIVITY_NEW_TASK` and calls `ActivityAnimUtils.startActivity
 
 **Unknown subtypes.** A subtype with no interceptor ends in `getLaunchIntentForPackage(null)`, which on Android 11 starts some unrelated launchable app. A custom tile needs its interceptor (or click hook) in place first.
 
+## Navigation card replacement
+
+**Setting.** **Yandex Navigator instead of the Baidu map on the home screen**, under the panel assignments, off by default. The agent side is described in [Home navigation card](FRIDA_AGENTS.md#home-navigation-card).
+
+**How it is done.** It follows [Override approaches](#override-approaches): an overlay holding the navigator's traffic widget, added as the top child of `HomeNaviCardView` (not `large_bd_navi`, which the map code clears and makes visible again), with the Baidu map paused underneath. Taps are taken in `MapWidgetLayout.dispatchTouchEvent`, so the overlay holds no listener of its own. The media, weather, apps and seat cards are not touched.
+
+**Options that were weighed.**
+
+| Option | Verdict |
+| --- | --- |
+| Host an app widget from a Yandex app (`AppWidgetHost` in the launcher) | Chosen. Yandex Navigator 25.8.2 on the unit publishes six traffic widgets (`ru.yandex.yandexmaps.widget.traffic.internal.TrafficWidget{2x1,2x2,3x1,3x2,5x1,5x2}Provider`, 110 dp tall at most): a Yandex map with traffic around the car (`traffic_widget_map_view`), the traffic score, a route line and the forecast by hour. Each declares a configuration activity. Yandex Maps is not installed; Yandex Browser and Yandex Music have widgets too. The unit had no widget host before (`dumpsys appwidget`). |
+| Run Yandex Navigator on a virtual display drawn into the card, as Baidu does | Rejected. One navigator task cannot be in the card and on screen at once; moving it between displays recreates its surface and can disturb active guidance; it doubles the GPU load. |
+| Draw a Yandex map in the card | Postponed. WebView refuses to run in the launcher (a system-uid process), so Controls would have to draw the map and embed it (`SurfaceControlViewHost`, Android 11). The Yandex map SDKs need a personal API key and location access. |
+| Show the navigator's own state from its notification | Fallback when the navigator has no widget or binding fails. Without a route the navigator had no notification (checked on the unit). |
+
+**Not established.** Whether the traffic widget draws without its configuration screen, how it fills the tall card (its smallest provider is 110 × 110 dp), and what the navigator's notification holds during guidance.
+
 ## Lowered-screen layout
 
 **What lowered means.** `com.qinggan.utils.ScreenLiftUtils.getScreenLiftState()` reads `persist.qg.canbus.bcm_screenAutoLiftFdb` (default 2 = normal; 1 = lowered). The code calls 1 the lowered-screen mode of the motorised display.
 
+**Seen on the unit (2026-11-22, read-only).** The unit was lowered with the property at 1. Both displays then showed the lowered layout in their top 560 px; the bottom 160 px stayed black. The left panel window keeps its `[0,0,145,720]` frame on both displays.
+
 **Switching.**
 
-- At runtime the broadcast `action.qg.layout.changed` (extra `type`) reaches `SkinBroadCastReceiver`.
-- From there `MainActivity.doScreenLift` swaps `screen_up_main` and `screen_down_main`, and every card's `doScreenLift` and the panel follow.
-- Whether this unit ever reports 1, and which component sends the broadcast, is not established.
+- `com.qinggan.canbus.service` (`H97CCanBus.onBCM_LIN`) follows the body controller's screen position (`bcm_sl_currentPos`). It writes the property and announces the change on the QG bus (`QGBUS_EVENT_SCREEN_ATUOLIFT`). A value of 3 was logged while the screen moved.
+- `com.qinggan.app.screenlift.ScreenLiftManager` runs in the `com.qinggan.app.login` process. It covers each display with a short animation window (`MainScreenLift`, `SecondScreenLift`). It broadcasts `action.qg.layout.start_change`, then `action.qg.layout.changed` with the new `type` (`ScreenLiftUtils.notifyScreenLift`).
+- In the launcher the broadcast reaches `SkinBroadCastReceiver`, then `BaseApplication.changeScreen(type)`. That swaps `screen_up_main` and `screen_down_main` (`MainActivity.doScreenLift`), and every card's `doScreenLift` follows. `LauncherModel.doScreenLift` passes the type to both panels.
+- At launcher start `LauncherModel.startShow` reads the property and applies it the same way.
+
+**Panel.** `NavigationBar.doScreenLift(type)` shows `screen_down_navigation` and hides `screen_up_navigation` for type 1, and the reverse otherwise. Both menus are inflated in every bar; nothing is rebuilt on a switch. The lowered menu exists only on H97 launchers (`AppConfig.isH97()`, which `initScreenDownViews` checks).
+
+```
+NavigationView [0,0 145x720]
+├─ screen_up_navigation (normal panel, see the panel map)
+└─ screen_down_navigation FrameLayout 145x560
+   └─ LinearLayout, centred
+      └─ screen_down_radio_group QGRadioGroup 116 wide, vertical margins 142, padding 16, slider dock_app_selected
+         ├─ screen_down_home_icon NoToggleRadioButton 116x90, centred at y ≈ 235 → field mScreenDownHomeView
+         └─ screen_down_phone_icon NoToggleRadioButton, GONE
+```
+
+- **Home** (`mScreenDownHomeView`) has the bar as its click listener. `onClick` starts the launcher home on the bar's display (`startLauncherMain(true)`). On display 0 that is the same as the normal Home, except that it does not reset the home page position.
+- **Phone** stays hidden and is never wired. `initScreenDownViews` does not look it up, so `mScreenDownPhoneView` stays null and the `onClick` branch for it cannot run.
+- **Selection.** `updateSelectedApp` checks the lowered Home while the launcher home is in front and clears the lowered group otherwise.
+- **Theme.** `updateTheme` does not touch the lowered menu.
+- **Construction.** `NavigationBar.init` runs `initScreenUpViews` before `initScreenDownViews`.
+
+How Controls fills this menu: [Lowered-screen menu](INJECTION_MAP.md#lowered-screen-menu).
 
 **Lowered-layout widgets.**
 

@@ -33,7 +33,7 @@ import org.openvoyah.controls.UiText
 /** Line glyphs on one 24-unit grid. A concept keeps one glyph everywhere, because shape is how a driver finds it. */
 internal enum class CockpitIcon {
     HOME, APPS, VOICE, DISPLAY, BUTTONS, SETTINGS, ARROW, BACK, DOWNLOAD, LOCK, CAR, LANGUAGE, ENERGY, LIGHT, HIGH_BEAM,
-    SEARCH, CLOSE, PLAY, EXPAND, ROUTINE, SYSTEM, FIRMWARE, CLIMATE,
+    SEARCH, CLOSE, PLAY, EXPAND, ROUTINE, SYSTEM, FIRMWARE, CLIMATE, KEYBOARD,
 }
 
 /** [tint] replaces the role color, for example inside a disabled row; voice keeps its own accent by default. */
@@ -116,6 +116,12 @@ internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier, tint
                 CockpitIcon.ROUTINE -> {
                     drawCircle(color, 8.5f, Offset(12f, 12f), style = stroke)
                     path { moveTo(12f, 7f); lineTo(12f, 12f); lineTo(15.5f, 14f) }
+                }
+                CockpitIcon.KEYBOARD -> {
+                    box(2.5f, 6f, 19f, 12f, 2f)
+                    line(6f, 9.5f, 6.4f, 9.5f); line(9.4f, 9.5f, 9.8f, 9.5f); line(12.8f, 9.5f, 13.2f, 9.5f)
+                    line(16.2f, 9.5f, 17.8f, 9.5f); line(6f, 12.5f, 7.6f, 12.5f); line(10.6f, 12.5f, 11f, 12.5f)
+                    line(14f, 12.5f, 14.4f, 12.5f); line(17.4f, 12.5f, 17.8f, 12.5f); line(8.5f, 15f, 15.5f, 15f)
                 }
                 CockpitIcon.SYSTEM -> {
                     drawCircle(color, 4.6f, Offset(12f, 12f), style = stroke)

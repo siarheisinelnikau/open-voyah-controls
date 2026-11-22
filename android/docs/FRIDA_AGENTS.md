@@ -26,12 +26,15 @@ The process-by-process scope and button mappings are listed in [Injection target
 | Modules in `hooks/` | Responsibility |
 | --- | --- |
 | `entry.js`, `launcher-buttons.js`, `navbar-oversea.js` | Select the launcher layout and replace assigned panel clicks. Unassigned actions and unsupported layouts keep their native path. |
-| `panel-state.js`, `panel-icons.js` | Apply assigned icons, react to themes, and restore original panel state. |
+| `panel-state.js`, `panel-icons.js` | Apply assigned icons, react to themes, add the assigned buttons to the lowered-screen menu, and restore original panel state. |
+| `home-navi-card.js` | Optional: cover the factory home screen's Baidu navigation card with a Yandex Navigator card. See [Home navigation card](#home-navigation-card). |
+| `home-weather-card.js` | Optional: feed the factory home screen's weather card with the weather Controls fetched. See [Home weather card](#home-weather-card). |
 | `steering-qg.js` | Handle observed QG key callbacks on Android 9 and 11. It delegates when a reviewed direct CAN route is selected. |
 | `can-entry.js`, `can-steering.js`, `can-keys.js`, `can-edges.js` | Hook the CAN service callback. One reviewed protocol handles terminal short/long events; the other owns a complete down/up gesture with preflight, bounded hold timing and no physical replay. |
 | `action-preflight.js`, `java-types.js` | Check whether an activity is currently launchable and initialize Java constant classes before reading their fields. |
 | `voice-commands.js`, `voice-engine.js`, `voice-safety.js`, `qinggan-bus.js`, `voice-plans.json` | Validate fixed command requests, enforce firmware and Park/telemetry gates, and call observed OEM vehicle APIs. Microphone capture and Vosk recognition remain in Android code. |
 | `window-*.js` | Apply per-app size/DPI policies through separately verified Android 9/11 window-service interfaces. |
+| `window-gesture.js`, `window-display-move.js` | Android 11: the two- or three-finger swipe that moves an app's task to the cluster's navigation display or the passenger display and back. See [Moving windows between screens](#moving-windows-between-screens). |
 | `window-reserve*.js` | Experimental: make Android itself keep the launcher's left panel clear, instead of moving each launched task beside it. See [The reserved panel strip](#the-reserved-panel-strip-experimental). |
 | `localization*.js` | Replace selected labels using the configured dictionaries. |
 | `navigation-entry.js`, `display-events.js` | Observe navigation data and route supported navigation/media information to the relevant displays. |
@@ -50,14 +53,17 @@ OVC_STEERING_ERROR stage=launch kind=ActivityNotFoundException key=voice gesture
 
 | Marker | Agent | Stages |
 | --- | --- | --- |
-| `OVC_PANEL_ERROR` | Panel buttons, both launcher adapters | `install`, `rollback`, `click`, `hold`, `selection`, `restore` |
+| `OVC_PANEL_ERROR` | Panel buttons, both launcher adapters | `install`, `rollback`, `click`, `hold`, `selection`, `restore`, `home_card`, `home_weather` |
 | `OVC_PANEL_ICONS_ERROR` | Panel icons and selection state | `theme`, `track`, `refresh`, `icon`, `apply`, `selection`, `restore`, `release` |
+| `OVC_HOME_CARD_ERROR` | Home navigation card | `install`, `rollback`, `track`, `orphan`, `resolve`, `widget`, `refresh`, `apply`, `restore`, `render`, `large_icon`, `remote_views`, `notifications`, `touch`, `tap`, `open`, `onResume`, `onAttachedToWindow`, `doScreenLift` |
+| `OVC_HOME_WEATHER_ERROR` | Home weather card | `install`, `rollback`, `track`, `update`, `show`, `restore`, `refresh` |
 | `OVC_STEERING_ERROR` | Steering keys in the launcher | `config`, `event`, `launch`, `restore` |
 | `OVC_CAN_ERROR` | Steering keys in the CAN service | the install phase (`process`, `constants`, `callback`, `launcher`, `install`), `route`, `gesture` |
 | `OVC_LOCALIZATION_ERROR` | Interface translation | `install`, `settings`, `config`, `convert`, `refresh` |
 | `OVC_CLUSTER_MEDIA_ERROR`, `OVC_NAVIGATION_ERROR` | Cluster media and navigation events | `install`, `settings`, `parse`, `publish`, `event`, `distance` |
 | `OVC_VOICE_ERROR` | Voice command executor | `install`, `settings` |
 | `OVC_WINDOW_ERROR` | Window service | see below |
+| `OVC_KEYBOARD_ERROR` | Keyboard policy in the window service | `install`, `update`, `crash_fallback` |
 
 `kind` is an outcome code, a Java exception class or a JavaScript error type, and never the exception message: messages quote package names, resource ids and user text. A problem is printed when it first happens and again at 10, 100, 1000… occurrences, because most of these hooks run on every click, key event or text change. A reporter is kept across installation retries, so an agent that can never install does not add a line every 30 seconds. Readiness and result markers are a separate contract with the supervisor and are not rate-limited.
 
@@ -80,6 +86,33 @@ The launcher agent decides whether to open the startup intro. Its 30-second wind
 Expect the intro well after the factory home appears. On the reviewed head unit (boot 196, 2026-11-21) home was focused 20 s after boot, the supervisor attached the launcher agent at 37 s, and the agent requested the intro 1 s later. Controls then started cold, so display 0 showed the plain dark window for 2.8 s before the first frame of the animation. The intro now lasts 4.5 s; see [Compose UI](COMPOSE_UI.md). To confirm that it was on screen, read the `wm_on_resume_called` and `wm_finish_activity` lines for `LaunchBrandActivity` in `logcat -b events`.
 
 The intro can only appear after a boot in which the boot entry actually started the launcher agent. The supervisor treats a replaced Controls APK, Frida runtime or deployment file as a change of the reviewed deployment. When it sees one, it stops its agents and writes `recovery.blocked` and `recovery.visual-pending`, then removes every channel's `enabled` flag. From the next boot on, the boot entry starts nothing until the unit is rearmed from the PC and the app activates a new deployment. Installing a rebuilt APK over ADB has this effect too.
+
+## Home navigation card
+
+With **Yandex Navigator instead of the Baidu map on the home screen** turned on (off by default), the panel configuration carries `homeCard: {package: "ru.yandex.yandexnavi"}` and the launcher agent covers each factory navigation card (`HomeNaviCardView`) with a card of its own. The switch does not depend on the panel assignments switch and is not offered on the overseas launcher.
+
+- **What it shows.** Yandex Navigator's own traffic widget, hosted by the launcher: a Yandex map with traffic around the car, the traffic score and the forecast by hour. The launcher runs as the system uid, so it binds the widget without a prompt. The agent registers one widget host for the launcher package (id `0x4f56`), chooses the tallest of the navigator's widgets whose shape is nearest the card (the 2x2 traffic widget on the reviewed unit) and sizes it to the card. It reuses a widget it bound earlier and deletes the host when no card shows the widget any more, so turning the setting off leaves nothing registered. Taps on the widget go to the navigator's own actions.
+- **Without a widget.** When the navigator has no widget or the binding is refused (`stage=widget`), the card shows the navigator's newest ongoing notification instead: the large icon, title, text and sub-text (during guidance, presumably the manoeuvre, distance and street). A notification without text lines shows its own layout under the navigator icon. Without a notification the card shows the navigator's icon and name. The agent reads active notifications from the notification service itself, every 2 seconds and only while such a card is shown; Controls needs no new permission. If the service refuses, the card keeps the icon and name (`stage=notifications`, reported once).
+- **Tap.** A tap outside the widget's own buttons (press and release within 10 px, as on the factory card) opens the navigator's launcher activity on display 0 and sends the same navigation-opened event as the panel's navigation slot. Drags do nothing.
+- **Baidu.** The factory map stays in the view tree, paused (`MapWidgetManager.onPause`) and covered. The card's resume, attach and screen-lift paths restart the map, so the agent pauses it again after each of them. The overlay itself is not clickable: taps are taken in the factory `MapWidgetLayout.dispatchTouchEvent`. If the agent disappears without restoring, its hooks go with it and taps open Baidu again.
+- **Restore.** Turning the setting off, or any configuration without `homeCard`, removes the overlay and calls the card's own `onResume`. The restore handshake before Controls detaches (`restoreIcons`) restores the card too: `OVC_PANEL_ICONS_RESTORED` is printed only once both the panel and the card are back. Each overlay carries the tag `org.openvoyah.controls.homeCard`, so a later agent removes one left behind and resumes the map.
+- **Readiness.** `OVC_HOME_CARD_READY` after the first scan of live cards. A launcher without the factory card logs `OVC_HOME_CARD_ERROR stage=install kind=ClassNotFoundException`, and the panel installs as usual.
+- **Not verified on the car:** that the traffic widget draws without its configuration screen (`TrafficWidgetConfigurationActivity`, which the agent does not open) and how it looks stretched to 576 × 652; the content of the navigator's notification. The fallback card is dark in both launcher themes.
+
+## Home weather card
+
+The factory weather card (`HomeWeatherCardView`) gets its data from the OEM weather service, which works only in China; elsewhere it stays at "- -", "_ _" and a question-mark icon. With **Weather on the home screen (Open-Meteo)** turned on (off by default):
+
+- **Controls fetches the weather** (`HomeWeatherSource`, `HomeWeatherJobs`): every 30 minutes and once at once, as Android jobs that wait for a network, so a refresh missed offline runs on reconnection. It asks Open-Meteo, which needs no account or key, for the current temperature and WMO weather code, and for the US AQI. The position is Android's last known location, rounded to two decimals (about 1 km) before it leaves the car; without location access or a known position it geocodes the city typed in the settings. Controls asks for coarse location access when the setting is turned on.
+- **Hand-over.** The reading goes to `Settings.Global` `org.openvoyah.controls.homeWeather` as `{schema, code, text, temperature, aqi, fetchedAt}`: the launcher icon code, the condition text in the app language, whole degrees, the card's air quality level or null. The panel configuration carries `weatherCard: {noData}`, the text the card shows without data. Stopping the agents deletes the reading.
+- **The card.** The launcher agent passes the reading to the card's own `updateWeather(WeatherLiveBean)`, so the card keeps its look: icon, condition text, temperature, and the air quality level when known (hidden otherwise). While the setting is on, every update from the factory service, data or error, is replaced. A reading older than 3 hours, a missing one or an invalid one shows the no-data text with the question-mark icon, never stale weather. The agent re-checks every second and re-sends every 5 minutes; cards created later get the reading when they attach.
+- **Icons.** WMO codes map to the launcher's icon codes, taken from the packed switch in `WeatherIconUtils.getMediumIcon`: clear 0, cloudy 2, overcast 3, thunderstorm 5, hail 6, rain 7, snow 14, fog 19. A non-numeric code shows the unknown icon and keeps the text, which the agent uses for no data; an empty code would make the card's theme and locale redraw replace the text with "- -".
+- **Restore.** Turning the setting off, or the restore handshake before Controls detaches, clears the card's saved reading and redraws it in its factory empty state; factory updates pass through again. `OVC_PANEL_ICONS_RESTORED` waits for this too.
+- **Not covered:** the launcher's own weather screen (a tap on the card) still asks the factory service. Not verified on the car.
+
+## Keyboard policy
+
+The window agent also installs `hooks/keyboard-policy.js` in `system_server`, independently of the window policy. It replaces `updateInputMethodsFromSettingsLocked(boolean)` of the central display's input method service: while the secure setting `open_voyah_controls_input_method` names a keyboard that the service lists as installed, that Android lists as enabled and that is not an OEM keyboard, the agent selects it with `setInputMethodLocked` instead of the firmware's fixed keyboard; otherwise the original method runs. The passenger service (`InputMethodManagerServiceExt`) is not hooked. A hook on `onServiceDisconnected` counts disconnects of the chosen package and, at three within a minute, records `crashed <id>` in `open_voyah_controls_input_method_fallback`, clears the choice and makes Android re-read its keyboard settings. At installation a stored keyboard that is gone is dropped with `unavailable <id>`, and a valid one is applied. The agent then prints `OVC_KEYBOARD_READY protocol=1`, which the supervisor copies into the window worker's `ready` file and which the Keyboard page requires before it offers a choice. Results appear as `OVC_KEYBOARD_APPLIED`, `OVC_KEYBOARD_FACTORY` and `OVC_KEYBOARD_FALLBACK` lines. See [Firmware: keyboard of the central display](FIRMWARE.md#keyboard-of-the-central-display).
 
 ## Window service diagnostics
 
@@ -141,6 +174,29 @@ OVC_WINDOW_INSETS status=verified width=171
 - On Android 11 regular activities keep full-width frames and receive the strip as a left navigation-bar inset, exactly as with a real bar. An app that ignores window insets still draws under the panel. On Android 9 toasts and some system alerts use the stable frame, which is not moved.
 - While the launcher hides its panel, Android lays windows out over the full width again, as it does for a hidden system bar, but the configuration keeps the reduced width until the option is turned off. A panel that is removed keeps the configuration reduced for up to 15 seconds before the strip is released.
 - Hooks end with the agent, but a registration made in the framework stays until the next agent removes it. The record is what tells that agent the registration is its own.
+
+## Moving windows between screens
+
+With `"displayMove": {"fingers": 2}` (or `3`) in the window profile document, the window agent watches pointer events on the central display and on the passenger display. The app sends the object only when the firmware review lists `window-display-move`. Without it, or with the window service off, nothing is watched.
+
+**Input.** The agent hooks `TaskTapPointerEventListener.onPointerEvent(MotionEvent)`, the pointer listener that every `DisplayContent` already registers with its input monitor, and calls the original afterwards. No listener object of its own is registered with the window manager, so an agent that unloads leaves nothing behind that could call into it. The hook is attached when the swipe is turned on and removed when it is turned off or the service is released. It reads the action and pointer count of each event; coordinates are read only while a swipe may be starting or is under way. Monitored events reach the app as usual: the swipe is never taken from it.
+
+**Recognition** (`window-gesture.js`, pure and tested without Android). The configured number of fingers has to land within 400 ms of the first one. They then travel 40 px together, at least 1.6 times more sideways than vertically, each finger in the same direction; a vertical start (a map's tilt), a pinch, a different finger count or Android cancelling the touch ends the attempt. When the first finger lifts, a travel of 22 % of the display width, or 6 % with a release speed of 0.9 px/ms in the same direction, decides the move.
+
+**Target.** When the fingers land, the agent takes the global window lock on its own timer thread and asks `DisplayContent.getTouchableWinAtPointLocked` which window takes a touch at their centre; that window's task is the candidate. It moves only when it is a standard leaf task of the current user, not always-on-top, whose base and top activities belong to one package outside the protected set (Controls, the launcher, system UI, settings, vehicle and cluster apps, the instrument card, the package installer and permission controller). The cluster display is the one named `Cluster-Navi-Display` and owned by `com.qinggan.cluster` as UID 1000; the passenger display must be public and not virtual.
+
+**Feedback.** While the fingers move, the task's root surface is shifted with them and drawn at 85 % opacity through a `SurfaceControl.Transaction`, relative to `WindowContainer.mLastSurfacePosition`; beyond a third of the width it is damped, and it never goes past half. A cancelled swipe, and every move before it happens, puts the surface back at its position and full opacity.
+
+**Move.** Under the global lock the agent checks that the task is still where it was, gives it its native placement back on the central display (bounds, windowing mode, density override, then fullscreen), and calls `RootWindowContainer.moveStackToDisplay(rootTaskId, displayId, true)` directly, without the binder permission check of the service method. A task already on the target cluster first returns to display 0. After the move the window policy runs as for a launch on that display: placement beside the panel on display 0, the reviewed passenger density on the passenger display, nothing on the cluster. The agent remembers the tasks it moved; turning the swipe off, a window request with the operation `recall` and the service release return those still on their display to display 0. A task Android moved back by itself is left alone.
+
+**Lines.** Each move is one line in the window worker's `hook.log`, without package names:
+
+```
+OVC_WINDOW_MOVE from=0 to=6 reason=swipe outcome=moved
+OVC_WINDOW_MOVE to=0 reason=swipe outcome=returned count=1
+```
+
+`outcome=changed` means the task moved or changed before the fingers lifted, `refused` that Android left it on its display, `failed` that an exception was reported. Errors use `OVC_WINDOW_ERROR` with the stages `display_move` (the members are missing at installation, or the settings could not be applied), `move_input`, `move_target`, `move_feedback`, `move` and `move_recall`. A missing member does not stop the window service: it announces `displayMove=0` instead of `1`, and a `recall` request is answered with `rollback_failed`.
 
 ## CAN edge ownership
 

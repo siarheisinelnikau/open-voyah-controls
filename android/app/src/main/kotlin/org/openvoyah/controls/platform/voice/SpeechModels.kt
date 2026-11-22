@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.SystemClock
+import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -13,9 +15,14 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.openvoyah.controls.data.settings.VoiceSettings
+import org.openvoyah.controls.data.voice.SpeechModel
+import org.openvoyah.controls.data.voice.SpeechModelCatalog
+import org.openvoyah.controls.data.voice.SpeechModelStore
 import org.openvoyah.controls.data.voice.VoskModels
+import org.openvoyah.controls.domain.voice.SpeechEngine
+import org.openvoyah.controls.R
+import org.openvoyah.controls.UiText
 import org.openvoyah.controls.diagnostics.ControlsLog
-import org.vosk.Model
 import org.vosk.Recognizer
 
 /**
@@ -25,45 +32,48 @@ import org.vosk.Recognizer
  * Preparing never opens the microphone.
  */
 internal class PreparedSpeech<M : Any, R : AutoCloseable>(
-    private val loadModel: (language: String, current: () -> Boolean) -> M,
-    private val releaseModel: () -> Unit,
+    private val loadModel: (key: String, current: () -> Boolean) -> M,
+    private val releaseModel: (M) -> Unit,
     private val openRecognizer: (model: M, grammar: String) -> R,
     private val reset: (R) -> Unit,
     private val clock: () -> Long,
     private val report: (Preparation) -> Unit,
 ) {
     val lock = Mutex()
-    private var language: String? = null
+    private var key: String? = null
     private var model: M? = null
     private var grammar: String? = null
     private var recognizer: R? = null
 
-    /** [outcome] is `ready` when something was loaded, `reused` when everything was already prepared, or `failed`. */
-    data class Preparation(val trigger: String, val outcome: String, val language: String, val elapsedMs: Long,
+    /**
+     * [key] names the engine and language (`vosk:ru`). [outcome] is `ready` when something was loaded, `reused` when
+     * everything was already prepared, or `failed`.
+     */
+    data class Preparation(val trigger: String, val outcome: String, val key: String, val elapsedMs: Long,
         val failure: Throwable? = null)
 
     class Ready<M, R>(val model: M, val recognizer: R?)
 
-    /** Takes the lock and prepares [language] and, when known, the recognizer for [grammar], on an I/O thread. */
-    suspend fun warm(language: String, grammar: String?, trigger: String): Ready<M, R> = lock.withLock {
-        runInterruptible(Dispatchers.IO) { prepare(language, grammar, trigger) { !Thread.currentThread().isInterrupted } }
+    /** Takes the lock and prepares the model [key] and, when known, the recognizer for [grammar], on an I/O thread. */
+    suspend fun warm(key: String, grammar: String?, trigger: String): Ready<M, R> = lock.withLock {
+        runInterruptible(Dispatchers.IO) { prepare(key, grammar, trigger) { !Thread.currentThread().isInterrupted } }
     }
 
     /**
-     * The caller holds [lock]. Returns the model for [language] and a recognizer for [grammar] in its initial state,
-     * loading only what is not prepared yet. Another language first closes the recognizer and releases the old model.
+     * The caller holds [lock]. Returns the model [key] and a recognizer for [grammar] in its initial state, loading only
+     * what is not prepared yet. Another key first closes the recognizer and releases the old model.
      */
-    fun prepare(language: String, grammar: String?, trigger: String, current: () -> Boolean): Ready<M, R> {
+    fun prepare(key: String, grammar: String?, trigger: String, current: () -> Boolean): Ready<M, R> {
         check(lock.isLocked) { "Speech preparation needs the speech lock" }
         val started = clock()
         try {
             var loaded = false
             var model = this.model
-            if (model == null || this.language != language) {
+            if (model == null || this.key != key) {
                 discard()
-                model = loadModel(language, current)
+                model = loadModel(key, current)
                 this.model = model
-                this.language = language
+                this.key = key
                 loaded = true
             }
             var recognizer: R? = null
@@ -80,10 +90,10 @@ internal class PreparedSpeech<M : Any, R : AutoCloseable>(
                     loaded = true
                 }
             }
-            report(Preparation(trigger, if (loaded) "ready" else "reused", language, clock() - started))
+            report(Preparation(trigger, if (loaded) "ready" else "reused", key, clock() - started))
             return Ready(model, recognizer)
         } catch (failure: Throwable) {
-            report(Preparation(trigger, "failed", language, clock() - started, failure))
+            report(Preparation(trigger, "failed", key, clock() - started, failure))
             throw failure
         }
     }
@@ -97,11 +107,10 @@ internal class PreparedSpeech<M : Any, R : AutoCloseable>(
 
     private fun discard() {
         closeRecognizer()
-        if (model != null) {
-            model = null
-            language = null
-            releaseModel()
-        }
+        val loaded = model ?: return
+        model = null
+        key = null
+        releaseModel(loaded)
     }
 
     private fun closeRecognizer() {
@@ -112,19 +121,40 @@ internal class PreparedSpeech<M : Any, R : AutoCloseable>(
     }
 }
 
-/** The Vosk instance of [PreparedSpeech] for this process, and its warm-up after start and language changes. */
+/**
+ * The [PreparedSpeech] of this process for every engine, keyed `engine:language`, and its warm-up after start and
+ * settings changes. Vosk Russian and English come from the APK; other models must be downloaded first.
+ */
 internal object SpeechModels {
     const val SAMPLE_RATE = 16_000
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val vosk = VoskModels()
-    @Volatile private var instance: PreparedSpeech<Model, Recognizer>? = null
+    @Volatile private var instance: PreparedSpeech<LoadedSpeechModel, SpeechDecoder>? = null
+    @Volatile private var modelStore: SpeechModelStore? = null
 
-    fun of(context: Context): PreparedSpeech<Model, Recognizer> = instance ?: synchronized(this) {
+    fun of(context: Context): PreparedSpeech<LoadedSpeechModel, SpeechDecoder> = instance ?: synchronized(this) {
         instance ?: create(context.applicationContext).also { instance = it }
     }
 
+    fun store(context: Context): SpeechModelStore = modelStore ?: synchronized(this) {
+        modelStore ?: SpeechModelStore(File(context.applicationContext.filesDir, "speech-models")).also { modelStore = it }
+    }
+
+    fun key(engine: SpeechEngine, language: String) = "${engine.key}:$language"
+
     /**
-     * Loads the selected language's model and command recognizer in the background, so the first voice key press
+     * The engine that runs for [language]: the stored choice when it supports the language and its model is on the
+     * device, otherwise Vosk.
+     */
+    fun engineFor(context: Context, settings: VoiceSettings, language: String): SpeechEngine {
+        val chosen = SpeechEngine.forLanguage(SpeechEngine.fromKey(settings.engine()), language)
+        val model = SpeechModelCatalog.forEngine(chosen, language)
+        return if (chosen != SpeechEngine.VOSK && (model == null || !store(context).installed(model))) SpeechEngine.VOSK
+        else chosen
+    }
+
+    /**
+     * Loads the selected engine's model and command recognizer in the background, so the first voice key press
      * starts listening at once. Skipped until the microphone is allowed, because voice is not in use before that.
      */
     @JvmStatic fun warmUp(context: Context, trigger: String) {
@@ -137,7 +167,14 @@ internal object SpeechModels {
             try {
                 val settings = VoiceSettings(app)
                 val language = settings.language()
-                of(app).warm(language, speechGrammar(settings.withContacts().grammar()), trigger)
+                val engine = engineFor(app, settings, language)
+                val model = SpeechModelCatalog.forEngine(engine, language)
+                if (model != null && !store(app).installed(model)) {
+                    ControlsLog.info("voice_model_prepare", "trigger", trigger, "outcome", "skipped",
+                        "reason", "not_downloaded", "model", key(engine, language))
+                    return@launch
+                }
+                of(app).warm(key(engine, language), speechGrammar(settings.withContacts().grammar()), trigger)
             } catch (_: Exception) {
                 // Reported by the preparation; the next request tries again.
             } catch (_: LinkageError) {
@@ -147,29 +184,63 @@ internal object SpeechModels {
 
     /** First-run check: the same model as voice requests, so setup never holds a second copy in memory. */
     suspend fun prepareForSetup(context: Context, language: String) {
-        of(context).warm(language, null, "setup")
+        val app = context.applicationContext
+        of(app).warm(key(engineFor(app, VoiceSettings(app), language), language), null, "setup")
     }
 
-    /** Forgets the unpacked model of [language], so the next preparation copies it again from the APK. */
+    /** Forgets the unpacked bundled model of [language], so the next preparation copies it again from the APK. */
     suspend fun repair(context: Context, language: String) {
+        // A downloaded model is removed and downloaded again from Recognition instead.
+        if (language != "ru" && language != "en") return
         val app = context.applicationContext
         val speech = of(app)
         speech.lock.withLock { runInterruptible(Dispatchers.IO) { speech.invalidate { vosk.invalidate(app, language) } } }
     }
 
-    private fun create(app: Context) = PreparedSpeech<Model, Recognizer>(
-        loadModel = { language, current -> vosk.load(app, language) { current() } },
-        releaseModel = vosk::release,
-        openRecognizer = { model, grammar -> Recognizer(model, SAMPLE_RATE.toFloat(), grammar) },
-        reset = Recognizer::reset,
+    /** Releases a downloaded model before its files are deleted. */
+    suspend fun forget(context: Context, model: SpeechModel) {
+        val app = context.applicationContext
+        val speech = of(app)
+        speech.lock.withLock { runInterruptible(Dispatchers.IO) { speech.invalidate { store(app).delete(model) } } }
+    }
+
+    private fun create(app: Context) = PreparedSpeech<LoadedSpeechModel, SpeechDecoder>(
+        loadModel = { key, current -> load(app, key, current) },
+        releaseModel = { model ->
+            when (model) {
+                is VoskSpeechModel -> vosk.release()
+                is ZipformerSpeechModel -> model.close()
+            }
+        },
+        openRecognizer = { model, grammar ->
+            when (model) {
+                is VoskSpeechModel -> VoskDecoder(model.model, Recognizer(model.model, SAMPLE_RATE.toFloat(), grammar))
+                is ZipformerSpeechModel -> ZipformerDecoder(model, grammar)
+            }
+        },
+        reset = SpeechDecoder::reset,
         clock = SystemClock::elapsedRealtime,
         report = { step ->
-            val fields = arrayOf<Any?>("trigger", step.trigger, "outcome", step.outcome, "language", step.language,
+            val fields = arrayOf<Any?>("trigger", step.trigger, "outcome", step.outcome, "model", step.key,
                 "elapsed_ms", step.elapsedMs)
             if (step.failure == null) ControlsLog.info("voice_model_prepare", *fields)
             else ControlsLog.warn("voice_model_prepare", step.failure, *fields)
         },
     )
+
+    private fun load(app: Context, key: String, current: () -> Boolean): LoadedSpeechModel {
+        val engine = SpeechEngine.fromKey(key.substringBefore(':')) ?: throw IOException("Unknown speech engine")
+        val language = key.substringAfter(':')
+        val downloaded = SpeechModelCatalog.forEngine(engine, language)?.let { model ->
+            val store = store(app)
+            if (!store.installed(model)) throw IOException(UiText.get(R.string.voice_model_not_downloaded))
+            store.directory(model)
+        }
+        return when (engine) {
+            SpeechEngine.VOSK -> VoskSpeechModel(vosk.load(app, language, downloaded) { current() })
+            SpeechEngine.ZIPFORMER -> ZipformerSpeechModel.open(checkNotNull(downloaded))
+        }
+    }
 }
 
 /** The Vosk grammar for the catalog phrases: digits are transcript aliases only, and `[unk]` absorbs other speech. */

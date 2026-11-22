@@ -10,6 +10,15 @@
     <string name="apps_grid_empty_main">No installed apps to show.</string>
     <string name="apps_grid_hidden_apps">Hidden apps</string>
     <string name="apps_hide">Hide from the app list</string>
+    <string name="apps_move">Move</string>
+    <string name="apps_move_hint">Drag an app to its new place; hold it at the screen edge to turn the page.</string>
+    <string name="apps_move_picked">Tap the place for %1$s, or drag it there.</string>
+    <string name="apps_move_earlier">Move earlier</string>
+    <string name="apps_move_later">Move later</string>
+    <string name="apps_grid_move_failed">Could not save the new place. Try again.</string>
+    <string name="apps_grid_move_full">The manual app order is full. Reset it in App grid settings first.</string>
+    <string name="apps_grid_page">Page %1$d of %2$d</string>
+    <string name="apps_grid_go_to_page">Page %1$d</string>
     <string name="apps_grid_hide_by_default">Hide firmware and service apps by default</string>
     <string name="apps_grid_hidden_intro">Hidden apps stay out of All apps and search; favorites desktops still show their pins. Firmware apps and their internal actions, keyboards, service apps and extra launcher entries start hidden. Your choice for an app replaces that.</string>
     <string name="apps_grid_hidden_reset">Back to defaults</string>

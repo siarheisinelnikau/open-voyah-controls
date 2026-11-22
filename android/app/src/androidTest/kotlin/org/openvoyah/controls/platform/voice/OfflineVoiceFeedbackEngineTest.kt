@@ -67,7 +67,7 @@ class OfflineVoiceFeedbackEngineTest : InstrumentationTestCase() {
             val outcome = VoiceFeedback.Outcome(VoiceOutcome.VEHICLE_ACCEPTED)
             val english = outcome.speechText(app.forRecognitionLanguage("en"))
             assertEquals(SilentTtsFixture.ACCEPTED_OUTCOME, english)
-            assertEquals("Автомобиль принял запрос. Фактическое состояние не подтверждено.",
+            assertEquals("Автомобиль принял запрос.",
                 outcome.speechText(app.forRecognitionLanguage("ru")))
             checkSample(SilentTtsFixture.PREFERRED, SilentTtsFixture.PREFERRED, 100, 65, english)
 

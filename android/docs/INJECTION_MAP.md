@@ -7,7 +7,7 @@ This describes the implemented adapters, not qualified head units. The productio
 | Package / process | Agent and purpose | Activation |
 | --- | --- | --- |
 | `com.qinggan.app.launcher` | Main bundle: launcher buttons/icons, QG steering callbacks, fixed voice-command API dispatch, cluster media publishing and launcher text translations | Main reviewed connection. Individual features also check their settings and capabilities. |
-| `android` / `system_server` | `window.bundle.js`: central panel inset, per-app width and DPI; separately reviewed passenger density | Optional window worker; Android 9/11 signatures and framework review required. It modifies window-service behavior, not the target app's APK. |
+| `android` / `system_server` | `window.bundle.js`: central panel inset, per-app width and DPI; separately reviewed passenger density; the owner's keyboard for the central display | Optional window worker; Android 9/11 signatures and framework review required. It modifies window-service behavior, not the target app's APK. |
 | `com.qinggan.app.setting` | `localization.bundle.js`: exact dictionary replacements in settings text | Translation enabled, matching product/package dictionary and package review. |
 | `com.qinggan.app.vehicle` | Same text adapter for vehicle screens | Same translation requirements. This worker does not replace vehicle button listeners. |
 | `com.qinggan.bluetoothphone` | Same text adapter for Bluetooth/phone screens | Same translation requirements. Calls remain under the OEM application. |
@@ -40,7 +40,36 @@ The code deliberately keeps generic names where a stable semantic label has not 
 
 For an assigned and available target, a tap opens the selected app or supported Controls action on that button's display. A hold invokes the original OEM click once. An unassigned/disabled button or a failed replacement launch calls the original click once. Unsupported signatures or view ownership leave the original path in place.
 
-`panel-state.js` and `panel-icons.js` apply the assigned activity icon and pressed feedback, refresh after theme changes, and restore original appearance/long-click state when an assignment is cleared. The standard `updateSelectedApp(package, activity)` callback also highlights the assigned activity on its own display by checking its button, so the launcher's own `QGRadioGroup` selection slider (`dock_app_selected`) marks it. The replacement background holds only the icon and the pressed ripple, never a plate of its own, which would stack a second rounded square on the slider. An app can name a plate-free panel glyph with the application meta-data `org.openvoyah.controls.PANEL_ICON`; Open Voyah Controls names `ic_controls_mark`, the winged mark on a transparent background, so its entries show only the mark while its launcher icon keeps the dark plate for the app grid. The panel configuration can also list packages in `foregroundIcons`: their entries draw only the foreground layer of their adaptive launcher icon, without its background plate, with the icon's visible part enlarged 1.3 times. Controls lists Yandex Navigator (`ru.yandex.yandexnavi`) unless the driver turns off **Yandex Navigator panel icon without the white background** under the panel assignments. A plate-free icon's ripple is masked to the button's rounded bounds, because a ripple without a mask shows only where the icon paints. If the glyph cannot be read, or a listed launcher icon is not adaptive, the entry uses the launcher icon. This is an in-memory change; it does not replace launcher APK resources.
+`panel-state.js` and `panel-icons.js` apply the assigned activity icon and pressed feedback, refresh after theme changes, and restore original appearance/long-click state when an assignment is cleared. The standard `updateSelectedApp(package, activity)` callback also highlights the assigned activity on its own display by checking its button, so the launcher's own `QGRadioGroup` selection slider (`dock_app_selected`) marks it. The replacement background holds only the icon and the pressed ripple, never a plate of its own, which would stack a second rounded square on the slider. An app can name a plate-free panel glyph with the application meta-data `org.openvoyah.controls.PANEL_ICON`; Open Voyah Controls names `ic_controls_mark`, the winged mark on a transparent background, so its entries show only the mark while its launcher icon keeps the dark plate for the app grid. Per-app icon choices made in Controls (**Apps → app settings → Icon**: a custom picture, or the launcher icon without its white background, experimental; Yandex Navigator `ru.yandex.yandexnavi` starts without it until the driver turns that off) reach the panel as finished pictures: Controls renders a 112 px PNG for every panel app the driver changed, writes them to Settings.Global `org.openvoyah.controls.panelIcons` (`{"schema":1,"icons":{package: base64 PNG}}`) before the panel configuration, and names that document with the configuration's `customIcons` version. The agent decodes each picture once per version and draws it ahead of every other icon. A plate-free icon's ripple is masked to the button's rounded bounds, because a ripple without a mask shows only where the icon paints. If no such picture or glyph can be read, the entry uses the launcher icon. This is an in-memory change; it does not replace launcher APK resources.
+
+### Lowered-screen menu
+
+When the motorised display is lowered, each `NavigationBar` hides its normal panel and shows `screen_down_navigation`, a 560 px menu whose only visible button is Home (see [the home screen map](HOME_SCREEN_MAP.md#lowered-screen-layout)). It exists only on H97 launchers. The same assignment keys apply there:
+
+| Screen | OEM view / resource | Assignment key | In the lowered menu |
+| --- | --- | --- | --- |
+| Central | `mScreenDownHomeView` / `screen_down_home_icon` | `mainHome` | The factory Home button |
+| Central | added after Home, mirrors `mScreenUpItemView1` | `navbar01` | Our button, only while assigned |
+| Central | added, mirrors `mScreenUpItemView2` | `navbar02` | Our button, only while assigned |
+| Central | added, mirrors `mScreenUpAllAppView` | `mainApps` | Our button, only while assigned |
+| Passenger | `mScreenDownHomeView` / `screen_down_home_icon` | `navbar11` | The factory Home button |
+| Passenger | added, mirror `mScreenUpItemView1` … `mScreenUpItemView4` | `navbar12` … `navbar15` | Our buttons, only while assigned |
+
+**Home.** The lowered Home behaves like the panel buttons above. When assigned, a tap opens the assignment, and a hold or a failed launch runs its own factory click, which opens the launcher home.
+
+**Added buttons.** Every other assigned position gets a button of our own in `screen_down_radio_group`, after Home and in the normal panel's order. Unassigned positions get none, so an unassigned menu looks exactly as the factory one. The hidden, unwired Phone button is left alone.
+
+- **Class and id.** A button is a `NoToggleRadioButton`, so a tap does not move the selection slider by itself. It reuses the id of the normal-panel view it mirrors: that class logs the resource name of its id on every touch, and a generated id would throw there. Ids only need to be unique within the radio group.
+- **Look.** It shows the same icon as the normal button (custom pictures, plate-free glyphs and the launcher icon alike). Its content description is the activity's label.
+- **Clicks.** Its click listener is the bar. A tap launches the assignment on the bar's display. A hold, or a failed launch, runs the factory click of the mirrored normal view once, so the button never reaches OEM code with an id that code does not expect.
+- **Spacing.** The menu's group margins (142 px) are set to 0 while any button of ours is in it; the menu centres the group. Buttons keep the normal panel's 32 px gap where the frame allows, and close up where it does not: five passenger buttons get 19 px.
+- **Selection.** The foreground callback marks the assigned button in each radio group: the normal panel's and the lowered menu's. Each group's previous selection is restored before the next OEM update.
+
+**Mode switches and lifetime.** A button stays in the menu as long as its assignment does. The factory switch only toggles the two menus' visibility, so the agent adds no hook for it, and a switch never adds or removes views. Every refresh first removes our buttons, then adds them again once, so assignment changes, theme reloads and a rebuilt normal panel never duplicate them. A bar built while the agent runs inflates the lowered menu after its normal panel, so `initScreenDownViews` refreshes the bar once more.
+
+**Restore.** Clearing or disabling assignments, the release token, the bar's `release()` and detaching remove our buttons, unchecking one that is still checked. They also put the group's margins back and restore Home's icon and hold flag. A button that cannot be removed holds the release token back and is retried.
+
+**Failures.** If the button class is missing, or the menu refuses a button, the lowered menu keeps its own Home and the normal panel stays as assigned. Such a failure is reported once per slot (`OVC_PANEL_ICONS_ERROR stage=lowered`) and is not retried every second.
 
 ## Oversea launcher (`Build.PRODUCT = f6811`)
 
@@ -56,7 +85,7 @@ Entry: `hooks/navbar-oversea.js`. This branch has separate classes and exposes d
 | `NavigationBarSecond` / passenger | `mScreenUpSeatView` | `navbar12` | Seat |
 | `NavigationBarSecond` / passenger | `mScreenUpAllAppView` | `passengerApps` | All apps / menu |
 
-Both classes are under `com.qinggan.launcher.navigation`. Home, Seat and All apps change only after an explicit assignment; their native policies remain otherwise. Tap, hold and failed-launch fallback follow the same panel rule. Recreated bars and theme changes refresh assigned icons; both bars must confirm restoration. This branch has no foreground-app highlight adapter and no separately identified radio slot. It does not change passenger screen-lift policy.
+Both classes are under `com.qinggan.launcher.navigation`. Home, Seat and All apps change only after an explicit assignment; their native policies remain otherwise. Tap, hold and failed-launch fallback follow the same panel rule. Recreated bars and theme changes refresh assigned icons; both bars must confirm restoration. This branch has no foreground-app highlight adapter and no separately identified radio slot. It does not change passenger screen-lift policy. Buttons in a lowered-screen menu are added only for `NavigationBar` above, not for this branch.
 
 ## Steering wheel and Android hardware keys
 
@@ -73,7 +102,7 @@ Only one reviewed OEM steering route is selected. The launcher adapter delegates
 
 ## Other screens and actions
 
-The factory home screen (cards, the all-apps page, the lowered-screen layout and the pull-down panels) is not an injection target yet; its structure and candidate hook points are in [the home screen map](HOME_SCREEN_MAP.md).
+The factory home screen's structure and candidate hook points are in [the home screen map](HOME_SCREEN_MAP.md). Two of its cards are targets, each only while its setting is on (both off by default). `home-navi-card.js` covers the Baidu map card with a Yandex Navigator card and takes its taps, see [Home navigation card](FRIDA_AGENTS.md#home-navigation-card). `home-weather-card.js` feeds the weather card with Open-Meteo weather that Controls fetched, see [Home weather card](FRIDA_AGENTS.md#home-weather-card). The other cards, the all-apps page, the lowered-screen cards and the pull-down panels are not targets; the lowered-screen menu is covered in [Lowered-screen menu](#lowered-screen-menu).
 
 - Voice capture, microphone permission, local speech recognition and the voice popup belong to the ordinary Controls APK. Agents dispatch only the fixed allowed command set through observed OEM APIs. An accepted API call is not proof of a physical state change.
 - Window width/DPI is applied in `system_server`, with separate Android 9 (`com.android.server.am`) and 11 (`com.android.server.wm`) paths. Native placement is retained for unsupported, private, pinned or shared tasks.

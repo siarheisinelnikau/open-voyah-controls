@@ -35,7 +35,7 @@ import org.openvoyah.controls.presentation.theme.CockpitSwitch
 
 @Composable
 internal fun DisplayScreen(
-    state: DisplayViewModel.State, status: Status, defaults: AppDisplayDefaultsViewModel?,
+    state: DisplayViewModel.State, status: Status, defaults: AppDisplayDefaultsViewModel?, swipe: WindowSwipeViewModel?,
     media: DisplayViewModel.Player?, preferredMediaLabel: String, back: () -> Unit,
     needsMediaAccess: Boolean, canvasDensity: Density,
     chooseDensity: () -> Unit, mediaAccess: () -> Unit, configureNavigation: () -> Unit,
@@ -52,6 +52,7 @@ internal fun DisplayScreen(
         CockpitColumns(firstWeight = .8f, first = {
             CockpitSection(label(R.string.display_scale_heading), CockpitIcon.DISPLAY) {
                 defaults?.let { AppDisplayDefaultsControl(it) }
+                swipe?.let { WindowSwipeControl(it) }
                 CockpitChoice(label(R.string.display_density), previewDensityText(state.density), onClick = chooseDensity)
             }
             CockpitSection(label(R.string.display_sources_heading), CockpitIcon.SETTINGS) {

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="window_swipe_title">Move windows with a swipe</string>
+    <string name="window_swipe_description">Swipe an open app sideways with two or three fingers. Left sends it to the instrument cluster, which shows it in its navigation view. Right sends it to the passenger screen. To bring a window back, swipe left on the passenger screen or right over the home screen. Needs the window service and a firmware review of this operation.</string>
+    <string name="window_swipe_fingers">Swipe</string>
+    <string name="window_swipe_off">Off</string>
+    <string name="window_swipe_two">Two fingers</string>
+    <string name="window_swipe_three">Three fingers</string>
+    <string name="window_swipe_recall">Return windows</string>
+    <string name="window_swipe_unreadable">Could not load the saved setting.</string>
+    <string name="window_swipe_failed">Could not save the setting.</string>
+    <string name="window_swipe_pending">Saved on this head unit. Connect the window service to use the swipe.</string>
+    <string name="window_swipe_ready">Saved. The swipe works now.</string>
+    <string name="window_swipe_turned_off">Saved. The swipe is off and moved windows are back on the central screen.</string>
+    <string name="window_swipe_unavailable">Saved. The window service on this head unit does not offer the swipe: the operation is not reviewed for this firmware or Android version.</string>
+    <string name="window_swipe_recalled">Windows are back on the central screen.</string>
+    <string name="window_swipe_recall_failed">The window service did not confirm that the windows returned.</string>
+</resources>

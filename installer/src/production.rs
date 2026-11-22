@@ -469,6 +469,7 @@ fn firmware_rows<'a>(
             *name,
             "window-service"
                 | "passenger-window-dpi"
+                | "window-display-move"
                 | "oem-profiles"
                 | "tbox-reboot"
                 | "cluster-write"
@@ -597,6 +598,8 @@ mod tests {
             identity.fingerprint
         );
         assert!(firmware_rows(&row, &operations, &identity).is_ok());
+        let swipe = operations.replace("passenger-window-dpi", "window-display-move");
+        assert!(firmware_rows(&row, &swipe, &identity).is_ok());
         let can = operations.replace("passenger-window-dpi", "can-steering-terminal");
         assert!(firmware_rows(&row, &can, &identity).is_err());
         let with_can = format!(

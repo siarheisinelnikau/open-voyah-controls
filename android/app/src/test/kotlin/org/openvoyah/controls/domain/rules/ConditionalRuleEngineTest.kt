@@ -14,8 +14,8 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleDoorState
 import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
 import org.openvoyah.controls.domain.vehicle.automation.VehicleIdentity
 import org.openvoyah.controls.domain.vehicle.automation.VehicleSignal
-import org.openvoyah.controls.domain.vehicle.automation.VehicleSignalKind
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
+import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetryWindow
 
 class ConditionalRuleEngineTest {
     private val routine = NamedRoutine("00000000-0000-0000-0000-000000000001", "Morning", RoutinePlan(RoutineTarget.APP_GRID))
@@ -36,25 +36,21 @@ class ConditionalRuleEngineTest {
         assertTrue(engine.evaluate(library, routines, at(4, VehicleGear.PARK), second(4)).isEmpty())
     }
 
-    @Test fun staleLostUnknownAndFutureSamplesNeverBecomeAnEdge() {
+    @Test fun lostUnknownAndFutureSamplesNeverBecomeAnEdge() {
         val engine = ConditionalRuleEngine()
         engine.evaluate(library, routines, at(1, VehicleGear.DRIVE), second(1))
-        assertTrue(engine.evaluate(library, routines, at(1, VehicleGear.PARK), second(7)).isEmpty())
-        assertTrue(engine.evaluate(library, routines, at(8, VehicleGear.PARK), second(8)).isEmpty())
-        engine.evaluate(library, routines, at(9, VehicleGear.DRIVE), second(9))
-        assertTrue(engine.evaluate(library, routines, at(10, VehicleGear.PARK).copy(unavailable = setOf(VehicleSignalKind.GEAR)), second(10)).isEmpty())
-        assertTrue(engine.evaluate(library, routines, at(11, VehicleGear.PARK), second(11)).isEmpty())
-        engine.evaluate(library, routines, at(12, VehicleGear.DRIVE), second(12))
-        assertTrue(engine.evaluate(library, routines, at(14, VehicleGear.PARK), second(13)).isEmpty())
-        assertTrue(engine.evaluate(library, routines, at(14, VehicleGear.PARK), second(14)).isEmpty())
+        assertTrue(engine.evaluate(library, routines, at(2, VehicleGear.DRIVE).copy(gear = null), second(2)).isEmpty())
+        assertTrue(engine.evaluate(library, routines, at(3, VehicleGear.PARK), second(3)).isEmpty())
+        engine.evaluate(library, routines, at(4, VehicleGear.DRIVE), second(4))
+        assertTrue(engine.evaluate(library, routines, at(6, VehicleGear.PARK), second(5)).isEmpty())
+        assertTrue(engine.evaluate(library, routines, at(6, VehicleGear.PARK), second(6)).isEmpty())
     }
 
-    @Test fun freshTrueAfterTheOldFalseBaselineExpiredOnlySeeds() {
+    @Test fun aSilentFalseBaselineOfTheSameSessionStillArmsTheNextTransition() {
+        // The gearbox reports only changes: Drive seen a minute ago is still the known previous state.
         val engine = ConditionalRuleEngine()
         engine.evaluate(library, routines, at(1, VehicleGear.DRIVE), second(1))
-        assertTrue(engine.evaluate(library, routines, at(7, VehicleGear.PARK), second(7)).isEmpty())
-        engine.evaluate(library, routines, at(8, VehicleGear.DRIVE), second(8))
-        assertEquals(1, engine.evaluate(library, routines, at(9, VehicleGear.PARK), second(9)).size)
+        assertEquals(1, engine.evaluate(library, routines, at(61, VehicleGear.PARK), second(61)).size)
     }
 
     @Test fun reconnectSleepAndOwnerStopRequireANewKnownTransition() {
@@ -130,7 +126,10 @@ class ConditionalRuleEngineTest {
         assertFalse(decision.isCurrent(library, routines, at(8, VehicleGear.PARK), second(8)))
         assertFalse(decision.isCurrent(library, routines, at(3, VehicleGear.PARK, "other"), second(3)))
         assertFalse(decision.isCurrent(library, routines, at(3, VehicleGear.PARK).copy(gear = null), second(3)))
-        assertFalse(decision.isCurrent(library, routines, at(3, VehicleGear.PARK).copy(unavailable = setOf(VehicleSignalKind.GEAR)), second(3)))
+        val window = VehicleTelemetryWindow()
+        val revoked = at(3, VehicleGear.PARK).copy(confirmationWindow = window)
+        window.close()
+        assertFalse(decision.isCurrent(library, routines, revoked, second(3)))
     }
 
     @Test fun oldOutOfOrderFalseSnapshotCannotManufactureANewTransition() {

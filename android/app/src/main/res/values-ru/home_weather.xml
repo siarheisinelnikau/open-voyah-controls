@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_weather_card">Погода на главном экране (Open-Meteo)</string>
+    <string name="home_weather_city">Город для погоды, если местоположение машины неизвестно</string>
+    <string name="home_weather_no_data">Нет данных</string>
+    <string name="home_weather_clear">Ясно</string>
+    <string name="home_weather_cloudy">Облачно</string>
+    <string name="home_weather_overcast">Пасмурно</string>
+    <string name="home_weather_fog">Туман</string>
+    <string name="home_weather_rain">Дождь</string>
+    <string name="home_weather_snow">Снег</string>
+    <string name="home_weather_thunderstorm">Гроза</string>
+    <string name="home_weather_hail">Град</string>
+</resources>

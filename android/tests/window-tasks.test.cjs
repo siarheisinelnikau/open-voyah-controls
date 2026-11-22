@@ -359,7 +359,7 @@ test('native split and trusted adjacent launches are left to Android', () => {
     assert.equal(inspect(activity, null, from(1), tasks).key, profile.component);
 });
 
-function livePolicy(sdk, h) {
+function livePolicy(sdk, h, options = {}) {
     const prefix = 'org.openvoyah.controls.';
     const settings = new Map([[prefix + 'windowProfiles', JSON.stringify({schema:1, user:0, enabled:true,
         apps:[{...profile, keepPanel:true}]})]]);
@@ -367,6 +367,8 @@ function livePolicy(sdk, h) {
     let tick, acceptClear = true, sequence = 0;
     // The reserved strip is replaced by a recorder: what the policy asks of it and what it answers.
     const strip = {width:0, wanted:[], stops:0, stopped:true, dependencies:null, closed:0};
+    // The swipe between screens is replaced by a recorder too.
+    const moves = {api:{}, dependencies:null, wanted:[], recalls:0, releases:0, recalled:true, returned:true};
     const context = {getContentResolver:()=>({}), getPackageManager:()=>({getResourcesForApplication:()=>({
         getIdentifier:()=>1, getDimensionPixelOffset:()=>171})})};
     const owner = sdk === 28 ? 'com.android.server.am' : 'com.android.server.wm';
@@ -411,6 +413,15 @@ function livePolicy(sdk, h) {
         Java, sdk, early, hooks, systemTasks:()=>h.agent, setInterval:fn=>{ tick = fn; }, setTimeout:fn=>queue.push(fn),
         console:{log:line=>logs.push(line)},
         systemReserve:(_java, level)=>({level}), RESERVE_GUARD:prefix + 'windowInsetsGuard',
+        android11DisplayMoves:()=>{
+            if (options.movesMissing) throw Error('java.lang.NoSuchMethodError: moveStackToDisplay');
+            return moves.api;
+        },
+        displayMover:dependencies=>{
+            moves.dependencies = dependencies;
+            return {sync:want=>moves.wanted.push(want), recall:()=>{ moves.recalls++; return moves.recalled; },
+                release:()=>{ moves.releases++; return moves.returned; }};
+        },
         reserveSwitch:dependencies=>{
             strip.dependencies = dependencies;
             return {sync:want=>strip.wanted.push(want), width:()=>strip.width,
@@ -419,7 +430,7 @@ function livePolicy(sdk, h) {
         },
     });
     return {
-        queue, logs, hooks, late, strip, settings,
+        queue, logs, hooks, late, strip, settings, moves,
         setClear:value=>{ acceptClear = value; }, setProfiles:value=>settings.set(prefix + 'windowProfiles', value),
         tick:()=>tick(),
         launch(nativeMode = 0, nativeBounds = null, sourceMode = 1) {
@@ -627,7 +638,8 @@ test('a complete installation announces the request protocol after both hooks ar
     for (const sdk of [28, 30]) {
         const h = harness(sdk, {displayId:0});
         const service = livePolicy(sdk, h);
-        assert.deepEqual(service.logs, ['OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1 systemInsets=1']);
+        assert.deepEqual(service.logs, ['OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1 systemInsets=1 displayMove='
+            + (sdk === 30 ? 1 : 0)]);
         assert.equal(service.hooks.length, 2);
         assert.ok(service.hooks.every(hook=>typeof hook.implementation === 'function'));
     }
@@ -764,4 +776,58 @@ test('in the reserved strip a full-width profile with its own density receives t
         assert.equal(h.mode(), 1);
         assert.equal(h.density(), 0);
     }
+});
+
+test('the swipe between screens follows the window document and the service switch', () => {
+    const h = harness(30, {displayId:0});
+    const service = livePolicy(30, h);
+    service.tick();
+    assert.equal(service.moves.wanted.at(-1), null);
+    service.setProfiles(documentWith([], {displayMove:{fingers:2}}));
+    service.tick();
+    assert.deepEqual({...service.moves.wanted.at(-1)}, {fingers:2, passenger:1});
+    for (const off of [documentWith([], {displayMove:{fingers:2}, enabled:false}), documentWith([]),
+        documentWith([], {displayMove:{fingers:5}})]) {
+        service.setProfiles(off);
+        service.tick();
+        assert.equal(service.moves.wanted.at(-1), null, off);
+    }
+    // A moved window comes back to the central display through the policy that placed it there.
+    const placed = service.moves.dependencies.placed;
+    service.setProfiles(documentWith([], {displayMove:{fingers:3}}));
+    service.tick();
+    placed(profile.component, 0, 45, 0);
+    assert.equal(service.queue.length, 1);
+    service.queue.shift()();
+    assert.equal(h.mode(), 5);
+    assert.deepEqual(h.bounds(), [145, 0, 1920, 720]);
+});
+
+test('the app can bring moved windows back, and turning the service off returns them first', () => {
+    const h = harness(30, {displayId:0});
+    const service = livePolicy(30, h);
+    assert.deepEqual(service.request('recall'), {status:'applied'});
+    assert.equal(service.moves.recalls, 1);
+    service.moves.recalled = false;
+    assert.deepEqual(service.request('recall'), {status:'rollback_failed'});
+
+    assert.equal(service.request('release').status, 'applied');
+    assert.equal(service.moves.releases, 1);
+    service.tick();
+    assert.equal(service.moves.wanted.at(-1), null);
+
+    const stuck = livePolicy(30, harness(30, {displayId:0}));
+    stuck.moves.returned = false;
+    assert.equal(stuck.request('release').status, 'rollback_failed');
+    // The rest of the release still ran.
+    assert.equal(stuck.strip.stops, 1);
+});
+
+test('without the Android 11 members the window service still starts and says the swipe is unavailable', () => {
+    const service = livePolicy(30, harness(30, {displayId:0}), {movesMissing:true});
+    assert.deepEqual(service.logs, ['OVC_WINDOW_ERROR stage=display_move kind=NoSuchMethodError',
+        'OVC_WINDOW_READY protocol=3 sdk=30 displayDpi=1 systemInsets=1 displayMove=0']);
+    assert.deepEqual(service.request('recall'), {status:'rollback_failed'});
+    const android9 = livePolicy(28, harness(28, {displayId:0}));
+    assert.equal(android9.moves.dependencies, null);
 });

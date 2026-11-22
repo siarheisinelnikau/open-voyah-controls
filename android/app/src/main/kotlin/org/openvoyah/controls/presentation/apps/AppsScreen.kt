@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -23,12 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemScope
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog as AlertDialog
 import androidx.compose.material3.IconButton
@@ -37,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -47,6 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -65,6 +64,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,10 +79,11 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
-import org.openvoyah.controls.domain.apps.AppGridColumns
 import org.openvoyah.controls.domain.apps.AppGridConfiguration
 import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.domain.apps.AppGridIconStyle
+import org.openvoyah.controls.domain.apps.AppGridMoves
+import org.openvoyah.controls.domain.apps.AppGridPages
 import org.openvoyah.controls.domain.apps.AppGridRows
 import org.openvoyah.controls.domain.apps.AppGridShortcut
 import org.openvoyah.controls.domain.apps.AppGridTileSize
@@ -119,6 +122,9 @@ internal fun AppsScreen(
     swapDesktopPins: (LocalApp, LocalApp) -> Unit,
     showSettings: (LocalApp) -> Unit,
     open: (LocalApp) -> Unit,
+    move: AppMoveState? = null,
+    endMove: () -> Unit = {},
+    moveApp: (LocalApp, LocalApp, List<String>) -> Unit = { _, _, _ -> },
 ) {
     var query by rememberSaveable(entry) { mutableStateOf("") }
     var search by rememberSaveable(entry) { mutableStateOf(false) }
@@ -137,10 +143,6 @@ internal fun AppsScreen(
     val alwaysShowSearch = desktop == AppGridDesktop.MAIN && grid.showSearchField
     val searching = search || query.isNotEmpty()
     val tiles = remember(grid.tileSize) { grid.tileSize.metrics }
-    val columns = remember(grid.columns, tiles.cellWidth) {
-        if (grid.columns == AppGridColumns.AUTO) GridCells.Adaptive(tiles.cellWidth)
-        else FittingGridColumns(grid.columns, tiles.cellWidth)
-    }
     val optionalShortcuts = remember(grid.visibleShortcuts) {
         AppGridShortcut.entries.filter { it != AppGridShortcut.QUICK_VOICE && it in grid.visibleShortcuts }
     }
@@ -181,6 +183,11 @@ internal fun AppsScreen(
         query = ""
     }
     BackHandler(searching, onBack = clearSearch)
+    // Moving works on the whole desktop, so it starts without a search and Back ends it.
+    LaunchedEffect(move) { if (move != null) clearSearch() }
+    BackHandler(move != null, onBack = endMove)
+    LaunchedEffect(orderedApps) { move?.pending = null }
+    LaunchedEffect(state.gridEdit?.error) { if (state.gridEdit?.error != null) move?.pending = null }
     val colors = MaterialTheme.colorScheme
     val layout = LocalCockpitLayout.current
     val smoothPaging = animateDesktopPaging && grid.smoothDesktopPaging &&
@@ -231,66 +238,133 @@ internal fun AppsScreen(
             DesktopPageTransition(entry, desktop, smoothPaging, Modifier.weight(1f)) { BoxWithConstraints(Modifier.fillMaxSize()) {
                 val gridSpacing = layout.spacing(12.dp)
                 val labelStyle = MaterialTheme.typography.titleMedium.scaledText(tiles.labelScale)
-                val sized = tiles.fittedTo(if (constraints.hasBoundedHeight) maxHeight else Dp.Infinity, gridSpacing,
-                    labelStyle, grid.showAppLabels, density)
-                val gridState = rememberLazyGridState()
-                val cards = if (searching) emptyList() else rememberDesktopInfoCards(desktop)
-                val appsBeforeCards = remember(cards, visible, pinnedApps, grid.desktopCardPlacement) {
-                    if (cards.isEmpty()) 0 else grid.desktopCardPlacement.appsBeforeCards(visible) { it.id in pinnedApps }
+                val columnCount = with(density) {
+                    grid.columns.fit(constraints.maxWidth, tiles.cellWidth.roundToPx(), gridSpacing.roundToPx())
                 }
-                LazyVerticalGrid(columns, Modifier.fillMaxSize(),
-                    state = gridState,
-                    horizontalArrangement = Arrangement.spacedBy(gridSpacing),
-                    verticalArrangement = Arrangement.spacedBy(gridSpacing)) {
-                    item(key = "controls-settings") {
-                        LauncherTile(text(R.string.app_name), sized, open = { navigate(ControlsRoute.SETTINGS) }, modifier = gridItemMotion()) {
+                val layoutFor: (Dp) -> GridPageLayout = { height ->
+                    tiles.pageLayout(height, gridSpacing, labelStyle, grid.showAppLabels, density)
+                }
+                val cards = if (searching) emptyList() else rememberDesktopInfoCards(desktop)
+                val arranged = remember(visible) { visible.map(LocalApp::id) }
+                // A move previews and keeps its order until the saved one arrives; other apps stay as arranged.
+                val order = move?.order(arranged) ?: arranged
+                val shown = remember(visible, order) {
+                    if (order === arranged) visible else visible.associateBy(LocalApp::id).let { byId -> order.mapNotNull(byId::get) }
+                }
+                val appsBeforeCards = remember(cards, shown, pinnedApps, grid.desktopCardPlacement) {
+                    if (cards.isEmpty()) 0 else grid.desktopCardPlacement.appsBeforeCards(shown) { it.id in pinnedApps }
+                }
+                val moving = move != null
+                val sameGroup: (String, String) -> Boolean = { a, b ->
+                    desktop != AppGridDesktop.MAIN || (a in pinnedApps) == (b in pinnedApps)
+                }
+                fun place(source: String, target: String) {
+                    val app = visible.firstOrNull { it.id == source } ?: return
+                    val other = visible.firstOrNull { it.id == target } ?: return
+                    moveApp(app, other, arranged)
+                }
+                val tapToMove: (LocalApp) -> Unit = tap@{ app ->
+                    val session = move ?: return@tap
+                    val chosen = session.selected
+                    when (chosen) {
+                        null -> session.selected = app.id
+                        app.id -> session.selected = null
+                        else -> {
+                            session.selected = null
+                            val target = AppGridMoves.targetWithin(order, chosen, app.id, sameGroup)
+                            if (target != chosen) {
+                                session.pending = AppGridMoves.place(order, chosen, target)
+                                place(chosen, target)
+                            }
+                        }
+                    }
+                }
+                val appTile: @Composable LazyGridItemScope.(LocalApp, GridCellContext) -> Unit = { app, context ->
+                    val pinned = app.id in pinnedApps
+                    val pinnedLabel = if (pinned) {
+                        text(if (desktop == AppGridDesktop.MAIN) R.string.apps_pinned else R.string.apps_desktop_pinned)
+                    } else null
+                    val announcement = if (pinnedLabel != null) Modifier.semantics { stateDescription = pinnedLabel } else Modifier
+                    val moveModifier = if (move == null) Modifier else {
+                        val index = order.indexOf(app.id)
+                        val earlier = order.getOrNull(index - 1)?.takeIf { sameGroup(app.id, it) }
+                        val later = order.getOrNull(index + 1)?.takeIf { sameGroup(app.id, it) }
+                        val actions = listOfNotNull(
+                            earlier?.let { neighbor -> CustomAccessibilityAction(text(R.string.apps_move_earlier)) {
+                                move.pending = AppGridMoves.place(order, app.id, neighbor); place(app.id, neighbor); true
+                            } },
+                            later?.let { neighbor -> CustomAccessibilityAction(text(R.string.apps_move_later)) {
+                                move.pending = AppGridMoves.place(order, app.id, neighbor); place(app.id, neighbor); true
+                            } },
+                        )
+                        val chosen = move.selected == app.id
+                        // No card behind the tiles: the picked app gets a ring around its icon, the dragged one fades.
+                        Modifier.semantics { customActions = actions; selected = chosen }
+                            .alpha(if (move.dragging == app.id) 0.25f else 1f)
+                    }
+                    val ringColor = colors.primary
+                    val ring = if (move?.selected == app.id) Modifier.drawBehind {
+                        drawCircle(ringColor, radius = size.minDimension / 2 + 6.dp.toPx(), style = Stroke(3.dp.toPx()))
+                    } else Modifier
+                    LauncherTile(app.label, tiles.copy(height = context.rowHeight),
+                        open = if (move == null) { { if (app.launchEntry == null) showSettings(app) else open(app) } } else { { tapToMove(app) } },
+                        settings = if (move == null) { { showSettings(app) } } else null,
+                        modifier = gridItemMotion().then(context.anchor).then(announcement).then(moveModifier),
+                        showLabel = grid.showAppLabels) {
+                        if (pinned) Box(ring.size(tiles.iconSize)) {
+                            AppIcon(app, Modifier.fillMaxSize(), grid.iconStyle)
+                            PinMark(Modifier.align(Alignment.TopEnd).offset(x = 7.dp, y = (-4).dp))
+                        } else AppIcon(app, ring.size(tiles.iconSize), grid.iconStyle)
+                    }
+                }
+                val cardCells = cards.map { tile ->
+                    GridCell(tile.key, tile.size.span(columnCount)) { context ->
+                        DesktopInfoCardItem(tile, context.visible, grid.showDesktopCardOutlines, navigate, enabled = !moving)
+                    }
+                }
+                val appCells = shown.map { app -> GridCell("app:${app.id}", 1, app) { context -> appTile(app, context) } }
+                val cells = buildList {
+                    add(GridCell("controls-settings", 1) { context ->
+                        LauncherTile(text(R.string.app_name), tiles.copy(height = context.rowHeight), open = { navigate(ControlsRoute.SETTINGS) },
+                            modifier = gridItemMotion(), enabled = !moving) {
                             Image(painterResource(R.drawable.ic_controls_art), contentDescription = null,
-                                modifier = Modifier.size(sized.iconSize).clip(CircleShape),
+                                modifier = Modifier.size(tiles.iconSize).clip(CircleShape),
                                 colorFilter = if (grid.iconStyle == AppGridIconStyle.MONOCHROME) monochromeIcons else null)
                         }
-                    }
-                    if (appsBeforeCards == 0) desktopInfoCards(cards, gridState, grid.showDesktopCardOutlines, navigate)
+                    })
+                    if (appsBeforeCards == 0) addAll(cardCells)
                     if (AppGridShortcut.QUICK_VOICE in grid.visibleShortcuts) {
                         val quickVoice = AppGridShortcut.QUICK_VOICE.details
-                        item(key = quickVoice.key) { Shortcut(quickVoice.label, quickVoice.icon, sized, gridItemMotion(), open = listen) }
-                    }
-                    val appTile: @Composable LazyGridItemScope.(LocalApp) -> Unit = { app ->
-                        val pinned = app.id in pinnedApps
-                        val pinnedLabel = if (pinned) {
-                            text(if (desktop == AppGridDesktop.MAIN) R.string.apps_pinned else R.string.apps_desktop_pinned)
-                        } else null
-                        val announcement = if (pinnedLabel != null) Modifier.semantics { stateDescription = pinnedLabel } else Modifier
-                        LauncherTile(app.label, sized, { if (app.launchEntry == null) showSettings(app) else open(app) },
-                            { showSettings(app) }, gridItemMotion().then(announcement),
-                            showLabel = grid.showAppLabels) {
-                            if (pinned) Box(Modifier.size(sized.iconSize)) {
-                                AppIcon(app, Modifier.fillMaxSize(), grid.iconStyle)
-                                PinMark(Modifier.align(Alignment.TopEnd).offset(x = 7.dp, y = (-4).dp))
-                            } else AppIcon(app, Modifier.size(sized.iconSize), grid.iconStyle)
-                        }
+                        add(GridCell(quickVoice.key, 1) { context ->
+                            Shortcut(quickVoice.label, quickVoice.icon, tiles.copy(height = context.rowHeight), gridItemMotion(),
+                                enabled = !moving, open = listen)
+                        })
                     }
                     if (appsBeforeCards > 0) {
-                        items(visible.subList(0, appsBeforeCards), key = { "app:${it.id}" }, itemContent = appTile)
-                        desktopInfoCards(cards, gridState, grid.showDesktopCardOutlines, navigate)
+                        addAll(appCells.subList(0, appsBeforeCards))
+                        addAll(cardCells)
                     }
-                    items(visible.subList(appsBeforeCards, visible.size), key = { "app:${it.id}" }, itemContent = appTile)
+                    addAll(appCells.subList(appsBeforeCards, appCells.size))
                     optionalShortcuts.forEach { shortcut ->
                         val details = shortcut.details
-                        item(key = details.key) {
-                            Shortcut(details.label, details.icon, sized, gridItemMotion(),
-                                enabled = shortcut != AppGridShortcut.INSTALL_APK || installEnabled) {
+                        add(GridCell(details.key, 1) { context ->
+                            Shortcut(details.label, details.icon, tiles.copy(height = context.rowHeight), gridItemMotion(),
+                                enabled = !moving && (shortcut != AppGridShortcut.INSTALL_APK || installEnabled)) {
                                 when (shortcut) {
                                     AppGridShortcut.QUICK_VOICE -> listen()
                                     AppGridShortcut.INSTALL_APK -> if (canInstall()) install() else allow = true
                                     else -> navigate(checkNotNull(details.route))
                                 }
                             }
-                        }
+                        })
                     }
                     if (!alwaysShowSearch) {
-                        item(key = "controls-search") { Shortcut(R.string.ui_113, CockpitIcon.SEARCH, sized, gridItemMotion()) { search = true } }
+                        add(GridCell("controls-search", 1) { context ->
+                            Shortcut(R.string.ui_113, CockpitIcon.SEARCH, tiles.copy(height = context.rowHeight), gridItemMotion(),
+                                enabled = !moving) { search = true }
+                        })
                     }
-                    if (state.loading || visible.isEmpty()) item(key = "app-list-state", span = { GridItemSpan(maxLineSpan) }) {
+                    if (state.loading || visible.isEmpty()) add(GridCell("app-list-state", columnCount) {
                         val label = when {
                             state.loading -> R.string.apps_loading
                             query.isNotBlank() -> R.string.apps_empty
@@ -299,8 +373,17 @@ internal fun AppsScreen(
                         }
                         Text(text(label),
                             gridItemMotion().padding(18.dp), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-                    }
+                    })
                 }
+                PagedAppGrid(cells, columnCount, gridSpacing, layoutFor, resetKey = Triple(entry, desktop, query), move = move,
+                    arranged = arranged, sameGroup = sameGroup, place = ::place,
+                    floating = { app, modifier ->
+                        LauncherTile(app.label, tiles, open = {}, modifier = modifier, showLabel = grid.showAppLabels) { AppIcon(app, Modifier.size(tiles.iconSize), grid.iconStyle) }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    footer = if (move == null) null else { dots ->
+                        MoveBar(move, visible, state.gridEdit?.takeIf { it.desktop == desktop }?.error, dots, endMove)
+                    })
             } }
         }
     }
@@ -367,8 +450,8 @@ private fun LauncherTile(label: String, tiles: GridTileMetrics, open: () -> Unit
 }
 
 /**
- * [height] is the least height of a tile. With [fillsHeight] the rows are stretched to fill the grid's visible height
- * with whole rows (see [fittedTo]); [labelScale] sizes the caption relative to the title style.
+ * [height] is the least height of a tile. With [fillsHeight] the rows are stretched to fill the page's height with
+ * whole rows (see [pageLayout]); [labelScale] sizes the caption relative to the title style.
  */
 private data class GridTileMetrics(
     val cellWidth: Dp,
@@ -379,23 +462,20 @@ private data class GridTileMetrics(
     val labelScale: Float = 1f,
     val fillsHeight: Boolean = false,
 ) {
-    /** The metrics for a grid [visibleHeight] tall, with the tile height stretched when this size fills it. */
-    fun fittedTo(visibleHeight: Dp, spacing: Dp, label: TextStyle, showLabel: Boolean, density: Density): GridTileMetrics {
-        if (!fillsHeight || !visibleHeight.isFinite) return this
-        val fitted = with(density) {
+    /**
+     * Whole rows of this size on a page [visibleHeight] tall and their height. A size that fills the grid stretches
+     * its rows to end at the bottom edge; the others keep the height their icon and two caption lines need.
+     */
+    fun pageLayout(visibleHeight: Dp, spacing: Dp, label: TextStyle, showLabel: Boolean, density: Density): GridPageLayout =
+        with(density) {
             val labelHeight = if (showLabel) labelSpacing + label.lineHeight.toDp() * 2 else 0.dp
             val content = maxOf(height, verticalPadding * 2 + iconSize + labelHeight)
-            AppGridRows.fittedTileHeight(visibleHeight.roundToPx(), content.roundToPx(), spacing.roundToPx()).toDp()
+            val available = if (visibleHeight.isFinite) visibleHeight.roundToPx() else content.roundToPx()
+            val rowHeight = if (fillsHeight) {
+                AppGridRows.fittedTileHeight(available, content.roundToPx(), spacing.roundToPx()).toDp()
+            } else content
+            GridPageLayout(AppGridPages.rows(available, rowHeight.roundToPx(), spacing.roundToPx()), rowHeight)
         }
-        return copy(height = fitted)
-    }
-}
-
-private data class FittingGridColumns(val columns: AppGridColumns, val minimumTileWidth: Dp) : GridCells {
-    override fun Density.calculateCrossAxisCellSizes(availableSize: Int, spacing: Int): List<Int> {
-        val count = columns.fit(availableSize, minimumTileWidth.roundToPx().coerceAtLeast(1), spacing)
-        return with(GridCells.Fixed(count)) { calculateCrossAxisCellSizes(availableSize, spacing) }
-    }
 }
 
 private val AppGridTileSize.metrics: GridTileMetrics
@@ -440,6 +520,33 @@ private fun PinMark(modifier: Modifier) {
     Canvas(modifier.size(22.dp).background(colors.surface, CircleShape)) {
         scale(size.width / 24f, size.height / 24f, Offset.Zero) {
             drawPath(pin, colors.primary, style = Stroke(1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        }
+    }
+}
+
+/**
+ * The move mode's bar in place of the page dots: the hint, the dots and the end. With an app picked, the hint names it
+ * and says that a tap places it.
+ */
+@Composable
+private fun MoveBar(move: AppMoveState, apps: List<LocalApp>, error: Int?, dots: @Composable () -> Unit, done: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val picked = move.selected?.let { id -> apps.firstOrNull { it.id == id }?.label }
+    // The bar keeps the height of the page dots' row, so the pages keep their rows; Compose widens the small Done
+    // pill's touch area to the usual target size.
+    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        val message = error?.let(::text)
+            ?: if (picked != null) text(R.string.apps_move_picked).format(picked) else text(R.string.apps_move_hint)
+        Text(message, Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+            style = MaterialTheme.typography.bodyMedium, color = if (error != null) colors.error else colors.onSurfaceVariant,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        dots()
+        val press = rememberPressMotion()
+        Surface(onClick = done, modifier = press.modifier.fillMaxHeight(), shape = CircleShape, color = colors.primary,
+            contentColor = colors.onPrimary, interactionSource = press.source) {
+            Box(Modifier.padding(horizontal = 18.dp), contentAlignment = Alignment.Center) {
+                Text(text(R.string.apps_desktop_done), style = MaterialTheme.typography.labelLarge)
+            }
         }
     }
 }

@@ -11,6 +11,7 @@ import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.core.graphics.createBitmap
 import org.openvoyah.controls.InstalledApps
+import org.openvoyah.controls.data.apps.AppIconPreferences
 import org.openvoyah.controls.domain.apps.AppGridEntryFacts
 import org.openvoyah.controls.domain.apps.AppGridVisibility
 import org.openvoyah.controls.domain.apps.DefaultHideReason
@@ -51,6 +52,7 @@ internal class AppsCatalog(
         } catch (_: RuntimeException) {
             emptySet()
         }
+        val icons = AppIconPreferences(context).all()
         val entriesPerPackage = launchable.groupingBy { it.component().packageName }.eachCount()
         val mainEntries = mutableMapOf<String, String?>()
         fun defaultHide(component: String, packageName: String, origin: InstallOrigin): DefaultHideReason? {
@@ -66,7 +68,8 @@ internal class AppsCatalog(
             val component = entry.component().flattenToString()
             val installed = installation(id)
             LocalApp(component, id, entry.label(), entry,
-                try { context.appIcon(packages.getActivityIcon(entry.component())) } catch (_: PackageManager.NameNotFoundException) { null },
+                try { context.appIcon(packages.getActivityIcon(entry.component()), icons[id]) }
+                catch (_: PackageManager.NameNotFoundException) { null },
                 installed.origin, installed.firstInstallTime, defaultHide(component, id, installed.origin))
         }
         if (launcherOnly) return rows
@@ -78,16 +81,21 @@ internal class AppsCatalog(
             if (id in launcherPackages || id in excluded) return@mapNotNull null
             val installed = installation(id)
             if (installed.origin != InstallOrigin.CONTROLS && installed.origin != InstallOrigin.UNVERIFIED) return@mapNotNull null
-            LocalApp(id, id, app.loadLabel(packages).toString(), null, context.appIcon(app.loadIcon(packages)),
+            LocalApp(id, id, app.loadLabel(packages).toString(), null, context.appIcon(app.loadIcon(packages), icons[id]),
                 installed.origin, installed.firstInstallTime, defaultHide(id, id, installed.origin))
         }
         return (rows + withoutLauncher).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
     }
 }
 
-/** Rendered at the size of the largest app-grid icon (Large tiles), so no tile draws an enlarged bitmap. */
-internal fun Context.appIcon(drawable: Drawable): Bitmap {
+/**
+ * Rendered at the size of the largest app-grid icon (Large tiles), so no tile draws an enlarged bitmap. The
+ * driver's [choice] for the app, a custom picture or the icon without its white plate, replaces the launcher
+ * icon; a choice that cannot be drawn falls back to it.
+ */
+internal fun Context.appIcon(drawable: Drawable, choice: AppIconPreferences.Choice? = null): Bitmap {
     val pixels = (APP_ICON_DP * controlsDensity()).toInt().coerceIn(48, 192)
+    styledIcon(drawable, choice, pixels)?.let { return it }
     return createBitmap(pixels, pixels).also { bitmap ->
         drawable.mutate().apply {
             setBounds(0, 0, pixels, pixels)
@@ -97,3 +105,15 @@ internal fun Context.appIcon(drawable: Drawable): Bitmap {
 }
 
 private const val APP_ICON_DP = 80
+
+/** The icon with the driver's [choice] applied at [pixels], or null for the launcher icon itself. */
+internal fun styledIcon(drawable: Drawable, choice: AppIconPreferences.Choice?, pixels: Int): Bitmap? {
+    if (choice == null || choice.isDefault) return null
+    return try {
+        choice.rendition()?.let { AppIconImages.custom(it, pixels) }
+            ?: if (choice.plain) AppIconImages.plain(drawable, pixels) else null
+    } catch (failure: Exception) {
+        // Exception, not Throwable: memory exhaustion must not read as a damaged picture.
+        null
+    }
+}

@@ -81,6 +81,40 @@ class AppWindowPreferencesTest : AndroidTestCase() {
         } catch (_: IllegalArgumentException) { }
     }
 
+    fun testTheWindowSwipeIsStoredWithTheDefaultsAndSentOnlyWhenReviewed() {
+        val preferences = AppWindowPreferences(context)
+        val defaultsBefore = preferences.loadDefaults()
+        try {
+            preferences.saveDefaults(AppDisplayDefaults(moveFingers = 0))
+            assertFalse(JSONObject(preferences.agentConfig(true, allowDisplayMove = true)).has("displayMove"))
+            // A swipe turned off is written as such, so it does not come back on with the default.
+            assertEquals(0, preferences.exportDefaults().getInt("moveFingers"))
+            assertEquals(0, AppWindowPreferences(context).loadDefaults().moveFingers)
+            // Documents from before the swipe take its default: three fingers.
+            assertEquals(3, AppWindowPreferences.validateDefaults(JSONObject("""{"central":0,"secondary":null}""")).moveFingers)
+
+            preferences.saveDefaults(AppDisplayDefaults(moveFingers = 3))
+            assertEquals(3, AppWindowPreferences(context).loadDefaults().moveFingers)
+            assertEquals(3, preferences.exportDefaults().getInt("moveFingers"))
+            assertFalse(JSONObject(preferences.agentConfig(true)).has("displayMove"))
+            val config = JSONObject(preferences.agentConfig(true, allowDisplayMove = true))
+            assertEquals("""{"fingers":3}""", config.getJSONObject("displayMove").toString())
+            // The swipe alone is no density override for the agent.
+            assertFalse(config.has("displayDpi"))
+            assertEquals(AppDisplayDefaults(moveFingers = 3),
+                AppWindowPreferences.validateDefaults(JSONObject("""{"central":0,"secondary":null,"moveFingers":3}""")))
+            for (invalid in listOf(""""3"""", "4")) {
+                try {
+                    AppWindowPreferences.validateDefaults(JSONObject("""{"central":0,"secondary":null,"moveFingers":$invalid}"""))
+                    fail("An invalid swipe must be rejected: $invalid")
+                } catch (_: IllegalStateException) {
+                } catch (_: IllegalArgumentException) { }
+            }
+        } finally {
+            preferences.saveDefaults(defaultsBefore)
+        }
+    }
+
     fun testLegacyProfileAppliesToOtherLaunchEntriesInThePackage() {
         val preferences = AppWindowPreferences(context)
         val previous = preferences.exportProfiles()

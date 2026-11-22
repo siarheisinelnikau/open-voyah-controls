@@ -68,6 +68,8 @@ internal fun HomeSettingsLinks(open: (ControlsRoute) -> Unit, language: () -> Un
     HomeActionRow(UiText.get(R.string.cockpit_language),
         UiText.get(if (UiText.language() == "ru") R.string.language_name_russian else R.string.language_name_english),
         CockpitIcon.LANGUAGE, language)
+    HomeActionRow(UiText.get(R.string.keyboard_title), UiText.get(R.string.keyboard_page_summary), CockpitIcon.KEYBOARD,
+        open = { open(ControlsRoute.KEYBOARD) })
 }
 
 @Composable

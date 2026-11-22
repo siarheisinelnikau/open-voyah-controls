@@ -32,16 +32,18 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetrySession
 
 class SeasonalClimateViewModelTest {
-    @Test fun aConfirmationExpiresBeforeDispatchAndDoesNotReplayWhenTelemetryReturns() = runBlocking {
+    @Test fun aConfirmationDoesNotCrossIntoANewSessionAndDoesNotReplayWhenTelemetryReturns() = runBlocking {
         val fixture = Fixture()
         val ui = launch { fixture.model.state.collect() }
         try {
             fixture.ready()
             fixture.model.requestApply(ClimateSeason.SUMMER)
             withTimeout(3_000) { fixture.model.state.first { it.confirmation != null } }
-            fixture.clock.addAndGet(5_000_000_001)
+            // A reconnect or wake starts a new session; the confirmation belonged to the previous one.
+            fixture.telemetry.value = telemetry(fixture.clock.addAndGet(5_000_000_001))
+            withTimeout(3_000) { fixture.model.state.first { it.telemetry == fixture.telemetry.value } }
             fixture.model.confirmApply()
-            withTimeout(3_000) { fixture.model.state.first { it.form.pending == null } }
+            withTimeout(3_000) { fixture.model.state.first { it.form.pending == null && !it.form.applying } }
             assertEquals(0, fixture.port.calls.value)
             fixture.telemetry.value = telemetry(fixture.clock.get())
             fixture.ready()

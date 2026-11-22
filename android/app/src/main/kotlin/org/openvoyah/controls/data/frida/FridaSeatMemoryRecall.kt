@@ -22,6 +22,7 @@ internal class FridaSeatMemoryRecall(context: Context) : SeatMemoryRecall {
 
     override suspend fun recall(slot: SeatMemorySlot): VoiceResult {
         val id = slot.recallCommandId
+        if (reviewed.isSwitchedOff(id)) return VoiceResult(UiText.get(R.string.voice_vehicle_switched_off), failed = true)
         if (reviewed.profileFor(id) == null) return VoiceResult(UiText.get(R.string.voice_vehicle_approval_required), failed = true)
         val command = catalog.byId(id) ?: return VoiceResult(UiText.get(R.string.voice_vehicle_blocked), failed = true)
         return dispatcher.dispatch(Request(Destination.VEHICLE, command, "", ""))

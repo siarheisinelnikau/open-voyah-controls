@@ -92,6 +92,15 @@ class RootAppCommandsTest {
         assertEquals(listOf(RootAppCommands.readAppOps(0, "org.example.media", operations)), reads)
     }
 
+    @Test fun uninstallRemovesOnePackageForEveryUser() {
+        assertEquals("$root && pm uninstall org.example.media", RootAppCommands.uninstall("org.example.media"))
+        val scripts = mutableListOf<String>()
+        RootAppRemover { scripts += it; "Success" }.uninstall("org.example.media")
+        assertEquals(listOf(RootAppCommands.uninstall("org.example.media")), scripts)
+        rejected { RootAppCommands.uninstall("org.example.media; reboot") }
+        rejected { RootAppCommands.uninstall("media") }
+    }
+
     @Test fun onlyQualifiedNamesReachTheShell() {
         val unsafe = listOf("org.example.media; reboot", "org.example.media\nreboot", "'org.example.media'", "*", "media",
             "org.example.\$(id)", "org.example.media:remote")

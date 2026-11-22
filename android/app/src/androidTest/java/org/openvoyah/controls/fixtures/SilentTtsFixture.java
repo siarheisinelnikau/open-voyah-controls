@@ -18,7 +18,7 @@ import java.util.Locale;
 public final class SilentTtsFixture extends TextToSpeechService {
     public static final String REPLY = "org.openvoyah.controls.fixture.SYNTHESIS";
     public static final String SAMPLE_PREFIX = "ovc-test-silent-";
-    public static final String ACCEPTED_OUTCOME = "The vehicle accepted the request. Its state is unverified.";
+    public static final String ACCEPTED_OUTCOME = "The vehicle accepted the request.";
     public static final String READY_EN = "Ready.";
     public static final String READY_RU = "Слушаю.";
     public static final String READY_CUSTOM = "Go ahead.";

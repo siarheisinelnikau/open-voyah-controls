@@ -18,18 +18,26 @@ class VehicleTelemetryTest {
         assertFalse(gear().isFreshFor(telemetry, 7_000_000_001))
     }
 
-    @Test fun stationaryRequiresTwoIndependentFreshSignalsAndNoUnavailableFlag() {
+    @Test fun parkFromThisSessionMeansStationaryUnlessAFreshSpeedSaysOtherwise() {
+        val parked = telemetry.copy(gear = gear(), unavailable = telemetry.unavailable - VehicleSignalKind.GEAR)
+        assertTrue(parked.isStationary(2_500_000_000))
+        // Gear arrives only on change: an old Park of the same session still holds.
+        assertTrue(parked.copy(unavailable = parked.unavailable + VehicleSignalKind.GEAR).isStationary(60_000_000_000))
+        assertFalse(parked.copy(gear = null).isStationary(2_500_000_000))
+        assertFalse(parked.copy(gear = gear(session = "previous")).isStationary(2_500_000_000))
+        assertFalse(parked.copy(gear = gear(at = 999_999_999)).isStationary(2_500_000_000))
+        assertFalse(parked.copy(gear = gear().copy(value = VehicleGear.DRIVE)).isStationary(2_500_000_000))
+        val window = VehicleTelemetryWindow()
+        val closed = parked.copy(confirmationWindow = window)
+        window.close()
+        assertFalse(closed.isStationary(2_500_000_000))
         val speed = VehicleSignal(0f, 2_000_000_000, 1_700_000_000_000, "fixture_speed", "current")
-        val stationary = telemetry.copy(gear = gear(), speedKph = speed,
-            unavailable = telemetry.unavailable - VehicleSignalKind.GEAR - VehicleSignalKind.SPEED)
-        assertTrue(stationary.isStationary(2_500_000_000))
-        assertFalse(stationary.copy(gear = null).isStationary(2_500_000_000))
-        assertFalse(stationary.copy(speedKph = null).isStationary(2_500_000_000))
-        assertFalse(stationary.copy(unavailable = stationary.unavailable + VehicleSignalKind.SPEED).isStationary(2_500_000_000))
-        assertFalse(stationary.copy(speedKph = speed.copy(value = .1f)).isStationary(2_500_000_000))
-        assertFalse(stationary.copy(speedKph = speed.copy(value = Float.NaN)).isStationary(2_500_000_000))
-        assertFalse(stationary.copy(gear = gear().copy(value = VehicleGear.DRIVE)).isStationary(2_500_000_000))
-        assertFalse(stationary.isStationary(7_000_000_001))
+        val withSpeed = parked.copy(speedKph = speed, unavailable = parked.unavailable - VehicleSignalKind.SPEED)
+        assertTrue(withSpeed.isStationary(2_500_000_000))
+        assertFalse(withSpeed.copy(speedKph = speed.copy(value = .1f)).isStationary(2_500_000_000))
+        assertFalse(withSpeed.copy(speedKph = speed.copy(value = Float.NaN)).isStationary(2_500_000_000))
+        // An expired speed reading is ignored, not trusted either way.
+        assertTrue(withSpeed.copy(speedKph = speed.copy(value = 30f)).isStationary(7_000_000_001))
     }
 
     @Test fun disconnectRevokesAnAlreadyQueuedSnapshotBeforeTheLossIsCollected() {

@@ -77,13 +77,14 @@ import org.openvoyah.controls.presentation.theme.CockpitTextField
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 
+/** RECOGNITION groups the engine, the recognition language and the optional online interpretation. */
 internal enum class VoiceOption(val label: Int) {
     TRY_VOICE(R.string.quick_voice_try),
-    LANGUAGE(R.string.voice_language),
+    RECOGNITION(R.string.voice_recognition),
     LEVELS(R.string.default_levels),
     WINDOWS(R.string.window_options),
+    VEHICLE(R.string.voice_vehicle_commands),
     AUDIO(R.string.voice_audio_settings),
-    ONLINE(R.string.voice_online_title),
     RECOVERY(R.string.ui_177),
 }
 
@@ -91,6 +92,7 @@ internal enum class VoiceOption(val label: Int) {
 internal fun VoiceSettingsScreen(
     catalog: VoiceCatalog,
     language: String,
+    engine: RecognitionEngine,
     vehicleCommandsReviewed: Boolean,
     assignments: Set<String>,
     message: String?,
@@ -122,7 +124,7 @@ internal fun VoiceSettingsScreen(
                 if (maxWidth >= 760.dp) {
                     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                            SettingsOptions(language, vehicleCommandsReviewed, message, microphone, recoverMicrophone, openOption)
+                            SettingsOptions(language, engine, vehicleCommandsReviewed, message, microphone, recoverMicrophone, openOption)
                         }
                         Surface(
                             Modifier.weight(1f).fillMaxSize(),
@@ -143,7 +145,7 @@ internal fun VoiceSettingsScreen(
                     }
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
-                        item { SettingsOptions(language, vehicleCommandsReviewed, message, microphone, recoverMicrophone, openOption) }
+                        item { SettingsOptions(language, engine, vehicleCommandsReviewed, message, microphone, recoverMicrophone, openOption) }
                         item { SearchField(search, { search = it }) }
                         if (visible.isEmpty()) item { EmptyResults() }
                         items(visible, key = { it.id() }) {
@@ -269,7 +271,7 @@ private fun ListeningBar(windowMillis: Long, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SettingsOptions(language: String, vehicleCommandsReviewed: Boolean, message: String?,
+private fun SettingsOptions(language: String, engine: RecognitionEngine, vehicleCommandsReviewed: Boolean, message: String?,
                             microphone: VoiceMicrophoneViewModel.State, recoverMicrophone: () -> Unit,
                             select: (VoiceOption) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -321,8 +323,8 @@ private fun SettingsOptions(language: String, vehicleCommandsReviewed: Boolean, 
                     Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         for (option in row) {
                             val name = when (option) {
-                                VoiceOption.LANGUAGE -> label(option.label) + " · " +
-                                    label(if (language == "ru") R.string.language_name_russian else R.string.language_name_english)
+                                VoiceOption.RECOGNITION -> label(option.label) + " · " +
+                                    label(engine.label) + " · " + label(recognitionLanguageName(language))
                                 else -> label(option.label)
                             }
                             CockpitChoice(name, modifier = Modifier.weight(1f).fillMaxHeight()) { select(option) }

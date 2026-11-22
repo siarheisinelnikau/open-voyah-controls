@@ -41,6 +41,17 @@ internal class RootAppStopper(
     fun stop(user: Int, packageName: String): Boolean? = RootAppCommands.stopped(execute(RootAppCommands.forceStop(user, packageName)))
 }
 
+/** Uninstalls another app through the same local root shell; the caller confirms the result with Android. */
+internal class RootAppRemover(
+    private val execute: (String) -> String,
+) {
+    constructor(context: Context) : this(appRootShell(context))
+
+    fun uninstall(packageName: String) {
+        execute(RootAppCommands.uninstall(packageName))
+    }
+}
+
 /**
  * The root shell for managing other apps: the loopback fixture on an explicitly selected emulator build, otherwise
  * the authorized channel behind the activation guard, so a paused update or a blocked recovery refuses the command.

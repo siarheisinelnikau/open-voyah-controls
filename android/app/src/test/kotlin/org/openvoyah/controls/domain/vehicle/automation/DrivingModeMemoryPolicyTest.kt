@@ -105,12 +105,15 @@ class DrivingModeMemoryPolicyTest {
         assertNull(engine.evaluate(enabled, saved, parked, 400).save)
     }
 
-    @Test fun explicitUseCurrentRequiresEnabledFreshParkAndZeroSpeed() {
+    @Test fun explicitUseCurrentRequiresEnabledParkAndNoMotion() {
         val engine = DrivingModeMemoryEngine()
         val current = car(DrivingMode.COMFORT)
         assertEquals(DrivingMode.COMFORT, engine.acceptCurrent(enabled, current, 1_000)?.mode)
         assertNull(engine.acceptCurrent(DrivingModeMemorySettings(false), current, 1_000))
-        assertNull(engine.acceptCurrent(enabled, current, 6_000_002_000))
+        // Mode and gear are reported only on change; their last values of the session still hold later.
+        assertEquals(DrivingMode.COMFORT, engine.acceptCurrent(enabled, current, 60_000_002_000)?.mode)
+        assertNull(engine.acceptCurrent(enabled, car(DrivingMode.COMFORT, VehicleGear.DRIVE), 1_000))
+        assertNull(engine.acceptCurrent(enabled, current.copy(drivingMode = null), 1_000))
         assertNull(engine.acceptCurrent(enabled, current.copy(speedKph = current.speedKph!!.copy(value = 1f)), 1_000))
     }
 

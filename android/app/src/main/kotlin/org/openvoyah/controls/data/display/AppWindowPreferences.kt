@@ -33,6 +33,7 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
     /**
      * [systemInsetsAttempt] is null unless the experimental strip reserved by Android itself is on. It counts how
      * often the driver turned the option on, which lets the agent tell a new request from one it already blocked.
+     * The swipe between screens is sent only with [allowDisplayMove], the separate review of that operation.
      */
     @JvmOverloads
     fun agentConfig(
@@ -40,6 +41,7 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
         allowSecondary: Boolean = true,
         passengerDisplayId: Int? = null,
         systemInsetsAttempt: Int? = null,
+        allowDisplayMove: Boolean = false,
     ): String = synchronized(lock) {
         require(passengerDisplayId == null || passengerDisplayId == 1)
         require(systemInsetsAttempt == null || systemInsetsAttempt >= 0)
@@ -48,8 +50,11 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
         if (systemInsetsAttempt != null) config.put("systemInsets", true).put("systemInsetsAttempt", systemInsetsAttempt)
         val stored = loadDefaults()
         val defaults = if (allowSecondary) stored else stored.copy(secondaryDpi = null)
-        if (defaults != AppDisplayDefaults()) config.put("displayDpi", encodeDefaults(defaults))
+        if (defaults.centralDpi != 0 || defaults.secondaryDpi != null) config.put("displayDpi", densities(defaults))
         if (defaults.secondaryDpi != null && passengerDisplayId != null) config.put("passengerDisplayId", passengerDisplayId)
+        if (allowDisplayMove && stored.moveFingers != 0) {
+            config.put("displayMove", JSONObject().put("fingers", stored.moveFingers))
+        }
         config.toString()
     }
 
@@ -101,7 +106,10 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
                 is Int -> value
                 else -> error("Invalid secondary app density")
             }
-            return AppDisplayDefaults(central, secondary)
+            // Documents written before the swipe existed take its default.
+            val fingers = if (data.has("moveFingers")) data.get("moveFingers") as? Int
+                ?: error("Invalid window swipe") else AppDisplayDefaults.DEFAULT_MOVE_FINGERS
+            return AppDisplayDefaults(central, secondary, fingers)
         }
 
         private fun decode(data: JSONArray): List<AppWindowProfile> {
@@ -126,7 +134,11 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
                 .put("inheritDpi", profile.inheritDensity)
         })
 
-        private fun encodeDefaults(defaults: AppDisplayDefaults) = JSONObject()
+        /** The densities alone: the window agent reads exactly these two fields. */
+        private fun densities(defaults: AppDisplayDefaults) = JSONObject()
             .put("central", defaults.centralDpi).put("secondary", defaults.secondaryDpi ?: JSONObject.NULL)
+
+        /** What is stored and backed up. The swipe is always written, so a swipe turned off stays off. */
+        private fun encodeDefaults(defaults: AppDisplayDefaults) = densities(defaults).put("moveFingers", defaults.moveFingers)
     }
 }

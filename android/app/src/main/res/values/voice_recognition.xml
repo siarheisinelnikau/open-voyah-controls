@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_recognition">Recognition</string>
+    <string name="voice_recognition_engine">Engine</string>
+    <string name="voice_recognition_engines_hint">Zipformer recognizes Russian only. For English and Kazakh, Vosk is used.</string>
+    <string name="speech_engine_vosk">Vosk</string>
+    <string name="speech_engine_vosk_detail">On the head unit, without internet. Recognizes the phrases of the command list.</string>
+    <string name="speech_engine_zipformer">Zipformer</string>
+    <string name="speech_engine_zipformer_detail">On the head unit, without internet. Fewer false commands on similar phrases. Russian only.</string>
+    <string name="voice_recognition_online_detail">Online. Only the text of a phrase that is not in the command list is sent, never the sound.</string>
+    <string name="voice_recognition_on">On</string>
+    <string name="voice_recognition_off">Off</string>
+    <string name="language_name_kazakh" translatable="false">Қазақша</string>
+    <string name="voice_model_not_downloaded">The speech model for this language or engine is not downloaded. Download it in Voice settings → Recognition.</string>
+    <string name="voice_model_download">Download · %1$s</string>
+    <string name="voice_model_downloading">Downloading %1$d%%</string>
+    <string name="voice_model_cancel">Cancel</string>
+    <string name="voice_model_delete">Delete the model</string>
+    <string name="voice_model_needed">Needs a model download (%1$s).</string>
+    <string name="voice_model_failed_network">The download failed. Check the internet connection and try again.</string>
+    <string name="voice_model_failed_storage">Not enough free storage for the model.</string>
+    <string name="voice_model_failed_verification">The downloaded file did not match. Nothing was installed.</string>
+    <string name="voice_model_megabytes">%1$d MB</string>
+</resources>
