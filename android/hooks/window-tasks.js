@@ -315,22 +315,57 @@ export function systemTasks(Java, sdk, panelWidth) {
     }
 
     /**
-     * Before [task] of [pkg] leaves the central display for another screen: its native placement and density come
-     * back (as on release) and it becomes a fullscreen task, which is what the other screen shows. Needs the
-     * global lock, which the caller already holds.
+     * Before [task] of [pkg] leaves the central display for another screen: it becomes a fullscreen task, which is
+     * what the other screen shows, and keeps its density, so the app's scale travels with it. Only the resource
+     * sizes fixed for its place beside the panel are dropped. The record of its original placement stays, so a
+     * release after it came back still restores that. Needs the global lock, which the caller already holds.
      */
     function prepareMove(task, pkg, user) {
-        const id = key(task);
-        const entry = saved.get(id);
         const records = activities(task, pkg, user, 0);
         if (!records || !knownMode(task)) throw error('unsupported_task');
-        if (entry) {
-            if (entry.central) restore(task, records, entry.central, true, entry.dpi);
-            else restoreDensity(task, records, entry);
-            saved.delete(id);
-        }
+        const dpi = api.getOverride(task).densityDpi.value;
         if (task.getWindowingMode() !== framework.fullscreen) api.place(task, null);
         if (task.getWindowingMode() !== framework.fullscreen) throw error('placement_changed');
+        const wanted = api.densityConfig(task, dpi);
+        if (!api.resourcesMatch(api.getOverride(task), wanted)) {
+            api.setOverride(task, wanted);
+            notify(records);
+        }
+    }
+
+    /**
+     * After [taskId] of [pkg] arrived on [displayId] (the passenger display): a system bar docked at the top that
+     * Android gives no inset for would cover the app, so the task moves into a window below it, in the mode that
+     * keeps bounds without a caption bar, at its own density. Returns {status: 'native'} when there is no such bar.
+     */
+    function placeBelowBar(taskId, pkg, user, displayId) {
+        return api.lock(() => {
+            const match = matchingTask(taskId, pkg, user, displayId);
+            if (!match) throw error('no_task');
+            const {task, records} = match;
+            const top = api.topBar(displayId);
+            if (top <= 0) return {status: 'native'};
+            const placed = placedMode();
+            if (placed !== framework.multiWindow || !task.isResizeable() || !knownMode(task)) throw error('unsupported_window');
+            const frame = rectValues(api.display(displayId).getConfiguration().windowConfiguration.value.getBounds());
+            const bounds = [frame[0], frame[1] + top, frame[2], frame[3]];
+            const dpi = api.getOverride(task).densityDpi.value;
+            try {
+                // Sizes first, as on the central display: the move to multi-window then changes only the mode.
+                api.setOverride(task, api.densityConfig(task, dpi, bounds, displayId));
+                api.place(task, toRect(bounds), placed);
+                if (task.getWindowingMode() !== placed || !sameBounds(geometry(task), bounds)) throw error('placement_changed');
+                notify(records);
+                return {status: 'applied', top};
+            } catch (failure) {
+                try {
+                    if (task.getWindowingMode() !== framework.fullscreen) api.place(task, null);
+                    api.setOverride(task, api.densityConfig(task, dpi));
+                    notify(records);
+                } catch (_) { throw error('rollback_failed'); }
+                throw failure;
+            }
+        });
     }
 
     function release(user) {
@@ -357,7 +392,7 @@ export function systemTasks(Java, sdk, panelWidth) {
     }
 
     return {
-        Rect, framework, boundsFor, apply, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf, prepareMove,
+        Rect, framework, boundsFor, apply, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf, prepareMove, placeBelowBar,
         freeformAvailable: () => api.supportsFreeform() && !api.isLocked(),
         /** After a start of home: hides the tasks that home, now on top of display 0, covers. */
         revealHome: () => api.lock(() => api.revealHome()),

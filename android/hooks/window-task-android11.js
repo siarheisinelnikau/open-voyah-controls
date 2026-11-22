@@ -9,6 +9,7 @@ export function android11Tasks(Java, framework) {
     const activity = Java.use('com.android.server.wm.ActivityRecord');
     const Stack = Java.use('com.android.server.wm.ActivityStack');
     const Rect = Java.use('android.graphics.Rect');
+    const WindowState = Java.use('com.android.server.wm.WindowState');
     const reparent = Task.reparent.overload('com.android.server.wm.ActivityStack', 'boolean', 'int', 'boolean', 'boolean', 'java.lang.String');
     const resize = Task.resize.overload('android.graphics.Rect', 'int', 'boolean');
     const getOverride = task => task.getRequestedOverrideConfiguration();
@@ -128,9 +129,10 @@ export function android11Tasks(Java, framework) {
          * are fixed exactly as Android 11 computes them for a freeform task of those bounds. A multi-window task
          * would otherwise get them like a fullscreen one: the smallest width of the display, a height less the
          * display's insets (including a navigation bar that is reserved but never shown) and app bounds cut to the
-         * display's app area. Android computes only the values that are not set.
+         * display's app area. Android computes only the values that are not set. [displayId] is the display the
+         * task is on, whose sizes limit a pinned task's.
          */
-        densityConfig(task, dpi, pinned = null) {
+        densityConfig(task, dpi, pinned = null, displayId = 0) {
             const next = framework.Configuration.$new(getOverride(task));
             next.densityDpi.value = dpi;
             for (const field of SIZES) next[field].value = 0;
@@ -139,7 +141,7 @@ export function android11Tasks(Java, framework) {
                 if (appBoundsOf(next) !== null) setAppBounds().call(windowConfiguration, null);
                 return next;
             }
-            const parent = display().getConfiguration();
+            const parent = display(displayId).getConfiguration();
             const density = Math.fround(Math.fround(dpi || parent.densityDpi.value) * Math.fround(0.00625));
             const [left, top, right, bottom] = pinned;
             const width = right - left, height = bottom - top;
@@ -156,6 +158,32 @@ export function android11Tasks(Java, framework) {
             if (SIZES.some(field => current[field].value !== wanted[field].value)) return false;
             const a = appBoundsOf(current), b = appBoundsOf(wanted);
             return a === null ? b === null : b !== null && a.every((value, index) => value === b[index]);
+        },
+        /**
+         * The bottom edge of the system windows docked at the top of [displayId] over its full width, or 0. The
+         * passenger display's clock bar (`StatusBar2` of the OEM system UI, type 2118) is such a window: Android does
+         * not count it as a status bar, so it gives apps no inset for it. Needs the global lock.
+         */
+        topBar(displayId) {
+            const content = display(displayId);
+            if (content === null) return 0;
+            const info = content.getDisplayInfo();
+            const width = info.logicalWidth.value, height = info.logicalHeight.value;
+            const windows = am.mWindowManager.value.mWindowMap.value.values().toArray();
+            let bottom = 0;
+            for (let i = 0; i < windows.length; i++) {
+                const window = Java.cast(windows[i], WindowState);
+                if (window.getDisplayId() !== displayId || window.mOwnerUid.value !== 1000 ||
+                    window.mActivityRecord.value !== null || !window.isVisibleLw()) continue;
+                const type = window.mAttrs.value.type.value;
+                if (type < 2000 || type > 2999) continue;
+                const frame = window.getFrameLw();
+                if (frame.top.value === 0 && frame.left.value <= 0 && frame.right.value >= width &&
+                    frame.bottom.value > 0 && frame.bottom.value <= height / 4) {
+                    bottom = Math.max(bottom, frame.bottom.value);
+                }
+            }
+            return bottom;
         },
         requestedBounds: task => task.getRequestedOverrideBounds(),
         isLeaf: task => task.isLeafTask(),

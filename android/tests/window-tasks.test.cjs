@@ -73,6 +73,7 @@ function harness(sdk, options = {}) {
             JSON.stringify(a.pinned ?? null) === JSON.stringify(b.pinned ?? null),
         setOverride: (_, value) => { override = value; writes++; overrides.push({mode, pinned:value.pinned ?? null}); },
         revealHome: () => { reveals++; return true; },
+        topBar: () => options.topBar ?? 0,
         multiWindowAvailable: () => {
             if (options.multiWindow instanceof Error) throw options.multiWindow;
             return options.multiWindow === true;
@@ -830,4 +831,43 @@ test('without the Android 11 members the window service still starts and says th
     assert.deepEqual(service.request('recall'), {status:'rollback_failed'});
     const android9 = livePolicy(28, harness(28, {displayId:0}));
     assert.equal(android9.moves.dependencies, null);
+});
+
+test('a window leaving the central display keeps its density and drops the sizes pinned beside the panel', () => {
+    const h = harness(30, {displayId:0, multiWindow:true});
+    assert.equal(h.agent.apply(profile, 0, 45, null, 0).status, 'applied');
+    assert.equal(h.mode(), 6);
+    assert.notEqual(h.pinned(), null);
+    h.agent.prepareMove(h.task, 'org.example.app', 0);
+    assert.equal(h.mode(), 1);
+    assert.equal(h.density(), 200, 'the app keeps its scale on the other screen');
+    assert.equal(h.pinned(), null);
+});
+
+test('on the passenger display a moved window goes below the clock bar at its own density', () => {
+    const h = harness(30, {multiWindow:true, topBar:50, dpi:200});
+    assert.deepEqual({...h.agent.placeBelowBar(45, 'org.example.app', 0, 2)}, {status:'applied', top:50});
+    assert.equal(h.mode(), 6);
+    assert.deepEqual(h.bounds(), [0, 50, 1920, 720]);
+    assert.deepEqual([...h.pinned()], [0, 50, 1920, 720]);
+    assert.equal(h.density(), 200);
+
+    assert.deepEqual({...harness(30, {multiWindow:true, dpi:200}).agent.placeBelowBar(45, 'org.example.app', 0, 2)},
+        {status:'native'});
+    const freeformOnly = harness(30, {topBar:50, dpi:200});
+    assert.throws(() => freeformOnly.agent.placeBelowBar(45, 'org.example.app', 0, 2), {code:'unsupported_window'});
+    assert.equal(freeformOnly.mode(), 1);
+});
+
+test('a window arriving on the passenger display keeps its density unless a passenger default is set', () => {
+    const h = harness(30, {displayId:0});
+    const service = livePolicy(30, h);
+    service.setProfiles(documentWith([], {displayMove:{fingers:3}}));
+    service.tick();
+    const placed = service.moves.dependencies.placed;
+    placed(profile.component, 0, 45, 1);
+    assert.equal(service.queue.length, 1, 'only the placement below the bar is queued');
+    service.queue.length = 0;
+    placed(profile.component, 0, 45, 6);
+    assert.equal(service.queue.length, 0, 'nothing is changed on the cluster');
 });

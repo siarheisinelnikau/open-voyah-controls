@@ -279,8 +279,18 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         prepare: (task, info) => tasks.prepareMove(task, componentKey(info.component).split('/')[0], info.user),
         placed: (component, user, taskId, displayId) => {
             const key = componentKey(component);
-            if (key && !released) applyAfterLaunch({key, user, edge:0, caller:CONTROLS, fromHome:false, display:displayId},
-                taskId, null, displayId);
+            if (!key || released) return;
+            // The app keeps the density it had. Only a reviewed passenger default replaces it there.
+            if (displayId === 0 || config?.displayDpi?.secondary != null) {
+                applyAfterLaunch({key, user, edge:0, caller:CONTROLS, fromHome:false, display:displayId}, taskId, null, displayId);
+            }
+            if (displayId !== 0 && displayId === (config?.passengerDisplayId ?? 1)) {
+                setTimeout(() => Java.perform(() => {
+                    if (released) return;
+                    try { tasks.placeBelowBar(taskId, key.split('/')[0], user, displayId); }
+                    catch (error) { if (error?.code !== 'no_task') reportError('move_place', error); }
+                }), 0);
+            }
         },
         schedule: work => setTimeout(() => Java.perform(work), 0),
         report: (phase, error) => reportError(phase, error),
