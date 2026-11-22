@@ -114,15 +114,24 @@ The Android SDK version and product name describe candidate firmware branches. O
 
 ## Text translation
 
-Select English or Russian in **Firmware and OEM profiles** and reopen the relevant vehicle screens. The built-in dictionaries cover common labels in the launcher, settings, vehicle controls, and Bluetooth phone. A custom JSON dictionary can contain up to 1,000 entries and 48 KB. The optional `products` list limits the dictionary to specified product identifiers.
+Select Russian or English in **Firmware and OEM profiles**. The app restarts the reviewed agents, and the factory screens change within a second; reopen a screen that was already open if a label stays unchanged. Translation is off until a language is chosen.
+
+The built-in dictionaries live in `android/hooks/localization/{ru,en}.json` and are bundled into the localization agent, so the published setting only names the chosen one (`"preset": "ru"`). They cover the launcher (home, cards, all-apps page), the pull-down panels (`com.qinggan.app.hiboard`), Settings, Vehicle and the Bluetooth phone: about 2,500 short labels and templates. Keys are the exact texts the overseas firmware shows: its English defaults and the Chinese strings it never translated. The Russian dictionary translates both; the English one only replaces the remaining Chinese. Templates with placeholders (`%1$s connected`) are translated too: the agent also hooks `Resources.getText`, which `getString` uses before the app formats the text, so the template is replaced and the app fills in its values. A template's translation keeps exactly the same format specifiers in the same order (the preset test enforces it). Excluded on purpose: texts longer than 80 characters, texts with a bare `%` that are not templates, brand and product names, units, values, codes and identifiers.
+
+The scope follows the strings that the previous tweak tool's resource overlays covered for these packages. Only the resource names were used to pick source strings from the factory APKs; every translation was written for this project.
+
+Each package is translated only by its own agent: the launcher's main agent, and one `localization.bundle.js` worker each for `com.qinggan.app.setting`, `com.qinggan.app.vehicle`, `com.qinggan.bluetoothphone` and `com.qinggan.app.hiboard` (channels `locale-setting`, `locale-vehicle`, `locale-bluetooth`, `locale-hiboard`). A worker is staged only while translation is on and its package is pinned in the reviewed firmware catalog (`verified-firmware.tsv`, or the local-vehicle review for an owner's build). A replacement is a single exact lookup in a per-package table, built once when the setting changes. The hooks are `TextView.setText`, `TextView.setHint`, `TypedArray.getText` and `Resources.getText`; text drawn directly on a canvas is not translated. Like a resource overlay, a translated resource string also changes in code that uses it as data, so dictionary keys are user-visible labels only.
+
+A custom JSON dictionary can name a preset and add or override entries on top of it, up to 1,000 entries and 48 KB. Without `preset` it replaces only its own entries. The optional `products` list limits the dictionary to specified product identifiers.
 
 ```json
 {
   "schema": 1,
   "enabled": true,
-  "products": ["f0506h"],
+  "preset": "ru",
+  "products": ["f6802h"],
   "packages": {
-    "com.qinggan.app.launcher": {"设置": "Settings"}
+    "com.qinggan.app.launcher": {"Video": "Кино"}
   }
 }
 ```

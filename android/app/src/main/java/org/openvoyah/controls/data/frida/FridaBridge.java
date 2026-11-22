@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.openvoyah.controls.BuildConfig;
@@ -42,7 +43,7 @@ public final class FridaBridge {
     private static final String WINDOW_STRIP_ATTEMPT = "windowSystemInsetsAttempt";
     private static final String WINDOW_STRIP_READY = "^OVC_WINDOW_READY protocol=3 .*systemInsets=1( |$)";
     private static final String FIXTURE_BASE = "/data/local/tmp/open-voyah-controls";
-    private static final String[] CHANNELS = {"", "/locale-setting", "/locale-vehicle", "/locale-bluetooth", "/window", "/navigation", "/can"};
+    private static final String[] CHANNELS = {"", "/locale-setting", "/locale-vehicle", "/locale-bluetooth", "/locale-hiboard", "/window", "/navigation", "/can"};
     private static final String FIXTURE_INJECTOR = "/data/local/tmp/open-voyah-controls-frida-17.26.2";
     private static final Object IO_LOCK = new Object();
     private static final java.util.concurrent.ExecutorService UPDATES = java.util.concurrent.Executors.newSingleThreadExecutor();
@@ -108,7 +109,11 @@ public final class FridaBridge {
     }
     public static String config(SettingsStore.State state) {
         try {
+            // Packages whose panel icon is the foreground of their adaptive icon, without its background plate.
+            JSONArray foregroundIcons = new JSONArray();
+            if (state.plainNavigatorIcon) foregroundIcons.put(SettingsStore.YANDEX_NAVIGATOR);
             return new JSONObject().put("schema", 1).put("enabled", state.panelEnabled).put("actions", hookActions(state.panelActions))
+                .put("foregroundIcons", foregroundIcons)
                 .put("steeringEnabled", state.enabled).put("steering", hookActions(state.steeringActions))
                 .put("steeringHoldMs", state.holdMs).put("steeringDebounceMs", state.debounceMs).toString();
         } catch (JSONException ex) { throw new IllegalArgumentException(ex); }

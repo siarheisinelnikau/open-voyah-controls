@@ -214,6 +214,19 @@ public class SettingsStoreTest extends AndroidTestCase {
         assertEquals(2, config.getJSONObject("actions").length());
         assertEquals(1, config.getJSONObject("steering").length());
     }
+    public void testYandexNavigatorPanelIconIsPlainUnlessTurnedOff() throws Exception {
+        assertTrue(new SettingsStore.State().plainNavigatorIcon);
+        String old = "{\"schema\":1,\"enabled\":true,\"holdMs\":650,\"debounceMs\":100,\"bindings\":[]}";
+        assertTrue(SettingsStore.decode(old).plainNavigatorIcon);
+        JSONObject config = new JSONObject(FridaBridge.config(new SettingsStore.State()));
+        assertEquals(1, config.getJSONArray("foregroundIcons").length());
+        assertEquals("ru.yandex.yandexnavi", config.getJSONArray("foregroundIcons").getString(0));
+        SettingsStore.State state = sample(); state.plainNavigatorIcon = false;
+        store.save(state);
+        SettingsStore.State loaded = new SettingsStore(getContext()).load();
+        assertFalse(loaded.plainNavigatorIcon);
+        assertEquals(0, new JSONObject(FridaBridge.config(loaded)).getJSONArray("foregroundIcons").length());
+    }
     public void testDisabledConfigAndResetRemoveCustomActions() throws Exception {
         store.save(sample()); store.save(new SettingsStore.State());
         JSONObject config = new JSONObject(FridaBridge.config(store.load()));

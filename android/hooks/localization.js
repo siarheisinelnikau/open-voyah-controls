@@ -1,22 +1,43 @@
 // Replace exact dictionary matches in Android text rendering.
 // Translations are independent data; no vendor payload or license code is loaded.
 import { createReporter } from './report.js';
+import ru from './localization/ru.json';
+import en from './localization/en.json';
 
 const KEY = 'org.openvoyah.controls.localization';
+// Built-in dictionaries travel inside the agent; the setting only names one, so it stays small.
+const PRESETS = { ru, en };
 
-function tableFor(config, packageName, product) {
-    if (!config || config.schema !== 1 || config.enabled !== true) return null;
-    if (config.products?.length && !config.products.includes(product)) return null;
-    return config.packages?.[packageName] || null;
+function applies(config, product) {
+    return !!config && config.schema === 1 && config.enabled === true
+        && !(config.products?.length && !config.products.includes(product));
+}
+
+function add(table, entries) {
+    if (!entries || typeof entries !== 'object') return;
+    for (const source of Object.keys(entries)) {
+        if (typeof entries[source] === 'string') table.set(source, entries[source]);
+    }
+}
+
+/** One exact-match table for this package: the named preset, then the custom entries over it. Null when off. */
+export function tableFor(config, packageName, product, presets = PRESETS) {
+    if (!applies(config, product)) return null;
+    const table = new Map();
+    const preset = typeof config.preset === 'string' && Object.prototype.hasOwnProperty.call(presets, config.preset)
+        ? presets[config.preset] : null;
+    add(table, preset?.packages?.[packageName]);
+    add(table, config.packages?.[packageName]);
+    return table.size ? table : null;
 }
 
 function lookup(table, source) {
-    return table && Object.prototype.hasOwnProperty.call(table, source) && typeof table[source] === 'string'
-        ? table[source] : source;
+    const value = table?.get(source);
+    return value === undefined ? source : value;
 }
 
-export function translated(config, packageName, product, source) {
-    return typeof source === 'string' ? lookup(tableFor(config, packageName, product), source) : source;
+export function translated(config, packageName, product, source, presets = PRESETS) {
+    return typeof source === 'string' ? lookup(tableFor(config, packageName, product, presets), source) : source;
 }
 
 export function installLocalization(Java, report = createReporter('OVC_LOCALIZATION_ERROR')) {
@@ -72,6 +93,11 @@ export function installLocalization(Java, report = createReporter('OVC_LOCALIZAT
             const typed = Java.use('android.content.res.TypedArray').getText.overload('int');
             typed.implementation = function(index) { return convert(typed.call(this, index)); };
             installed.push(typed);
+            // getString and getString(id, args) read through getText(int), so a template such as "%1$s connected" is
+            // translated before the app formats it, and the formatted text needs no entry of its own.
+            const resource = Java.use('android.content.res.Resources').getText.overload('int');
+            resource.implementation = function(id) { return convert(resource.call(this, id)); };
+            installed.push(resource);
             // Refresh text already visible when attaching to a running process.
             Java.choose('android.widget.TextView', {
                 onMatch(view) {

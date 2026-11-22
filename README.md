@@ -5,7 +5,7 @@ Open Voyah Controls is an Android app for Voyah head units. It opens directly to
 ## Projects
 
 - [Android](android/README.md) — source, build instructions, and feature guides.
-- [Windows installer](installer/README.md) — USB and Wi-Fi setup, APK installation, head unit maintenance, and diagnostics.
+- [Windows installer](installer/README.md) — USB and Wi-Fi setup, APK installation, head unit maintenance, and diagnostics. [How Prepare and install works](installer/README.md#how-prepare-and-install-works) shows each setup step and what it writes where.
 
 ## Screenshots
 
@@ -17,7 +17,7 @@ Screenshots are from Android emulators. See [Head unit qualification and recover
 
 ## Android structure
 
-Normal screens share `MainActivity` with Compose destinations and ViewModels exposing StateFlow. `core` owns portable rules and ports; app data adapters own persistence and Frida, while platform adapters handle Android permissions and external services. The voice popup and first-run/installer handshake use their own permission-protected Activities. See [Compose routes and motion](android/docs/COMPOSE_UI.md).
+Normal screens share `MainActivity` with Compose destinations and ViewModels exposing StateFlow. `core` owns portable rules and ports; app data adapters own persistence and Frida, while platform adapters handle Android permissions and external services. The voice popup and first-run/installer handshake use their own permission-protected Activities. See [Compose routes and motion](android/docs/COMPOSE_UI.md). The diagram in [Where Frida runs](android/README.md#where-frida-runs) shows the root channel, the injector and the injected processes.
 
 Choose **Driver 1**, **Driver 2**, or **Driver 3** to open the corresponding seat and mirror memory workflow. See the [driver memory guide](android/docs/DRIVER_MEMORY.md).
 

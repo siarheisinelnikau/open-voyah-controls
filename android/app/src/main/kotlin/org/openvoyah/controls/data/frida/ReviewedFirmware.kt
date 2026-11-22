@@ -28,6 +28,7 @@ internal object ReviewedFirmware {
         "setting" to "com.qinggan.app.setting",
         "vehicle" to "com.qinggan.app.vehicle",
         "bluetooth" to "com.qinggan.bluetoothphone",
+        "hiboard" to "com.qinggan.app.hiboard",
     )
     private val packages = setOf(LAUNCHER, FRAMEWORK, CLUSTER, CAN_SERVICE, LOGIN) + localizationTargets.values
     private val operations = setOf(WINDOW_SERVICE, PASSENGER_WINDOW_DPI, OEM_PROFILES, TBOX_REBOOT, CLUSTER_WRITE, CAN_STEERING, CAN_STEERING_EDGES)

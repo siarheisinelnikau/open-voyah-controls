@@ -19,7 +19,16 @@ The head unit has no Google Play and no Google services, so the official YouTube
 - **DPI profiles.** The WebView takes its pixel ratio from the display and ignores the density a DPI profile gives the window. The wrapper therefore lays the page out at 1/scale of the window and draws it scale times larger, where scale is the profile's DPI over the display's. With a 240 DPI profile on the 160 DPI central screen, a 1920 px window gets a 1280 CSS px page at 1.5×, the layout YouTube picks for a 240 DPI screen. Text stays sharp and touches land where they are drawn. Without a profile the page uses the display's own scale, which is small on a 160 DPI screen, so give YouTube a DPI profile such as 240 in **App settings**.
 - **Links.** YouTube and the Google sign-in pages stay in the wrapper. Other sites open in the head unit's browser. Play Store, `intent:` and YouTube-app links are ignored.
 - **Signing in** goes through Google's own pages in the wrapper. The user agent drops the WebView markers (`; wv`, `Version/4.0`) so the site treats the wrapper as the Chrome build it runs on. Google can still refuse to sign in from an embedded view; YouTube then works signed out.
-- **Connection loss** shows a retry screen instead of the WebView's error page. A crashed WebView renderer is replaced with a fresh page instead of closing the app.
+- **Status instead of a black window.** Until the page shows its first content, a spinner says that YouTube is loading and which WebView version runs it; after 10 s it adds that the page is still on its way. Whenever the page cannot appear, the screen names the reason with the WebView version and a **Try again** button:
+  - no WebView provider, or creating the WebView failed;
+  - a WebView older than version 80, with **Open anyway** instead of **Try again**;
+  - no network with internet access;
+  - YouTube not reachable on a working network, with the WebView's error such as `net::ERR_CONNECTION_RESET`;
+  - an HTTP error for the page, or a refused certificate;
+  - the renderer crashed or Android ended it for memory;
+  - no first content within 30 s, as on a network that silently drops or slowly resets YouTube connections;
+  - a page that loaded but drew nothing 15 s later, with the first script error, as on an engine YouTube's scripts do not run on.
+  Each failure is logged once under the `OvcYouTube` tag as `page_failed problem=… webview=… detail=…`, with the detail cut to one line of 160 characters and never a page address.
 - **Driving.** Controls has no policy that stops video while the vehicle moves, and the wrapper adds none. Whether the firmware restricts video while driving has not been recorded yet.
 
 ## Build and install

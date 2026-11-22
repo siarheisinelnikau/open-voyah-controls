@@ -120,6 +120,14 @@ The [OEM account-record recovery limits](docs/ACCOUNT_RECOVERY.md) describe acco
 
 Use **Export app settings** to save button assignments, voice options and contacts, display settings, app window profiles, desktops and named layouts, appearance, reminders, quick actions, routines and vehicle preferences in one file. Vehicle routine settings, seasonal presets and conditional rules are included. **Import app settings** validates the file before applying it and accepts earlier full or button-only exports. Preferences introduced after the file was created keep their current values. If a restore is interrupted, the app restores the previous local settings at the next start. The vehicle stores seat and mirror positions. Confirmed lamp and actual driving-mode history stays in private local storage; an import never becomes vehicle telemetry. See the [saved settings inventory](docs/SETTINGS.md).
 
+## Where Frida runs
+
+Controls itself is an ordinary app and never runs as root. A one-time setup from the PC adds two guarded entries to the OEM boot script, which already runs as root. One starts the authenticated local channel on `127.0.0.1:2323`, the other starts the reviewed boot worker. Through that channel the app deploys the bundled agents and the pinned Frida injector to `/data/adb/open-voyah-controls`. One supervisor per target waits for its process and runs the injector as root. The injector loads the JavaScript agent into the launcher or `system_server`, where it runs with that process's identity and permissions.
+
+There is no Frida server. The app reaches the agents only through `Settings.Global` keys, and reads their replies from the `hook.log` lines through the same channel. Dashed boxes are optional targets, deployed only for reviewed packages. See [JavaScript agents and the root boundary](docs/FRIDA_AGENTS.md) and [injection targets](docs/INJECTION_MAP.md).
+
+![Where Frida runs: the PC prepares the head unit once, the OEM boot script starts the root channel and the supervisor, and the Frida injector loads agents into the launcher and system_server](docs/diagrams/frida-architecture.svg)
+
 ## Code layout
 
 The existing Gradle modules contain logical MVVM and Clean Architecture layers. `youtube-web` is a separate app with no dependency on the others. `core` owns Android-free command rules, button timing, typed display events and ports. Within `app`, presentation ViewModels expose immutable StateFlow state, data adapters own preferences, document serialization and Frida gateways, and platform adapters handle Android intents, permissions, media, input, audio and job events.

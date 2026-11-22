@@ -6,4 +6,5 @@
     <string name="panel_passenger_home">Домой · пассажир</string>
     <string name="panel_passenger_apps">Все приложения · пассажир</string>
     <string name="panel_passenger_seat">Сиденье · пассажир</string>
+    <string name="panel_plain_navigator_icon">Значок Яндекс Навигатора на панели без белого фона</string>
 </resources>

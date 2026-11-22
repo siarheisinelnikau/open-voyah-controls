@@ -26,12 +26,16 @@ public final class SettingsStore {
     public static boolean isDefaultSteering(String slot, Action action) {
         return DEFAULT_STEERING_SLOT.equals(slot) && action.kind == Action.Kind.START_VOICE;
     }
+    /** Its launcher icon is a yellow arrow on a white plate; the panel can show the arrow alone. */
+    public static final String YANDEX_NAVIGATOR = "ru.yandex.yandexnavi";
     public static final class State {
         public boolean enabled = true;
         public int holdMs = 650;
         public int debounceMs = 100;
         public final List<Binding> bindings = new ArrayList<>();
         public boolean panelEnabled = false;
+        /** Draw Yandex Navigator on the panel without the white plate of its launcher icon. On unless turned off. */
+        public boolean plainNavigatorIcon = true;
         public final java.util.Map<String, Action> panelActions = new java.util.LinkedHashMap<>();
         public final java.util.Map<String, Action> steeringActions = new java.util.LinkedHashMap<>();
         public State() {
@@ -65,6 +69,7 @@ public final class SettingsStore {
         state.holdMs = root.getInt("holdMs");
         state.debounceMs = root.getInt("debounceMs");
         state.panelEnabled = root.optBoolean("panelEnabled", false);
+        state.plainNavigatorIcon = root.optBoolean("plainNavigatorIcon", true);
         JSONObject panel = root.optJSONObject("panelActions");
         if (panel != null) {
             java.util.Iterator<String> slots = panel.keys();
@@ -118,6 +123,6 @@ public final class SettingsStore {
             .put("keyCode", b.keyCode).put("enabled", b.enabled).put("short", action(b.shortPress)).put("long", action(b.longPress)));
         return new JSONObject().put("schema", SCHEMA).put("enabled", state.enabled).put("holdMs", state.holdMs)
             .put("debounceMs", state.debounceMs).put("bindings", rows).put("panelEnabled", state.panelEnabled)
-            .put("panelActions", panel).put("steeringActions", steering).toString(2);
+            .put("plainNavigatorIcon", state.plainNavigatorIcon).put("panelActions", panel).put("steeringActions", steering).toString(2);
     }
 }

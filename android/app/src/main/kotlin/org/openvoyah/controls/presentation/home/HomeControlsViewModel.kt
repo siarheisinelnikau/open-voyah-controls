@@ -19,6 +19,7 @@ interface HomeActions {
     fun command(command: HomeCommand)
     fun buttonsEnabled(enabled: Boolean)
     fun panelEnabled(enabled: Boolean)
+    fun plainNavigatorIcon(enabled: Boolean)
     fun choosePanel(slot: String)
     fun editBinding(id: String)
 }
@@ -30,7 +31,8 @@ interface HomeActions {
 @Immutable
 internal data class HomeControlsState(
     val available: Boolean = false, val error: String? = null, val health: String = "",
-    val buttonsEnabled: Boolean = false, val panelEnabled: Boolean = false, val connected: Boolean = false,
+    val buttonsEnabled: Boolean = false, val panelEnabled: Boolean = false, val plainNavigatorIcon: Boolean = true,
+    val connected: Boolean = false,
     val holdMs: Int = 650, val debounceMs: Int = 100, val steeringSupported: Boolean = false,
     val panels: List<PanelRow> = emptyList(), val bindings: List<BindingRow> = emptyList(),
     val steering: List<SteeringRow> = emptyList(), val busy: Boolean = false, val notices: List<HomeNotice> = emptyList(),
@@ -76,6 +78,7 @@ internal class HomeControlsViewModel(
     fun panelEnabled(enabled: Boolean) {
         if (change { it.panelEnabled = enabled } && !panel.configured()) error(UiText.get(R.string.ui_70))
     }
+    fun plainNavigatorIcon(enabled: Boolean) = change { it.plainNavigatorIcon = enabled }
     fun choosePanel(slot: String, action: Action) {
         if (slot !in PanelSlots.forProduct(product)) return
         if (change {
@@ -153,6 +156,7 @@ internal class HomeControlsViewModel(
             it.holdMs = source.holdMs
             it.debounceMs = source.debounceMs
             it.panelEnabled = source.panelEnabled
+            it.plainNavigatorIcon = source.plainNavigatorIcon
             it.bindings.clear()
             it.bindings.addAll(source.bindings)
             it.panelActions.clear()
@@ -202,7 +206,8 @@ internal class HomeControlsViewModel(
                 homeActionLabel(settings.steeringActions[slot] ?: Action.NONE))
         }
         current.value = current.value.copy(available = true, error = null, health = panel.health(),
-            buttonsEnabled = settings.enabled, panelEnabled = settings.panelEnabled, connected = connected(),
+            buttonsEnabled = settings.enabled, panelEnabled = settings.panelEnabled,
+            plainNavigatorIcon = settings.plainNavigatorIcon, connected = connected(),
             holdMs = settings.holdMs, debounceMs = settings.debounceMs, steeringSupported = sdk in listOf(28, 30),
             panels = panels, bindings = bindings, steering = steering)
     }

@@ -24,6 +24,8 @@ internal fun HomeButtons(state: HomeControlsState, actions: HomeActions) {
     CockpitSection(UiText.get(R.string.ui_67), CockpitIcon.BUTTONS, UiText.get(R.string.ui_68)) {
         CockpitFeedback(state.health)
         CockpitSwitch(UiText.get(R.string.ui_69), state.panelEnabled, change = actions::panelEnabled)
+        CockpitSwitch(UiText.get(R.string.panel_plain_navigator_icon), state.plainNavigatorIcon,
+            change = actions::plainNavigatorIcon)
         state.panels.forEach { row -> key(row.slot) {
             CockpitChoice(row.title, row.action) { actions.choosePanel(row.slot) }
         } }

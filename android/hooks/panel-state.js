@@ -147,7 +147,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
                         if (!view.isLongClickable()) throw Error('Could not enable the assigned hold action');
                     }
                     let drawable;
-                    try { drawable = drawIcon?.(view, manager, info); }
+                    try { drawable = drawIcon?.(view, manager, info, config); }
                     catch (error) { report('icon', error, {slot}); }
                     if (drawable) {
                         const original = view.getBackground();
@@ -218,7 +218,8 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         const valid = config?.schema === 1;
         const token = valid && config.enabled === false && /^[0-9a-f]{32}$/.test(config.restoreIcons)
             ? config.restoreIcons : '';
-        const assignments = valid && config.enabled === true ? config.actions : null;
+        // Icon choices redraw the panel like assignments do.
+        const assignments = valid && config.enabled === true ? [config.actions, config.foregroundIcons ?? null] : null;
         return {key: JSON.stringify([assignments, token]), token};
     }
 

@@ -22,13 +22,14 @@ case "$channel" in
     setting) package=com.qinggan.app.setting; relative=locale-setting/launcher-buttons.js ;;
     vehicle) package=com.qinggan.app.vehicle; relative=locale-vehicle/launcher-buttons.js ;;
     bluetooth) package=com.qinggan.bluetoothphone; relative=locale-bluetooth/launcher-buttons.js ;;
+    hiboard) package=com.qinggan.app.hiboard; relative=locale-hiboard/launcher-buttons.js ;;
     window) package=android; relative=window/launcher-buttons.js; pattern='^OVC_WINDOW_READY protocol=3 ' ;;
     navigation) package=com.qinggan.cluster; relative=navigation/launcher-buttons.js; pattern='^OVC_NAVIGATION_READY' ;;
     can) package=com.qinggan.canbus.service; relative=can/launcher-buttons.js; pattern='^OVC_CAN_READY protocol=2 terminal edges ' ;;
     --verify-boot|--visual-session-state|--visual-session-clear-restored|--visual-session-clear-changed) ;;
     *) exit 2 ;;
 esac
-case "$channel" in setting|vehicle|bluetooth) pattern='^OVC_LOCALIZATION_READY';; esac
+case "$channel" in setting|vehicle|bluetooth|hiboard) pattern='^OVC_LOCALIZATION_READY';; esac
 target=$package
 if [ "$channel" = window ]; then target=system_server; fi
 script="$root/$relative"
@@ -127,6 +128,7 @@ reviewed_receipt() {
                 case "$2" in
                     boot-start.sh|supervise.sh|open-voyah-controls-frida-17.26.2|launcher-buttons.js|\
                     locale-setting/launcher-buttons.js|locale-vehicle/launcher-buttons.js|locale-bluetooth/launcher-buttons.js|\
+                    locale-hiboard/launcher-buttons.js|\
                     window/launcher-buttons.js|navigation/launcher-buttons.js|can/launcher-buttons.js) ;;
                     *) return 1;;
                 esac
@@ -272,7 +274,7 @@ revoke_activation() {
     done
     recovery_recorded=1
     # Close every known channel only after durable recovery evidence exists.
-    for suffix in '' /locale-setting /locale-vehicle /locale-bluetooth /window /navigation /can; do
+    for suffix in '' /locale-setting /locale-vehicle /locale-bluetooth /locale-hiboard /window /navigation /can; do
         recovery_dir="$root$suffix"
         if [ -e "$recovery_dir" ] || [ -L "$recovery_dir" ]; then
             private_dir "$recovery_dir" && rm -f "$recovery_dir/enabled" || return 1
