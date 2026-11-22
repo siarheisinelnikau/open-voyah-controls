@@ -43,6 +43,17 @@ The process-by-process scope and button mappings are listed in [Injection target
 
 The boot and supervisor files ending in `.sh` are shell scripts. They verify the deployment, wait for the right process, start the corresponding agent and monitor its readiness. Each optional agent has its own process/package checks and recovery. Frida execution in a fixture proves the adapter can run; exact OEM compatibility and physical behavior still require vehicle qualification.
 
+## Target crashes, restarts and revocation
+
+A crash or restart of a target process is not a change of the deployment. `supervise.sh` handles it in place, without the PC:
+
+- **Re-attach.** When the target (or `system_server`, Android's framework) restarts after the agent ran healthy for 20 s, the worker logs `OVC_WORKER_NOTICE Target restarted; attaching again restart=<n>.` and attaches to the new process after 3 s × n (at most 30 s). These restarts have their own budget of 10 per boot (`restart.boot`, `restart.count`), reset after 10 minutes of healthy running, so a few crashes of the OEM launcher do not end the retries; more than 10 log `Target restarted too often this boot.` and the channel pauses until the next boot. A translation app that closes after a healthy run is waited for without any budget, as before. A target that dies within 20 s of attachment, or an agent that never confirms readiness, still uses the retry budget (5 tries, 3 for the window channel), because the agent may be the cause. A target that restarts between the deployment check and the attachment is looked up again instead of ending the worker.
+- **Visuals.** A process that died or restarted has its original views and code again, so its `visual.session` reads `changed` and is retired. A target that is exiting can fail a read of `/proc` for a moment; the supervisor looks again for up to 2 s before it calls the state `uncertain`. Only a target that still runs while its agent stopped without confirming restoration revokes, with `reason=visual`.
+- **Stuck injector.** An injector whose target died can hang with its command line already gone. After 5 s the worker ends it when PID, start time, root owner and executable all still match the child it started (`own_injector`), instead of stopping the channel with `Injector did not stop`.
+- **No revocation on one failed query.** Every check that can revoke (`check_runtime`, the app lifetime, the deployment file identities, the installed package paths, the receipt) runs again until it passes or has failed three times, 3 s apart. A package manager that does not answer reads as "unknown, wait", never as an uninstalled app. On boot 211 (2026-11-22) one such sample in the hiboard translation worker, 30 s after boot, logged `App activation lifetime changed.` and revoked the whole deployment while every file and the key were unchanged; the launcher crash 25 s later (an OEM `AppLauncher` NPE) came after that revocation, not before it.
+
+A real revocation still happens for a replaced APK, Frida runtime, agent or script, a reinstalled app or new key, another Android user, a changed receipt and a visual state that cannot be proved original. It writes `recovery.reason` before the markers: `<boot id> <cause> <channels>`, for example `67b9… lifetime main,locale-hiboard,window`. The cause is one of `lifetime`, `deployment`, `package`, `runtime`, `receipt`, `visual`, `user`; the channels are the ones that were enabled. The first worker to revoke in a boot names the cause. `worker.log` gets `OVC_WORKER_NOTICE Activation revoked reason=<cause>.` See [recovery without the PC](PRODUCTION.md#recovery-without-the-pc) for how Controls lifts a revocation by itself.
+
 ## Agent error lines
 
 Every agent reports a failure through `hooks/report.js` as one line in its worker's `hook.log`:
@@ -57,7 +68,7 @@ OVC_STEERING_ERROR stage=launch kind=ActivityNotFoundException key=voice gesture
 | `OVC_PANEL_ERROR` | Panel buttons, both launcher adapters | `install`, `rollback`, `click`, `hold`, `selection`, `restore`, `home_card`, `home_weather` |
 | `OVC_PANEL_ICONS_ERROR` | Panel icons and selection state | `theme`, `track`, `refresh`, `icon`, `apply`, `selection`, `restore`, `release` |
 | `OVC_HOME_CARD_ERROR` | Home navigation card | `install`, `rollback`, `track`, `orphan`, `resolve`, `widget`, `refresh`, `apply`, `restore`, `render`, `large_icon`, `remote_views`, `notifications`, `touch`, `tap`, `open`, `onResume`, `onAttachedToWindow`, `doScreenLift` |
-| `OVC_HOME_WEATHER_ERROR` | Home weather card | `install`, `rollback`, `track`, `update`, `show`, `restore`, `refresh` |
+| `OVC_HOME_WEATHER_ERROR` | Home weather card | `install`, `rollback`, `track`, `update`, `show`, `air`, `restore`, `refresh` |
 | `OVC_STEERING_ERROR` | Steering keys in the launcher | `config`, `event`, `launch`, `restore` |
 | `OVC_CAN_ERROR` | Steering keys in the CAN service | the install phase (`process`, `constants`, `callback`, `launcher`, `install`), `route`, `gesture` |
 | `OVC_LOCALIZATION_ERROR` | Interface translation | `install`, `settings`, `config`, `convert`, `refresh`, `resource_text`, `attach_text`, `format` |
@@ -74,19 +85,20 @@ The launcher agent decides whether to open the startup intro. Its 30-second wind
 
 | Line | Meaning |
 | --- | --- |
-| `outcome=requested` | The boot was recorded and `LaunchBrandActivity` was started. The app's diagnostic journal then shows `event=launch_brand` as `shown` or `skipped` with its reason, and after a shown intro one `played`, `closed` or `interrupted` line with its frame timing. |
+| `outcome=requested` | The boot was recorded and `LaunchBrandActivity` was started. The app's diagnostic journal then shows `event=launch_brand` as `shown` or `skipped` with its reason (the app skips with `setup_active` too, when a setup page opened or a first-run check runs), and after a shown intro one `played`, `closed` or `interrupted` line with its frame timing. |
 | `outcome=skipped reason=requested_this_boot` | The intro was already requested in this Android boot (`boot_count`). This line appears when the agent attaches again later in the same boot. |
 | `outcome=skipped reason=animators_disabled` | The system animator scale is zero. |
 | `outcome=skipped reason=other_home` | Android resolves home to a different launcher package. |
 | `outcome=skipped reason=boot_count` | Android does not report `boot_count`. |
 | `outcome=skipped reason=no_panel_button` | The window closed before an assigned button was enabled and owned on the central display's panel. |
 | `outcome=skipped reason=panel_hidden` | The window closed while the assigned button was not shown on display 0. |
+| `outcome=skipped reason=setup_active` | The window closed while Controls' setup page (`SetupActivity`) still had a task, even one behind home. Starting the intro's task would make Android drop that hidden task, and with it the page an installer probe waits for. A provisioning boot usually ends with this line. |
 | `outcome=skipped reason=home_missing` / `home_unfocused` | The window closed while the factory home activity did not exist, or another window covered it or held focus on display 0. |
 | `outcome=failed kind=<code>` / `outcome=unavailable kind=<code>` | Saving the boot record or starting the activity failed, or the agent could not read the launcher state. |
 
 Expect the intro well after the factory home appears. On the reviewed head unit (boot 196, 2026-11-21) home was focused 20 s after boot, the supervisor attached the launcher agent at 37 s, and the agent requested the intro 1 s later. In boot 205 (2026-11-22) the request came 42 s after boot, Controls took 3.7 s to start cold, and the same process spent 6.7 s preparing the speech model while the intro ran, which made it stutter; the load average stays around 13 on this unit even when idle, so it is no measure of a quiet system. The intro therefore starts invisibly, keeps home on screen while the process starts, waits for steady frames and holds back the app's own start-up work; see [Compose UI](COMPOSE_UI.md). The agent is the only thing that requests the intro, once per `boot_count`; `hook.log` is emptied at each attachment, so a provisioning boot's `home_unfocused` line is gone after the next boot. To confirm that it was on screen, read the `wm_on_resume_called` and `wm_finish_activity` lines for `LaunchBrandActivity` in `logcat -b events` and the `played` line in the journal.
 
-The intro can only appear after a boot in which the boot entry actually started the launcher agent. The supervisor treats a replaced Controls APK, Frida runtime or deployment file as a change of the reviewed deployment. When it sees one, it stops its agents and writes `recovery.blocked` and `recovery.visual-pending`, then removes every channel's `enabled` flag. From the next boot on, the boot entry starts nothing until the unit is rearmed from the PC and the app activates a new deployment. Installing a rebuilt APK over ADB has this effect too.
+The intro can only appear after a boot in which the boot entry actually started the launcher agent. The supervisor treats a replaced Controls APK, Frida runtime or deployment file as a change of the reviewed deployment. When it sees one, it stops its agents and writes `recovery.blocked` and `recovery.visual-pending`, then removes every channel's `enabled` flag. From the next boot on, the boot entry starts nothing until the deployment is re-armed: by Controls itself after a reboot when the sealed files still verify, or from the PC after a real change (see [target crashes, restarts and revocation](#target-crashes-restarts-and-revocation)). Installing a rebuilt APK over ADB is a real change and still needs the PC.
 
 ## Home navigation card
 

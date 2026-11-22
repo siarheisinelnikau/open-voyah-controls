@@ -8,7 +8,8 @@ const source = ['report.js', 'startup-brand.js'].map(name => fs.readFileSync(__d
 
 function fixture() {
     const state = {boot: 7, saved: -1, clock: 0, focused: false, enabled: true, savedSuccessfully: true,
-        homes: 1, homePackage: 'com.example.launcher', launches: [], logs: []};
+        homes: 1, homePackage: 'com.example.launcher', tasks: [], launches: [], logs: []};
+    const component = name => name && {getPackageName: () => name.split('/')[0], getClassName: () => name.split('/')[1]};
     const view = (screen, shown = true) => ({
         isAttachedToWindow: () => true, isShown: () => shown, getWindowVisibility: () => 0,
         getDisplay: () => ({getDisplayId: () => screen})
@@ -20,6 +21,12 @@ function fixture() {
     };
     const launcher = {
         getContentResolver: () => ({}), getPackageName: () => 'com.example.launcher',
+        getSystemService: name => {
+            assert.equal(name, 'activity');
+            return {getRunningTasks: () => ({size: () => state.tasks.length, get: i => ({
+                baseActivity: {value: component(state.tasks[i][0])}, topActivity: {value: component(state.tasks[i][1])}
+            })})};
+        },
         getSharedPreferences: () => ({
             getInt: () => state.saved,
             edit: () => ({putInt: (key, value) => ({commit() {
@@ -36,11 +43,12 @@ function fixture() {
         'android.os.SystemClock': {elapsedRealtime: () => state.clock},
         'android.provider.Settings$Global': {getInt: () => state.boot},
         'android.animation.ValueAnimator': {areAnimatorsEnabled: () => state.enabled},
+        'android.app.ActivityManager': {}, 'android.app.ActivityManager$RunningTaskInfo': {},
         'android.content.Intent': {$new: action => ({action, addCategory() {}, addFlags() {},
             setClassName(pkg, name) { this.component = [pkg, name]; }
         })}
     };
-    const Java = {use: name => classes[name], choose(name, callbacks) {
+    const Java = {use: name => classes[name], cast: value => value, choose(name, callbacks) {
         assert.equal(name, 'com.example.launcher.Home');
         for (let i = 0; i < state.homes; i++) if (callbacks.onMatch(home) === 'stop') break;
         callbacks.onComplete();
@@ -116,4 +124,27 @@ test('startup brand names why it skipped, including the last unmet condition whe
     assert.deepEqual(outcome(state => { state.homes = 0; }, view => view(0)), line('home_missing'));
     assert.deepEqual(outcome(state => { state.boot = -1; }, view => view(0)), line('boot_count'));
     assert.deepEqual(outcome(state => { state.homePackage = 'com.example.other'; }, view => view(0)), line('other_home'));
+    assert.deepEqual(outcome(state => {
+        state.focused = true;
+        state.tasks = [['org.openvoyah.controls/org.openvoyah.controls.SetupActivity', null]];
+    }, view => view(0)), line('setup_active'));
+});
+
+test('startup brand waits while the setup page has a task, even one behind a focused home', () => {
+    const {state, view, launcher, create} = fixture();
+    state.focused = true;
+    // A provisioning probe: the setup page went behind home while its check was still running.
+    state.tasks = [['com.example.launcher/com.example.launcher.Home', 'com.example.launcher/com.example.launcher.Home'],
+        ['org.openvoyah.controls/org.openvoyah.controls.SetupActivity',
+            'org.openvoyah.controls/org.openvoyah.controls.SetupActivity']];
+    const startup = create();
+    startup.showIfReady(launcher, view(0));
+    assert.deepEqual(state.launches, []);
+    assert.equal(state.saved, -1);
+    // Another Controls page does not hold the intro back; only the setup page does.
+    state.tasks[1] = ['org.openvoyah.controls/org.openvoyah.controls.MainActivity', null];
+    state.clock = 10_000;
+    startup.showIfReady(launcher, view(0));
+    assert.equal(state.launches.length, 1);
+    assert.deepEqual(state.logs, ['OVC_STARTUP_BRAND outcome=requested']);
 });

@@ -50,6 +50,7 @@ internal class FridaVoiceDispatcher(
         if (reviewed.isSwitchedOff(id)) return result(R.string.voice_vehicle_switched_off, VoiceOutcome.VEHICLE_BLOCKED, failed = true)
         val profile = reviewed.profileFor(id)?.takeIf { request.destination() == Destination.VEHICLE }
             ?: return result(R.string.voice_vehicle_approval_required, VoiceOutcome.VEHICLE_APPROVAL_REQUIRED, failed = true)
+        reviewed.recordUse(id)
         if (id in drivers) return direct(id) { bridge.switchDriver(id.substring(6)) }
         if (id == "RebootTbox") return direct(id) { bridge.rebootTbox() }
         // The agent parses Russian or English number words; a Kazakh phrase goes in its Russian form.

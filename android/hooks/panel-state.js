@@ -1,6 +1,21 @@
 import { createPanelIcon } from './panel-icons.js';
 import { createReporter } from './report.js';
 
+// Plain tag of every button added to a lowered menu, followed by its slot. It keeps the button recognisable when the
+// instance that added it is gone (an agent unloaded without restoring) or has lost track of it.
+const LOWERED_TAG = 'org.openvoyah.controls.lowered:';
+// Keyed tags that the OEM click reads from a normal-panel button (`startAppBySubType` takes the subtype). An added
+// button carries its mirror's, so OEM code that reaches it without the agent still finds them.
+const OEM_TAGS = ['screen_up_item_app_sub_type', 'screen_up_item_package', 'screen_up_item_icon'];
+
+function loweredSlot(view) {
+    try {
+        const tag = view.getTag();
+        const text = tag === null || tag === undefined ? '' : String(tag);
+        return text.startsWith(LOWERED_TAG) ? text.slice(LOWERED_TAG.length) : null;
+    } catch (_) { return null; }
+}
+
 /**
  * Owns reversible mutations of the observed launcher views on the UI thread.
  *
@@ -34,7 +49,8 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
                 Button: Java.use(lifecycle.lowered.button),
                 Params: Java.use('android.widget.RadioGroup$LayoutParams'),
                 Margins: Java.use('android.view.ViewGroup$MarginLayoutParams'),
-                Listener: Java.use('android.view.View$OnClickListener')
+                Listener: Java.use('android.view.View$OnClickListener'),
+                Text: Java.use('java.lang.String')
             };
         } catch (error) { report('lowered', error); }
     }
@@ -199,6 +215,7 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         if (group === null || anchor === null) return true;
         const index = group.indexOfChild(anchor);
         if (index < 0) return true;
+        sweepLowered(bar, group);
         const buttons = [];
         for (const [field, slot] of layout.added) {
             try {
@@ -234,6 +251,8 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
                 bar.views.push(entry);
                 try {
                     view.setId(mirror.getId());
+                    view.setTag(lowered.Text.$new(LOWERED_TAG + slot));
+                    copyOemTags(anchor, mirror, view);
                     const place = lowered.Params.$new.overload('int', 'int').call(lowered.Params, width, height);
                     place.topMargin.value = gap;
                     view.setLayoutParams(place);
@@ -259,6 +278,28 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
             return dropAdded(bar);
         }
         return restoreLayout(bar);
+    }
+
+    // Buttons a previous agent instance added and never removed have no hooks behind them any more.
+    function sweepLowered(bar, group) {
+        let swept = 0;
+        for (let i = group.getChildCount() - 1; i >= 0; i--) {
+            const child = group.getChildAt(i);
+            if (child === null || loweredSlot(child) === null || findView(bar, child)) continue;
+            removeAdded(child);
+            swept++;
+        }
+        if (swept) console.log('OVC_PANEL_ICONS_NOTICE stage=lowered_orphans count=' + swept);
+    }
+
+    function copyOemTags(anchor, mirror, view) {
+        const resources = anchor.getResources(), packageName = anchor.getContext().getPackageName();
+        for (const name of OEM_TAGS) {
+            const key = resources.getIdentifier(name, 'id', packageName);
+            if (key === 0) continue;
+            const value = mirror.getTag(key);
+            if (value !== null) view.setTag(key, value);
+        }
     }
 
     // A lowered menu that cannot take our buttons keeps its own Home; only a failed cleanup asks for a retry,
@@ -458,12 +499,23 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
         /** The slot of a button we added to the lowered menu, or null for any other view. */
         addedSlot(nav, view) {
             const entry = findView(findBar(nav), view);
-            return entry?.added ? entry.slot : null;
+            return entry?.added ? entry.slot : entry ? null : loweredSlot(view);
         },
-        /** The view whose OEM click an added button stands for; any other view stands for itself. */
+        /** Whether this instance added the button and still tracks it. */
+        tracked(nav, view) {
+            return findView(findBar(nav), view)?.added === true;
+        },
+        /**
+         * The view whose OEM click an added button stands for; any other view stands for itself. An added button this
+         * instance does not track stands for its slot's normal view, or for nothing (null) if that view is missing.
+         */
         nativeView(nav, view) {
             const entry = findView(findBar(nav), view);
-            return entry?.added ? dereference(entry.mirror, View) : view;
+            if (entry?.added) return dereference(entry.mirror, View);
+            const slot = entry ? null : loweredSlot(view);
+            if (slot === null) return view;
+            const field = lowered?.screens[nav.mScreenId.value]?.added.find(([, added]) => added === slot)?.[0];
+            return field ? viewField(nav, field) : null;
         },
         /** Live added buttons of a bar with the field of the radio group that holds them. */
         added(nav) {

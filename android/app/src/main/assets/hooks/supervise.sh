@@ -26,7 +26,7 @@ case "$channel" in
     window) package=android; relative=window/launcher-buttons.js; pattern='^OVC_WINDOW_READY protocol=3 ' ;;
     navigation) package=com.qinggan.cluster; relative=navigation/launcher-buttons.js; pattern='^OVC_NAVIGATION_READY' ;;
     can) package=com.qinggan.canbus.service; relative=can/launcher-buttons.js; pattern='^OVC_CAN_READY protocol=2 terminal edges ' ;;
-    --verify-boot|--visual-session-state|--visual-session-clear-restored|--visual-session-clear-changed) ;;
+    --verify-boot|--recover|--visual-session-state|--visual-session-clear-restored|--visual-session-clear-changed) ;;
     *) exit 2 ;;
 esac
 # Translation targets are ordinary apps: Android starts them on demand and kills them when they are idle.
@@ -166,7 +166,10 @@ lifetime_status() {
     user_unlocked || return 2
     lifetime_uid=$(record lifetime "$app" 3) && lifetime_stamp=$(record lifetime "$app" 4) &&
         lifetime_hash=$(record lifetime "$app" 5) || return 3
-    current_uid=$(pm list packages -U --user 0 "$app" 2>/dev/null | sed -n "s/^package:$app uid:\([0-9]*\)$/\1/p")
+    # A package manager that does not answer (busy at boot, or restarting with system_server) says nothing about the
+    # app. An uninstalled app is a successful, empty answer, which still fails the uid check below.
+    lifetime_packages=$(pm list packages -U --user 0 "$app" 2>/dev/null) || return 2
+    current_uid=$(printf '%s\n' "$lifetime_packages" | sed -n "s/^package:$app uid:\([0-9]*\)$/\1/p")
     [ "$current_uid" = "$lifetime_uid" ] && [ ! -L "$app_key" ] && [ -f "$app_key" ] &&
         [ "$(stat -c '%u:%a:%h' "$app_key")" = "$lifetime_uid:600:1" ] &&
         [ "$(wc -c < "$app_key")" = 65 ] &&
@@ -247,6 +250,28 @@ runtime_unchanged() {
         [ "$script_identity" = "$(file_identity "$script")" ] &&
         { [ -z "$package_file" ] || [ "$package_identity" = "$(file_identity "$package_file")" ]; }
 }
+packages_unchanged() {
+    { [ "$fixture" = 1 ] || [ "$(am get-current-user 2>/dev/null)" = 0 ]; } &&
+        [ "$(package_path "$app")" = "$app_path" ] &&
+        { [ -z "$package_file" ] || [ "$(package_path "$package")" = "$package_file" ]; }
+}
+# A single failed package-manager, user-state or file query under boot load is not evidence of a change: on boot 211
+# one such sample revoked the whole deployment 30 s after boot. A real change persists, so a check that decides a
+# revocation runs again until it passes or has failed on every sample, about six seconds apart in total. 0 (healthy)
+# and 2 (user storage locked or package manager silent: wait) end the check at once.
+settle_samples=3
+settle_delay=3
+settled() {
+    st_sample=1
+    while :; do
+        "$@"
+        st_code=$?
+        case "$st_code" in 0|2) return "$st_code";; esac
+        [ "$st_sample" -lt "$settle_samples" ] || return "$st_code"
+        st_sample=$((st_sample+1))
+        sleep "$settle_delay"
+    done
+}
 enabled() {
     [ -f "$root/enabled" ] && [ ! -L "$root/enabled" ] &&
         [ -f "$dir/enabled" ] && [ ! -L "$dir/enabled" ]
@@ -258,12 +283,49 @@ may_start() {
 }
 recovery_required=0
 recovery_recorded=0
+# Channel names in recovery.reason; the main launcher channel is "main".
+channel_suffix() {
+    case "$1" in
+        main) echo '';;
+        locale-setting|locale-vehicle|locale-bluetooth|locale-hiboard|window|navigation|can) echo "/$1";;
+        *) return 1;;
+    esac
+}
+enabled_channels() {
+    ec_list=
+    for ec_name in main locale-setting locale-vehicle locale-bluetooth locale-hiboard window navigation can; do
+        ec_suffix=$(channel_suffix "$ec_name")
+        if [ -f "$root$ec_suffix/enabled" ] && [ ! -L "$root$ec_suffix/enabled" ]; then ec_list="${ec_list:+$ec_list,}$ec_name"; fi
+    done
+    printf '%s\n' "${ec_list:--}"
+}
+# recovery.reason says why this boot revoked activation and which channels were enabled, so OVC can re-arm without
+# the PC when the deployment still verifies (see --recover). The first worker to revoke names the cause; workers that
+# follow in the same boot keep it.
+record_recovery_reason() {
+    rr_path="$root/recovery.reason"
+    [ ! -L "$rr_path" ] || return 1
+    if [ -e "$rr_path" ]; then
+        private_file "$rr_path" 600 || return 1
+        rr_prior=$(cat "$rr_path" 2>/dev/null) || return 1
+        [ "${rr_prior%% *}" != "$recovery_boot" ] || return 0
+    fi
+    rr_stage=$(mktemp "$root/.recovery-reason.XXXXXXXX") || return 1
+    if ! { printf '%s %s %s\n' "$recovery_boot" "$1" "$(enabled_channels)" > "$rr_stage" && chmod 600 "$rr_stage" &&
+        sync && mv -f "$rr_stage" "$rr_path" && sync; }; then
+        rm -f "$rr_stage"
+        return 1
+    fi
+}
 revoke_activation() {
     [ "$fixture" = 0 ] || return 0
     recovery_required=1
     private_dir /data/adb && private_dir "$root" || return 1
     recovery_boot=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null) || return 1
     case "$recovery_boot" in ''|*[!a-f0-9-]*) return 1;; esac
+    case "${1:-}" in lifetime|deployment|package|runtime|receipt|visual|user) revoke_reason=$1;; *) revoke_reason=unknown;; esac
+    # Diagnostic only: a lost reason leaves the markers in force and recovery to the owner or the PC.
+    record_recovery_reason "$revoke_reason" || log 'OVC_WORKER_ERROR Recovery reason could not be recorded.'
     for marker in recovery.visual-pending recovery.blocked; do
         [ ! -L "$root/$marker" ] || return 1
         if [ -e "$root/$marker" ]; then private_file "$root/$marker" 600 || return 1; fi
@@ -275,6 +337,7 @@ revoke_activation() {
         fi
     done
     recovery_recorded=1
+    log "OVC_WORKER_NOTICE Activation revoked reason=$revoke_reason."
     # Close every known channel only after durable recovery evidence exists.
     for suffix in '' /locale-setting /locale-vehicle /locale-bluetooth /locale-hiboard /window /navigation /can; do
         recovery_dir="$root$suffix"
@@ -331,13 +394,16 @@ visual_session_state() {
     case "$visual_nonce" in *[!a-f0-9]*) echo uncertain; return;; esac
     visual_current_boot=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null) || { echo uncertain; return; }
     if ! visual_uuid "$visual_current_boot"; then echo uncertain; return; fi
-    if [ "$visual_current_boot" != "$visual_boot" ] || child_gone "$visual_pid" "$visual_since"; then
-        echo changed
-    elif [ "$(start_of "$visual_pid")" = "$visual_since" ]; then
-        echo current
-    else
-        echo uncertain
-    fi
+    if [ "$visual_current_boot" != "$visual_boot" ]; then echo changed; return; fi
+    # A target that is exiting can fail a read of /proc for a moment before it is gone. A process that died or was
+    # restarted (the new one has another start time) has its original visuals again, so that is "changed", not
+    # "uncertain"; look again briefly before giving up on telling them apart.
+    for visual_try in 1 2 3; do
+        if child_gone "$visual_pid" "$visual_since"; then echo changed; return; fi
+        if [ "$(start_of "$visual_pid")" = "$visual_since" ]; then echo current; return; fi
+        [ "$visual_try" = 3 ] || sleep 1
+    done
+    echo uncertain
 }
 visual_session_descriptor() {
     visual_desc_path="$dir/visual.session"
@@ -373,7 +439,7 @@ guard_visual_session() {
         changed:*) clear_visual_session changed "${visual_guard_state#*:}" && return 0;;
     esac
     log 'OVC_WORKER_ERROR Original visual state is uncertain for the current target. Recovery is required.'
-    revoke_activation || log 'OVC_WORKER_ERROR Durable visual recovery requires PC assistance.'
+    revoke_activation visual || log 'OVC_WORKER_ERROR Durable visual recovery requires PC assistance.'
     return 1
 }
 record_visual_session() {
@@ -431,11 +497,25 @@ same_child() {
     [ "$executable" = "$injector" ] || [ "$executable" = "$injector (deleted)" ] || return 1
     injector_argv "/proc/$1/cmdline"
 }
+# This worker's own injector child by PID, start time, owner and executable, when its command line is unreadable.
+own_injector() {
+    is_number "$1" && [ -n "$2" ] && [ "$(start_of "$1")" = "$2" ] &&
+        [ "$(stat -c %u "/proc/$1" 2>/dev/null)" = 0 ] || return 1
+    oi_exe=$(readlink "/proc/$1/exe" 2>/dev/null) || return 1
+    [ "$oi_exe" = "$injector" ] || [ "$oi_exe" = "$injector (deleted)" ]
+}
 stop_child() {
     child_gone "$1" "$2" && return 0
     if ! same_child "$1" "$2"; then
         # An injector whose target just ended can be mid-exit, with its command line already gone. Give it a
         # bounded moment to finish instead of treating it as an unknown process.
+        for delay in 1 2 3 4 5; do
+            sleep 1
+            if child_gone "$1" "$2"; then return 0; fi
+        done
+        # Still there: a child this worker started (same PID, start time and executable) that hangs on its dead
+        # target. Ending it is safe; leaving it would stop this channel until the next boot.
+        own_injector "$1" "$2" && kill -KILL "$1" 2>/dev/null || return 1
         for delay in 1 2 3; do
             sleep 1
             if child_gone "$1" "$2"; then return 0; fi
@@ -455,7 +535,7 @@ child_gone() {
     if [ -z "$1" ]; then return 0; fi
     is_number "$1" || return 1
     if [ ! -d "/proc/$1" ]; then return 0; fi
-    info=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+    info=$(cat "/proc/$1/stat" 2>/dev/null) || { [ ! -d "/proc/$1" ]; return; }
     case "$info" in *') '*) ;; *) return 1;; esac
     tail=${info##*) }
     cg_expected=$2
@@ -505,8 +585,134 @@ case "$channel" in
         esac
         exit $?;;
 esac
+# Decides a re-arm without the PC from what --recover observed. Prints "<outcome>:<reason>".
+#   $1 mode: auto (OVC's boot job, nobody asked) or manual (the owner confirmed Restore in OVC)
+#   $2 reason: recorded (this supervisor revoked and said why) or absent (the PC, the app or an older supervisor did)
+#   $3 same_boot: 1 when a marker was written in the current boot, so the screen may still show changed visuals
+#   $4 visuals: clear, or pending while a visual session or an injector of this project is still live
+#   $5 verify: check_runtime's result (0 verified, 2 user storage locked, 3 lifetime must be resealed, else changed)
+# Integrity is the verify step: the receipt pins the APKs, the Frida runtime, both scripts and every agent, so a real
+# APK, runtime or package change still needs the PC. The reboot is what proves the original visuals are back.
+recover_decision() {
+    if [ "$1" = auto ] && [ "$2" != recorded ]; then echo pc:unrecorded; return; fi
+    if [ "$1" = auto ] && [ "$3" = 1 ]; then echo reboot:same-boot; return; fi
+    if [ "$4" != clear ]; then echo reboot:visual; return; fi
+    case "$5" in
+        0) echo recovered:verified;;
+        2) echo waiting:locked;;
+        3) echo pc:lifetime;;
+        *) echo pc:deployment;;
+    esac
+}
+# Why an attachment ended, for the retry policy. Prints:
+#   restart  the target (or Android's framework) restarted after the agent ran healthy for 20 s: attach again on the
+#            restart budget, not the retry budget (an OEM app crash, the persistent launcher restarting)
+#   exited   a translation app closed by the driver or reclaimed by Android after a healthy run: wait for it, unlimited
+#   attempt  anything else, including a target that dies within 20 s, so a crash loop stays bounded
+#   $1 target changed (0|1)  $2 system_server unchanged (0|1)  $3 healthy (0|1)  $4 elapsed seconds  $5 locale (0|1)
+attach_outcome() {
+    if [ "$1" != 1 ] || [ "$3" != 1 ] || [ "$4" -lt 20 ]; then echo attempt; return; fi
+    if [ "$5" = 1 ] && [ "$2" = 1 ]; then echo exited; else echo restart; fi
+}
+recover_report() { printf 'OVC_RECOVER outcome=%s reason=%s\n' "${1%%:*}" "${1#*:}"; }
+recover_activation() {
+    rc_mode=$1
+    rc_boot=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)
+    visual_uuid "$rc_boot" || { recover_report pc:boot-id; return 1; }
+    rc_blocked=0; rc_same=0
+    for rc_marker in recovery.blocked recovery.visual-pending; do
+        rc_path="$root/$rc_marker"
+        if [ -L "$rc_path" ]; then recover_report pc:marker; return 1; fi
+        [ -e "$rc_path" ] || continue
+        private_file "$rc_path" 600 || { recover_report pc:marker; return 1; }
+        rc_blocked=1
+        if [ "$(cat "$rc_path" 2>/dev/null)" = "$rc_boot" ]; then rc_same=1; fi
+    done
+    if [ "$rc_blocked" = 0 ]; then recover_report none:active; return 0; fi
+    if [ -e "$root/update.pending" ] || [ -L "$root/update.pending" ]; then recover_report pc:update; return 1; fi
+    rc_reason_state=absent; rc_cause=-; rc_channels=-
+    rc_reason_path="$root/recovery.reason"
+    if [ -L "$rc_reason_path" ]; then recover_report pc:marker; return 1; fi
+    if [ -e "$rc_reason_path" ] && private_file "$rc_reason_path" 600; then
+        rc_record=$(cat "$rc_reason_path" 2>/dev/null)
+        rc_record_boot=${rc_record%% *}
+        rc_rest=${rc_record#* }
+        rc_cause=${rc_rest%% *}
+        rc_channels=${rc_rest#* }
+        # The reason counts only for the revocation that wrote the markers: a later PC rollback has its own boot id.
+        rc_reason_state=recorded
+        for rc_marker in recovery.blocked recovery.visual-pending; do
+            if [ -e "$root/$rc_marker" ] && [ "$(cat "$root/$rc_marker" 2>/dev/null)" != "$rc_record_boot" ]; then rc_reason_state=absent; fi
+        done
+        case "$rc_cause" in lifetime|deployment|package|runtime|receipt|visual|user|unknown) ;; *) rc_reason_state=absent;; esac
+        case "$rc_channels" in -|*[!a-z,-]*) rc_channels=-;; esac
+        visual_uuid "$rc_record_boot" || rc_reason_state=absent
+        [ "$rc_rest" = "$rc_cause $rc_channels" ] || { rc_reason_state=absent; rc_channels=-; }
+    fi
+    rc_visuals=clear
+    for rc_dir in "$root" "$root/window"; do
+        [ -d "$rc_dir" ] || continue
+        dir=$rc_dir
+        case "$(visual_session_state)" in absent|changed) ;; *) rc_visuals=pending;; esac
+    done
+    dir=$root
+    for rc_proc in $(cmdline_matches -e "$injector"); do
+        rc_pid=${rc_proc#/proc/}; rc_pid=${rc_pid%/cmdline}
+        if [ "$(readlink "/proc/$rc_pid/exe" 2>/dev/null)" = "$injector" ]; then rc_visuals=pending; fi
+    done
+    rc_verify=1
+    if [ "$rc_visuals" = clear ]; then
+        settled check_runtime
+        rc_verify=$?
+    fi
+    rc_outcome=$(recover_decision "$rc_mode" "$rc_reason_state" "$rc_same" "$rc_visuals" "$rc_verify")
+    case "$rc_outcome" in recovered:*) ;; *) recover_report "$rc_outcome"; return 1;; esac
+    # Enable the channels that were on when activation was revoked, each only with its receipted agent in place.
+    # Without a recorded list (an older supervisor), every channel the receipt seals comes back.
+    rc_restored=
+    for rc_name in main locale-setting locale-vehicle locale-bluetooth locale-hiboard window navigation can; do
+        case ",$rc_channels," in ,-,) ;; *",$rc_name,"*) ;; *) continue;; esac
+        rc_suffix=$(channel_suffix "$rc_name")
+        if [ "$rc_name" = main ]; then rc_relative=launcher-buttons.js; else rc_relative="${rc_suffix#/}/launcher-buttons.js"; fi
+        record artifact "$rc_relative" 3 >/dev/null 2>&1 || continue
+        private_dir "$root$rc_suffix" && artifact_ok "$rc_relative" || continue
+        rc_restored="${rc_restored:+$rc_restored,}$rc_name"
+    done
+    case ",$rc_restored," in *,main,*) ;; *) recover_report pc:main-agent; return 1;; esac
+    for rc_dir in "$root" "$root/window"; do
+        [ -d "$rc_dir" ] || continue
+        dir=$rc_dir
+        rc_session=$(visual_session_descriptor)
+        case "$rc_session" in changed:*) clear_visual_session changed "${rc_session#*:}" || { recover_report pc:visual-session; return 1; };; esac
+    done
+    dir=$root
+    for rc_name in main locale-setting locale-vehicle locale-bluetooth locale-hiboard window navigation can; do
+        rc_suffix=$(channel_suffix "$rc_name")
+        if private_dir "$root$rc_suffix"; then rm -f "$root$rc_suffix/failure.boot" "$root$rc_suffix/failure.count" \
+            "$root$rc_suffix/restart.boot" "$root$rc_suffix/restart.count"; fi
+    done
+    rc_ifs=$IFS; IFS=,
+    for rc_name in $rc_restored; do
+        rc_suffix=$(channel_suffix "$rc_name")
+        rc_flag="$root$rc_suffix/enabled"
+        [ ! -L "$rc_flag" ] && touch "$rc_flag" && chmod 600 "$rc_flag" || { IFS=$rc_ifs; recover_report pc:enable; return 1; }
+    done
+    IFS=$rc_ifs
+    sync
+    rm -f "$root/recovery.blocked" "$root/recovery.visual-pending" "$root/recovery.reason" && sync ||
+        { recover_report pc:markers; return 1; }
+    log "OVC_WORKER_NOTICE Activation re-armed without the PC mode=$rc_mode cause=$rc_cause channels=$rc_restored."
+    printf 'OVC_RECOVER outcome=recovered reason=%s channels=%s\n' "$rc_cause" "$rc_restored"
+}
+if [ "$channel" = --recover ]; then
+    [ "$#" = 2 ] || exit 2
+    case "$2" in auto|manual) ;; *) exit 2;; esac
+    [ "$(id -u)" = 0 ] && private_dir /data/adb && private_dir "$root" && [ "$fixture" = 0 ] || exit 1
+    recover_activation "$2"
+    exit $?
+fi
 if [ "$channel" = --verify-boot ]; then
-    check_runtime
+    settled check_runtime
     checked=$?
     if [ "$checked" = 0 ]; then echo 'OVC_BOOT_VERIFIED'; exit 0; fi
     if [ "$checked" = 2 ]; then echo 'OVC_BOOT_WAITING User storage is not verified unlocked.' >&2; exit 2; fi
@@ -569,11 +775,11 @@ if ! ln "$claim" "$lock" 2>/dev/null; then
         fi
         orphan=$(cat "$dir/child.pid" 2>/dev/null)
         orphan_start=$(cat "$dir/child.start" 2>/dev/null)
-        check_runtime
+        settled check_runtime
         checked=$?
         if [ "$checked" != 0 ]; then
             if [ "$checked" = 2 ]; then exit 0; fi
-            revoke_activation || exit 1
+            revoke_activation deployment || exit 1
             stop_child "$orphan" "$orphan_start" || exit 1
             exit 1
         fi
@@ -606,6 +812,18 @@ fi
 save_attempts() {
     printf '%s\n' "$boot_id" > "$dir/failure.boot"
     printf '%s\n' "$attempts" > "$dir/failure.count"
+}
+# Restarts of a target that ran healthy (a crash of the OEM app, a framework restart) have their own budget, so a
+# few crashes do not end the retries of this boot, while a crash loop the agent might cause still stops.
+restarts=0
+max_restarts=10
+if [ "$(cat "$dir/restart.boot" 2>/dev/null)" = "$boot_id" ]; then
+    value=$(cat "$dir/restart.count" 2>/dev/null)
+    case "$value" in 0|[1-9]|[1-9][0-9]) restarts=$value;; esac
+fi
+save_restarts() {
+    printf '%s\n' "$boot_id" > "$dir/restart.boot"
+    printf '%s\n' "$restarts" > "$dir/restart.count"
 }
 backoff=3
 waiting_unlock=0
@@ -652,17 +870,24 @@ while may_start; do
     system_start=$(start_of "$system_pid")
     target_start=$(start_of "$target_pid")
     if ! is_number "$system_start" || ! is_number "$target_start"; then log 'OVC_WORKER_ERROR Target identity is unavailable.'; break; fi
-    check_runtime
+    settled check_runtime
     checked=$?
     if [ "$checked" = 2 ]; then continue; fi
     if [ "$checked" = 3 ]; then log 'OVC_WORKER_ERROR Deployment lifetime must be resealed by an explicit connection.'; break; fi
     if [ "$checked" != 0 ]; then
         log 'OVC_WORKER_ERROR Deployment is missing, changed, or unapproved.'
-        revoke_activation || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
+        revoke_activation deployment || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
         break
     fi
-    may_start && [ "$(pid_for system_server)" = "$system_pid" ] && [ "$(pid_for "$target")" = "$target_pid" ] &&
-        [ "$(start_of "$system_pid")" = "$system_start" ] && [ "$(start_of "$target_pid")" = "$target_start" ] || break
+    may_start || break
+    if [ "$(pid_for system_server)" != "$system_pid" ] || [ "$(pid_for "$target")" != "$target_pid" ] ||
+        [ "$(start_of "$system_pid")" != "$system_start" ] || [ "$(start_of "$target_pid")" != "$target_start" ]; then
+        # The target restarted while it was being checked (a crash loop right after boot, for example). Look again;
+        # the retry budget keeps a loop bounded.
+        log 'OVC_WORKER_NOTICE Target restarted before attachment.'
+        attempts=$((attempts+1)); save_attempts
+        continue
+    fi
     guard_visual_session || break
     record_visual_session "$target_pid" "$target_start" || { log 'OVC_WORKER_ERROR Visual session could not be recorded before attachment.'; break; }
     printf '%s\n' "$target_pid" > "$dir/target.pid"
@@ -674,55 +899,45 @@ while may_start; do
     child_start=$(start_of "$child")
     printf '%s\n' "$child" > "$dir/child.pid"
     printf '%s\n' "$child_start" > "$dir/child.start"
-    elapsed=0; healthy=0; last_heartbeat=; silent_for=0; markers=; target_exited=0
+    elapsed=0; healthy=0; last_heartbeat=; silent_for=0; markers=
     while [ -n "$child_start" ] && [ "$(start_of "$child")" = "$child_start" ] && enabled; do
         sleep 2
         elapsed=$((elapsed+2))
         # Bound package-manager and user-state diagnostics between metadata checks.
         if [ "$fixture" = 0 ] && { [ "$elapsed" = 2 ] || [ $((elapsed%10)) -eq 0 ]; }; then
-            lifetime_status
+            settled lifetime_status
             lifetime_result=$?
             if [ "$lifetime_result" = 1 ] || [ "$lifetime_result" = 3 ]; then
                 log 'OVC_WORKER_NOTICE App activation lifetime changed.'
-                revoke_activation || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
+                revoke_activation lifetime || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
                 break
             fi
         fi
-        if ! runtime_unchanged; then
+        if ! settled runtime_unchanged; then
             log 'OVC_WORKER_NOTICE Deployment package or runtime changed.'
-            revoke_activation || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
+            revoke_activation runtime || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
             break
         fi
         if [ "$(pid_for system_server)" != "$system_pid" ] || [ "$(pid_for "$target")" != "$target_pid" ] ||
             [ "$(start_of "$system_pid")" != "$system_start" ] || [ "$(start_of "$target_pid")" != "$target_start" ]; then
             log 'OVC_WORKER_NOTICE Android or target process changed.'
-            # A translation target that ran healthy for 20 s and then ended (closed by the driver or reclaimed by
-            # Android) is not a failure. A target that dies sooner still counts, so a crash loop stays bounded.
-            if [ "$locale" = 1 ] && [ "$healthy" -eq 1 ] && [ "$elapsed" -ge 20 ] &&
-                [ "$(pid_for system_server)" = "$system_pid" ] && [ "$(start_of "$system_pid")" = "$system_start" ]; then
-                target_exited=1
-            fi
             break
         fi
         if [ "$fixture" = 0 ] && [ "$receipt_identity" != "$(file_identity "$receipt")" ]; then
             # An optional channel update rewrites the receipt. Revalidate it before continuing.
-            check_runtime
+            settled check_runtime
             checked=$?
             if [ "$checked" = 2 ]; then continue; fi
             if [ "$checked" != 0 ]; then
                 log 'OVC_WORKER_ERROR Updated deployment is unapproved.'
-                revoke_activation || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
+                revoke_activation receipt || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
                 break
             fi
         fi
-        if [ $((elapsed%10)) -eq 0 ]; then
-            if { [ "$fixture" = 0 ] && [ "$(am get-current-user 2>/dev/null)" != 0 ]; } ||
-                [ "$(package_path "$app")" != "$app_path" ] ||
-                { [ -n "$package_file" ] && [ "$(package_path "$package")" != "$package_file" ]; }; then
-                log 'OVC_WORKER_NOTICE Installed package changed.'
-                revoke_activation || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
-                break
-            fi
+        if [ $((elapsed%10)) -eq 0 ] && ! settled packages_unchanged; then
+            log 'OVC_WORKER_NOTICE Installed package changed.'
+            revoke_activation package || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
+            break
         fi
         if grep -qE "$pattern" "$dir/hook.log"; then
             markers=$(grep -E '^OVC_(READY|[A-Z_]+_READY)' "$dir/hook.log" | tail -n 16)
@@ -742,7 +957,18 @@ while may_start; do
         if [ "$elapsed" -ge 60 ] && [ "$healthy" -eq 1 ] && [ "$attempts" -ne 0 ]; then
             attempts=0; backoff=3; save_attempts
         fi
+        if [ "$elapsed" -ge 600 ] && [ "$healthy" -eq 1 ] && [ "$restarts" -ne 0 ]; then
+            restarts=0; save_restarts
+        fi
     done
+    # The injector also ends by itself when its target dies, so look at the target here, not only inside the loop.
+    target_changed=0; system_same=1
+    if [ "$(pid_for system_server)" != "$system_pid" ] || [ "$(start_of "$system_pid")" != "$system_start" ]; then
+        target_changed=1; system_same=0
+    elif [ "$(pid_for "$target")" != "$target_pid" ] || [ "$(start_of "$target_pid")" != "$target_start" ]; then
+        target_changed=1
+    fi
+    outcome=$(attach_outcome "$target_changed" "$system_same" "$healthy" "$elapsed" "$locale")
     case "$channel" in ''|window) if enabled; then guard_visual_session || true; fi;; esac
     rm -f "$dir/target.pid" "$dir/system.pid" "$dir/ready"
     if [ "$recovery_required" = 1 ] && [ "$recovery_recorded" != 1 ]; then break; fi
@@ -752,9 +978,24 @@ while may_start; do
     child=; child_start=
     rm -f "$dir/child.pid" "$dir/child.start"
     may_start || break
-    if [ "$target_exited" = 1 ]; then
+    if [ "$outcome" = exited ]; then
         # Wait for the next start of the app without using the retry budget.
         backoff=3
+        continue
+    fi
+    if [ "$outcome" = restart ]; then
+        restarts=$((restarts+1)); save_restarts
+        if [ "$restarts" -gt "$max_restarts" ]; then
+            log 'OVC_WORKER_ERROR Target restarted too often this boot. Review diagnostics before reconnecting.'
+            break
+        fi
+        log "OVC_WORKER_NOTICE Target restarted; attaching again restart=$restarts."
+        # A restarted target has its original visuals and code again (the guard above retired its visual session),
+        # so attaching again is the same as the first attachment of this boot, after a short pause.
+        backoff=3
+        delay=$((restarts*3)); if [ "$delay" -gt 30 ]; then delay=30; fi
+        waited=0
+        while may_start && [ "$waited" -lt "$delay" ]; do sleep 1; waited=$((waited+1)); done
         continue
     fi
     attempts=$((attempts+1)); save_attempts

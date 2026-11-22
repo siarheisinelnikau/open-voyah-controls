@@ -29,9 +29,13 @@ import java.util.Locale
 import org.openvoyah.controls.AppRestartActivity
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.data.frida.ActivationRecovery
 import org.openvoyah.controls.data.frida.FridaSystemRestarts
 import org.openvoyah.controls.data.frida.SystemRestartScripts
+import org.openvoyah.controls.data.settings.ActionPermissions
 import org.openvoyah.controls.diagnostics.ControlsLog
+import org.openvoyah.controls.domain.permissions.ActionCatalog
+import org.openvoyah.controls.domain.permissions.ActionPermission
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitDialogs
 import org.openvoyah.controls.presentation.theme.CockpitIcon
@@ -73,12 +77,18 @@ internal fun SystemMaintenanceSection() {
                 text(R.string.system_restart_confirm), Runnable { if (active()) AppRestartActivity.start(activity) }, text(R.string.ui_89))
         },
         restartMedia = {
-            if (active()) dialogs.message(text(R.string.system_restart_media_title), text(R.string.system_restart_media_message),
+            if (active()) dialogs.message(text(R.string.system_restart_media_title),
+                withUnverifiedNote(activity, ActionCatalog.MEDIA_RESTART, text(R.string.system_restart_media_message)),
                 text(R.string.system_restart_confirm), Runnable { if (active()) model.restartMultimedia() }, text(R.string.ui_89))
         },
         reboot = {
-            if (active()) dialogs.message(text(R.string.system_reboot_title), text(R.string.system_reboot_message),
+            if (active()) dialogs.message(text(R.string.system_reboot_title),
+                withUnverifiedNote(activity, ActionCatalog.SYSTEM_REBOOT, text(R.string.system_reboot_message)),
                 text(R.string.system_reboot_confirm), Runnable { if (active()) model.rebootSystem() }, text(R.string.ui_89))
+        },
+        restore = {
+            if (active()) dialogs.message(text(R.string.activation_restore_title), text(R.string.activation_restore_message),
+                text(R.string.activation_restore_confirm), Runnable { if (active()) model.restoreActivation() }, text(R.string.ui_89))
         },
     )
 }
@@ -93,6 +103,7 @@ internal fun SystemMaintenance(
     restartApp: () -> Unit,
     restartMedia: () -> Unit,
     reboot: () -> Unit,
+    restore: () -> Unit = {},
 ) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     CockpitSection(text(R.string.system_section_title), CockpitIcon.SYSTEM) {
@@ -108,8 +119,14 @@ internal fun SystemMaintenance(
         Text(text(R.string.system_restart_media_hint), color = muted)
         CockpitAction(text(R.string.system_reboot), reboot, Modifier.fillMaxWidth(), enabled = idle, destructive = true)
         Text(text(R.string.system_reboot_hint), color = muted)
+        CockpitAction(text(R.string.activation_restore), restore, Modifier.fillMaxWidth(), enabled = idle)
+        Text(text(R.string.activation_restore_hint), color = muted)
         if (working != null) {
-            Text(text(if (working == SystemOperation.MEDIA) R.string.system_restart_media_working else R.string.system_reboot_working))
+            Text(text(when (working) {
+                SystemOperation.MEDIA -> R.string.system_restart_media_working
+                SystemOperation.REBOOT -> R.string.system_reboot_working
+                SystemOperation.RESTORE -> R.string.activation_restore_working
+            }))
             LinearProgressIndicator(Modifier.fillMaxWidth())
         }
     }
@@ -118,7 +135,17 @@ internal fun SystemMaintenance(
 internal fun describe(notice: SystemNotice): Pair<String, String> = when (notice) {
     is SystemNotice.MediaRestarted -> text(R.string.system_restart_media_done_title) to mediaSummary(notice.result)
     SystemNotice.RebootRequested -> text(R.string.system_reboot) to text(R.string.system_reboot_requested)
+    is SystemNotice.Restored -> restoreSummary(notice.result)
     is SystemNotice.Failed -> text(R.string.ui_84) to (notice.message?.takeIf { it.isNotBlank() } ?: text(R.string.ui_84))
+}
+
+/** What the owner reads after Restore; the PC case names the supervisor's reason code for support. */
+internal fun restoreSummary(result: ActivationRecovery.Result): Pair<String, String> = when (result.outcome) {
+    ActivationRecovery.Outcome.RECOVERED -> text(R.string.activation_restore_done_title) to text(R.string.activation_restore_done)
+    ActivationRecovery.Outcome.NONE -> text(R.string.activation_restore) to text(R.string.activation_restore_none)
+    ActivationRecovery.Outcome.REBOOT -> text(R.string.activation_restore_reboot_title) to text(R.string.activation_restore_reboot)
+    ActivationRecovery.Outcome.WAITING -> text(R.string.activation_restore) to text(R.string.activation_restore_waiting)
+    ActivationRecovery.Outcome.PC -> text(R.string.activation_restore_pc_title) to text(R.string.activation_restore_pc).format(result.reason)
 }
 
 internal fun mediaSummary(result: SystemRestartScripts.MediaRestart): String = buildString {
@@ -128,6 +155,12 @@ internal fun mediaSummary(result: SystemRestartScripts.MediaRestart): String = b
         else text(R.string.system_restart_media_center_missing))
     if (result.failed.isNotEmpty()) append(' ').append(text(R.string.system_restart_media_failed).format(result.failed.joinToString(", ")))
 }
+
+/** An operation marked Unverified in Settings → Allowed actions says so in its confirmation. */
+internal fun withUnverifiedNote(context: Context, operation: String, message: String): String =
+    if (ActionPermissions(context).operation(operation) == ActionPermission.UNVERIFIED) {
+        message + "\n\n" + text(R.string.action_unverified_note)
+    } else message
 
 private fun copyVersion(context: Context, report: String): Boolean = try {
     val clipboard = context.getSystemService(ClipboardManager::class.java)

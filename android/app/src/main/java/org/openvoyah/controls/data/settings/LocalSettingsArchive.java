@@ -54,7 +54,8 @@ public final class LocalSettingsArchive {
         DisplayPreviewPreferences.STORE, DesktopWallpaperPreferences.STORE, DesktopInfoPreferences.STORE, ServiceReminderPreferences.STORE,
         QuickActionPreferences.STORE, RoutinePreferences.STORE, SeatMemoryPreferences.STORE, DesktopLayoutsPreferences.STORE,
         HeadlightMonitoringPreferences.STORE, LocalVehicleAutomationPreferences.STORE,
-        LocalSeasonalClimatePreferences.STORE, ConditionalRulesPreferences.STORE, AppIconPreferences.STORE
+        LocalSeasonalClimatePreferences.STORE, ConditionalRulesPreferences.STORE, AppIconPreferences.STORE,
+        ActionPermissions.STORE
     };
     private final Context context;
     private final SettingsStore buttons;
@@ -78,6 +79,7 @@ public final class LocalSettingsArchive {
     private final LocalSeasonalClimatePreferences seasonalClimate;
     private final ConditionalRulesPreferences conditionalRules;
     private final AppIconPreferences appIcons;
+    private final ActionPermissions actionPermissions;
     private final AtomicFile rollback;
 
     public LocalSettingsArchive(Context context) {
@@ -103,6 +105,7 @@ public final class LocalSettingsArchive {
         seasonalClimate = new LocalSeasonalClimatePreferences(context);
         conditionalRules = new ConditionalRulesPreferences(context);
         appIcons = new AppIconPreferences(context);
+        actionPermissions = new ActionPermissions(context);
         rollback = new AtomicFile(new File(context.getFilesDir(), ROLLBACK_FILE));
     }
 
@@ -142,6 +145,7 @@ public final class LocalSettingsArchive {
                 .put("seasonalClimate", seasonalClimate.exportSettings())
                 .put("conditionalRules", conditionalRules.exportSettings())
                 .put("appIcons", appIcons.exportSettings())
+                .put("actionPermissions", actionPermissions.exportSettings())
                 .toString(2);
         }
     }
@@ -150,7 +154,8 @@ public final class LocalSettingsArchive {
             Boolean checkOnStartup, JSONObject appGrid, JSONObject desktopWallpapers, JSONObject desktopInfoCards,
             JSONObject desktopLayouts, JSONObject appearance, JSONObject displayPreview, JSONObject serviceReminder,
             JSONObject quickActions, JSONObject routines, JSONObject seatMemory, JSONObject headlightMonitoring,
-            JSONObject vehicleAutomation, JSONObject seasonalClimate, JSONObject conditionalRules, JSONObject appIcons) { }
+            JSONObject vehicleAutomation, JSONObject seasonalClimate, JSONObject conditionalRules, JSONObject appIcons,
+            JSONObject actionPermissions) { }
 
     public JSONObject captureDesktopLayout() throws Exception {
         synchronized (ARCHIVE_LOCK) {
@@ -319,10 +324,12 @@ public final class LocalSettingsArchive {
             ? ConditionalRulesPreferences.validateSettings(root.getJSONObject("conditionalRules")) : null;
         JSONObject appIcons = root.has("appIcons")
             ? AppIconPreferences.validateSettings(root.getJSONObject("appIcons")) : null;
+        JSONObject actionPermissions = root.has("actionPermissions")
+            ? ActionPermissions.validateSettings(root.getJSONObject("actionPermissions")) : null;
         var optional = new OptionalPreferences(windowProfiles, appDisplayDefaults, checkOnStartup,
             appGrid, desktopWallpapers, desktopInfoCards, desktopLayouts, appearance, displayPreview, serviceReminder,
             quickActions, routines, seatMemory, headlightMonitoring, vehicleAutomation, seasonalClimate, conditionalRules,
-            appIcons);
+            appIcons, actionPermissions);
         return new Restore(SettingsStore.encode(state), voiceJson, localizationJson, language,
             (int) density, (boolean) clusterMedia, optional, state.bindings.size(), true);
     }
@@ -360,6 +367,7 @@ public final class LocalSettingsArchive {
         if (optional.seasonalClimate() != null) snapshot(previous, LocalSeasonalClimatePreferences.STORE);
         if (optional.conditionalRules() != null) snapshot(previous, ConditionalRulesPreferences.STORE);
         if (optional.appIcons() != null) snapshot(previous, AppIconPreferences.STORE);
+        if (optional.actionPermissions() != null) snapshot(previous, ActionPermissions.STORE);
         applyWithRollback(previous, () -> {
             buttons.importJson(restore.buttons);
             voice.importJson(restore.voice);
@@ -384,6 +392,7 @@ public final class LocalSettingsArchive {
             if (optional.seasonalClimate() != null) seasonalClimate.restoreSettings(optional.seasonalClimate());
             if (optional.conditionalRules() != null) conditionalRules.restoreSettings(optional.conditionalRules());
             if (optional.appIcons() != null) appIcons.restoreSettings(optional.appIcons());
+            if (optional.actionPermissions() != null) actionPermissions.restoreSettings(optional.actionPermissions());
         });
     }
 

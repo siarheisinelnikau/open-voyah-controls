@@ -6,6 +6,7 @@ import org.json.JSONObject
 import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.domain.permissions.ActionCatalog
 import java.io.IOException
 import java.io.InputStream
 import java.security.MessageDigest
@@ -16,18 +17,19 @@ internal object ReviewedFirmware {
     const val CLUSTER = "com.qinggan.cluster"
     const val CAN_SERVICE = "com.qinggan.canbus.service"
     const val LOGIN = "com.qinggan.app.login"
-    const val CAN_STEERING = "can-steering-terminal"
-    const val CAN_STEERING_EDGES = "can-steering-edges"
-    const val WINDOW_SERVICE = "window-service"
-    const val PASSENGER_WINDOW_DPI = "passenger-window-dpi"
-    const val WINDOW_DISPLAY_MOVE = "window-display-move"
-    const val OEM_PROFILES = "oem-profiles"
-    const val TBOX_REBOOT = "tbox-reboot"
-    const val CLUSTER_WRITE = "cluster-write"
+    // Operation ids are shared with Settings → Allowed actions; a review row only marks one as verified here.
+    const val CAN_STEERING = ActionCatalog.CAN_STEERING
+    const val CAN_STEERING_EDGES = ActionCatalog.CAN_STEERING_EDGES
+    const val WINDOW_SERVICE = ActionCatalog.WINDOW_SERVICE
+    const val PASSENGER_WINDOW_DPI = ActionCatalog.PASSENGER_WINDOW_DPI
+    const val WINDOW_DISPLAY_MOVE = ActionCatalog.WINDOW_DISPLAY_MOVE
+    const val OEM_PROFILES = ActionCatalog.OEM_PROFILES
+    const val TBOX_REBOOT = ActionCatalog.TBOX_REBOOT
+    const val CLUSTER_WRITE = ActionCatalog.CLUSTER_WRITE
     /** Settings → Restart multimedia: kills the OEM media center and factory players (see SystemRestartScripts). */
-    const val MEDIA_RESTART = "media-restart"
+    const val MEDIA_RESTART = ActionCatalog.MEDIA_RESTART
     /** Settings → Restart the system: an orderly reboot of the head unit while parked. */
-    const val SYSTEM_REBOOT = "system-reboot"
+    const val SYSTEM_REBOOT = ActionCatalog.SYSTEM_REBOOT
 
     val localizationTargets = mapOf(
         "setting" to "com.qinggan.app.setting",
@@ -36,14 +38,16 @@ internal object ReviewedFirmware {
         "hiboard" to "com.qinggan.app.hiboard",
     )
     private val packages = setOf(LAUNCHER, FRAMEWORK, CLUSTER, CAN_SERVICE, LOGIN) + localizationTargets.values
-    private val operations = setOf(WINDOW_SERVICE, PASSENGER_WINDOW_DPI, WINDOW_DISPLAY_MOVE, OEM_PROFILES, TBOX_REBOOT, CLUSTER_WRITE, CAN_STEERING, CAN_STEERING_EDGES,
-        MEDIA_RESTART, SYSTEM_REBOOT)
     private val fingerprint = Regex("[A-Za-z0-9][A-Za-z0-9._:/+,\\-]{0,255}")
     private val product = Regex("[A-Za-z0-9][A-Za-z0-9_.\\-]{0,63}")
     val sha256 = Regex("[0-9a-f]{64}")
 
     data class Device(val fingerprint: String, val sdk: String, val abi: String, val product: String)
     data class PackagePin(val name: String, val signer: String, val apk: String)
+    /**
+     * [device] and [packages] are the identity and APK pins every root command is checked against. [operations] only
+     * lists the operations confirmed on this firmware, for the "verified" mark in Settings → Allowed actions.
+     */
     data class Review(val device: Device, val packages: List<PackagePin>, val operations: Set<String>)
     data class Runtime(val version: String, val name: String, val digest: String)
 
@@ -74,14 +78,14 @@ internal object ReviewedFirmware {
             require(pins.put(row[4], PackagePin(row[4], row[5], row[6])) == null)
         }
         require(profiles.values.all { LAUNCHER in it })
+        // Operation rows are metadata now. A well-formed row for an operation this version does not know, for a
+        // firmware without pins, or a repeated one is skipped instead of refusing every root command.
         val reviewed = mutableMapOf<Device, MutableSet<String>>()
         for (row in rows(capabilities)) {
-            require(row.size == 5 && row[4] in operations)
+            require(row.size == 5)
             val key = identity(row)
-            require(key in profiles && reviewed.getOrPut(key) { mutableSetOf() }.add(row[4]))
-            if (row[4] in setOf(CAN_STEERING, CAN_STEERING_EDGES)) require(CAN_SERVICE in profiles.getValue(key))
+            if (row[4] in ActionCatalog.operations && key in profiles) reviewed.getOrPut(key) { mutableSetOf() }.add(row[4])
         }
-        require(reviewed.values.none { CAN_STEERING in it && CAN_STEERING_EDGES in it })
         val profile = profiles[device] ?: return null
         return Review(device, profile.values.toList(), reviewed[device]?.toSet().orEmpty())
     }

@@ -10,4 +10,6 @@ internal class FridaSystemRestarts(context: Context) : SystemRestarts {
     override fun restartMultimedia(): SystemRestartScripts.MediaRestart = FridaBridge(app).restartMultimedia()
 
     override fun rebootSystem() = FridaBridge(app).rebootSystem()
+
+    override fun restoreActivation(): ActivationRecovery.Result = FridaBridge(app).restoreActivation()
 }

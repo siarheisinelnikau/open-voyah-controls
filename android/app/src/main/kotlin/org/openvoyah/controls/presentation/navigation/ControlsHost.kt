@@ -54,6 +54,7 @@ import org.openvoyah.controls.presentation.dock.quickActionsModel
 import org.openvoyah.controls.presentation.firmware.FirmwareDestination
 import org.openvoyah.controls.presentation.home.AppearanceViewModel
 import org.openvoyah.controls.presentation.home.ControlsSettingsDestination
+import org.openvoyah.controls.presentation.permissions.ActionPermissionsDestination
 import org.openvoyah.controls.presentation.keyboard.KeyboardDestination
 import org.openvoyah.controls.presentation.routines.RoutinesDestination
 import org.openvoyah.controls.presentation.rules.ConditionalRulesDestination
@@ -168,6 +169,7 @@ internal fun ControlsHost(
                         ControlsRoute.UPDATES -> UpdatesDestination(navigation::back)
                         ControlsRoute.DIAGNOSTICS -> DiagnosticsDestination(navigation::back)
                         ControlsRoute.KEYBOARD -> KeyboardDestination(navigation::back)
+                        ControlsRoute.ACTION_PERMISSIONS -> ActionPermissionsDestination(navigation::back)
                     }
                 }
             }

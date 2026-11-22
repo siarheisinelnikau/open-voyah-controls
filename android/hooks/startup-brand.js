@@ -2,6 +2,7 @@ import { errorKind } from './report.js';
 
 const APP = 'org.openvoyah.controls';
 const ACTION = APP + '.action.SHOW_BOOT_BRAND';
+const SETUP = APP + '.SetupActivity';
 const STARTUP_WINDOW_MS = 30_000;
 
 function visibleOnCentralDisplay(view) {
@@ -18,6 +19,8 @@ export function createStartupBrand(Java) {
     const Global = Java.use('android.provider.Settings$Global');
     const Intent = Java.use('android.content.Intent');
     const Animator = Java.use('android.animation.ValueAnimator');
+    const ActivityManager = Java.use('android.app.ActivityManager');
+    const RunningTask = Java.use('android.app.ActivityManager$RunningTaskInfo');
     let deadline;
     let finished = false;
     let scanning = false;
@@ -27,6 +30,23 @@ export function createStartupBrand(Java) {
     function skip(reason) {
         finished = true;
         console.log('OVC_STARTUP_BRAND outcome=skipped reason=' + reason);
+    }
+
+    /**
+     * True while Controls' setup page has a task, even one behind home. The page is excluded from the recents, and
+     * Android drops such a hidden task when a new task starts: the intro's task did that during a provisioning
+     * probe (boot 207), and the installer waited in vain for the page's answer.
+     */
+    function setupOpen(launcher) {
+        const tasks = Java.cast(launcher.getSystemService('activity'), ActivityManager).getRunningTasks(64);
+        for (let i = 0; i < tasks.size(); i++) {
+            const task = Java.cast(tasks.get(i), RunningTask);
+            for (const component of [task.baseActivity.value, task.topActivity.value]) {
+                if (component && String(component.getPackageName()) === APP &&
+                    String(component.getClassName()) === SETUP) return true;
+            }
+        }
+        return false;
     }
 
     function pending() {
@@ -60,6 +80,10 @@ export function createStartupBrand(Java) {
             if (!info || String(info.packageName.value) !== String(launcher.getPackageName())) {
                 skip('other_home');
                 return true;
+            }
+            if (setupOpen(launcher)) {
+                blocker = 'setup_active';
+                return false;
             }
             const homeClass = String(info.targetActivity.value ?? info.name.value);
             blocker = 'home_missing';

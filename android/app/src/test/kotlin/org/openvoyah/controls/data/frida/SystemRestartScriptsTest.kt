@@ -70,7 +70,7 @@ class SystemRestartScriptsTest {
         assertFalse(script.contains("reboot -f") || script.contains("kill"))
     }
 
-    @Test fun bothOperationsMustBeReviewedForTheDevice() {
+    @Test fun reviewRowsOnlyMarkTheRestartOperationsAsVerified() {
         val device = "fp/x:11/1/1:user/release-keys\t30\tarm64-v8a\tf6802h"
         val catalog = "$device\tcom.qinggan.app.launcher\t${"a".repeat(64)}\t${"b".repeat(64)}\n"
         val reviewed = ReviewedFirmware.select(catalog,

@@ -62,6 +62,7 @@ import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
  */
 class SetupActivity : ComponentActivity() {
     private lateinit var model: SetupViewModel
+    private var counted = false
 
     private fun requestNonce(intent: Intent): String? = intent.getStringExtra("request")
         ?.takeIf { it.matches(Regex("[a-f0-9]{32}")) }
@@ -75,6 +76,8 @@ class SetupActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val nonce = requestNonce(intent)
         if (nonce == null) { finish(); return }
+        openPages++
+        counted = true
         model = ViewModelProvider(this)[SetupViewModel::class.java]
         setContent {
             val state by model.state.collectAsStateWithLifecycle()
@@ -167,5 +170,17 @@ class SetupActivity : ComponentActivity() {
         val nonce = requestNonce(intent) ?: return
         setIntent(intent)
         model.start(nonce)
+    }
+
+    override fun onDestroy() {
+        if (counted) openPages--
+        counted = false
+        super.onDestroy()
+    }
+
+    companion object {
+        /** Setup pages that exist in this process; the startup intro does not start over one. Main thread. */
+        internal var openPages = 0
+            private set
     }
 }

@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.openvoyah.controls.data.frida.ActivationRecovery
 import org.openvoyah.controls.data.frida.SystemRestartScripts
 
 class SystemMaintenanceViewModelTest {
@@ -15,11 +16,35 @@ class SystemMaintenanceViewModelTest {
     private fun model(restarts: SystemRestarts) = SystemMaintenanceViewModel(restarts, dispatcher, CoroutineScope(dispatcher))
     private val restarted = SystemRestartScripts.MediaRestart(listOf("com.qinggan.media"), emptyList(), true, 2)
 
-    private class Fake(var media: () -> SystemRestartScripts.MediaRestart, var reboot: () -> Unit = {}) : SystemRestarts {
+    private class Fake(
+        var media: () -> SystemRestartScripts.MediaRestart,
+        var reboot: () -> Unit = {},
+        var restore: () -> ActivationRecovery.Result = { ActivationRecovery.Result(ActivationRecovery.Outcome.NONE, "active") },
+    ) : SystemRestarts {
         var mediaCalls = 0
         var rebootCalls = 0
+        var restoreCalls = 0
         override fun restartMultimedia(): SystemRestartScripts.MediaRestart { mediaCalls++; return media() }
         override fun rebootSystem() { rebootCalls++; reboot() }
+        override fun restoreActivation(): ActivationRecovery.Result { restoreCalls++; return restore() }
+    }
+
+    @Test fun restoreReportsTheSupervisorOutcome() {
+        val recovered = ActivationRecovery.Result(ActivationRecovery.Outcome.RECOVERED, "lifetime", listOf("main", "window"))
+        val fake = Fake({ restarted }, restore = { recovered })
+        val model = model(fake)
+
+        model.restoreActivation()
+
+        assertEquals(1, fake.restoreCalls)
+        assertEquals(SystemMaintenanceViewModel.State(notice = SystemNotice.Restored(recovered)), model.state.value)
+    }
+
+    @Test fun aRefusedRestoreShowsTheBridgeMessage() {
+        val model = model(Fake({ restarted }, restore = { throw IOException("Connect explicitly") }))
+        model.restoreActivation()
+        assertEquals(SystemNotice.Failed(SystemOperation.RESTORE, "Connect explicitly"), model.state.value.notice)
+        assertNull(model.state.value.working)
     }
 
     @Test fun aMultimediaRestartReportsItsResult() {

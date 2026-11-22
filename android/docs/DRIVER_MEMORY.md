@@ -7,7 +7,7 @@
 Open **Vehicle settings → Seat and mirror memory**. **Driver 1**, **Driver 2**, and **Driver 3** each have a three-quarter seat illustration with **Restore** and **Save** below it. The buttons sit side by side when their labels fit. The cards adapt to narrow windows and large text. The same numbers identify the vehicle's memory slots and voice commands.
 
 1. Park and adjust the driver seat and mirrors. Press **Save** on the desired card. The app shows the numbered slot and offers **Open Seats** when the factory app exposes that action. Wait for confirmation in the factory controls.
-2. Press **Restore** on a card to recall its position. On firmware with reviewed recall, Controls can show whether the factory service accepted the request. Other head units use the factory seat controls. The instructions show **Factory home → All apps → Seats** when the direct Seats shortcut is unavailable.
+2. Press **Restore** on a card to recall its position. On a supported head unit Controls sends the recall and shows whether the factory service accepted the request. When the recall is forbidden in **Settings → Allowed actions**, or on another head unit, the factory seat controls are used. The instructions show **Factory home → All apps → Seats** when the direct Seats shortcut is unavailable.
 
 The vehicle stores the physical seat and mirror positions. Controls stores the last driver slot used in its own interface.
 
@@ -44,7 +44,7 @@ Press your assigned **Voice assistant** button and say the phrase for the saved 
 
 If the final transcript uses digits, `driver 1` through `driver 3` and `водитель 1` through `водитель 3` select the same positions.
 
-When the exact firmware has reviewed recall for the spoken slot, Controls can send the request after checking **P (Park)** and zero speed. It stops the direct request if the vehicle-state readings are unavailable or too slow. On builds without reviewed recall, the same phrase opens the corresponding numbered **Restore** instructions in Controls. Finish the recall in the factory seat controls. The shipped approval catalog is currently empty. A local-vehicle debug build can approve `GetFromMemoryCellOne`, `GetFromMemoryCellTwo` and `GetFromMemoryCellThree` for its own head unit after they are confirmed on that car; see [Vehicle commands on your own head unit](VOICE.md#vehicle-commands-on-your-own-head-unit).
+On a supported head unit Controls sends the recall for the spoken slot after checking **P (Park)** and zero speed. It stops the direct request if the vehicle-state readings are unavailable or too slow. When `GetFromMemoryCellOne`, `GetFromMemoryCellTwo` or `GetFromMemoryCellThree` is forbidden in **Settings → Allowed actions**, the same phrase opens the corresponding numbered **Restore** instructions in Controls; finish the recall in the factory seat controls. See [Vehicle commands on your own head unit](VOICE.md#vehicle-commands-on-your-own-head-unit).
 
 A new driver command switches the instructions to that number. Close the instructions and go back to return to the Controls page you were using.
 

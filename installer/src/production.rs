@@ -5,7 +5,7 @@ use crate::{
 };
 use semver::Version;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     ffi::OsStr,
     fs::{self, File, OpenOptions},
     io::{Read, Write},
@@ -602,40 +602,14 @@ fn firmware_rows<'a>(
     }) {
         return Err("A reviewed firmware profile has no launcher entry.".into());
     }
-    let mut reviewed_operations = HashSet::new();
+    // Operation rows are metadata: they mark an operation as verified on that firmware for the app's
+    // Settings -> Allowed actions and never gate activation. Only their shape and identity columns are checked.
     for line in table_rows(operations) {
         let fields: Vec<_> = line.split('\t').collect();
-        let [_, _, _, _, name] = fields.as_slice() else {
+        if fields.len() != 5 || fields[4].is_empty() {
             return Err("The reviewed operations catalog has an invalid row.".into());
-        };
-        let key = review_key(&fields)?;
-        if !matches!(
-            *name,
-            "window-service"
-                | "passenger-window-dpi"
-                | "window-display-move"
-                | "oem-profiles"
-                | "tbox-reboot"
-                | "cluster-write"
-                | "can-steering-terminal"
-                | "can-steering-edges"
-        ) || !profiles.contains_key(&key)
-            || !reviewed_operations.insert((key, *name))
-        {
-            return Err("A reviewed operation has an invalid or repeated device profile.".into());
         }
-        if matches!(*name, "can-steering-terminal" | "can-steering-edges")
-            && !profiles[&key]
-                .iter()
-                .any(|row| row.package == "com.qinggan.canbus.service")
-        {
-            return Err("CAN steering requires an exact CAN service package review.".into());
-        }
-        if reviewed_operations.contains(&(key, "can-steering-terminal"))
-            && reviewed_operations.contains(&(key, "can-steering-edges"))
-        {
-            return Err("Choose one reviewed CAN event protocol for each firmware.".into());
-        }
+        review_key(&fields)?;
     }
     let sdk = identity.sdk.to_string();
     let selected = (
@@ -744,30 +718,21 @@ mod tests {
         assert!(firmware_rows(&row, &operations, &identity).is_ok());
         let swipe = operations.replace("passenger-window-dpi", "window-display-move");
         assert!(firmware_rows(&row, &swipe, &identity).is_ok());
+        // Operation rows only mark operations as verified: CAN rows without a service pin, both CAN
+        // protocols, repeats and names this version does not know are all accepted.
         let can = operations.replace("passenger-window-dpi", "can-steering-terminal");
-        assert!(firmware_rows(&row, &can, &identity).is_err());
-        let with_can = format!(
-            "{}{}",
-            row,
-            row.replace("com.qinggan.app.launcher", "com.qinggan.canbus.service")
-        );
-        assert_eq!(firmware_rows(&with_can, &can, &identity).unwrap().len(), 2);
         let edges = can.replace("can-steering-terminal", "can-steering-edges");
-        assert!(firmware_rows(&row, &edges, &identity).is_err());
-        assert_eq!(
-            firmware_rows(&with_can, &edges, &identity).unwrap().len(),
-            2
-        );
-        assert!(firmware_rows(&with_can, &format!("{can}{edges}"), &identity).is_err());
-        assert!(firmware_rows(&row, &operations.repeat(2), &identity).is_err());
+        assert_eq!(firmware_rows(&row, &format!("{can}{edges}"), &identity).unwrap().len(), 1);
+        assert!(firmware_rows(&row, &operations.repeat(2), &identity).is_ok());
         assert!(
             firmware_rows(
                 &row,
-                &operations.replace("passenger-window-dpi", "unknown"),
+                &operations.replace("passenger-window-dpi", "media-restart"),
                 &identity
             )
-            .is_err()
+            .is_ok()
         );
+        assert!(firmware_rows(&row, &operations.replace("	passenger-window-dpi", ""), &identity).is_err());
         assert!(firmware_rows(&row.repeat(2), "", &identity).is_err());
         assert!(firmware_rows(&row.replace("f0506h", "other"), "", &identity).is_err());
         assert!(firmware_rows("", "", &identity).is_err());

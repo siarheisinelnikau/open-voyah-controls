@@ -2,23 +2,39 @@
 // local-vehicle debug build.
 import catalog from '../app/build/generated/voice-approvals/voice/verified-commands.json';
 
+// Mirrors core/Firmware.java: the vehicle profile of each supported Voyah product.
+export const PRODUCT_PROFILES = Object.freeze({
+    f0501h:'NXP', f0506h:'FREE', f6802h:'FREE_REST', f6805h:'FREE_REST_BY', f6811:'FREE_REST_OVERSEA',
+    f6801f:'FREE_NORWAY', f0505h:'DREAMER', f6804h:'DREAMER_REST', f6803f:'DREAMER_REST_MI', f6806:'DREAMER_REST_MI_V2',
+});
+
+/**
+ * The vehicle profile of this head unit, or null when it is not a supported Voyah product. Every vehicle command is
+ * allowed by default; the owner forbids commands in the app (Settings → Allowed actions), which never sends them.
+ * A catalog row for the exact firmware only lists the commands verified there (`verified`).
+ */
 export function approvedVoiceCommands(Java) {
     const Build = Java.use('android.os.Build');
     const product = String(Build.PRODUCT.value);
     const fingerprint = String(Build.FINGERPRINT.value);
     const sdk = Java.use('android.os.Build$VERSION').SDK_INT.value;
     const abi = String(Build.SUPPORTED_ABIS.value[0]);
+    const profile = Object.prototype.hasOwnProperty.call(PRODUCT_PROFILES, product) ? PRODUCT_PROFILES[product] : null;
     if (![28, 30].includes(sdk) || abi !== 'arm64-v8a' || !/^[A-Za-z0-9_.:/+,-]{1,256}$/.test(fingerprint) ||
-        catalog.schema !== 1 || !Array.isArray(catalog.headUnits) || catalog.headUnits.length > 128) return null;
+        profile === null) return null;
+    return {profile, verified: verifiedCommands(product, fingerprint, sdk, abi, profile)};
+}
+
+function verifiedCommands(product, fingerprint, sdk, abi, profile) {
+    if (catalog.schema !== 1 || !Array.isArray(catalog.headUnits) || catalog.headUnits.length > 128) return new Set();
     const matches = catalog.headUnits.filter(unit => unit && unit.product === product &&
         unit.fingerprint === fingerprint && unit.sdk === sdk && unit.abi === abi);
-    if (matches.length !== 1) return null;
-    const {profile, commands} = matches[0];
-    if (typeof profile !== 'string' || profile === 'UNKNOWN' || !/^[A-Z_]+$/.test(profile) ||
-        !Array.isArray(commands) || commands.length < 1 || commands.length > 256 ||
+    if (matches.length !== 1) return new Set();
+    const {commands} = matches[0];
+    if (matches[0].profile !== profile || !Array.isArray(commands) || commands.length < 1 || commands.length > 256 ||
         commands.some(id => typeof id !== 'string' || !/^[A-Za-z][A-Za-z0-9]{0,63}$/.test(id)) ||
-        new Set(commands).size !== commands.length) return null;
-    return {profile, commands: new Set(commands)};
+        new Set(commands).size !== commands.length) return new Set();
+    return new Set(commands);
 }
 
 export class VoiceCommandFailure extends Error {

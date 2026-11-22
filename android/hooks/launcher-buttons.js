@@ -155,13 +155,19 @@ Java.perform(function () {
 
     onClick.implementation = function (view) {
         if (stockClickView !== null && view?.equals(stockClickView)) return onClick.call(this, view);
-        let slot, action, native = view;
+        let slot, action, native = view, added = false;
         try {
-            // An added lowered-menu button falls back to the OEM click of the normal view it stands for.
+            // An added lowered-menu button falls back to the OEM click of the normal view it stands for. OEM code
+            // never gets the added button itself: it has no OEM subtype of its own.
+            added = Boolean(view && panelState?.addedSlot(this, view));
             if (view) native = panelState?.nativeView(this, view) ?? view;
+            if (added && native?.equals(view)) native = null;
             slot = slotFor(this, view);
             const candidate = slot && actionFor(readConfig(this.mContext.value), slot);
-            if (candidate && panelState?.active(this, view, candidate)) action = candidate;
+            // A button this instance lost track of still runs its slot's current assignment.
+            if (candidate && (panelState?.active(this, view, candidate) || (added && !panelState.tracked(this, view)))) {
+                action = candidate;
+            }
             if (action?.kind === 'LAUNCH_APP' && this.mScreenId.value === 0) {
                 // The OEM window uses the same width even while its left-edge animation is in progress.
                 try {
@@ -180,7 +186,9 @@ Java.perform(function () {
             try { panelState.failed(this, slot); }
             catch (error) { report('restore', error, {slot}); }
         }
-        // Call OEM code exactly once if unmapped, disabled, or the replacement failed.
+        // Call OEM code exactly once if unmapped, disabled, or the replacement failed; an added button without a
+        // normal view to stand for does nothing.
+        if (native === null) return;
         return onClick.call(this, native);
     };
 

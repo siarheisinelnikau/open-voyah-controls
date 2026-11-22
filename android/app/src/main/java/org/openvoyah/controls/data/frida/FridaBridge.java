@@ -31,6 +31,7 @@ import org.openvoyah.controls.domain.display.WindowStripState;
 import org.openvoyah.controls.data.settings.LocalizationSettings;
 import org.openvoyah.controls.data.settings.SettingsStore;
 import org.openvoyah.controls.platform.apps.PanelIcons;
+import org.openvoyah.controls.domain.permissions.ActionCatalog;
 import org.openvoyah.controls.diagnostics.ControlsLog;
 import org.openvoyah.controls.platform.boot.RecoveryJobs;
 
@@ -88,7 +89,7 @@ public final class FridaBridge {
     boolean windowReviewed() {
         try {
             return production == null || production.packageReviewed(ReviewedFirmware.FRAMEWORK)
-                && production.operationReviewed(ReviewedFirmware.WINDOW_SERVICE);
+                && production.operationAllowed(ReviewedFirmware.WINDOW_SERVICE);
         } catch (Exception unreviewed) {
             // Callers show "unreviewed firmware"; the refusal type tells a changed evidence record apart.
             if (REVIEW_REFUSALS.isRepeat(unreviewed.getClass().getName())) {
@@ -100,22 +101,33 @@ public final class FridaBridge {
         }
     }
     boolean passengerWindowReviewed() {
-        return production == null || windowReviewed() && production.operationReviewed(ReviewedFirmware.PASSENGER_WINDOW_DPI);
+        return production == null || windowReviewed() && production.operationAllowed(ReviewedFirmware.PASSENGER_WINDOW_DPI);
     }
-    /** The swipe that moves app windows to the cluster and passenger displays is a separately reviewed operation. */
+    /** The swipe that moves app windows to the cluster and passenger displays is a separate allowed action. */
     boolean displayMoveReviewed() {
-        return production == null || windowReviewed() && production.operationReviewed(ReviewedFirmware.WINDOW_DISPLAY_MOVE);
+        return production == null || windowReviewed() && production.operationAllowed(ReviewedFirmware.WINDOW_DISPLAY_MOVE);
     }
-    private boolean navigationReviewed() { return packageReviewed(ReviewedFirmware.CLUSTER); }
-    private boolean canReviewed() {
-        return production != null && (production.operationReviewed(ReviewedFirmware.CAN_STEERING)
-            || production.operationReviewed(ReviewedFirmware.CAN_STEERING_EDGES))
-            && packageReviewed(ReviewedFirmware.CAN_SERVICE);
+    // The *Reviewed names are historical: each now means "the APK is pinned for this firmware and the owner has not
+    // forbidden the action in Settings → Allowed actions". A review row only marks an action as verified.
+    private boolean navigationReviewed() {
+        return packageReviewed(ReviewedFirmware.CLUSTER) && (production == null || production.agentAllowed(ActionCatalog.NAVIGATION));
     }
+    private boolean localeAllowed(String target) {
+        return packageReviewed(ReviewedFirmware.INSTANCE.getLocalizationTargets().get(target))
+            && (production == null || production.agentAllowed(ActionCatalog.LOCALE_PREFIX + target));
+    }
+    /** The CAN key protocol this deployment uses, or null to keep the factory key delivery. */
+    private String canSteering() {
+        if (production == null || !packageReviewed(ReviewedFirmware.CAN_SERVICE)) return null;
+        return ActionCatalog.INSTANCE.canSteeringSource(production.operationPermission(ReviewedFirmware.CAN_STEERING),
+            production.operationPermission(ReviewedFirmware.CAN_STEERING_EDGES), production.verifiedOperations());
+    }
+    private boolean canReviewed() { return canSteering() != null; }
     /** [icons] names the custom panel icons that [publishPanelIcons] wrote just before. */
     private String deploymentConfig(SettingsStore.State state, String icons) {
         try {
-            String source = !canReviewed() ? "qg" : production.operationReviewed(ReviewedFirmware.CAN_STEERING_EDGES) ? "can-edges" : "can-terminal";
+            String steering = canSteering();
+            String source = steering == null ? "qg" : steering.equals(ReviewedFirmware.CAN_STEERING_EDGES) ? "can-edges" : "can-terminal";
             return new JSONObject(config(state)).put("steeringSource", source).put("customIcons", icons).toString();
         } catch (JSONException ex) { throw new IllegalArgumentException(ex); }
     }
@@ -245,14 +257,18 @@ public final class FridaBridge {
                         span.outcome("completed");
                         return;
                     }
-                    prepareActivation();
-                    restoreButtonServiceAfterBoot();
-                    SettingsStore.State state = new SettingsStore(context).load();
-                    path = "resume";
-                    if (production == null || !resumeVerifiedDeployment(state)) {
-                        path = "deploy";
-                        connectLocked(state, false, DeploymentProgress.NONE, span);
+                    if (production != null) {
+                        // A revocation of an earlier boot is lifted here when the sealed deployment still verifies;
+                        // the reboot itself restored the original visuals. Anything else stays for the owner or the PC.
+                        path = "recover";
+                        ActivationRecovery.Result recovery = recoverActivationLocked(ActivationRecovery.Mode.AUTO, span);
+                        if (recovery.getOutcome() == ActivationRecovery.Outcome.WAITING) {
+                            throw new IOException(UiText.get(R.string.activation_restore_waiting));
+                        }
+                        path = "verify";
                     }
+                    path = "resume";
+                    resumeAfterRecoveryLocked(span);
                     health(UiText.get(R.string.ui_14));
                     span.outcome("completed");
                 }
@@ -265,6 +281,58 @@ public final class FridaBridge {
                 finally { span.field("path", path); }
             }
         }
+    }
+
+    /** Starts the sealed workers again, or deploys afresh when the sealed files no longer verify. */
+    private void resumeAfterRecoveryLocked(ControlsLog.Span span) throws IOException {
+        prepareActivation();
+        restoreButtonServiceAfterBoot();
+        SettingsStore.State state = new SettingsStore(context).load();
+        if (production == null || !resumeVerifiedDeployment(state)) {
+            span.field("deploy", true);
+            connectLocked(state, false, DeploymentProgress.NONE, span);
+        }
+    }
+
+    /**
+     * The owner's Restore in Settings → About and restart: re-arms the boot activation without the PC when only a
+     * revocation blocks it and the sealed deployment still verifies, then starts the workers. See {@link ActivationRecovery}.
+     */
+    public ActivationRecovery.Result restoreActivation() throws IOException {
+        synchronized (IO_LOCK) {
+            try (ControlsLog.Span span = ControlsLog.span("bridge_restore_activation")) {
+                try {
+                    if (production == null) return new ActivationRecovery.Result(ActivationRecovery.Outcome.NONE, "fixture",
+                        java.util.List.of());
+                    if (!knownAuthorization() || !runtimeConfigured()) {
+                        throw new ProductionRootAccess.Refused(UiText.get(R.string.production_connect_required));
+                    }
+                    ActivationRecovery.Result result = recoverActivationLocked(ActivationRecovery.Mode.MANUAL, span);
+                    if (result.getOutcome() == ActivationRecovery.Outcome.RECOVERED
+                            || result.getOutcome() == ActivationRecovery.Outcome.NONE) {
+                        resumeAfterRecoveryLocked(span);
+                        health(UiText.get(R.string.ui_14));
+                    }
+                    span.outcome(result.getOutcome().getToken());
+                    return result;
+                } catch (IOException | RuntimeException ex) {
+                    record(span, ex);
+                    throw ex;
+                }
+            }
+        }
+    }
+
+    private ActivationRecovery.Result recoverActivationLocked(ActivationRecovery.Mode mode, ControlsLog.Span span)
+            throws IOException {
+        requireRoot();
+        ActivationRecovery.Result result = ActivationRecovery.parse(command(ActivationRecovery.script(base, mode)));
+        span.field("recovery", result.getOutcome().getToken()).field("recovery_reason", result.getReason());
+        if (result.getOutcome() != ActivationRecovery.Outcome.NONE) {
+            ControlsLog.info("activation_recovery", "mode", mode.getToken(), "outcome", result.getOutcome().getToken(),
+                "reason", result.getReason(), "channels", String.join(",", result.getChannels()));
+        }
+        return result;
     }
 
     private void prepareActivation() throws IOException {
@@ -466,12 +534,12 @@ public final class FridaBridge {
         return command(guard + quote(injectorPath()) + " --version").trim();
     }
 
-    /** Translation channels whose target package this firmware review covers, in a stable order. */
+    /** Translation channels whose target APK is pinned for this firmware and not forbidden, in a stable order. */
     private java.util.List<String> localizationChannels() {
         java.util.List<String> channels = new java.util.ArrayList<>();
         if (!new LocalizationSettings(context).enabled()) return channels;
         for (var entry : ReviewedFirmware.INSTANCE.getLocalizationTargets().entrySet()) {
-            if (packageReviewed(entry.getValue()) && runs64Bit(entry.getValue())) channels.add("locale-" + entry.getKey());
+            if (localeAllowed(entry.getKey()) && runs64Bit(entry.getValue())) channels.add("locale-" + entry.getKey());
         }
         return channels;
     }
@@ -620,8 +688,7 @@ public final class FridaBridge {
         for (String channel : channels) {
             if (channel.equals("window") && !windowReviewed() || channel.equals("navigation") && !navigationReviewed()
                 || channel.equals("can") && !canReviewed()
-                || channel.startsWith("locale-") && !packageReviewed(ReviewedFirmware.INSTANCE.getLocalizationTargets()
-                    .get(channel.substring(7)))) throw unreviewedOperation();
+                || channel.startsWith("locale-") && !localeAllowed(channel.substring(7))) throw unreviewedOperation();
             String script = channel.startsWith("locale-") ? "localization" : channel;
             artifacts.put(channel + "/launcher-buttons.js", assetDigest("hooks/" + script + ".bundle.js"));
         }
@@ -1083,9 +1150,19 @@ public final class FridaBridge {
         return new ProductionRootAccess.Refused(UiText.get(R.string.production_operation_unreviewed));
     }
 
+    private static ProductionRootAccess.Refused forbiddenOperation() {
+        return new ProductionRootAccess.Refused(UiText.get(R.string.action_forbidden));
+    }
+
+    /** Refuses an operation the owner forbade in Settings → Allowed actions; an unverified one is journaled. */
     private void requireReviewedOperation(String operation) throws IOException {
-        if (production == null || !production.operationReviewed(operation)) throw unreviewedOperation();
+        if (production == null) throw unreviewedOperation();
+        if (!production.operationAllowed(operation)) {
+            ControlsLog.warn("action_forbidden", "action", "operation." + operation);
+            throw forbiddenOperation();
+        }
         production.requireActivation();
+        production.recordOperationUse(operation);
     }
 
     public String switchDriver(String driver) throws Exception {

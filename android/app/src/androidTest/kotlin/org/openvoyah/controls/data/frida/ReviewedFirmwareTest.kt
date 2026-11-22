@@ -9,7 +9,7 @@ class ReviewedFirmwareTest : AndroidTestCase() {
     private val identity = listOf(device.fingerprint, device.sdk, device.abi, device.product).joinToString("\t")
     private val launcher = "$identity\t${ReviewedFirmware.LAUNCHER}\t${"a".repeat(64)}\t${"b".repeat(64)}"
 
-    fun testRequiresExactReviewedDeviceAndAnExplicitOperation() {
+    fun testRequiresTheExactDeviceAndReadsOperationRowsAsVerifiedMarks() {
         assertNull(ReviewedFirmware.select("# No entries", "", device))
         assertNull(ReviewedFirmware.select(launcher, "", device.copy(sdk = "28")))
         assertNull(ReviewedFirmware.select(launcher, "", device.copy(abi = "x86_64")))
@@ -20,31 +20,29 @@ class ReviewedFirmwareTest : AndroidTestCase() {
         val reviewed = requireNotNull(ReviewedFirmware.select(launcher, "$identity\twindow-service", device))
         assertEquals(setOf("window-service"), reviewed.operations)
         val passenger = "$identity\tpassenger-window-dpi"
-        assertEquals(setOf("passenger-window-dpi"), requireNotNull(ReviewedFirmware.select(launcher, passenger, device)).operations)
-        reject { ReviewedFirmware.select(launcher, "$passenger\n$passenger", device) }
+        assertEquals(setOf("passenger-window-dpi"), requireNotNull(ReviewedFirmware.select(launcher, "$passenger\n$passenger", device)).operations)
         val swipe = "$identity\twindow-display-move"
         assertEquals(setOf("window-display-move"), requireNotNull(ReviewedFirmware.select(launcher, swipe, device)).operations)
     }
 
-    fun testRejectsDuplicateMalformedOrUnanchoredReview() {
+    fun testRejectsDuplicateOrMalformedPinsButSkipsMetadataItCannotUse() {
         reject { ReviewedFirmware.select("$launcher\n$launcher", "", device) }
         reject { ReviewedFirmware.select(launcher.dropLast(1), "", device) }
-        reject { ReviewedFirmware.select(launcher, "$identity\tunknown-operation", device) }
-        reject { ReviewedFirmware.select("", "$identity\toem-profiles", device) }
         reject { ReviewedFirmware.select(launcher.replace(ReviewedFirmware.LAUNCHER, ReviewedFirmware.CLUSTER), "", device) }
+        reject { ReviewedFirmware.select(launcher, "$identity", device) }
+        // Operation rows are metadata: an unknown name or a row without pins never blocks the root channel.
+        assertTrue(requireNotNull(ReviewedFirmware.select(launcher, "$identity\tunknown-operation", device)).operations.isEmpty())
+        assertNull(ReviewedFirmware.select("", "$identity\toem-profiles", device))
     }
 
-    fun testCanSteeringRequiresItsOwnExactServicePackage() {
+    fun testBothCanProtocolsMayBeMarkedVerifiedWithoutTheServicePin() {
         val operation = "$identity\t${ReviewedFirmware.CAN_STEERING}"
-        reject { ReviewedFirmware.select(launcher, operation, device) }
-        val can = launcher.replace(ReviewedFirmware.LAUNCHER, ReviewedFirmware.CAN_SERVICE)
-        val reviewed = requireNotNull(ReviewedFirmware.select("$launcher\n$can", operation, device))
-        assertEquals(setOf(ReviewedFirmware.CAN_STEERING), reviewed.operations)
-        assertEquals(2, reviewed.packages.size)
         val edges = "$identity\t${ReviewedFirmware.CAN_STEERING_EDGES}"
-        reject { ReviewedFirmware.select(launcher, edges, device) }
-        assertEquals(setOf(ReviewedFirmware.CAN_STEERING_EDGES), requireNotNull(ReviewedFirmware.select("$launcher\n$can", edges, device)).operations)
-        reject { ReviewedFirmware.select("$launcher\n$can", "$operation\n$edges", device) }
+        val both = requireNotNull(ReviewedFirmware.select(launcher, "$operation\n$edges", device))
+        assertEquals(setOf(ReviewedFirmware.CAN_STEERING, ReviewedFirmware.CAN_STEERING_EDGES), both.operations)
+        assertEquals(1, both.packages.size)
+        val can = launcher.replace(ReviewedFirmware.LAUNCHER, ReviewedFirmware.CAN_SERVICE)
+        assertEquals(2, requireNotNull(ReviewedFirmware.select("$launcher\n$can", operation, device)).packages.size)
     }
 
     fun testAnUnreviewedBuildRefusesPrivilegedExecutionBeforeBrokerLookup() {

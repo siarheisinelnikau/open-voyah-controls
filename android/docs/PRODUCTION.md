@@ -50,9 +50,24 @@ Approve only packages whose actual classes, entry points, behavior, and recovery
 
 Qualify a separate recovery procedure before approving OEM account or cluster writes. PC handler rollback covers the Controls deployment and its boot entry. Account records and instrument cluster files have their own backup and restore operations.
 
-The optional `can-steering-terminal` and `can-steering-edges` operations require a pinned `com.qinggan.canbus.service` APK. Both Android and Windows reject a missing service pin or simultaneous selection of both protocols. Qualification must establish the full physical-key path, duplicate delivery, sleep/wake and native fallback. The edge route owns an entire press only when both assignments pass preflight; late failures and combinations after capture are canceled without physical replay. A callback signature or service hash alone is insufficient. See [agent behavior and edge ownership](FRIDA_AGENTS.md).
+The optional `can-steering-terminal` and `can-steering-edges` operations run only with a pinned `com.qinggan.canbus.service` APK. Only one protocol runs at a time (see [Firmware: steering adapters](FIRMWARE.md#steering-and-display-adapters)); operation rows for both, or for a firmware without the service pin, are accepted as metadata. Qualification must establish the full physical-key path, duplicate delivery, sleep/wake and native fallback. The edge route owns an entire press only when both assignments pass preflight; late failures and combinations after capture are canceled without physical replay. A callback signature or service hash alone is insufficient. See [agent behavior and edge ownership](FRIDA_AGENTS.md).
 
 The read-only evidence tool includes the CAN service and `com.qinggan.app.login`; an overseas login pin permits interface and bounded account-file observation, not account writes. It also records the declared tracking-provider owner and relevant manifest components. Any extra owner package is diagnostic evidence only and has no firmware catalog row. The portable account observation collects file metadata without reading or hashing the account record. The observed `/private/configs/token/accountInfo` file is outside the login package directory. It is only part of the account state: do not treat an app-data archive or this file alone as a complete rollback. No overseas switching/restore approval is shipped. See [account recovery boundaries](ACCOUNT_RECOVERY.md).
+
+## Allowed actions and what still guards the root channel
+
+Review used to gate features: without a row in `verified-operations.tsv` or `verified-commands.json` for the exact firmware an operation or vehicle command was refused. Now every operation, agent channel and vehicle voice command is **allowed by default**, and only the owner narrows it in **Settings → Allowed actions** (Unverified or Forbidden; see [Settings: allowed actions](SETTINGS.md#allowed-actions)). The review files keep their format and are optional metadata:
+
+- `verified-operations.tsv` and `verified-commands.json` rows mark an action **Verified on this firmware** in Settings and pick the CAN protocol when both are allowed. A row for an operation this version does not know, a repeated row, both CAN protocols or a CAN row without the service pin no longer stops activation, on Android or in the Windows installer.
+- The launcher agent accepts any vehicle command on a supported Voyah product (Android 9/11, arm64, a product listed in `Firmware.java`); the app does not send forbidden ones.
+
+What stays, whatever the owner chooses:
+
+- **Firmware identity and APK pins.** `verified-firmware.tsv` still names the exact fingerprint, SDK, ABI and product, and the signer and APK hash of every OEM package an agent hooks. Every root command re-checks them, so the root channel only ever targets this unit and these APKs. A package without a pin (for example the CAN service or the cluster on a firmware that lists neither) keeps its agent off; the action then answers that the APK pin is missing, not that it is forbidden.
+- **Root channel and release checks.** The authenticated local broker, the signer of this app, Enforcing SELinux (or a Permissive kernel command line on a local-vehicle build) and user 0.
+- **Supervisor integrity.** The sealed deployment hashes in `trust.tsv`, the injector hash, the recovery markers (`recovery.blocked`, `recovery.visual-pending`, `update.pending`) and the update pause.
+- **Vehicle safety.** The Park and zero-speed check before every Park-only voice write (`MOTION_COMMANDS` lists the exceptions), the Park preflight before a T-Box restart, a system reboot and Driver A/B/C, request expiry, replay and rate limits in the agent.
+- **Confirmations.** The in-app confirmations before a system reboot, a multimedia restart and a cluster write; an Unverified action says so there.
 
 ## Prepare the first launch
 
@@ -68,6 +83,30 @@ Setup stages a complete access generation before replacing an earlier one. A fai
 
 Cold speech preparation requires 128 MiB of free internal storage before copying either pinned model. A completed model can reopen without this extraction reserve. A low-space failure leaves settings and existing models intact. Free space and retry setup. Repeating **Prepare and install** while its Android result window is already open starts a fresh request; checks are serialized and an older result cannot satisfy the new request.
 
+## Recovery without the PC
+
+After the supervisor revokes activation (`recovery.blocked`, `recovery.visual-pending`, every `enabled` flag removed), Controls can re-arm it on the head unit itself, through the authenticated root channel, with `boot-start.sh --recover auto|manual`. `boot-start.sh` first checks both scripts against the receipt, then `supervise.sh --recover` decides:
+
+| Mode | Who asks | Re-arms when |
+| --- | --- | --- |
+| `auto` | Controls' boot job after every boot (`bridge_reconnect`, `path=recover`) | The markers are from an earlier boot (the reboot restored the original visuals), `recovery.reason` was written by the supervisor for that revocation, no visual session or injector of this project is live, and the deployment verifies. |
+| `manual` | The owner: Settings → About and restart → **Restore Open Voyah Controls**, behind a confirmation | The same, but also for a revocation of the current boot or one without a recorded reason, once no visual session is `current` or `uncertain` (the affected targets restarted since). Otherwise Controls asks for a system restart and re-arms by itself after the boot. |
+
+"Verifies" is `check_runtime`, the same check a boot runs: the receipt's device row, the APK pins of Controls and every hooked OEM package, the Frida runtime hash, both scripts, every agent, the app's uid and root-channel key against the sealed lifetime, user 0, and no legacy deployment. On success it retires changed visual sessions, resets the retry and restart budgets, enables the channels listed in `recovery.reason` (without a list, every channel whose agent the receipt seals) and removes the markers; Controls then starts the workers as after a normal boot. The journal shows `activation_recovery mode=<auto|manual> outcome=recovered reason=<cause> channels=<…>`, and the main `worker.log` `Activation re-armed without the PC`.
+
+Replies, as `OVC_RECOVER outcome=<o> reason=<r>`: `recovered`; `none` (nothing blocked); `reboot` with `visual` or `same-boot`; `waiting` with `locked` (user storage not unlocked yet; the boot job retries); `pc` with `deployment`, `lifetime`, `unrecorded`, `update`, `main-agent`, `marker` or `boot-id`.
+
+What still needs the PC (`provision.ps1`: `rollback` → reboot → `rearm,access,boot,probe`):
+
+- a different APK of Controls (any `adb install`, including the same source rebuilt), a changed Frida runtime, script or agent: the hashes no longer match the receipt (`pc:deployment`);
+- a reinstalled app, cleared app data or a new root-channel key (`pc:lifetime`);
+- an OEM APK replaced by a firmware update, another fingerprint, or a receipt that fails its schema (`pc:deployment`);
+- a block the supervisor did not record, such as a PC `rollback` or the app's own unconfirmed visual restore, which the boot job leaves alone (`pc:unrecorded`; Restore in Controls may lift the latter);
+- a runtime update in progress (`pc:update`), a marker that is a symlink or has the wrong owner (`pc:marker`), or a missing main launcher agent (`pc:main-agent`);
+- a revocation written by a supervisor older than this one (no `recovery.reason`): the boot job leaves it (`pc:unrecorded`), Restore in Controls lifts it once the deployment verifies.
+
+A PC `rollback` also disables the root channel, so Controls cannot undo it.
+
 ## Validate rollback before driving
 
 Use the PC recovery path before removing the APK. The PC must be able to stop our handlers and disable their startup even if the app is absent. Verify the restored OEM boot file against the original backup on the same firmware. If the device has moved to a different build or the current file is unrecognized, retain the backup and use the reviewed recovery procedure for that build.
@@ -77,6 +116,7 @@ Use the PC recovery path before removing the APK. The PC must be able to stop ou
 | Restart, cold boot, sleep and wake, package replacement | The expected handlers come up once, use the current package identities, and report capability-specific readiness. |
 | Stop or remove Controls, then reboot | No Controls handlers attach again. Stock actions and visuals work. The PC reports the boot file and backup status. |
 | Lost connection and interrupted staging | Retrying uses a verified device and consistent artifacts. A stale lock does not prevent recovery. Repeated process crashes cause the affected handler to pause. |
+| Target crash and revocation | Killing the launcher after a healthy minute brings the launcher agent back within about 10 s with `Target restarted; attaching again`. After a forced revocation with unchanged files, the next boot re-arms by itself (`activation_recovery mode=auto outcome=recovered`); after an `adb install` it reports `pc:deployment`. |
 | Central and passenger buttons | A tap opens the assigned app on the intended screen. A hold calls the stock action once. Missing or failed targets return to stock behavior. Home, climate, and surround view remain accessible. |
 | Installed apps and permissions | Native installation confirms the selected package. For an app installed on top of the firmware by any installer, a runtime grant or revocation and a special access change match Android's recorded state before and after reboot. **Close app** leaves no process of the app. Firmware and maker apps, the launcher and the keyboard offer neither switches nor **Close app**, and an app with an enabled accessibility or notification service offers no **Close app**. |
 | Windows and DPI | Running and newly launched apps leave the expected left strip on the central screen. Display defaults, per-app choices, and recovery preserve the intended scope. |

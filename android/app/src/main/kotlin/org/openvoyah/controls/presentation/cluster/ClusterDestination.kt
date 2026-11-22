@@ -23,6 +23,8 @@ import kotlinx.coroutines.launch
 import org.openvoyah.controls.ClusterMaintenanceAdapter
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.domain.permissions.ActionCatalog
+import org.openvoyah.controls.presentation.home.withUnverifiedNote
 import org.openvoyah.controls.presentation.maintenance.ClusterAction
 import org.openvoyah.controls.presentation.maintenance.ClusterScreen
 import org.openvoyah.controls.presentation.maintenance.MaintenanceViewModel
@@ -68,7 +70,7 @@ internal fun ClusterDestination(back: () -> Unit) {
 
     fun confirm(label: Int, operation: () -> String) {
         val title = UiText.get(label)
-        dialogs.message(title, UiText.get(R.string.cluster_confirm), title, Runnable {
+        dialogs.message(title, withUnverifiedNote(context, ActionCatalog.CLUSTER_WRITE, UiText.get(R.string.cluster_confirm)), title, Runnable {
             if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) model.run(operation)
         }, UiText.get(R.string.ui_89))
     }

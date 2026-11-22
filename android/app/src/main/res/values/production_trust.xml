@@ -6,6 +6,6 @@
     <string name="production_connect_required">Connect explicitly after the desktop preflight. Use desktop recovery for an earlier installation.</string>
     <string name="production_broker_timeout">The local root request timed out.</string>
     <string name="production_recovery_blocked">Recovery is blocking activation. Check the desktop recovery status.</string>
-    <string name="production_operation_unreviewed">This operation has no reviewed production approval for the installed firmware.</string>
+    <string name="production_operation_unreviewed">This action needs an APK pin for the installed firmware, which is missing.</string>
     <string name="production_voice_outcome_unknown">No valid acknowledgment was received. Check the vehicle state before repeating the command.</string>
 </resources>

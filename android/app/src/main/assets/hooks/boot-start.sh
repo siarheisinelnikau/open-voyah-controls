@@ -35,8 +35,13 @@ fi
 check_script boot-start.sh && check_script supervise.sh || fail 'Boot worker digest or ownership did not match.'
 case "${1:-}" in
     --verify) exec /system/bin/sh "$base/supervise.sh" --verify-boot ;;
+    # Re-arm without the PC after a revocation, only while the sealed deployment still verifies (see supervise.sh).
+    --recover)
+        [ "$fixture" = 0 ] && [ "$#" = 2 ] || fail 'Choose --recover auto or --recover manual.'
+        case "$2" in auto|manual) exec /system/bin/sh "$base/supervise.sh" --recover "$2" ;; esac
+        fail 'Choose --recover auto or --recover manual.' ;;
     '') ;;
-    *) fail 'Choose boot startup or --verify.' ;;
+    *) fail 'Choose boot startup, --verify or --recover.' ;;
 esac
 [ ! -e "$base/recovery.blocked" ] && [ ! -L "$base/recovery.blocked" ] || fail 'Recovery block is active.'
 [ ! -e "$base/recovery.visual-pending" ] && [ ! -L "$base/recovery.visual-pending" ] || fail 'Visual recovery is pending.'

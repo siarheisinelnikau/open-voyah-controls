@@ -34,14 +34,10 @@ export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR
                 if (manager === null) throw Error('CAN service is not connected yet. Try later');
                 return manager;
             }
+            // Any vehicle command runs on a supported head unit; the app has already refused the ones the owner
+            // forbade. Park, speed and expiry are still checked below for every command that needs them.
             function reviewed(command) {
-                if (approval === null) return false;
-                if (command === 'ParkingPreflight') return approval.commands.has('RebootTbox');
-                if (command === 'ProfileSyncPreflight' || command === 'ProfileSync') {
-                    const driver = ['DriverA', 'DriverB', 'DriverC'].some(id => approval.commands.has(id));
-                    return driver || (command === 'ProfileSync' && approval.commands.has(command));
-                }
-                return approval.commands.has(command);
+                return approval !== null;
             }
             function guard(manager, expires, command = '') {
                 if (now() >= expires) throw new VoiceCommandFailure('blocked', 'Vehicle command expired');

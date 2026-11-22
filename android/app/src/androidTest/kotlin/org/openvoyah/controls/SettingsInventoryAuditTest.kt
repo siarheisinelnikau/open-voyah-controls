@@ -14,7 +14,6 @@ import junit.framework.Assert.assertEquals
 import junit.framework.Assert.assertTrue
 import org.json.JSONArray
 import org.json.JSONObject
-import org.openvoyah.controls.data.settings.VehicleCommandSwitches
 import org.openvoyah.controls.data.dock.QuickActionPreferences
 import org.openvoyah.controls.data.frida.FridaBridge
 import org.openvoyah.controls.data.settings.LocalSettingsArchive
@@ -435,10 +434,7 @@ private const val WINDOW_STRIP = "windowSystemInsets"
 private const val CLOUD_VOICE_PREFS = "cloud_voice"
 private const val CLOUD_CREDENTIAL = "credential"
 private const val CLOUD_KEY_ALIAS = "org.openvoyah.controls.openrouter"
-private const val VEHICLE_COMMAND_PREFS = "vehicle_commands"
-private const val VEHICLE_COMMANDS_OFF = "switchedOff"
-private val DEVICE_ONLY_FAMILIES = listOf("optional online fallback", "navigation feed", "window service", "system panel strip",
-    "vehicle commands switched off")
+private val DEVICE_ONLY_FAMILIES = listOf("optional online fallback", "navigation feed", "window service", "system panel strip")
 
 private enum class DeviceSettingsProfile(
     val id: String,
@@ -446,11 +442,9 @@ private enum class DeviceSettingsProfile(
     private val navigationHook: Boolean,
     private val windowStrip: Boolean,
     private val credential: String?,
-    private val vehicleCommandsOff: Set<String>,
 ) {
-    A("a", windowHook = false, navigationHook = true, windowStrip = true, credential = "AuditOnlySyntheticCredentialA2026",
-        vehicleCommandsOff = setOf("LowBeam", "OpenTrunkCommand")),
-    B("b", windowHook = true, navigationHook = false, windowStrip = false, credential = null, vehicleCommandsOff = emptySet());
+    A("a", windowHook = false, navigationHook = true, windowStrip = true, credential = "AuditOnlySyntheticCredentialA2026"),
+    B("b", windowHook = true, navigationHook = false, windowStrip = false, credential = null);
 
     fun write(app: Context) {
         // Direct preference writes keep this fixture independent of each optional service's lifecycle.
@@ -458,8 +452,6 @@ private enum class DeviceSettingsProfile(
         check(bridge.edit().putBoolean(WINDOW_HOOK, windowHook).putBoolean(NAVIGATION_HOOK, navigationHook)
             .putBoolean(WINDOW_STRIP, windowStrip).commit())
         CloudVoiceSettings(app).save(credential != null, credential.orEmpty())
-        check(app.getSharedPreferences(VEHICLE_COMMAND_PREFS, Context.MODE_PRIVATE).edit()
-            .putStringSet(VEHICLE_COMMANDS_OFF, vehicleCommandsOff).commit())
     }
 
     fun verify(app: Context, label: String) {
@@ -469,8 +461,6 @@ private enum class DeviceSettingsProfile(
         val voice = CloudVoiceSettings(app)
         assertTrue("$label changed the device-bound voice setting",
             voice.configured() == (credential != null) && voice.key() == credential)
-        assertEquals("$label changed the switched-off vehicle commands", vehicleCommandsOff,
-            VehicleCommandSwitches(app).switchedOff())
     }
 }
 
@@ -480,7 +470,6 @@ private data class DeviceSettingsSnapshot(
     private val windowStrip: Boolean?,
     private val encryptedCredential: String?,
     private val cloudKeyExisted: Boolean,
-    private val vehicleCommandsOff: Set<String>?,
 ) {
     fun encode() = JSONObject()
         .put(WINDOW_HOOK, windowHook ?: JSONObject.NULL)
@@ -488,7 +477,6 @@ private data class DeviceSettingsSnapshot(
         .put(WINDOW_STRIP, windowStrip ?: JSONObject.NULL)
         .put(CLOUD_CREDENTIAL, encryptedCredential ?: JSONObject.NULL)
         .put("cloudKeyExisted", cloudKeyExisted)
-        .put(VEHICLE_COMMANDS_OFF, vehicleCommandsOff?.let { JSONArray(it.sorted()) } ?: JSONObject.NULL)
 
     fun restore(app: Context) {
         val bridge = app.getSharedPreferences(BRIDGE_PREFS, Context.MODE_PRIVATE).edit()
@@ -499,9 +487,6 @@ private data class DeviceSettingsSnapshot(
         val voice = app.getSharedPreferences(CLOUD_VOICE_PREFS, Context.MODE_PRIVATE).edit()
         if (encryptedCredential == null) voice.remove(CLOUD_CREDENTIAL) else voice.putString(CLOUD_CREDENTIAL, encryptedCredential)
         check(voice.commit())
-        val vehicle = app.getSharedPreferences(VEHICLE_COMMAND_PREFS, Context.MODE_PRIVATE).edit()
-        if (vehicleCommandsOff == null) vehicle.remove(VEHICLE_COMMANDS_OFF) else vehicle.putStringSet(VEHICLE_COMMANDS_OFF, vehicleCommandsOff)
-        check(vehicle.commit())
         val keyStore = openKeyStore()
         if (!cloudKeyExisted && keyStore.containsAlias(CLOUD_KEY_ALIAS)) keyStore.deleteEntry(CLOUD_KEY_ALIAS)
         check(capture(app) == this) { "The original device-only settings must be restored" }
@@ -522,8 +507,6 @@ private data class DeviceSettingsSnapshot(
                 optionalValue(bridge[WINDOW_STRIP], WINDOW_STRIP),
                 optionalValue(voice[CLOUD_CREDENTIAL], CLOUD_CREDENTIAL),
                 keyExisted,
-                optionalValue<Set<*>>(app.getSharedPreferences(VEHICLE_COMMAND_PREFS, Context.MODE_PRIVATE).all[VEHICLE_COMMANDS_OFF],
-                    VEHICLE_COMMANDS_OFF)?.mapTo(sortedSetOf()) { it as String },
             )
         }
 
@@ -533,8 +516,6 @@ private data class DeviceSettingsSnapshot(
             optionalValue(value.opt(WINDOW_STRIP), WINDOW_STRIP),
             optionalValue(value.get(CLOUD_CREDENTIAL), CLOUD_CREDENTIAL),
             value.getBoolean("cloudKeyExisted"),
-            optionalValue<JSONArray>(value.opt(VEHICLE_COMMANDS_OFF), VEHICLE_COMMANDS_OFF)
-                ?.let { array -> (0 until array.length()).mapTo(sortedSetOf()) { array.getString(it) } },
         )
 
         private fun openKeyStore(): KeyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }

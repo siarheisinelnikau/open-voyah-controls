@@ -52,6 +52,7 @@ export function installHomeWeatherCard(Java, {readConfig, readWeather, report = 
         const Air = Java.use('com.qinggan.tsp.models.cpsp.WeatherLiveBean$DataBean$WeatherAirQualityBean');
         const Reference = Java.use('java.lang.ref.WeakReference');
         const ActivityThread = Java.use('android.app.ActivityThread');
+        const View = Java.use('android.view.View');
         const update = Card.updateWeather.overload('com.qinggan.tsp.models.cpsp.WeatherLiveBean');
         const redraw = Card.updateWeather.overload();
         const attached = Card.onAttachedToWindow.overload();
@@ -75,13 +76,17 @@ export function installHomeWeatherCard(Java, {readConfig, readWeather, report = 
         }
 
         function airVisible(card, visible) {
-            const context = card.getContext();
-            const resources = context.getResources();
-            for (const name of ['aqi_view', 'aqi_value']) {
-                const id = resources.getIdentifier(name, 'id', context.getPackageName());
-                const view = id === 0 ? null : card.findViewById(id);
-                if (view !== null) view.setVisibility(visible ? 0 : 8);
-            }
+            // Its own failure leaves the weather on the card; only the air quality level may stay as it was.
+            try {
+                const context = card.getContext();
+                const resources = context.getResources();
+                for (const name of ['aqi_view', 'aqi_value']) {
+                    const id = resources.getIdentifier(name, 'id', context.getPackageName());
+                    // findViewById is generic (<T extends View>); the bridge returns it as java.lang.Object.
+                    const found = id === 0 ? null : card.findViewById(id);
+                    if (found !== null) Java.cast(found, View).setVisibility(visible ? 0 : 8);
+                }
+            } catch (error) { report('air', error); }
         }
 
         function show(card) {

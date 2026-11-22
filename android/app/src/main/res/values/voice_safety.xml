@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="voice_vehicle_approval_required">Vehicle control requires verification of this head unit and command.</string>
+    <string name="voice_vehicle_approval_required">Vehicle control is unavailable: this head unit is not a supported Voyah model or its firmware has no identity profile.</string>
     <string name="voice_vehicle_reviewed">Approved comfort, climate, lighting, window and drive-mode commands also work while driving. Doors, trunk, filler flaps, seat memory and lights off need Park at a standstill.</string>
     <string name="voice_vehicle_accepted">The vehicle accepted the request.</string>
     <string name="voice_vehicle_verified">The vehicle reported the requested state.</string>
@@ -9,10 +9,10 @@
     <string name="voice_vehicle_blocked">The vehicle request was blocked.</string>
     <string name="voice_requires_stationary">The vehicle must be stationary for this command.</string>
     <string name="voice_vehicle_state_unavailable">Vehicle state unavailable. The command was blocked.</string>
-    <string name="voice_vehicle_switched_off">This command is switched off in Voice settings → Vehicle commands.</string>
+    <string name="voice_vehicle_switched_off">This command is forbidden in Settings → Allowed actions.</string>
     <string name="voice_vehicle_commands">Vehicle commands</string>
-    <string name="voice_vehicle_commands_hint">Commands approved for this head unit. A command you switch off is not sent to the vehicle by voice, routines or automation.</string>
-    <string name="voice_vehicle_commands_none">No vehicle commands are approved for this head unit.</string>
+    <string name="voice_vehicle_commands_hint">Every vehicle command is allowed by default. A command you switch off is forbidden for voice, routines and automation; Settings → Allowed actions can also mark it unverified.</string>
+    <string name="voice_vehicle_commands_none">This head unit is not a supported Voyah model, so no vehicle commands are available.</string>
     <string name="voice_vehicle_commands_all_on">Switch all on</string>
     <string name="voice_vehicle_commands_all_off">Switch all off</string>
 </resources>

@@ -1,6 +1,13 @@
 {
   "profiles": {
     "a": {
+      "actionPermissions": {
+        "schema": 1,
+        "items": {
+          "operation.media-restart": "UNVERIFIED",
+          "voice.LowBeam": "FORBIDDEN"
+        }
+      },
       "appDisplayDpi": {
         "central": 170,
         "secondary": 190,
@@ -517,6 +524,13 @@
       }
     },
     "b": {
+      "actionPermissions": {
+        "schema": 1,
+        "items": {
+          "agent.navigation": "FORBIDDEN",
+          "operation.media-restart": "FORBIDDEN"
+        }
+      },
       "appDisplayDpi": {
         "central": 230,
         "secondary": 260,
@@ -1907,6 +1921,11 @@
       "area": "If–then rules",
       "name": "minimum interval",
       "path": "/conditionalRules/entries/0/cooldownSeconds"
+    },
+    {
+      "area": "Allowed actions",
+      "name": "actions marked unverified or forbidden",
+      "path": "/actionPermissions/items"
     }
   ]
 }

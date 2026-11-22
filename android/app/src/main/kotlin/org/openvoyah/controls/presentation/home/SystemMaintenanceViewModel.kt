@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.openvoyah.controls.data.frida.ActivationRecovery
 import org.openvoyah.controls.data.frida.SystemRestartScripts
 
 /** The root operations behind the restart actions; the Frida bridge implements it, tests use a fake. */
@@ -18,14 +19,17 @@ internal interface SystemRestarts {
     fun restartMultimedia(): SystemRestartScripts.MediaRestart
     /** Returns once the reboot was requested; throws when it was refused (for example, not in Park). */
     fun rebootSystem()
+    /** Re-arms the car agents without the PC when the approved deployment still verifies. */
+    fun restoreActivation(): ActivationRecovery.Result
 }
 
-internal enum class SystemOperation { MEDIA, REBOOT }
+internal enum class SystemOperation { MEDIA, REBOOT, RESTORE }
 
 /** What the page tells the owner after an operation. [message] is the refusal text from the bridge, if any. */
 internal sealed interface SystemNotice {
     data class MediaRestarted(val result: SystemRestartScripts.MediaRestart) : SystemNotice
     data object RebootRequested : SystemNotice
+    data class Restored(val result: ActivationRecovery.Result) : SystemNotice
     data class Failed(val operation: SystemOperation, val message: String?) : SystemNotice
 }
 
@@ -44,6 +48,8 @@ internal class SystemMaintenanceViewModel(
     fun restartMultimedia() = run(SystemOperation.MEDIA) { SystemNotice.MediaRestarted(restarts.restartMultimedia()) }
 
     fun rebootSystem() = run(SystemOperation.REBOOT) { restarts.rebootSystem(); SystemNotice.RebootRequested }
+
+    fun restoreActivation() = run(SystemOperation.RESTORE) { SystemNotice.Restored(restarts.restoreActivation()) }
 
     fun acknowledge() = mutable.update { it.copy(notice = null) }
 

@@ -47,6 +47,9 @@ internal fun HomeSettingsLinks(open: (ControlsRoute) -> Unit, language: () -> Un
         SettingsLink(CockpitIcon.APPS, R.string.quick_actions_title, R.string.quick_actions_summary) { open(ControlsRoute.QUICK_ACTIONS) },
         SettingsLink(CockpitIcon.ROUTINE, R.string.routines_title, R.string.routines_summary) { open(ControlsRoute.ROUTINES) },
         SettingsLink(CockpitIcon.FIRMWARE, R.string.firmware_settings, R.string.cockpit_firmware_description) { open(ControlsRoute.FIRMWARE) },
+        SettingsLink(CockpitIcon.LOCK, R.string.action_permissions_title, R.string.action_permissions_summary) {
+            open(ControlsRoute.ACTION_PERMISSIONS)
+        },
         SettingsLink(CockpitIcon.SYSTEM, R.string.ui_61, R.string.cockpit_system_description, systemSettings),
         SettingsLink(CockpitIcon.DOWNLOAD, R.string.updates_title, R.string.updates_settings_summary) { open(ControlsRoute.UPDATES) },
         SettingsLink(CockpitIcon.SEARCH, R.string.diagnostics_title, R.string.diagnostics_link_summary) {

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="activation_restore">Восстановить Open Voyah Controls</string>
+    <string name="activation_restore_hint">Снова запускает агентов в машине после защитной остановки, без ПК, если установленные файлы по-прежнему одобренные.</string>
+    <string name="activation_restore_title">Восстановить Open Voyah Controls?</string>
+    <string name="activation_restore_message">Open Voyah Controls проверит, что приложение, агенты и среда выполнения в точности те, что одобрены при установке, и снова включит агентов. Ничего не устанавливается и не меняется. Если на заводском экране могли остаться изменения от остановленных агентов, сначала потребуется перезагрузить систему.</string>
+    <string name="activation_restore_confirm">Восстановить</string>
+    <string name="activation_restore_working">Проверка установки и восстановление…</string>
+    <string name="activation_restore_done_title">Open Voyah Controls восстановлен</string>
+    <string name="activation_restore_done">Агенты снова включены и будут готовы примерно через полминуты.</string>
+    <string name="activation_restore_none">Ничего не было заблокировано. Агенты запущены снова, если они останавливались.</string>
+    <string name="activation_restore_reboot_title">Сначала перезагрузите систему</string>
+    <string name="activation_restore_reboot">На заводском экране могли остаться изменения от остановленных агентов. Перезагрузите систему на P: после загрузки Open Voyah Controls восстановится сам.</string>
+    <string name="activation_restore_waiting">Головное устройство ещё загружается. Повторите через минуту.</string>
+    <string name="activation_restore_pc_title">Нужен ПК</string>
+    <string name="activation_restore_pc">Установленные приложение, агенты или среда выполнения больше не совпадают с одобренными (%s). Подключите ПК и выполните «Подготовить и установить» в установщике для Windows.</string>
+</resources>

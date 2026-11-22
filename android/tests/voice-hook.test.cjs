@@ -188,32 +188,41 @@ test('Park preflight performs no writes and checks actual gear', async () => {
     assert.equal(park.writes.length, 0);
 });
 
-test('the production catalog denies all vehicle routes before contacting OEM services', async () => {
-    const h = harness({catalog:releasedCatalog});
-    for (const command of ['EnableHeatDriverLevelOne','Sentry','PowerHold','BackLightModeAuto',
-        'ParkingPreflight','ProfileSyncPreflight','ProfileSync']) h.send(command);
-    await settle();
-    assert.equal(h.canRequests,0);
-    assert.equal(h.events.length,0);
-    assert.equal(h.writes.length,0);
-    assert.equal(h.logs.filter(line=>line.includes('not approved for this head unit')).length,7);
+test('an unsupported product is refused before contacting OEM services', async () => {
+    for (const device of [{product:'x9999'}, {sdk:29}, {abi:'x86_64'}]) {
+        const h = harness({device, catalog:releasedCatalog});
+        for (const command of ['EnableHeatDriverLevelOne','Sentry','PowerHold','BackLightModeAuto',
+            'ParkingPreflight','ProfileSyncPreflight','ProfileSync']) h.send(command);
+        await settle();
+        assert.equal(h.canRequests,0);
+        assert.equal(h.events.length,0);
+        assert.equal(h.writes.length,0);
+        assert.equal(h.logs.filter(line=>line.includes('not approved for this head unit')).length,7);
+    }
 });
 
-test('changed fingerprint or missing per-command evidence blocks the hook', async () => {
+test('every command runs on a supported product without a catalog row; another package never runs one', async () => {
+    // The released catalog is empty: review rows are metadata, not a gate.
+    const released = harness({catalog:releasedCatalog});
+    released.send('EnableHeatDriverLevelOne');
+    await settle();
+    assert.ok(released.canRequests > 0);
+    assert.ok(!released.logs.some(line=>line.includes('not approved for this head unit')));
     const updated = harness({device:{fingerprint:'fixture/test/unit:11/changed/1:user/test-keys'}});
     updated.send('EnableHeatDriverLevelOne');
-    assert.equal(updated.canRequests,0);
+    await settle();
+    assert.ok(updated.canRequests > 0);
     const narrow = harness({catalog:{schema:1,headUnits:[{...identity,profile:'FREE',commands:['DriverA']}]}});
-    narrow.send('EnableHeatDriverLevelOne');
     narrow.send('ParkingPreflight');
-    assert.equal(narrow.canRequests,0);
-    assert.equal(narrow.logs.filter(line=>line.includes('not approved for this head unit')).length,2);
+    await settle();
+    assert.ok(narrow.logs.some(line=>line.includes('OVC_PARKING_READY')));
     const foreign = harness({packageName:'fixture.other.app'});
     foreign.send('EnableHeatDriverLevelOne');
+    await settle();
     assert.equal(foreign.canRequests,0);
 });
 
-test('a reviewed fingerprint with a comma approves only its listed driver-memory recalls', async () => {
+test('a fingerprint with a comma keeps the Park check for driver-memory recalls', async () => {
     // The supported Android 11 unit reports "...,test-keys"; its own rows must still match exactly.
     const unit = {product:'f6802h', fingerprint:'fixture/test/unit:11/review/97:user/release-keys,test-keys', sdk:30, abi:'arm64-v8a'};
     const catalog = {schema:1, headUnits:[{...unit, profile:'FREE_REST',
@@ -229,15 +238,11 @@ test('a reviewed fingerprint with a comma approves only its listed driver-memory
         assert.equal(drive.writes.length, 0);
         assert.ok(drive.logs.some(line => line.includes('requires Parking gear')));
     }
-    const other = harness({device:unit, catalog});
-    other.send('LampOff');
-    await settle();
-    assert.equal(other.canRequests, 0);
-    assert.ok(other.logs.some(line => line.includes('not approved for this head unit')));
+    // A command outside the row and a changed fingerprint still run; only the "verified" mark differs.
     const changed = harness({device:{...unit, fingerprint:unit.fingerprint.replace(',test-keys', ',dev-keys')}, catalog});
     changed.send('GetFromMemoryCellOne');
     await settle();
-    assert.equal(changed.canRequests, 0);
+    assert.deepEqual(changed.writes, [['DMS_GET_MEMORY_REQ', 1]]);
 });
 
 test('motion and unavailable or slow telemetry fail closed before each Park-only write', async () => {
@@ -353,4 +358,13 @@ test('every command allowed in motion exists in the voice catalog', () => {
         'DisableTrunkCommand', 'OpenElectricityPort', 'OpenFuelPort', 'GetFromMemoryCellOne', 'GetFromMemoryCellTwo',
         'GetFromMemoryCellThree', 'CarWashMode', 'WiperMaintain', 'PowerHold', 'Sentry', 'Magic', 'RebootTbox',
         'DriverA', 'DriverB', 'DriverC']) assert.equal(context.ids.includes(parked), false, parked);
+});
+
+test('the agent product profiles match core Firmware.java', () => {
+    const java = fs.readFileSync(path.join(__dirname,'../core/src/main/java/org/openvoyah/controls/core/Firmware.java'),'utf8');
+    const expected = Object.fromEntries([...java.matchAll(/products\.put\("([^"]+)", "([^"]+)"\)/g)].map(m => [m[1], m[2]]));
+    const context = vm.createContext({});
+    vm.runInContext(source('voice-safety.js').replace(/^.*catalog.*from.*$/m,'') + '\nthis.profiles = PRODUCT_PROFILES;', context);
+    assert.ok(Object.keys(expected).length >= 10);
+    assert.deepEqual({...context.profiles}, expected);
 });

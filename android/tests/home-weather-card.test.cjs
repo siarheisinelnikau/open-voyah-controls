@@ -56,7 +56,8 @@ function harness(options = {}) {
         equals(other) { return other === this; }, $dispose() {},
         getContext: () => ({getPackageName: () => 'com.qinggan.app.launcher',
             getResources: () => ({getIdentifier: name => ids[name] ?? 0})}),
-        findViewById: id => ({setVisibility(value) { visibility[id] = value; }})
+        // As the bridge returns it: a java.lang.Object without View methods until it is cast.
+        findViewById: id => ({object: true, id})
     };
     const bean = kind => () => {
         const object = {kind};
@@ -76,6 +77,7 @@ function harness(options = {}) {
         'com.qinggan.tsp.models.cpsp.WeatherLiveBean$DataBean$LiveBean': {$new: bean('live')},
         'com.qinggan.tsp.models.cpsp.WeatherLiveBean$DataBean$WeatherAirQualityBean': {$new: bean('air')},
         'java.lang.ref.WeakReference': {$new: referent => ({get: () => referent, $dispose() {}})},
+        'android.view.View': {isView: true},
         'android.app.ActivityThread': {currentApplication: () => ({})}
     };
     const Java = {
@@ -84,7 +86,11 @@ function harness(options = {}) {
             assert.ok(classes[name], name);
             return classes[name];
         },
-        cast: value => value, retain: value => value, perform: fn => fn(), scheduleOnMainThread: fn => fn(),
+        cast(value, type) {
+            if (type?.isView && value?.object) return {setVisibility(visible) { visibility[value.id] = visible; }};
+            return value;
+        },
+        retain: value => value, perform: fn => fn(), scheduleOnMainThread: fn => fn(),
         choose(name, callbacks) { callbacks.onMatch(card); callbacks.onComplete(); }
     };
     const {api, logs} = load({setInterval: (fn, ms) => { timers.push({fn, ms}); return timers.length; }});
@@ -156,4 +162,15 @@ test('a launcher without the weather card reports it and installs nothing', () =
     const h = harness({missing: 'com.qinggan.app.launcher.homecard.HomeWeatherCardView'});
     assert.equal(h.result, null);
     assert.deepEqual(h.logs, ['OVC_HOME_WEATHER_ERROR stage=install kind=ClassNotFoundException']);
+});
+
+test('a failure around the air quality never undoes the weather or calls the factory update again', () => {
+    const h = harness();
+    h.card.getContext = () => { throw new TypeError('context'); };
+    h.calls.length = 0;
+    h.logs.length = 0;
+    h.hooks.update.implementation.call(h.card, 'oem');
+    assert.deepEqual(h.calls.map(call => call[0]), ['update']);
+    assert.equal(h.shown().code, '2');
+    assert.deepEqual(h.logs, ['OVC_HOME_WEATHER_ERROR stage=air kind=TypeError']);
 });

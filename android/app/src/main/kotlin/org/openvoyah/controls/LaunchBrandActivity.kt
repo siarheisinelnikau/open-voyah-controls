@@ -11,6 +11,7 @@ import org.openvoyah.controls.data.settings.AppearancePreferences
 import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.platform.display.useControlsDensity
 import org.openvoyah.controls.platform.startup.StartupWork
+import org.openvoyah.controls.presentation.setup.SetupRuns
 import org.openvoyah.controls.presentation.theme.LaunchBrand
 
 /** Owns the launcher animation in a separate task from the cockpit. */
@@ -36,6 +37,8 @@ class LaunchBrandActivity : ComponentActivity() {
         val skipped = when {
             intent.action != SHOW_BOOT_BRAND -> "unexpected_action"
             savedInstanceState != null -> "recreated"
+            // The launcher agent already waits for the setup page; this also covers a page that opened since.
+            SetupActivity.openPages > 0 || SetupRuns.active -> "setup_active"
             !ValueAnimator.areAnimatorsEnabled() -> "animators_disabled"
             !appearance.animateRoutes -> "transitions_disabled"
             else -> null

@@ -6,6 +6,16 @@ const path = require('node:path');
 const source = ['report.js', 'panel-icons.js', 'panel-state.js', 'home-navi-card.js', 'home-weather-card.js', 'screen-lift.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import .*;$/gm, '').replaceAll('export function', 'function')).join('\n') + '\ninstall(Java);';
 
+// Launcher resource ids of the keyed tags the OEM click reads.
+const OEM_TAG_IDS = {screen_up_item_app_sub_type: 1001, screen_up_item_package: 1002, screen_up_item_icon: 1003};
+const OEM_SUBTYPE = OEM_TAG_IDS.screen_up_item_app_sub_type;
+// Plain and keyed tags of a mocked view.
+const tagged = () => ({
+    tags: {}, plainTag: null,
+    getTag(key) { return key === undefined ? this.plainTag : this.tags[key] ?? null; },
+    setTag(...args) { if (args.length === 1) this.plainTag = args[0]; else this.tags[args[0]] = args[1]; }
+});
+
 function harness(config, options = {}) {
     let originalCalls = 0;
     const launched = [], logs = [], retries = [], timers = [];
@@ -15,6 +25,12 @@ function harness(config, options = {}) {
         if (!inClick) return dispatchClick(nav, view);
         originalCalls++;
         originalViews.push(view);
+        // Like NavigationBar.onClick on the car: an added button with an item id but no subtype tag crashed the
+        // launcher in AppLauncher.startAppBySubType.
+        const name = view?.added ? view.getResources().getResourceEntryName(view.getId()) : '';
+        if (/^screen_up_icon_[1-4]$/.test(name ?? '') && view.getTag(OEM_SUBTYPE) == null) {
+            throw new Error("java.lang.NullPointerException: Attempt to invoke virtual method 'int java.lang.String.hashCode()'");
+        }
         if (options.failNative) throw new Error('java.lang.IllegalStateException: private native action');
         return 'oem';
     }};
@@ -87,6 +103,7 @@ function harness(config, options = {}) {
         }
     };
     const context = {
+        getPackageName: () => 'com.qinggan.app.launcher',
         getContentResolver() { return {}; },
         getPackageManager() { return manager; },
         startActivity: { overload() { return { call(self, intent, extras) {
@@ -97,9 +114,10 @@ function harness(config, options = {}) {
     const object = value => Object.assign(value, { equals(other) { return other === this; }, $dispose() {} });
     function makeView(nav, resource) {
         const view = object({
+            ...tagged(),
             stock: object({resource}), draws: 0, holdEnabled: options.stockHolds?.includes(resource) ?? false,
             getId: () => 10 + Object.keys(nav.views).indexOf(resource),
-            getResources: () => ({getResourceEntryName: () => resource}),
+            getResources: () => ({getResourceEntryName: () => resource, getIdentifier: name => OEM_TAG_IDS[name] ?? 0}),
             getContext: () => context,
             getLayoutParams: () => ({width: {value:116}, height: {value:90}}), getWidth: () => 0, getHeight: () => 0,
             getPaddingLeft: () => 4, getPaddingTop: () => 5, getPaddingRight: () => 6, getPaddingBottom: () => 7,
@@ -115,11 +133,17 @@ function harness(config, options = {}) {
             mListenerInfo: {value: {mOnClickListener: {value: nav}}}
         });
         view.background = view.stock;
+        if (resource.startsWith('screen_up_icon_')) {
+            view.tags[OEM_SUBTYPE] = 'subtype:' + resource;
+            view.tags[OEM_TAG_IDS.screen_up_item_package] = 'package:' + resource;
+        }
+        if (resource === 'screen_up_all_app_icon') view.tags[OEM_SUBTYPE] = 'ALL_APPS';
         return view;
     }
     // A lowered-menu button the agent creates: it takes its id, size, listener and picture from the agent.
     function makeButton(context) {
         return object({
+            ...tagged(),
             added: true, id: -1, params: null, background: null, holdEnabled: false, parent: null, description: null,
             mListenerInfo: {value: {mOnClickListener: {value: null}}},
             setId(id) { this.id = id; }, getId() { return this.id; },
@@ -145,7 +169,7 @@ function harness(config, options = {}) {
     // The H97 lowered-screen menu: a 560 px frame whose radio group holds Home and a hidden, unwired Phone.
     function makeLowered(nav) {
         const home = makeView(nav, 'screen_down_home_icon');
-        const phone = object({phone: true});
+        const phone = object({phone: true, getTag: () => null});
         nav.views.screen_down_home_icon = home;
         nav.mScreenDownHomeView = {value: home};
         nav.downChecked = -1;
@@ -156,6 +180,8 @@ function harness(config, options = {}) {
             check(id) { nav.downChecked = id; },
             clearCheck() { nav.downChecked = -1; },
             indexOfChild(view) { return this.children.indexOf(view); },
+            getChildCount() { return this.children.length; },
+            getChildAt(index) { return this.children[index] ?? null; },
             addView: {overload(...types) {
                 assert.deepEqual(types, ['android.view.View', 'int', 'android.view.ViewGroup$LayoutParams']);
                 return {call(self, view, index, params) {
@@ -229,6 +255,7 @@ function harness(config, options = {}) {
         }}},
         'android.view.ViewGroup$MarginLayoutParams': {},
         'android.view.View$OnClickListener': {},
+        'java.lang.String': {$new: text => String(text)},
         'com.qinggan.utils.ScreenLiftUtils': {getScreenLiftState() {
             if (options.failLiftState) throw new Error('java.lang.RuntimeException: private property');
             return options.liftState ?? 2;
@@ -322,6 +349,8 @@ function harness(config, options = {}) {
             init.implementation.call(nav);
         },
         tap(nav, name) { return dispatchClick(nav, nav.views[name]); },
+        // The OEM NavigationBar.onClick itself, as it runs once no agent hook is left.
+        oem(nav, view) { inClick = true; try { return click.call(nav, view); } finally { inClick = false; } },
         lowered(nav) { return nav.mScreenDownRadioGroup.value; },
         added(nav) { return nav.mScreenDownRadioGroup.value.children.filter(view => view.added); },
         tapView(nav, view) { return dispatchClick(nav, view); },
@@ -1179,4 +1208,80 @@ test('an unreadable start state or a refused write is reported and keeps the pan
         assert.deepEqual(errors, options.failPut ? [] : ['OVC_PANEL_ERROR stage=screen_lift kind='
             + (options.noLift ? 'TypeError' : 'RuntimeException')]);
     }
+});
+
+test('an added lowered button carries the OEM tags of its normal button and a slot tag', () => {
+    const h = harness(lowered.center), bar = h.bar(0);
+    const [navigation, music, apps] = h.added(bar);
+    for (const [button, resource, slot] of [[navigation, 'screen_up_icon_1', 'navbar01'], [music, 'screen_up_icon_2', 'navbar02'],
+        [apps, 'screen_up_all_app_icon', 'mainApps']]) {
+        assert.equal(button.getTag(), 'org.openvoyah.controls.lowered:' + slot);
+        assert.equal(button.getTag(1001), bar.views[resource].getTag(1001));
+    }
+    assert.equal(navigation.getTag(1002), 'package:screen_up_icon_1');
+});
+
+test('the car crash path: OEM code reached with an added button no longer fails', () => {
+    // Boot 211: with the display lowered, the OEM onClick got the added navigation button itself and its missing
+    // subtype crashed the launcher. Without any agent hook the button now behaves like its normal button.
+    const h = harness(config({navbar01:action})), bar = h.bar(0), [button] = h.added(bar);
+    h.lift(bar, 1);
+    assert.equal(h.oem(bar, button), 'oem');
+    assert.equal(h.originalViews[0], button);
+    // The same click with the agent in place never reaches OEM code with the button.
+    h.tapView(bar, button);
+    assert.equal(h.launched.at(-1).intent.component, action.component);
+    assert.equal(h.originalCalls, 1);
+});
+
+test('an added button this agent does not track runs its assignment or its normal OEM click, never its own', () => {
+    for (const assigned of [true, false]) {
+        const h = harness(config(assigned ? {navbar01:action} : {navbar02:action})), bar = h.bar(0), group = h.lowered(bar);
+        // A button left behind by an instance that was unloaded without restoring the menu.
+        const tracked = h.added(bar)[0];
+        const orphan = Object.assign(Object.create(Object.getPrototypeOf(tracked)), tracked, {
+            equals(other) { return other === this; }, tags: {}, plainTag: 'org.openvoyah.controls.lowered:navbar01'});
+        orphan.id = bar.views.screen_up_icon_1.getId();
+        group.children.splice(1, 0, orphan);
+        orphan.parent = group;
+        h.tapView(bar, orphan);
+        if (assigned) {
+            assert.equal(h.launched.at(-1).intent.component, action.component);
+            assert.equal(h.originalCalls, 0);
+        } else {
+            assert.deepEqual([h.launched.length, h.originalCalls], [0, 1]);
+            assert.equal(h.originalViews[0], bar.views.screen_up_icon_1);
+        }
+        assert.ok(h.originalViews.every(view => !view.added));
+    }
+});
+
+test('an added button without a normal view to stand for does nothing', () => {
+    const h = harness(config({navbar01:action}), {missingFields:['mScreenUpAllAppView']}), bar = h.bar(0), group = h.lowered(bar);
+    const template = h.added(bar)[0];
+    const orphan = Object.assign(Object.create(Object.getPrototypeOf(template)), template, {
+        equals(other) { return other === this; }, tags: {}, plainTag: 'org.openvoyah.controls.lowered:mainApps'});
+    group.children.push(orphan);
+    orphan.parent = group;
+    h.setConfig(config({}));
+    assert.equal(h.tapView(bar, orphan), undefined);
+    assert.deepEqual([h.launched.length, h.originalCalls], [0, 0]);
+});
+
+test('buttons a previous agent instance left in the lowered menu are removed before ours are added', () => {
+    const h = harness(lowered.center), bar = h.bar(0), group = h.lowered(bar);
+    const before = h.added(bar).length;
+    // The next instance finds the menu as the last one left it.
+    const second = harness(lowered.center);
+    const nav = second.bar(0);
+    const leftover = h.added(bar).map(button => Object.assign(Object.create(Object.getPrototypeOf(button)), button,
+        {equals(other) { return other === this; }}));
+    const downGroup = second.lowered(nav);
+    downGroup.children.splice(1, 0, ...leftover);
+    leftover.forEach(button => { button.parent = downGroup; });
+    second.setConfig(config({navbar02:action})); second.tick();
+    assert.equal(before, 3);
+    assert.equal(second.added(nav).length, 1);
+    assert.ok(leftover.every(button => !downGroup.children.includes(button)));
+    assert.ok(second.logs.includes('OVC_PANEL_ICONS_NOTICE stage=lowered_orphans count=3'));
 });

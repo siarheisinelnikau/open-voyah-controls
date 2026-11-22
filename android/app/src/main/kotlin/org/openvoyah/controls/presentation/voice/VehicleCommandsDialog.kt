@@ -18,34 +18,49 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
-import org.openvoyah.controls.data.settings.VehicleCommandSwitches
+import org.openvoyah.controls.data.settings.ActionPermissions
 import org.openvoyah.controls.diagnostics.ControlsLog
+import org.openvoyah.controls.domain.permissions.ActionCatalog
+import org.openvoyah.controls.domain.permissions.ActionItem
+import org.openvoyah.controls.domain.permissions.ActionPermission
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitModal
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
 
-private data class VehicleCommandList(val commands: List<VoiceCatalog.Command>, val switchedOff: Set<String>)
+private data class VehicleCommandList(
+    val store: ActionPermissions,
+    val commands: List<VoiceCatalog.Command>,
+    val states: Map<String, ActionPermission>,
+)
 
-/** Every command approved for this head unit with its own switch. Switching off is local and enforced by the app. */
+/**
+ * A shortcut into Settings → Allowed actions for the vehicle voice commands: a switch per command, on by default.
+ * Off is Forbidden; switching on again keeps an Unverified mark the owner set there.
+ */
 @Composable
 internal fun VehicleCommandsDialog(catalog: VoiceCatalog, close: () -> Unit) {
-    val context = LocalContext.current
-    val switches = remember(context) { VehicleCommandSwitches(context) }
+    val context = LocalContext.current.applicationContext
     val loaded by produceState<VehicleCommandList?>(null, catalog) {
         value = withContext(Dispatchers.IO) {
-            val approved = ReviewedVoiceCommands(context).approvedCommands()
-            VehicleCommandList(approved.mapNotNull(catalog::byId), switches.switchedOff())
+            val store = ActionPermissions(context)
+            val supported = ReviewedVoiceCommands(context).hasApprovedCommands()
+            val commands = if (supported) catalog.all().filter { ActionCatalog.isVehicleCommand(it.id()) } else emptyList()
+            VehicleCommandList(store, commands, commands.associate { it.id() to store.voice(it.id()) })
         }
     }
     val list = loaded
-    var switchedOff by remember(list) { mutableStateOf(list?.switchedOff.orEmpty()) }
+    var states by remember(list) { mutableStateOf(list?.states.orEmpty()) }
     CockpitModal(UiText.get(R.string.voice_vehicle_commands), footer = {
         CockpitTextAction(UiText.get(R.string.ui_89), close)
-        if (!list?.commands.isNullOrEmpty()) CockpitAction(UiText.get(R.string.ui_104), {
+        if (list != null && list.commands.isNotEmpty()) CockpitAction(UiText.get(R.string.ui_104), {
             try {
-                switches.replace(switchedOff)
-                ControlsLog.info("vehicle_command_switches", "switched_off", switchedOff.size)
+                // Operations, agents and commands not listed here keep their choices.
+                val others = list.store.changes().mapNotNull { (key, state) ->
+                    ActionCatalog.parseKey(key)?.takeUnless { it.isVoice && it.id in states }?.let { it to state }
+                }.toMap()
+                list.store.replace(others + states.mapKeys { ActionCatalog.voice(it.key) })
+                ControlsLog.info("vehicle_command_switches", "forbidden", states.count { it.value == ActionPermission.FORBIDDEN })
             } catch (failure: IllegalArgumentException) {
                 ControlsLog.warn("vehicle_command_switches", failure, "outcome", "rejected")
             }
@@ -60,15 +75,24 @@ internal fun VehicleCommandsDialog(catalog: VoiceCatalog, close: () -> Unit) {
         Text(UiText.get(R.string.voice_vehicle_commands_hint), style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         FlowRow(Modifier.fillMaxWidth()) {
-            CockpitTextAction(UiText.get(R.string.voice_vehicle_commands_all_on)) { switchedOff = emptySet() }
+            CockpitTextAction(UiText.get(R.string.voice_vehicle_commands_all_on)) {
+                states = states.mapValues { (_, state) -> if (state == ActionPermission.FORBIDDEN) ActionPermission.ALLOWED else state }
+            }
             CockpitTextAction(UiText.get(R.string.voice_vehicle_commands_all_off)) {
-                switchedOff = list.commands.mapTo(sortedSetOf()) { it.id() }
+                states = states.mapValues { ActionPermission.FORBIDDEN }
             }
         }
         for (command in list.commands) {
-            CockpitSwitch(command.title(), command.id() !in switchedOff) { on ->
-                switchedOff = if (on) switchedOff - command.id() else switchedOff + command.id()
+            val state = states[command.id()] ?: ActionPermission.ALLOWED
+            CockpitSwitch(command.title(), state.runs) { on ->
+                states = states + (command.id() to when {
+                    !on -> ActionPermission.FORBIDDEN
+                    list.states[command.id()] == ActionPermission.UNVERIFIED -> ActionPermission.UNVERIFIED
+                    else -> ActionPermission.ALLOWED
+                })
             }
         }
     }
 }
+
+private val ActionItem.isVoice get() = kind == org.openvoyah.controls.domain.permissions.ActionKind.VOICE

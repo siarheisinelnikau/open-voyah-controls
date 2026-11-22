@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_permissions_title">Разрешённые действия</string>
+    <string name="action_permissions_summary">По умолчанию разрешено всё. Здесь действие можно пометить непроверенным или запретить.</string>
+    <string name="action_permissions_legend">Разрешено — работает как обычно. Не проверено — работает, но помечено здесь, каждый запуск пишется в журнал, а окно подтверждения предупреждает об этом. Запрещено — отклоняется до обращения к машине.</string>
+    <string name="action_permissions_safety">Проверки безопасности остаются при любом выборе: P и нулевая скорость для команд, опасных в движении, подтверждения перед перезагрузкой и записью в приборную панель, контроль целостности установки и отпечаток прошивки для root-канала.</string>
+    <string name="action_permissions_reset">Разрешить всё</string>
+    <string name="action_permissions_verified">Проверено на этой прошивке</string>
+    <string name="action_state_allowed">Разрешено</string>
+    <string name="action_state_unverified">Не проверено</string>
+    <string name="action_state_forbidden">Запрещено</string>
+    <string name="action_group_operations">Операции через root</string>
+    <string name="action_group_operations_summary">Запускаются из настроек, голосом или кнопками руля через root-канал.</string>
+    <string name="action_group_agents">Агенты Frida</string>
+    <string name="action_group_agents_summary">Изменение применяется при следующем подключении Frida.</string>
+    <string name="action_group_voice">Голосовые команды для машины</string>
+    <string name="action_group_voice_summary">Действуют и в сценариях, памяти сидений, сезонном климате и автоматике.</string>
+    <string name="action_group_voice_empty">Список голосовых команд недоступен.</string>
+    <string name="action_forbidden">Это действие запрещено в «Настройки» → «Разрешённые действия».</string>
+    <string name="action_unverified_note">Это действие помечено как непроверенное в «Разрешённых действиях».</string>
+
+    <string name="action_window_service">Окна приложений</string>
+    <string name="action_window_service_summary">Агент окон в системном сервере: размер, масштаб и положение окон приложений.</string>
+    <string name="action_passenger_window_dpi">Масштаб на экране пассажира</string>
+    <string name="action_passenger_window_dpi_summary">Отдельная плотность (DPI) для приложений на экране пассажира.</string>
+    <string name="action_window_display_move">Перенос окон между экранами</string>
+    <string name="action_window_display_move_summary">Жест, который переносит окно приложения на приборную панель или экран пассажира.</string>
+    <string name="action_can_steering">Кнопки руля через CAN (короткое и долгое)</string>
+    <string name="action_can_steering_summary">Назначения кнопок руля по коротким и долгим нажатиям, которые сообщает служба CAN.</string>
+    <string name="action_can_steering_edges">Кнопки руля через CAN (нажатие и отпускание)</string>
+    <string name="action_can_steering_edges_summary">Весь жест кнопки с собственным таймером удержания. Используется, если первый вариант запрещён или проверен только этот.</string>
+    <string name="action_oem_profiles">Водитель А, Б, Ц</string>
+    <string name="action_oem_profiles_summary">Переключение гостевых аккаунтов OEM голосом и их восстановление.</string>
+    <string name="action_cluster_write">Настройки приборной панели</string>
+    <string name="action_cluster_write_summary">Изменение настроек приборной панели со страницы «Приборная панель».</string>
+    <string name="action_tbox_reboot">Перезагрузка модема (T-Box)</string>
+    <string name="action_tbox_reboot_summary">Перезапуск T-Box голосовой командой, только на P.</string>
+    <string name="action_media_restart">Перезапуск мультимедиа</string>
+    <string name="action_media_restart_summary">Останавливает мультимедиа-центр и штатные плееры, затем мультимедиа запускается снова.</string>
+    <string name="action_system_reboot">Перезагрузка системы</string>
+    <string name="action_system_reboot_summary">Штатная перезагрузка магнитолы из настроек, только на P.</string>
+    <string name="action_navigation">Навигация на приборной панели</string>
+    <string name="action_navigation_summary">Агент приборной панели: карточка навигации и играющий трек.</string>
+    <string name="action_locale_setting">Перевод: Настройки</string>
+    <string name="action_locale_vehicle">Перевод: Автомобиль</string>
+    <string name="action_locale_bluetooth">Перевод: Телефон</string>
+    <string name="action_locale_hiboard">Перевод: Hiboard</string>
+    <string name="action_locale_summary">Переводит штатное приложение на месте.</string>
+</resources>

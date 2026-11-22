@@ -3,7 +3,9 @@ package org.openvoyah.controls
 import android.test.AndroidTestCase
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands.Identity
-import org.openvoyah.controls.data.settings.VehicleCommandSwitches
+import org.openvoyah.controls.data.settings.ActionPermissions
+import org.openvoyah.controls.domain.permissions.ActionCatalog
+import org.openvoyah.controls.domain.permissions.ActionPermission
 
 class ReviewedVoiceCommandsTest : AndroidTestCase() {
     private val fixture = Identity("f0506h", "fixture/test/unit:11/review/1:user/test-keys", 30, "arm64-v8a")
@@ -27,29 +29,44 @@ class ReviewedVoiceCommandsTest : AndroidTestCase() {
         assertNull(ReviewedVoiceCommands.parse(catalog.replace("\"FREE\"", "\"DREAMER\""), fixture))
     }
 
-    fun testPackagedCatalogLeavesPhysicalCommandsLocked() {
+    fun testASupportedProductAllowsEveryCommandWithoutARow() {
+        assertEquals("FREE", ReviewedVoiceCommands.profileOf(fixture))
+        assertEquals("FREE_REST", ReviewedVoiceCommands.profileOf(fixture.copy(product = "f6802h")))
+        assertNull(ReviewedVoiceCommands.profileOf(fixture.copy(product = "sdk_gphone64_arm64")))
+        assertNull(ReviewedVoiceCommands.profileOf(fixture.copy(sdk = 29)))
+        assertNull(ReviewedVoiceCommands.profileOf(fixture.copy(abi = "x86_64")))
+        // The test device is not a Voyah head unit, so the packaged policy keeps physical commands locked here.
         val policy = ReviewedVoiceCommands(context)
-        for (command in listOf("EnableHeatDriverLevelOne", "DriverA", "RebootTbox", "Sentry", "LampOff")) {
-            assertNull(policy.profileFor(command))
+        if (ReviewedVoiceCommands.profileOf(Identity(android.os.Build.PRODUCT, android.os.Build.FINGERPRINT,
+                android.os.Build.VERSION.SDK_INT, android.os.Build.SUPPORTED_ABIS.firstOrNull())) == null) {
+            for (command in listOf("EnableHeatDriverLevelOne", "DriverA", "RebootTbox", "Sentry", "LampOff")) {
+                assertNull(policy.profileFor(command))
+            }
         }
     }
 
-    fun testSwitchedOffCommandsAreKeptLocallyAndInvalidNamesAreRejected() {
-        val switches = VehicleCommandSwitches(context)
-        val original = switches.switchedOff()
+    fun testForbiddenCommandsComeFromAllowedActionsAndTheOldSwitchesMigrate() {
+        val prefs = context.getSharedPreferences(ActionPermissions.STORE, android.content.Context.MODE_PRIVATE)
+        val legacy = context.getSharedPreferences("vehicle_commands", android.content.Context.MODE_PRIVATE)
+        val saved = prefs.all
         try {
-            switches.replace(setOf("LowBeam", "OpenTrunkCommand"))
-            assertEquals(setOf("LowBeam", "OpenTrunkCommand"), switches.switchedOff())
-            assertTrue(switches.isSwitchedOff("LowBeam"))
-            assertFalse(switches.isSwitchedOff("AutoMode"))
-            assertFalse(ReviewedVoiceCommands(context).isSwitchedOff("LowBeam"))
-            try {
-                switches.replace(setOf("not a command"))
-                fail("An invalid command name was stored")
-            } catch (_: IllegalArgumentException) { }
-            assertEquals(setOf("LowBeam", "OpenTrunkCommand"), switches.switchedOff())
+            prefs.edit().clear().commit()
+            legacy.edit().putStringSet("switchedOff", setOf("OpenTrunkCommand", "not a command")).commit()
+            val permissions = ActionPermissions(context)
+            assertEquals(ActionPermission.FORBIDDEN, permissions.voice("OpenTrunkCommand"))
+            assertFalse(legacy.contains("switchedOff"))
+            assertEquals(ActionPermission.ALLOWED, permissions.voice("LowBeam"))
+            permissions.set(ActionCatalog.voice("LowBeam"), ActionPermission.UNVERIFIED)
+            val policy = ReviewedVoiceCommands(context)
+            assertEquals(ActionPermission.UNVERIFIED, policy.permission("LowBeam"))
+            assertFalse(policy.isSwitchedOff("LowBeam"))
+            assertNull(policy.profileFor("OpenTrunkCommand"))
+            // A local command is never listed or forbidden.
+            assertEquals(ActionPermission.ALLOWED, permissions.voice("MediaPlay"))
         } finally {
-            switches.replace(original)
+            prefs.edit().clear().apply {
+                for ((key, value) in saved) if (value is String) putString(key, value)
+            }.commit()
         }
     }
 }

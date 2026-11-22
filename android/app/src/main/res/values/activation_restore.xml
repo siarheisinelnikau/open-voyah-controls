@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="activation_restore">Restore Open Voyah Controls</string>
+    <string name="activation_restore_hint">Starts the car agents again after a safety stop, without the PC, while the installed files are still the approved ones.</string>
+    <string name="activation_restore_title">Restore Open Voyah Controls?</string>
+    <string name="activation_restore_message">Open Voyah Controls checks that the app, the agents and the runtime are exactly the ones approved at installation, then turns the car agents back on. Nothing is installed or changed. If a factory screen may still show changes from the stopped agents, you are asked to restart the system first.</string>
+    <string name="activation_restore_confirm">Restore</string>
+    <string name="activation_restore_working">Checking the installation and restoring…</string>
+    <string name="activation_restore_done_title">Open Voyah Controls restored</string>
+    <string name="activation_restore_done">The car agents are on again. They are ready in about half a minute.</string>
+    <string name="activation_restore_none">Nothing was blocked. The car agents were started again if they had stopped.</string>
+    <string name="activation_restore_reboot_title">Restart the system first</string>
+    <string name="activation_restore_reboot">A factory screen may still show changes from the stopped agents. Restart the system in Park: after the boot Open Voyah Controls restores itself.</string>
+    <string name="activation_restore_waiting">The head unit is still starting. Try again in a minute.</string>
+    <string name="activation_restore_pc_title">The PC is needed</string>
+    <string name="activation_restore_pc">The installed app, agents or runtime are no longer the approved ones (%s). Connect the PC and run Prepare and install in the Windows installer.</string>
+</resources>

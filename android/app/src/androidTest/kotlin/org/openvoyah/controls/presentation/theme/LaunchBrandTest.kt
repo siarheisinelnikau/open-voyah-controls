@@ -29,6 +29,7 @@ import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.LaunchBrandActivity
 import org.openvoyah.controls.MainActivity
 import org.openvoyah.controls.R
+import org.openvoyah.controls.SetupActivity
 import org.openvoyah.controls.data.settings.AppearancePreferences
 import org.openvoyah.controls.domain.settings.AppAccent
 import org.openvoyah.controls.domain.settings.AppFontFamily
@@ -123,6 +124,19 @@ class LaunchBrandTest : InstrumentationTestCase() {
             appearance.setAnimateRoutes(false)
             withActivity(bootBrandIntent(), LaunchBrandActivity::class.java) { brand ->
                 await("reduced-motion launcher to close") { onMain { brand.isFinishing } }
+                assertFalse(hasTag(brand, LAUNCH_BRAND_TAG))
+            }
+        }
+    }
+
+    fun testSetupPageKeepsTheIntroAway() = withLauncherSettings { appearance ->
+        appearance.setAnimateRoutes(true)
+        // An installer probe; without root on the emulator the check ends early, but the page stays open.
+        val setup = Intent(app, SetupActivity::class.java).putExtra("request", "0123456789abcdef".repeat(2))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        withActivity(setup, SetupActivity::class.java) {
+            withActivity(bootBrandIntent(), LaunchBrandActivity::class.java) { brand ->
+                await("the intro to step aside for the setup page") { onMain { brand.isFinishing } }
                 assertFalse(hasTag(brand, LAUNCH_BRAND_TAG))
             }
         }

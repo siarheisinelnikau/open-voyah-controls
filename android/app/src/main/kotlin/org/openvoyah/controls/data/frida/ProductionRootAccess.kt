@@ -8,11 +8,17 @@ import android.os.UserHandle
 import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.data.settings.ActionPermissions
+import org.openvoyah.controls.domain.permissions.ActionCatalog
+import org.openvoyah.controls.domain.permissions.ActionPermission
 import org.openvoyah.controls.diagnostics.ControlsLog
 import java.io.IOException
 import java.util.Locale
 
-/** Keeps firmware review and local broker authorization at the privileged command boundary. */
+/**
+ * Keeps the firmware identity, the APK pins and local broker authorization at the privileged command boundary.
+ * Which operations may run is the owner's choice in Settings → Allowed actions, not part of the review.
+ */
 class ProductionRootAccess(context: Context) {
     class Refused @JvmOverloads constructor(message: String, cause: Throwable? = null) : IOException(message, cause)
 
@@ -38,8 +44,19 @@ class ProductionRootAccess(context: Context) {
     }
     private var proof: Proof? = null
 
+    private val permissions by lazy { ActionPermissions(app) }
+
+    /** The APK of [name] is pinned for this firmware, so the root channel can prove what it runs against. */
     fun packageReviewed(name: String): Boolean = review.packages.any { it.name == name }
-    fun operationReviewed(operation: String): Boolean = operation in review.operations
+    /** Settings → Allowed actions decides; nothing is forbidden unless the owner chose so. */
+    fun operationPermission(operation: String): ActionPermission = permissions.operation(operation)
+    fun operationAllowed(operation: String): Boolean = operationPermission(operation).runs
+    /** A review row confirmed [operation] on this firmware. Metadata for Settings, never a gate. */
+    fun operationVerified(operation: String): Boolean = operation in review.operations
+    fun verifiedOperations(): Set<String> = review.operations
+    fun agentAllowed(channel: String): Boolean = permissions.agent(channel).runs
+    /** Journals the use of an unverified operation right before it runs. */
+    fun recordOperationUse(operation: String) = permissions.recordUse(ActionCatalog.operation(operation))
     fun injectorPath(): String = "$BASE/${runtime.name}"
     fun injectorVersion(): String = runtime.version
 

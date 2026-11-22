@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_permissions_title">Allowed actions</string>
+    <string name="action_permissions_summary">Everything is allowed by default. Mark an action unverified or forbid it here.</string>
+    <string name="action_permissions_legend">Allowed: runs normally. Unverified: runs, is marked here, every use goes to the journal, and its confirmation says it is unverified. Forbidden: refused before anything reaches the vehicle.</string>
+    <string name="action_permissions_safety">Safety checks stay on whatever you choose: Park and zero speed for commands that are unsafe while moving, the confirmations before a reboot or a cluster write, the deployment integrity checks and the firmware identity of the root channel.</string>
+    <string name="action_permissions_reset">Allow everything</string>
+    <string name="action_permissions_verified">Verified on this firmware</string>
+    <string name="action_state_allowed">Allowed</string>
+    <string name="action_state_unverified">Unverified</string>
+    <string name="action_state_forbidden">Forbidden</string>
+    <string name="action_group_operations">Root operations</string>
+    <string name="action_group_operations_summary">Started from Settings, voice or the steering keys through the root channel.</string>
+    <string name="action_group_agents">Frida agents</string>
+    <string name="action_group_agents_summary">A change applies at the next Frida connection.</string>
+    <string name="action_group_voice">Vehicle voice commands</string>
+    <string name="action_group_voice_summary">Also used by routines, seat memory, seasonal climate and automation.</string>
+    <string name="action_group_voice_empty">The voice command list is unavailable.</string>
+    <string name="action_forbidden">This action is forbidden in Settings → Allowed actions.</string>
+    <string name="action_unverified_note">This action is marked unverified in Settings → Allowed actions.</string>
+
+    <string name="action_window_service">App windows</string>
+    <string name="action_window_service_summary">Window agent in the system server: size, scale and position of app windows.</string>
+    <string name="action_passenger_window_dpi">Passenger screen scale</string>
+    <string name="action_passenger_window_dpi_summary">A separate density for apps on the passenger screen.</string>
+    <string name="action_window_display_move">Moving windows between screens</string>
+    <string name="action_window_display_move_summary">The swipe that moves an app window to the cluster or the passenger screen.</string>
+    <string name="action_can_steering">Steering keys over CAN (short and long press)</string>
+    <string name="action_can_steering_summary">Steering key assignments on the short and long presses the CAN service reports.</string>
+    <string name="action_can_steering_edges">Steering keys over CAN (press and release)</string>
+    <string name="action_can_steering_edges_summary">The whole key gesture with its own hold timer. Used when the first protocol is forbidden or only this one is verified.</string>
+    <string name="action_oem_profiles">Driver A, B, C</string>
+    <string name="action_oem_profiles_summary">Switching the OEM guest accounts by voice and restoring them.</string>
+    <string name="action_cluster_write">Cluster settings</string>
+    <string name="action_cluster_write_summary">Changing instrument cluster settings from the Cluster page.</string>
+    <string name="action_tbox_reboot">Modem (T-Box) restart</string>
+    <string name="action_tbox_reboot_summary">Restarting the T-Box by voice, in Park only.</string>
+    <string name="action_media_restart">Multimedia restart</string>
+    <string name="action_media_restart_summary">Stops the media center and the factory players; the media center starts again.</string>
+    <string name="action_system_reboot">System reboot</string>
+    <string name="action_system_reboot_summary">An orderly head unit reboot from Settings, in Park only.</string>
+    <string name="action_navigation">Cluster navigation</string>
+    <string name="action_navigation_summary">The cluster agent: the navigation card and the playing track.</string>
+    <string name="action_locale_setting">Translation: Settings</string>
+    <string name="action_locale_vehicle">Translation: Vehicle</string>
+    <string name="action_locale_bluetooth">Translation: Phone</string>
+    <string name="action_locale_hiboard">Translation: Hiboard</string>
+    <string name="action_locale_summary">Translates the factory app in place.</string>
+</resources>
