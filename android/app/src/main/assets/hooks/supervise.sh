@@ -29,7 +29,9 @@ case "$channel" in
     --verify-boot|--visual-session-state|--visual-session-clear-restored|--visual-session-clear-changed) ;;
     *) exit 2 ;;
 esac
-case "$channel" in setting|vehicle|bluetooth|hiboard) pattern='^OVC_LOCALIZATION_READY';; esac
+# Translation targets are ordinary apps: Android starts them on demand and kills them when they are idle.
+locale=0
+case "$channel" in setting|vehicle|bluetooth|hiboard) pattern='^OVC_LOCALIZATION_READY'; locale=1;; esac
 target=$package
 if [ "$channel" = window ]; then target=system_server; fi
 script="$root/$relative"
@@ -431,7 +433,15 @@ same_child() {
 }
 stop_child() {
     child_gone "$1" "$2" && return 0
-    same_child "$1" "$2" || return 1
+    if ! same_child "$1" "$2"; then
+        # An injector whose target just ended can be mid-exit, with its command line already gone. Give it a
+        # bounded moment to finish instead of treating it as an unknown process.
+        for delay in 1 2 3; do
+            sleep 1
+            if child_gone "$1" "$2"; then return 0; fi
+        done
+        return 1
+    fi
     kill -TERM "$1" 2>/dev/null || { child_gone "$1" "$2"; return; }
     for delay in 1 2 3; do
         sleep 1
@@ -626,7 +636,9 @@ while may_start; do
     if [ "$stable" -lt 3 ]; then log 'OVC_WORKER_ERROR Android boot did not settle.'; break; fi
     target_pid=$(pid_for "$target")
     waited=0
-    while may_start && { ! is_number "$target_pid" || [ "$target_pid" -le 1 ]; } && [ "$waited" -lt 60 ]; do
+    # A translation target may not run until the driver opens it, so its worker keeps waiting for it.
+    while may_start && { ! is_number "$target_pid" || [ "$target_pid" -le 1 ]; } &&
+        { [ "$locale" = 1 ] || [ "$waited" -lt 60 ]; }; do
         sleep 2; waited=$((waited+2)); target_pid=$(pid_for "$target")
     done
     may_start || break
@@ -656,7 +668,7 @@ while may_start; do
     child_start=$(start_of "$child")
     printf '%s\n' "$child" > "$dir/child.pid"
     printf '%s\n' "$child_start" > "$dir/child.start"
-    elapsed=0; healthy=0; last_heartbeat=; silent_for=0; markers=
+    elapsed=0; healthy=0; last_heartbeat=; silent_for=0; markers=; target_exited=0
     while [ -n "$child_start" ] && [ "$(start_of "$child")" = "$child_start" ] && enabled; do
         sleep 2
         elapsed=$((elapsed+2))
@@ -678,6 +690,12 @@ while may_start; do
         if [ "$(pid_for system_server)" != "$system_pid" ] || [ "$(pid_for "$target")" != "$target_pid" ] ||
             [ "$(start_of "$system_pid")" != "$system_start" ] || [ "$(start_of "$target_pid")" != "$target_start" ]; then
             log 'OVC_WORKER_NOTICE Android or target process changed.'
+            # A translation target that ran healthy for 20 s and then ended (closed by the driver or reclaimed by
+            # Android) is not a failure. A target that dies sooner still counts, so a crash loop stays bounded.
+            if [ "$locale" = 1 ] && [ "$healthy" -eq 1 ] && [ "$elapsed" -ge 20 ] &&
+                [ "$(pid_for system_server)" = "$system_pid" ] && [ "$(start_of "$system_pid")" = "$system_start" ]; then
+                target_exited=1
+            fi
             break
         fi
         if [ "$fixture" = 0 ] && [ "$receipt_identity" != "$(file_identity "$receipt")" ]; then
@@ -728,6 +746,11 @@ while may_start; do
     child=; child_start=
     rm -f "$dir/child.pid" "$dir/child.start"
     may_start || break
+    if [ "$target_exited" = 1 ]; then
+        # Wait for the next start of the app without using the retry budget.
+        backoff=3
+        continue
+    fi
     attempts=$((attempts+1)); save_attempts
     waited=0
     while may_start && [ "$waited" -lt "$backoff" ]; do sleep 1; waited=$((waited+1)); done
