@@ -154,8 +154,9 @@ function harness(config, options = {}) {
             clearCheck() { nav.downChecked = -1; },
             indexOfChild(view) { return this.children.indexOf(view); },
             addView: {overload(...types) {
-                assert.deepEqual(types, ['android.view.View', 'int']);
-                return {call(self, view, index) {
+                assert.deepEqual(types, ['android.view.View', 'int', 'android.view.ViewGroup$LayoutParams']);
+                return {call(self, view, index, params) {
+                    assert.equal(params, view.params);
                     if (options.failAddView) throw new Error('java.lang.IllegalStateException: private parent');
                     assert.ok(!self.children.includes(view), 'a button is added once');
                     self.children.splice(index, 0, view); view.parent = self;

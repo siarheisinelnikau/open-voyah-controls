@@ -244,7 +244,9 @@ export function installPanelState(Java, Nav, panels, readConfig, actionFor, buil
                     try { view.setContentDescription(info.loadLabel(manager)); } catch (_) { /* Label only. */ }
                     view.setOnClickListener(Java.cast(nav, lowered.Listener));
                     view.setLongClickable(true);
-                    group.addView.overload('android.view.View', 'int').call(group, view, position);
+                    // RadioGroup declares only the three-argument addView, and Frida offers no inherited overload.
+                    group.addView.overload('android.view.View', 'int', 'android.view.ViewGroup$LayoutParams')
+                        .call(group, view, position, place);
                     position++;
                     entry.active = true;
                 } catch (error) {
