@@ -77,6 +77,8 @@
             android:permission="android.permission.BIND_JOB_SERVICE" />
         <service android:name=".platform.weather.HomeWeatherJobService" android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
+        <service android:name=".platform.overlays.TextOverlayJobService" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <receiver android:name=".LocalNavigationReceiver" android:exported="true"
             android:permission="android.permission.WRITE_SECURE_SETTINGS" />
         <service android:name=".MediaAccessService" android:exported="true"

@@ -8,6 +8,6 @@
     <string name="voice_online_save_failed">Не удалось сохранить настройки OpenRouter.</string>
     <string name="voice_online_checking">Уточняю команду…</string>
     <string name="voice_online_unavailable">Сетевое распознавание команд недоступно.</string>
-    <string name="voice_restart_assignment">Сначала назначьте приложение музыки или навигации в настройках голоса.</string>
+    <string name="voice_restart_assignment">Сначала назначьте приложение музыки или навигации в настройках голоса или на кнопке панели.</string>
     <string name="voice_restarted">Приложение перезапущено.</string>
 </resources>

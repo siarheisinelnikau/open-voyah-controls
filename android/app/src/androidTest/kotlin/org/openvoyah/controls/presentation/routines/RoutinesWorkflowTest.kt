@@ -290,8 +290,8 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
 
     fun testInstalledAppRoutineRunsManuallyAndOnlyOnceOnAnEligibleLauncherEntry() {
         check(BuildConfig.DEBUG && Build.HARDWARE in setOf("ranchu", "goldfish") && Build.PRODUCT.startsWith("sdk_"))
-        val stores = listOf(RoutinePreferences.STORE, RoutinePreferences.HISTORY_STORE, AppearancePreferences.STORE, "updates")
-            .associateWith { app.getSharedPreferences(it, Context.MODE_PRIVATE).all }
+        val stores = listOf(RoutinePreferences.STORE, RoutinePreferences.HISTORY_STORE, AppearancePreferences.STORE, "updates",
+            AppGridPreferences.STORE).associateWith { app.getSharedPreferences(it, Context.MODE_PRIVATE).all }
         val automation = instrumentation.uiAutomation
         val flags = automation.serviceInfo.flags
         val store = RoutinePreferences(app)
@@ -314,15 +314,29 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             }
             check(app.getSharedPreferences("updates", 0).edit().putBoolean("check_on_startup", false).commit())
             check(app.getSharedPreferences(RoutinePreferences.STORE, 0).edit().remove("settings").commit())
+            // Default grid settings: firmware apps such as the emulator's calendar start hidden.
+            check(app.getSharedPreferences(AppGridPreferences.STORE, 0).edit().clear().commit())
             AppearancePreferences(app).setLauncherEntry(LauncherEntry.APP_GRID)
             launch(ControlsNavigation.intent(app, ControlsRoute.ROUTINES))
             click(UiText.get(R.string.routines_create))
             enterText(name)
             choose(UiText.get(R.string.routines_page), UiText.get(R.string.routines_current_page))
             click(UiText.get(R.string.routines_app))
-            await("App picker search field") {
-                nodes().any { it.isVisibleToUser && it.matches(UiText.get(R.string.ui_113)) }
+            val showAll = UiText.get(R.string.app_picker_show_all)
+            await("App picker with the show-all switch") {
+                nodes().any { it.isVisibleToUser && it.matches(UiText.get(R.string.ui_113)) } &&
+                    nodes().any { it.isVisibleToUser && it.matches(showAll) }
             }
+            // Like All apps, the picker leaves firmware apps out until the driver asks for them.
+            enterText(component)
+            await("A firmware app is not offered by default") {
+                // The emulator has no other launcher app, so the list says every app is hidden.
+                nodes().any { it.isVisibleToUser && (it.matches(UiText.get(R.string.binding_apps_no_match)) ||
+                    it.matches(UiText.get(R.string.app_picker_all_hidden))) }
+            }
+            click(showAll)
+            await("The firmware app after show all") { clickable(target.label()) != null }
+            enterText("")
             await("Scroll the installed apps before filtering") {
                 nodes().filter { it.isVisibleToUser && it.isScrollable }
                     .any { it.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) }

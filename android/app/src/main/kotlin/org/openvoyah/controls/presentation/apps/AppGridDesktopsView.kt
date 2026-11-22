@@ -49,11 +49,13 @@ import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.domain.apps.AppGridDesktopNames
 import org.openvoyah.controls.domain.apps.AppGridIconStyle
 import org.openvoyah.controls.domain.apps.AppGridPins
+import org.openvoyah.controls.domain.apps.AppPickerChoices
 import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.presentation.dock.ReorderButton
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.theme.CockpitTextField
 import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
@@ -209,9 +211,16 @@ internal fun FavoriteAppsPicker(
     var query by remember(desktop) { mutableStateOf("") }
     val pins = grid.pins(desktop)
     val pinned = remember(pins) { pins.toSet() }
-    // Favorites are explicit pins, so the picker offers every app, including those All apps hides.
-    val available = remember(state.apps) {
+    var showAll by remember(desktop) { mutableStateOf(false) }
+    // Like every app picker it leaves out apps All apps hides, except those already pinned here.
+    val candidates = remember(state.apps) {
         state.apps.filter { it.launchEntry != null && AppGridPins.supports(it.id) }
+    }
+    val available = remember(candidates, grid, pinned, showAll) {
+        AppPickerChoices.offered(candidates, LocalApp::id, LocalApp::hiddenByDefault, grid, showAll, pinned)
+    }
+    val canShowAll = remember(candidates, grid, pinned) {
+        AppPickerChoices.hidesAny(candidates, LocalApp::id, LocalApp::hiddenByDefault, grid, pinned)
     }
     val apps = remember(available, query) {
         val filter = query.trim().lowercase(Locale.ROOT)
@@ -225,10 +234,12 @@ internal fun FavoriteAppsPicker(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 CockpitTextField(query, { query = it }, text(R.string.ui_113), Modifier.fillMaxWidth())
+                if (canShowAll) CockpitSwitch(text(R.string.app_picker_show_all), showAll) { showAll = it }
                 edit?.error?.let { CockpitFeedback(text(it), error = true) }
                 if (apps.isEmpty()) {
                     val message = when {
                         state.loading -> R.string.apps_loading
+                        query.isBlank() && canShowAll && !showAll -> R.string.app_picker_all_hidden
                         query.isBlank() -> R.string.apps_desktop_no_available
                         else -> R.string.apps_empty
                     }

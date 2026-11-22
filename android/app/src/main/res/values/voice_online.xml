@@ -8,6 +8,6 @@
     <string name="voice_online_save_failed">Online interpretation settings could not be saved.</string>
     <string name="voice_online_checking">Interpreting…</string>
     <string name="voice_online_unavailable">Online interpretation is unavailable.</string>
-    <string name="voice_restart_assignment">Choose the music or navigation app in Voice settings first.</string>
+    <string name="voice_restart_assignment">Choose the music or navigation app in Voice settings or on its panel button first.</string>
     <string name="voice_restarted">App restarted.</string>
 </resources>

@@ -41,7 +41,7 @@ import org.openvoyah.controls.presentation.theme.CockpitDialogs
 
 /** The destination observes maintenance work; leaving it closes only its confirmation dialogs. */
 @Composable
-internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit) {
+internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit, openOverlays: () -> Unit) {
     val context = LocalContext.current
     val activity = remember(context) { context.componentActivity() }
     val app = context.applicationContext
@@ -115,6 +115,7 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit) {
         try {
             when (action) {
                 FirmwareAction.CLUSTER -> openCluster()
+                FirmwareAction.TEXT_OVERLAYS -> openOverlays()
                 FirmwareAction.WINDOW_SERVICE -> {
                     val enable = !adapter.windowEnabled()
                     confirm(R.string.window_hook_title, if (enable) R.string.window_hook_enable else R.string.window_hook_disable) {

@@ -432,6 +432,13 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
                 const shown = this.mLastStartActivityRecord.value;
                 if (shown !== null && shown.isActivityTypeHome() && shown.getDisplayId() === 0) revealHomeLater();
             } catch (error) { reportError('home', error); }
+            try {
+                // A picker or another app's screen that Controls opened inside its own task. Placed here, before
+                // its process draws it, so it does not start once more at the new size.
+                const shown = this.mLastStartActivityRecord.value;
+                if (shown !== null && config?.enabled === true && config.user === tasks.userOf(shown) &&
+                    reservation.width() === 0) tasks.placeGuest(shown);
+            } catch (error) { reportError('guest', error); }
         }
         return result;
     };

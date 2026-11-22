@@ -19,6 +19,23 @@ def releasePin = releaseSigner.certificate?.toLowerCase(Locale.ROOT)
 def validReleasePin = releasePin != null && (releasePin ==~ /[0-9a-f]{64}/)
 def emulatorFixture = providers.gradleProperty('ovc.emulatorFixture').getOrElse('false') == 'true'
 def runtimeAssets = layout.buildDirectory.dir('generated/runtime-assets')
+// Text overlays for the 32-bit factory apps (docs/FIRMWARE.md, "Resource overlays for 32-bit apps"). The device script
+// is always bundled; the overlay APKs only when the build is pointed at decoded copies of the factory APKs
+// (ovc.oemResources) and the APKs themselves (ovc.oemApks). ovc.overlayFingerprint and ovc.overlayBuildDate pin them to
+// one firmware build; ovc.overlayLocale is the system language whose texts they replace (ru on the owner's 97C).
+def oemResourcesPath = providers.gradleProperty('ovc.oemResources').getOrElse('')
+def oemApksPath = providers.gradleProperty('ovc.oemApks').getOrElse('')
+def overlayFingerprint = providers.gradleProperty('ovc.overlayFingerprint').getOrElse('')
+def overlayBuildDate = providers.gradleProperty('ovc.overlayBuildDate').getOrElse('')
+def overlayLocale = providers.gradleProperty('ovc.overlayLocale').getOrElse('ru')
+def textOverlayScript = layout.buildDirectory.dir('generated/text-overlay-script')
+def textOverlayApks = layout.buildDirectory.dir('generated/text-overlay-apks')
+if (!oemResourcesPath.isEmpty() && oemApksPath.isEmpty()) throw new GradleException('ovc.oemResources needs ovc.oemApks.')
+// Overlays in the APK are always pinned to one firmware build: an unpinned set could be paired with another build of
+// the factory apps after a firmware update.
+if (!oemResourcesPath.isEmpty() && (overlayFingerprint.isEmpty() || overlayBuildDate.isEmpty())) {
+    throw new GradleException('ovc.oemResources needs ovc.overlayFingerprint and ovc.overlayBuildDate.')
+}
 // A debug build for one owner's head unit: the review rows and the expected Controls signer come from a folder
 // outside the repository (verified-firmware.tsv, verified-operations.tsv, signer.sha256). Release builds ignore it.
 def localVehiclePath = providers.gradleProperty('ovc.localVehicle').getOrElse('')
@@ -89,6 +106,8 @@ android {
         buildConfig = true
     }
     sourceSets.main.assets.srcDir(runtimeAssets)
+    sourceSets.main.assets.srcDir(textOverlayScript)
+    if (!oemResourcesPath.isEmpty()) sourceSets.main.assets.srcDir(textOverlayApks)
     // Overrides voice/verified-commands.json from main with the merged catalog, for the app side of the same rows.
     if (localVoiceApprovals != null) sourceSets.debug.assets.srcDir(voiceApprovals)
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
@@ -220,4 +239,29 @@ def verifySherpaRuntime = tasks.register('verifySherpaRuntime') {
         if (actual != sherpaAarSha256) throw new GradleException('dist/sherpa-onnx-2.0.2.aar does not match its pinned SHA-256.')
     }
 }
-tasks.named('preBuild').configure { dependsOn 'compileFridaHook', stageRuntimeMetadata, verifyVoiceAssets, verifySherpaRuntime }
+def stageTextOverlayScript = tasks.register('stageTextOverlayScript', Sync) {
+    from(rootProject.file('tools/text-overlays.sh')) { into 'text-overlays' }
+    into textOverlayScript
+}
+def buildTextOverlays = tasks.register('buildTextOverlays', Exec) {
+    description = 'Build the text overlays for every bundled dictionary from decoded factory APKs.'
+    onlyIf { !oemResourcesPath.isEmpty() }
+    workingDir rootProject.projectDir
+    inputs.files(rootProject.fileTree('hooks/localization'), rootProject.file('tools/build_text_overlays.py'))
+    inputs.property('overlayOptions', [overlayFingerprint, overlayBuildDate, overlayLocale])
+    // The factory APK copies decide what the decoded resources hold; a changed APK rebuilds the overlays.
+    if (!oemApksPath.isEmpty()) inputs.files(fileTree(oemApksPath) { include '*.apk' })
+    if (!oemResourcesPath.isEmpty()) inputs.files(fileTree(oemResourcesPath) { include '*/res/values*/*.xml' })
+    outputs.dir textOverlayApks
+    doFirst { delete textOverlayApks }
+    def command = ['python', '-I', 'tools/build_text_overlays.py', oemResourcesPath, '--language', 'all',
+        '--locale', overlayLocale, '--target-apks', oemApksPath,
+        '--out', textOverlayApks.get().dir('text-overlays').asFile.absolutePath,
+        '--sources', layout.buildDirectory.dir('text-overlay-sources').get().asFile.absolutePath,
+        '--sdk', android.sdkDirectory.absolutePath]
+    if (!overlayFingerprint.isEmpty()) command += ['--require-fingerprint', overlayFingerprint, '--require-build-date', overlayBuildDate]
+    commandLine command
+}
+tasks.named('preBuild').configure {
+    dependsOn 'compileFridaHook', stageRuntimeMetadata, verifyVoiceAssets, verifySherpaRuntime, stageTextOverlayScript, buildTextOverlays
+}

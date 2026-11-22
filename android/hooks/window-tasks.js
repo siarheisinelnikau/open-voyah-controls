@@ -1,7 +1,7 @@
 import { android9Tasks } from './window-task-android9.js';
 import { android11Tasks } from './window-task-android11.js';
 import {
-    CENTRAL_DISPLAY, SECONDARY_DISPLAY, fitsReservedStrip, rectValues, sameBounds, windowBounds
+    CENTRAL_DISPLAY, CONTROLS, SECONDARY_DISPLAY, fitsReservedStrip, rectValues, sameBounds, windowBounds
 } from './window-profiles.js';
 
 function error(code) {
@@ -58,6 +58,27 @@ export function systemTasks(Java, sdk, panelWidth) {
                 (display.getFlags() & Display.FLAG_PRIVATE.value) === 0) return SECONDARY_DISPLAY;
         } catch (_) { }
         return null;
+    }
+
+    /**
+     * An activity of another app that Controls started into its own task on the central display: the document
+     * picker of an "open file" or "save as", the permission and installer screens. Controls keeps its own content
+     * clear of the launcher panel, but such an activity would fill the task, under the panel. It gets bounds of its
+     * own beside the panel, as a placed app has, while Controls' task keeps its size. Says whether the activity is
+     * now placed. Android 11 only; needs a release that supports bounds per activity.
+     */
+    function placeGuest(record) {
+        if (!api.placeActivity) return false;
+        return api.lock(() => {
+            const task = record.getTask();
+            if (task === null || record.getDisplayId() !== 0 || task.getWindowingMode() !== framework.fullscreen ||
+                !record.isActivityTypeStandardOrUndefined() || String(record.packageName.value) === CONTROLS ||
+                api.rootPackage(task) !== CONTROLS) return false;
+            const bounds = boundsFor({width:100, dpi:0, panelPx:0});
+            if (bounds === null) return false;
+            if (!sameBounds(api.activityBounds(record), bounds)) api.placeActivity(record, bounds);
+            return true;
+        });
     }
 
     function boundsFor(profile, reportedPanel = 0, minWidth = 0, minHeight = 0) {
@@ -396,6 +417,7 @@ export function systemTasks(Java, sdk, panelWidth) {
         freeformAvailable: () => api.supportsFreeform() && !api.isLocked(),
         /** After a start of home: hides the tasks that home, now on top of display 0, covers. */
         revealHome: () => api.lock(() => api.revealHome()),
+        placeGuest,
         userOf: api.userOf,
         currentUser: api.user,
         id: api.id

@@ -51,6 +51,8 @@ object ActionCatalog {
     const val OEM_PROFILES = "oem-profiles"
     const val TBOX_REBOOT = "tbox-reboot"
     const val CLUSTER_WRITE = "cluster-write"
+    /** Settings → Factory apps language: places, enables and removes text overlays in /vendor/overlay. */
+    const val TEXT_OVERLAYS = "text-overlays"
     const val CAN_STEERING = "can-steering-terminal"
     const val CAN_STEERING_EDGES = "can-steering-edges"
     const val MEDIA_RESTART = "media-restart"
@@ -62,7 +64,7 @@ object ActionCatalog {
 
     val operations: List<String> = listOf(
         WINDOW_SERVICE, PASSENGER_WINDOW_DPI, WINDOW_DISPLAY_MOVE, CAN_STEERING, CAN_STEERING_EDGES,
-        OEM_PROFILES, CLUSTER_WRITE, TBOX_REBOOT, MEDIA_RESTART, SYSTEM_REBOOT,
+        OEM_PROFILES, CLUSTER_WRITE, TEXT_OVERLAYS, TBOX_REBOOT, MEDIA_RESTART, SYSTEM_REBOOT,
     )
     val agents: List<String> = listOf(NAVIGATION) + listOf("setting", "vehicle", "bluetooth", "hiboard").map { LOCALE_PREFIX + it }
 

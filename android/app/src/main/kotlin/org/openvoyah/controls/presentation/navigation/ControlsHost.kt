@@ -1,5 +1,6 @@
 package org.openvoyah.controls.presentation.navigation
 
+import org.openvoyah.controls.presentation.overlays.TextOverlaysDestination
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
@@ -164,12 +165,15 @@ internal fun ControlsHost(
                         ControlsRoute.SERVICE_REMINDER -> ServiceReminderDestination(navigation::back)
                         ControlsRoute.QUICK_ACTIONS -> QuickActionsDestination(dock, dockState, navigation::back)
                         ControlsRoute.ROUTINES -> RoutinesDestination(navigation::back) { routine -> runRoutine(routine, destination) }
-                        ControlsRoute.FIRMWARE -> FirmwareDestination(navigation::back) { navigation.open(ControlsRoute.CLUSTER) }
+                        ControlsRoute.FIRMWARE -> FirmwareDestination(navigation::back, { navigation.open(ControlsRoute.CLUSTER) }) {
+                            navigation.open(ControlsRoute.TEXT_OVERLAYS)
+                        }
                         ControlsRoute.CLUSTER -> ClusterDestination(navigation::back)
                         ControlsRoute.UPDATES -> UpdatesDestination(navigation::back)
                         ControlsRoute.DIAGNOSTICS -> DiagnosticsDestination(navigation::back)
                         ControlsRoute.KEYBOARD -> KeyboardDestination(navigation::back)
                         ControlsRoute.ACTION_PERMISSIONS -> ActionPermissionsDestination(navigation::back)
+                        ControlsRoute.TEXT_OVERLAYS -> TextOverlaysDestination(navigation::back)
                     }
                 }
             }

@@ -32,6 +32,25 @@ export function android11Tasks(Java, framework) {
         .overload('com.android.server.wm.ActivityRecord', 'int', 'boolean'));
     const setAppBounds = () => member('appBounds', () => Java.use('android.app.WindowConfiguration').setAppBounds
         .overload('android.graphics.Rect'));
+    const setBounds = () => member('bounds', () => Java.use('android.app.WindowConfiguration').setBounds
+        .overload('android.graphics.Rect'));
+    /**
+     * Fixes the resource sizes and app bounds of [next] at [dpi] (0: the display's) to what Android 11 computes for a
+     * freeform task of [pinned] bounds on [displayId]. Android computes only the values that are not set.
+     */
+    const pin = (next, dpi, pinned, displayId) => {
+        for (const field of SIZES) next[field].value = 0;
+        const parent = display(displayId).getConfiguration();
+        const density = Math.fround(Math.fround(dpi || parent.densityDpi.value) * Math.fround(0.00625));
+        const [left, top, right, bottom] = pinned;
+        const width = right - left, height = bottom - top;
+        // A freeform task inside its parent is limited to the parent's sizes; the smallest width is not.
+        next.screenWidthDp.value = Math.min(dp(width, density), parent.screenWidthDp.value);
+        next.screenHeightDp.value = Math.min(dp(height, density), parent.screenHeightDp.value);
+        next.smallestScreenWidthDp.value = dp(Math.min(width, height), density);
+        setAppBounds().call(next.windowConfiguration.value, Rect.$new(left, top, right, bottom));
+        return next;
+    };
     /** Task.computeConfigResourceOverrides in Java float arithmetic: px / (dpi * 0.00625f), truncated. */
     const dp = (px, density) => Math.trunc(Math.fround(Math.fround(px) / density));
     const appBoundsOf = config => {
@@ -136,21 +155,35 @@ export function android11Tasks(Java, framework) {
             const next = framework.Configuration.$new(getOverride(task));
             next.densityDpi.value = dpi;
             for (const field of SIZES) next[field].value = 0;
-            const windowConfiguration = next.windowConfiguration.value;
             if (pinned === null) {
-                if (appBoundsOf(next) !== null) setAppBounds().call(windowConfiguration, null);
+                if (appBoundsOf(next) !== null) setAppBounds().call(next.windowConfiguration.value, null);
                 return next;
             }
-            const parent = display(displayId).getConfiguration();
-            const density = Math.fround(Math.fround(dpi || parent.densityDpi.value) * Math.fround(0.00625));
-            const [left, top, right, bottom] = pinned;
-            const width = right - left, height = bottom - top;
-            // A freeform task inside its parent is limited to the parent's sizes; the smallest width is not.
-            next.screenWidthDp.value = Math.min(dp(width, density), parent.screenWidthDp.value);
-            next.screenHeightDp.value = Math.min(dp(height, density), parent.screenHeightDp.value);
-            next.smallestScreenWidthDp.value = dp(Math.min(width, height), density);
-            setAppBounds().call(windowConfiguration, Rect.$new(left, top, right, bottom));
-            return next;
+            return pin(next, dpi, pinned, displayId);
+        },
+        /** The bounds [record] has of its own inside its task, or null while it fills the task. */
+        activityBounds(record) {
+            const rect = record.getRequestedOverrideBounds();
+            return rect === null || rect.isEmpty() ? null
+                : [rect.left.value, rect.top.value, rect.right.value, rect.bottom.value];
+        },
+        /** The package of the activity that started [task], or null. */
+        rootPackage(task) {
+            const root = task.realActivity.value;
+            return root === null ? null : String(root.getPackageName());
+        },
+        /**
+         * Gives [record] [bounds] of its own inside its fullscreen task, with the resource sizes a freeform task of
+         * those bounds gets. Android 11 resolves such an activity's configuration from its own bounds
+         * (`ActivityRecord.resolveFullscreenConfiguration`), lays its windows out in them (`WindowState.computeFrameLw`)
+         * and letterboxes the rest of the task, the same path it uses for an app's maximum aspect ratio. The task
+         * and the other activities in it keep their size. Needs the global lock.
+         */
+        placeActivity(record, bounds) {
+            const next = pin(framework.Configuration.$new(record.getRequestedOverrideConfiguration()), 0, bounds,
+                record.getDisplayId());
+            setBounds().call(next.windowConfiguration.value, Rect.$new(...bounds));
+            record.onRequestedOverrideConfigurationChanged(next);
         },
         /** Whether the overrides agree on density, resource sizes and app bounds. */
         resourcesMatch(current, wanted) {

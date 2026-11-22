@@ -13,7 +13,6 @@ those are not set. Every result is listed in `overlays.json` next to the APKs.
 """
 import argparse
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -156,12 +155,14 @@ class OverlayPlan:
     matched_keys: set = field(default_factory=set)
     unmatched_keys: list = field(default_factory=list)
     plurals: int = 0
+    # The system language whose resources the overlay replaces; the dictionary language when empty.
+    locale: str = ''
 
 
-def plan_overlay(target, table, resources, language, region=None):
-    """Map dictionary keys to the target's resource names, as the app resolves them for the dictionary language."""
-    chain = locale_chain(language, region)
-    plan = OverlayPlan(target, language, plurals=len(resources.plurals))
+def plan_overlay(target, table, resources, language, region=None, locale=None):
+    """Map dictionary keys to the target's resource names, as the app resolves them for the system language."""
+    chain = locale_chain(locale or language, region)
+    plan = OverlayPlan(target, language, plurals=len(resources.plurals), locale=locale or '')
     names = sorted({name for directory in chain for name in resources.strings.get(directory, {})})
     for name in names:
         text, formatted, styled = effective(resources.strings, chain, name)
@@ -236,13 +237,15 @@ def values_xml(plan):
     return '\n'.join(lines) + '\n'
 
 
-def manifest_xml(target, language, fingerprint=None):
+def manifest_xml(target, language, build_date=None):
     pinned = ''
-    if fingerprint:
+    if build_date:
         # The package manager ignores the overlay on any other build, so a firmware update cannot pair it with an
-        # app whose resource names may mean something else.
-        pinned = ('\n        android:requiredSystemPropertyName="ro.build.fingerprint"'
-                  '\n        android:requiredSystemPropertyValue="%s"' % xml_escape(fingerprint, {'"': '&quot;'}))
+        # app whose resource names may mean something else. ro.build.fingerprint cannot be used: Android 11 reads
+        # requiredSystemPropertyValue as a comma-separated list, and fingerprints such as "...-97,test-keys" contain
+        # a comma, so the overlay would never match.
+        pinned = ('\n        android:requiredSystemPropertyName="ro.build.date.utc"'
+                  '\n        android:requiredSystemPropertyValue="%s"' % build_date)
     return ('<?xml version="1.0" encoding="utf-8"?>\n'
             '<manifest xmlns:android="http://schemas.android.com/apk/res/android"\n'
             '    package="%s">\n'
@@ -250,19 +253,18 @@ def manifest_xml(target, language, fingerprint=None):
             '    <!-- Not static: the owner enables and disables it with "cmd overlay" without a restart. -->\n'
             '    <overlay\n'
             '        android:targetPackage="%s"\n'
-            '        android:isStatic="false"\n'
-            '        android:priority="1"%s />\n'
+            '        android:isStatic="false"%s />\n'
             '</manifest>\n') % (overlay_package(target, language), target, pinned)
 
 
-def write_sources(plan, directory, fingerprint=None):
+def write_sources(plan, directory, build_date=None):
     directory = Path(directory)
     if directory.exists():
         shutil.rmtree(directory)
-    values = directory / 'res' / ('values-' + plan.language)
+    values = directory / 'res' / ('values-' + (plan.locale or plan.language))
     values.mkdir(parents=True)
     (values / 'strings.xml').write_text(values_xml(plan), encoding='utf-8', newline='\n')
-    (directory / 'AndroidManifest.xml').write_text(manifest_xml(plan.target, plan.language, fingerprint),
+    (directory / 'AndroidManifest.xml').write_text(manifest_xml(plan.target, plan.language, build_date),
                                                    encoding='utf-8', newline='\n')
     return directory
 
@@ -338,7 +340,9 @@ def load_tables(language, path=None):
     if path:
         packages, digest = load_dictionary(language, path)
         return packages, sorted(packages), digest
-    preset, preset_digest = load_dictionary(language)
+    preset, preset_digest = {}, ''
+    if (DICTIONARIES / (language + '.json')).is_file():
+        preset, preset_digest = load_dictionary(language)
     extra, extra_digest = {}, ''
     if (OVERLAY_DICTIONARIES / (language + '.json')).is_file():
         extra, extra_digest = load_dictionary(language, OVERLAY_DICTIONARIES / (language + '.json'))
@@ -354,45 +358,85 @@ def main(argv=None):
     parser.add_argument('--package', action='append', dest='packages',
                         help='Target package (repeatable); default: %s and every app in the overlay dictionary'
                         % ', '.join(DEFAULT_PACKAGES))
-    parser.add_argument('--language', default='ru', help='Dictionary and values-<language> directory (default ru)')
+    parser.add_argument('--language', default='ru',
+                        help='Dictionary language, a comma-separated list, or "all" for every bundled dictionary')
     parser.add_argument('--dictionary', type=Path,
                         help='Schema 1 dictionary to use instead of the preset and overlay dictionaries')
+    parser.add_argument('--locale',
+                        help='System language whose resources the overlays replace (default: the dictionary language).'
+                        ' A head unit running Russian shows a Kazakh set built with --language kk --locale ru')
     parser.add_argument('--region', help='Also resolve values-<language>-r<REGION> (for example RU)')
     parser.add_argument('--target-apks', type=Path,
                         help='Folder with <package>.apk copies of the targets; their SHA-256 goes into overlays.json')
-    parser.add_argument('--require-fingerprint', help='Pin the overlays to this ro.build.fingerprint')
+    parser.add_argument('--require-fingerprint',
+                        help='ro.build.fingerprint of the head unit; install refuses overlays built for another one')
+    parser.add_argument('--require-build-date',
+                        help='ro.build.date.utc of that build; Android then ignores the overlays on any other build')
     parser.add_argument('--out', type=Path, default=ROOT / 'build/text-overlays', help='Output folder')
+    parser.add_argument('--sources', type=Path,
+                        help='Folder for the generated resource sources (default: <out>/<language>/src)')
     parser.add_argument('--sources-only', action='store_true', help='Write the resource sources and the report only')
     parser.add_argument('--sdk', default=os.environ.get('ANDROID_HOME') or os.environ.get('ANDROID_SDK_ROOT')
                         or str(Path(os.environ.get('LOCALAPPDATA', '')) / 'Android/Sdk'))
     parser.add_argument('--build-tools', default='35.0.0')
     parser.add_argument('--platform', default='android-30')
     parser.add_argument('--version-code', type=int,
-                        default=int(datetime.now(timezone.utc).strftime('%y%m%d%H')),
-                        help='Overlay versionCode; raise it with every rebuild that goes to a head unit')
+                        help='Overlay versionCode (default: derived from the dictionaries, so equal inputs give equal'
+                        ' APKs and an unchanged set is never offered as an update)')
     args = parser.parse_args(argv)
-    if not LANGUAGE.match(args.language) or (args.region and not REGION.match(args.region)):
+    if args.language == 'all':
+        languages = sorted({path.stem for folder in (DICTIONARIES, OVERLAY_DICTIONARIES) for path in folder.glob('*.json')})
+    else:
+        languages = args.language.split(',')
+    if not all(LANGUAGE.match(language) for language in languages) or (args.region and not REGION.match(args.region)) \
+            or (args.locale and not LANGUAGE.match(args.locale)):
         raise SystemExit('Use a language such as ru and a region such as RU.')
     if args.require_fingerprint and not re.fullmatch(r'[A-Za-z0-9_.:/+,-]+', args.require_fingerprint):
         raise SystemExit('Unexpected fingerprint.')
-    packages, default_targets, dictionary_sha = load_tables(args.language, args.dictionary)
-    targets = args.packages or default_targets
+    if args.require_fingerprint and not args.require_build_date:
+        raise SystemExit('Pass --require-build-date with --require-fingerprint.')
+    if args.require_build_date and not re.fullmatch(r'[0-9]{1,12}', args.require_build_date):
+        raise SystemExit('Unexpected build date.')
     toolchain = None if args.sources_only else Toolchain(args.sdk, args.build_tools, args.platform)
     signer = None if args.sources_only else signer_from_environment()
-    out = args.out / args.language
-    out.mkdir(parents=True, exist_ok=True)
-    report = {'schema': 1, 'language': args.language, 'dictionary_sha256': dictionary_sha,
-              'fingerprint': args.require_fingerprint or '', 'version_code': args.version_code,
+    return [build_language(args, language, toolchain, signer) for language in languages]
+
+
+def version_code(args, sources):
+    """The given versionCode, or one derived from the overlay's own sources (manifest with its pin, values-<locale>
+    texts): equal inputs give byte-equal overlays, and a change anywhere gives a new version."""
+    if args.version_code:
+        return args.version_code
+    content = hashlib.sha256()
+    for path in sorted(Path(sources).rglob('*')):
+        if path.is_file():
+            content.update(path.relative_to(sources).as_posix().encode() + b'\0' + path.read_bytes())
+    return int(content.hexdigest()[:7], 16) + 1
+
+
+def build_language(args, language, toolchain, signer):
+    packages, default_targets, dictionary_sha = load_tables(language, args.dictionary)
+    targets = args.packages or [target for target in default_targets if packages.get(target)]
+    out = args.out / language
+    if out.exists():
+        shutil.rmtree(out)
+    out.mkdir(parents=True)
+    sources_root = (args.sources / language) if args.sources else out / 'src'
+    report = {'schema': 1, 'language': language, 'locale': args.locale or language, 'dictionary_sha256': dictionary_sha,
+              'fingerprint': args.require_fingerprint or '', 'build_date_utc': args.require_build_date or '',
               'signer': signer['kind'] if signer else '', 'overlays': []}
     for target in targets:
         if target not in packages:
-            raise SystemExit('The %s dictionary has no table for %s.' % (args.language, target))
+            raise SystemExit('The %s dictionary has no table for %s.' % (language, target))
         res = args.apktool_root / target / 'res'
         if not res.is_dir():
             raise SystemExit('Missing decoded resources: ' + str(res))
-        plan = plan_overlay(target, packages[target], read_resources(res), args.language, args.region)
-        package = overlay_package(target, args.language)
-        sources = write_sources(plan, out / 'src' / package, args.require_fingerprint)
+        plan = plan_overlay(target, packages[target], read_resources(res), language, args.region, args.locale)
+        if not plan.strings and not plan.arrays:
+            print('%s: nothing to overlay in %s' % (language, target))
+            continue
+        package = overlay_package(target, language)
+        sources = write_sources(plan, sources_root / package, args.require_build_date)
         entry = {'package': package, 'target': target, 'file': package + '.apk', 'strings': len(plan.strings),
                  'arrays': len(plan.arrays), 'dictionary_entries': len(packages[target]),
                  'matched_entries': len(plan.matched_keys), 'unmatched_entries': plan.unmatched_keys,
@@ -403,8 +447,9 @@ def main(argv=None):
             entry['target_apk_sha256'] = sha256(apk) if apk.is_file() else ''
         if toolchain:
             apk = out / entry['file']
-            entry['signer_sha256'] = toolchain.build(sources, apk, args.version_code,
-                                                     '%s-%s' % (args.language, dictionary_sha[:12]), signer)
+            entry['version_code'] = version_code(args, sources)
+            entry['signer_sha256'] = toolchain.build(sources, apk, entry['version_code'],
+                                                     '%s-%s' % (language, dictionary_sha[:12]), signer)
             entry['sha256'] = sha256(apk)
             entry['size'] = apk.stat().st_size
         report['overlays'].append(entry)
@@ -413,6 +458,13 @@ def main(argv=None):
             len(packages[target]), len(plan.skipped)))
     (out / 'overlays.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n',
                                        encoding='utf-8', newline='\n')
+    if toolchain:
+        # The app reads this table from its assets: file, package, target, SHA-256, target APK SHA-256, texts.
+        # The first line names the firmware build the set is pinned to ("-" when it is not).
+        rows = ['pin %s %s' % (args.require_fingerprint or '-', args.require_build_date or '-')] + ['\t'.join([entry['file'], entry['package'], entry['target'], entry['sha256'],
+                           entry.get('target_apk_sha256', ''), str(entry['strings'] + entry['arrays'])])
+                for entry in report['overlays']]
+        (out / 'overlays.tsv').write_text(''.join(row + '\n' for row in rows), encoding='utf-8', newline='\n')
     print('Report: ' + str(out / 'overlays.json'))
     return report
 

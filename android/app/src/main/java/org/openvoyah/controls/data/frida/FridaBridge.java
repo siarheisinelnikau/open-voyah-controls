@@ -1,6 +1,7 @@
 package org.openvoyah.controls.data.frida;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.SystemClock;
 import android.util.Base64;
 import java.io.ByteArrayOutputStream;
@@ -25,6 +26,8 @@ import org.openvoyah.controls.data.display.AppWindowPreferences;
 import org.openvoyah.controls.data.frida.WindowDiagnostics.Operation;
 import org.openvoyah.controls.data.frida.WindowDiagnostics.Outcome;
 import org.openvoyah.controls.data.frida.WindowDiagnostics.Stage;
+import org.openvoyah.controls.domain.overlays.BundledSet;
+import org.openvoyah.controls.domain.overlays.TextOverlayCatalog;
 import org.openvoyah.controls.domain.display.AppWindowProfile;
 import org.openvoyah.controls.domain.display.WindowProfileDelivery;
 import org.openvoyah.controls.domain.display.WindowStripState;
@@ -1252,6 +1255,51 @@ public final class FridaBridge {
                 throw new IOException(UiText.get(R.string.ui_84));
             }
             ControlsLog.info("system_reboot", "outcome", "requested");
+        }
+    }
+    /*
+     * Settings → Factory apps language (TextOverlayManager). Only these fixed requests reach the root channel, built
+     * here from the bundled text-overlays.sh: reading the state and a running job's answer needs the channel only;
+     * staging a set and starting a change in /vendor/overlay is the text-overlays operation.
+     */
+    public String textOverlayStatus() throws IOException {
+        synchronized (IO_LOCK) {
+            requireTextOverlayChannel();
+            return command(activationGuard() + TextOverlayCatalog.INSTANCE.status(textOverlayScript(), Build.FINGERPRINT));
+        }
+    }
+    public String textOverlayPoll(String job) throws IOException {
+        synchronized (IO_LOCK) {
+            requireTextOverlayChannel();
+            return command(activationGuard() + TextOverlayCatalog.INSTANCE.poll(job));
+        }
+    }
+    public String textOverlayStage(BundledSet set, String folder) throws IOException {
+        synchronized (IO_LOCK) {
+            if (production == null) throw unreviewedOperation();
+            requireReviewedOperation(ReviewedFirmware.TEXT_OVERLAYS);
+            return command(activationGuard() + TextOverlayCatalog.INSTANCE.stage(set, folder));
+        }
+    }
+    public String textOverlayStart(String mode, String job, java.util.List<String> packages) throws IOException {
+        synchronized (IO_LOCK) {
+            if (production == null) throw unreviewedOperation();
+            requireReviewedOperation(ReviewedFirmware.TEXT_OVERLAYS);
+            return command(activationGuard()
+                + TextOverlayCatalog.INSTANCE.start(textOverlayScript(), mode, Build.FINGERPRINT, job, packages));
+        }
+    }
+    private void requireTextOverlayChannel() throws IOException {
+        if (production == null) throw unreviewedOperation();
+        requireRoot();
+    }
+    private String textOverlayScript() throws IOException {
+        try (InputStream input = context.getAssets().open("text-overlays/text-overlays.sh")) {
+            // InputStream.readAllBytes needs API 33; the head units run Android 9 and 11.
+            java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            for (int read; (read = input.read(buffer)) != -1; ) output.write(buffer, 0, read);
+            return new String(output.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
         }
     }
     public String clusterRoot(String script) throws IOException {

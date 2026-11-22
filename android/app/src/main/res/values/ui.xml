@@ -30,7 +30,7 @@
     <string name="ui_29" formatted="false">"Assistant opened"</string>
     <string name="ui_30" formatted="false">"Enable the button service. The firmware must support split screen"</string>
     <string name="ui_31" formatted="false">"Split screen requested"</string>
-    <string name="ui_32" formatted="false">"Assign an app for this command: music, navigation, radio and camera use your assignments."</string>
+    <string name="ui_32" formatted="false">"Assign an app for this command: music, navigation, radio and camera use your assignments; music, navigation and radio also use the app of their panel button."</string>
     <string name="ui_33" formatted="false">"Your buttons. Your apps."</string>
     <string name="ui_34" formatted="false">"Voice commands"</string>
     <string name="ui_35" formatted="false">"Export settings"</string>

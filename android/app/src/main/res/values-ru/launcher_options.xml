@@ -20,6 +20,8 @@
     <string name="apps_grid_page">Страница %1$d из %2$d</string>
     <string name="apps_grid_go_to_page">Страница %1$d</string>
     <string name="apps_grid_hide_by_default">По умолчанию скрывать приложения прошивки и служебные</string>
+    <string name="app_picker_show_all">Показать системные и скрытые приложения</string>
+    <string name="app_picker_all_hidden">Все подходящие приложения скрыты. Включите «Показать системные и скрытые приложения», чтобы выбрать.</string>
     <string name="apps_grid_hidden_intro">Скрытых приложений нет во «Всех приложениях» и в поиске; на рабочих столах «Избранное» закреплённые ярлыки остаются. Приложения прошивки и их внутренние действия, клавиатуры, служебные приложения и дополнительные ярлыки скрыты по умолчанию. Ваш выбор для приложения заменяет это правило.</string>
     <string name="apps_grid_hidden_reset">Как по умолчанию</string>
     <string name="apps_hide_choice">Ваш выбор</string>

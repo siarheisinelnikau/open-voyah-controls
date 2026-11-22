@@ -35,7 +35,7 @@ class ActionPermissionTest {
     }
 
     @Test fun everyReviewedOperationIsListed() {
-        assertEquals(10, ActionCatalog.operations.size)
+        assertEquals(11, ActionCatalog.operations.size)
         assertEquals(ActionCatalog.operations.size, ActionCatalog.operations.toSet().size)
         assertEquals(listOf("navigation", "locale-setting", "locale-vehicle", "locale-bluetooth", "locale-hiboard"), ActionCatalog.agents)
     }

@@ -26,6 +26,7 @@ internal object ReviewedFirmware {
     const val OEM_PROFILES = ActionCatalog.OEM_PROFILES
     const val TBOX_REBOOT = ActionCatalog.TBOX_REBOOT
     const val CLUSTER_WRITE = ActionCatalog.CLUSTER_WRITE
+    const val TEXT_OVERLAYS = ActionCatalog.TEXT_OVERLAYS
     /** Settings → Restart multimedia: kills the OEM media center and factory players (see SystemRestartScripts). */
     const val MEDIA_RESTART = ActionCatalog.MEDIA_RESTART
     /** Settings → Restart the system: an orderly reboot of the head unit while parked. */

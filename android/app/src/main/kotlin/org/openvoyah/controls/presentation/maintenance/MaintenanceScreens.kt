@@ -23,7 +23,7 @@ import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 
 internal enum class FirmwareAction {
-    CLUSTER, WINDOW_SERVICE, WINDOW_STRIP, RUSSIAN, ENGLISH, DISABLE_TRANSLATION, IMPORT, EXPORT, RESTORE_TRANSLATION,
+    CLUSTER, TEXT_OVERLAYS, WINDOW_SERVICE, WINDOW_STRIP, RUSSIAN, ENGLISH, DISABLE_TRANSLATION, IMPORT, EXPORT, RESTORE_TRANSLATION,
     RESTORE_PROFILE,
 }
 
@@ -78,6 +78,10 @@ internal fun FirmwareScreen(product: String, translationEnabled: Boolean?, windo
                 }
                 CockpitChoice(label(R.string.translation_import), enabled = enabled) { select(FirmwareAction.IMPORT) }
                 CockpitChoice(label(R.string.translation_export), enabled = enabled) { select(FirmwareAction.EXPORT) }
+                // 32-bit factory apps (Settings, Vehicle settings, phone, media) are translated by resource overlays.
+                CockpitChoice(label(R.string.text_overlays_title), label(R.string.text_overlays_row), enabled) {
+                    select(FirmwareAction.TEXT_OVERLAYS)
+                }
             }
         })
     }

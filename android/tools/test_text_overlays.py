@@ -149,7 +149,7 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(plan.strings['wifi'][0], 'Выкл.')
 
     def test_written_sources(self):
-        out = overlays.write_sources(self.plan, Path(self.temp.name) / 'src', 'brand/product/device:11/X/1:user/k')
+        out = overlays.write_sources(self.plan, Path(self.temp.name) / 'src', '1720866928')
         values = ET.parse(out / 'res/values-ru/strings.xml').getroot()
         decoded = {item.get('name'): overlays.decode_resource_text(item.text or '') for item in values.iter('string')}
         self.assertEqual(decoded, {name: value for name, (value, _) in self.plan.strings.items()})
@@ -160,7 +160,8 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(ET.fromstring(manifest).get('package'), 'org.openvoyah.controls.overlay.ru.example.target')
         self.assertEqual(element.get(android + 'targetPackage'), 'com.example.target')
         self.assertEqual(element.get(android + 'isStatic'), 'false')
-        self.assertEqual(element.get(android + 'requiredSystemPropertyValue'), 'brand/product/device:11/X/1:user/k')
+        self.assertEqual(element.get(android + 'requiredSystemPropertyName'), 'ro.build.date.utc')
+        self.assertEqual(element.get(android + 'requiredSystemPropertyValue'), '1720866928')
         self.assertNotIn('requiredSystemProperty', overlays.manifest_xml('com.example.target', 'ru'))
 
 

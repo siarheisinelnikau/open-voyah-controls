@@ -33,6 +33,8 @@
     <string name="action_oem_profiles_summary">Switching the OEM guest accounts by voice and restoring them.</string>
     <string name="action_cluster_write">Cluster settings</string>
     <string name="action_cluster_write_summary">Changing instrument cluster settings from the Cluster page.</string>
+    <string name="action_text_overlays">Factory apps language</string>
+    <string name="action_text_overlays_summary">Placing, switching and removing text overlays for the factory apps in /vendor/overlay.</string>
     <string name="action_tbox_reboot">Modem (T-Box) restart</string>
     <string name="action_tbox_reboot_summary">Restarting the T-Box by voice, in Park only.</string>
     <string name="action_media_restart">Multimedia restart</string>

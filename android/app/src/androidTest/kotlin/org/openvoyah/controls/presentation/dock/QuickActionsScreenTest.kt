@@ -1129,6 +1129,11 @@ class QuickActionsScreenTest : InstrumentationTestCase() {
         activity = instrumentation.startActivitySync(ControlsNavigation.intent(app, ControlsRoute.QUICK_ACTIONS)) as MainActivity
         reveal("quickActionsContent", add) { control(add) != null }
         click(add)
+        // The emulator's calendar is a firmware app, which the picker offers only after show all unless the grid
+        // settings already show it.
+        val showAll = UiText.get(R.string.app_picker_show_all)
+        await("The app picker has loaded") { control(showAll) != null || control(target.label()) != null }
+        if (control(target.label()) == null) click(showAll)
         click(target.label())
         await("The app shortcut is saved and the picker has closed") {
             dock.exportSettings().getJSONArray("appShortcuts").optString(0) == component &&

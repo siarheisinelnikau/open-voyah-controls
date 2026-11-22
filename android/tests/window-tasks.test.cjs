@@ -22,7 +22,7 @@ function harness(sdk, options = {}) {
     let density = 240, resourceWidth = 145;
     let bounds = rect(...displayBounds);
     let placements = 0, scans = 0, writes = 0, notifications = 0, resourceReads = 0, reveals = 0;
-    const overrides = [];
+    const overrides = [], guests = [];
     const record = {
         packageName: field('org.example.app'),
         finishing: field(false),
@@ -73,6 +73,9 @@ function harness(sdk, options = {}) {
             JSON.stringify(a.pinned ?? null) === JSON.stringify(b.pinned ?? null),
         setOverride: (_, value) => { override = value; writes++; overrides.push({mode, pinned:value.pinned ?? null}); },
         revealHome: () => { reveals++; return true; },
+        rootPackage: owner => owner.root,
+        activityBounds: activity => activity.bounds ?? null,
+        placeActivity: (activity, target) => { activity.bounds = Array.from(target); guests.push(activity); },
         topBar: () => options.topBar ?? 0,
         multiWindowAvailable: () => {
             if (options.multiWindow instanceof Error) throw options.multiWindow;
@@ -107,7 +110,7 @@ function harness(sdk, options = {}) {
     return {
         agent, task, placements:()=>placements, density:()=>override.densityDpi.value,
         scans:()=>scans, writes:()=>writes, notifications:()=>notifications, resourceReads:()=>resourceReads,
-        reveals:()=>reveals, overrides, pinned:()=>override.pinned ?? null,
+        reveals:()=>reveals, guests, overrides, pinned:()=>override.pinned ?? null,
         configure: (frame, dpi, panel) => { displayBounds = frame; density = dpi; resourceWidth = panel; },
         mode:()=>mode,
         bounds:()=>[bounds.left.value, bounds.top.value, bounds.right.value, bounds.bottom.value],
@@ -453,6 +456,26 @@ function livePolicy(sdk, h, options = {}) {
             return late.implementation.call({mLastStartActivityRecord:field(record)}, record, from, null, null, null,
                 null, options, null, []);
         },
+        /**
+         * Controls opens another app's activity inside its own task, as an "open file" does with the document
+         * picker: an intent without NEW_TASK, the result returned to Controls.
+         */
+        guest({pkg = 'com.android.documentsui', root = 'org.openvoyah.controls', displayId = 0, taskMode = 1} = {}) {
+            const options = {getLaunchDisplayId:()=>-1, getLaunchWindowingMode:()=>0, getLaunchBounds:()=>null};
+            const owner = {root, getWindowingMode:()=>taskMode};
+            const record = {
+                launchedFromPackage:field('org.openvoyah.controls'), packageName:field(pkg),
+                intent:field({getAction:()=>'android.intent.action.OPEN_DOCUMENT', hasCategory:()=>false,
+                    getFlags:()=>0, getIntExtra:()=>0, getBooleanExtra:()=>false, getComponent:()=>null}),
+                isActivityTypeStandardOrUndefined:()=>true, isActivityTypeHome:()=>false, isResizeable:()=>true,
+                getDisplayId:()=>displayId, getTask:()=>owner, equals:other=>other === record,
+            };
+            const from = {getDisplayId:()=>displayId, getWindowingMode:()=>1, isActivityTypeHome:()=>false};
+            const start = () => late.implementation.call({mLastStartActivityRecord:field(record)}, record, from, null,
+                null, null, null, options, null, []);
+            start();
+            return {record, start};
+        },
         /** The launcher's Home button: its own MAIN intent, delivered to the existing home activity. */
         home(displayId = 0) {
             const options = {getLaunchDisplayId:()=>-1, getLaunchWindowingMode:()=>0, getLaunchBounds:()=>null};
@@ -498,6 +521,28 @@ test('back-to-back starts schedule one layout and disabling before delivery rest
         assert.equal(h.density(), 180);
         assert.equal(h.placements(), 1);
     }
+});
+
+test("on Android 11 another app's screen opened inside the Controls task is placed beside the panel", () => {
+    const h = harness(30, {displayId:0});
+    const service = livePolicy(30, h);
+    const picker = service.guest();
+    assert.deepEqual(picker.record.bounds, [145, 0, 1920, 720]);
+    assert.equal(h.guests.length, 1);
+    // Started again in place (delivered to the same activity): nothing to change.
+    picker.start();
+    assert.equal(h.guests.length, 1);
+    // Controls' own screens, other apps' tasks, a task that is not fullscreen and other displays stay as they are.
+    for (const start of [{pkg:'org.openvoyah.controls'}, {root:'org.example.app'}, {taskMode:6}, {displayId:1}]) {
+        assert.equal(service.guest(start).record.bounds, undefined);
+    }
+    assert.equal(h.guests.length, 1);
+    assert.ok(!service.logs.some(line => line.startsWith('OVC_WINDOW_ERROR')));
+    // Android 9 and a window service that was turned off leave it to Android.
+    const older = livePolicy(28, harness(28, {displayId:0}));
+    assert.equal(older.guest().record.bounds, undefined);
+    service.request('release');
+    assert.equal(service.guest().record.bounds, undefined);
 });
 
 test('on Android 11 Home on the central display hides the placed apps it now covers, once per burst', () => {

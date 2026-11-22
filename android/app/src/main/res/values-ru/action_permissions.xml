@@ -33,6 +33,8 @@
     <string name="action_oem_profiles_summary">Переключение гостевых аккаунтов OEM голосом и их восстановление.</string>
     <string name="action_cluster_write">Настройки приборной панели</string>
     <string name="action_cluster_write_summary">Изменение настроек приборной панели со страницы «Приборная панель».</string>
+    <string name="action_text_overlays">Язык заводских приложений</string>
+    <string name="action_text_overlays_summary">Установка, переключение и удаление оверлеев перевода заводских приложений в /vendor/overlay.</string>
     <string name="action_tbox_reboot">Перезагрузка модема (T-Box)</string>
     <string name="action_tbox_reboot_summary">Перезапуск T-Box голосовой командой, только на P.</string>
     <string name="action_media_restart">Перезапуск мультимедиа</string>

@@ -20,6 +20,8 @@
     <string name="apps_grid_page">Page %1$d of %2$d</string>
     <string name="apps_grid_go_to_page">Page %1$d</string>
     <string name="apps_grid_hide_by_default">Hide firmware and service apps by default</string>
+    <string name="app_picker_show_all">Show firmware and hidden apps</string>
+    <string name="app_picker_all_hidden">Every app here is hidden. Turn on Show firmware and hidden apps to choose one.</string>
     <string name="apps_grid_hidden_intro">Hidden apps stay out of All apps and search; favorites desktops still show their pins. Firmware apps and their internal actions, keyboards, service apps and extra launcher entries start hidden. Your choice for an app replaces that.</string>
     <string name="apps_grid_hidden_reset">Back to defaults</string>
     <string name="apps_hide_choice">Your choice</string>

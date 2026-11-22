@@ -13,11 +13,13 @@ import org.openvoyah.controls.core.voice.VoiceCommandUseCase.Request
 import org.openvoyah.controls.data.frida.FridaBridge
 import org.openvoyah.controls.data.frida.FridaVoiceDispatcher
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
+import org.openvoyah.controls.data.settings.SettingsStore
 import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.data.voice.CloudVoiceSettings
 import org.openvoyah.controls.data.voice.Interpretation
 import org.openvoyah.controls.data.voice.OpenRouterVoiceInterpreter
 import org.openvoyah.controls.domain.seatmemory.SeatMemorySlot
+import org.openvoyah.controls.domain.voice.VoicePanelApps
 import org.openvoyah.controls.domain.voice.VoiceOutcome
 import org.openvoyah.controls.domain.voice.VoiceResult
 import org.openvoyah.controls.platform.voice.OfflineVoiceInput
@@ -34,7 +36,9 @@ internal object VoiceScreenFactory {
         listeningWindow: ListeningWindow = ListeningWindow.FOUR_SECONDS,
     ): VoiceViewModel {
         val application = activity.applicationContext
-        val android = VoiceUiActions(activity, settings::app, split = {
+        // Without an app chosen in Voice settings, music, navigation and radio open the app of their panel button.
+        val panelActions = { runCatching { SettingsStore(application).load().panelActions.toMap() }.getOrDefault(emptyMap()) }
+        val android = VoiceUiActions(activity, { id -> VoicePanelApps.resolve(id, settings.app(id), panelActions) }, split = {
             ButtonAccessibilityService.connected()
                 ?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN) == true
         }, events = UiText.displayEvents(activity))

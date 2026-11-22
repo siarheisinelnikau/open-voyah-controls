@@ -147,6 +147,7 @@ internal fun actionRows(verifiedOperations: Set<String>): List<ActionRow> {
             ActionCatalog.CAN_STEERING_EDGES -> R.string.action_can_steering_edges to R.string.action_can_steering_edges_summary
             ActionCatalog.OEM_PROFILES -> R.string.action_oem_profiles to R.string.action_oem_profiles_summary
             ActionCatalog.CLUSTER_WRITE -> R.string.action_cluster_write to R.string.action_cluster_write_summary
+            ActionCatalog.TEXT_OVERLAYS -> R.string.action_text_overlays to R.string.action_text_overlays_summary
             ActionCatalog.TBOX_REBOOT -> R.string.action_tbox_reboot to R.string.action_tbox_reboot_summary
             ActionCatalog.MEDIA_RESTART -> R.string.action_media_restart to R.string.action_media_restart_summary
             else -> R.string.action_system_reboot to R.string.action_system_reboot_summary
