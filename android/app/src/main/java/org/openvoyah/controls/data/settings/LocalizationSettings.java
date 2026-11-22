@@ -13,14 +13,16 @@ import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
 import org.openvoyah.controls.diagnostics.ControlsLog;
 
-/** Small, validated dictionaries are published through the existing root transport. */
+/** A built-in preset name plus small, validated custom entries, published through the existing root transport. */
 public final class LocalizationSettings {
     public static final Set<String> PACKAGES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
-        "com.qinggan.app.launcher", "com.qinggan.app.setting", "com.qinggan.app.vehicle", "com.qinggan.bluetoothphone")));
+        "com.qinggan.app.launcher", "com.qinggan.app.setting", "com.qinggan.app.vehicle", "com.qinggan.bluetoothphone",
+        "com.qinggan.app.hiboard")));
+    /** Built-in dictionaries bundled with the localization agent (android/hooks/localization). */
+    public static final Set<String> PRESETS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList("ru", "en")));
     private static volatile boolean unreadableReported;
     private final android.content.SharedPreferences prefs;
-    private final Context context;
-    public LocalizationSettings(Context context) { this.context = context; prefs = context.getSharedPreferences("localization", 0); }
+    public LocalizationSettings(Context context) { prefs = context.getSharedPreferences("localization", 0); }
     public String exportJson() { return prefs.getString("dictionary", "{\"schema\":1,\"enabled\":false,\"products\":[],\"packages\":{}}"); }
     public boolean enabled() {
         try {
@@ -36,14 +38,11 @@ public final class LocalizationSettings {
             return false;
         }
     }
+    /** Names a built-in dictionary; the agent carries its entries, so the published setting stays small. */
     public void preset(String language) throws Exception {
-        if (!"ru".equals(language) && !"en".equals(language)) throw new IllegalArgumentException("Invalid translation language");
-        try (var stream = context.getAssets().open("localization/" + language + ".json")) {
-            java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
-            byte[] buffer = new byte[4096]; int count;
-            while ((count = stream.read(buffer)) != -1) output.write(buffer, 0, count);
-            importJson(output.toString("UTF-8"));
-        }
+        if (!PRESETS.contains(language)) throw new IllegalArgumentException("Invalid translation language");
+        importJson(new JSONObject().put("schema", 1).put("enabled", true).put("preset", language)
+            .put("products", new JSONArray()).put("packages", new JSONObject()).toString());
     }
     public void disable() throws Exception { importJson(new JSONObject(exportJson()).put("enabled", false).toString()); }
     public void restore() throws Exception {
@@ -63,6 +62,7 @@ public final class LocalizationSettings {
     private static JSONObject validateDictionary(String raw) throws Exception {
         JSONObject root = new JSONObject(raw);
         if (root.getInt("schema") != 1 || !(root.get("enabled") instanceof Boolean)) throw new IOException("Invalid dictionary schema");
+        if (root.has("preset") && !PRESETS.contains(root.opt("preset"))) throw new IOException("Unsupported translation preset");
         JSONArray products = root.getJSONArray("products");
         if (products.length() > 20) throw new IOException("Too many products");
         for (int i = 0; i < products.length(); i++) if (!products.getString(i).matches("[A-Za-z0-9_.-]{1,80}")) throw new IOException("Invalid product");

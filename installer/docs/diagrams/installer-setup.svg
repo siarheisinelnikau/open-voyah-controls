@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="1398" viewBox="0 0 680 1398" role="img">
+<title>How the Windows installer sets up a head unit</title>
+<desc>The installer has three install buttons. Prepare and install checks the APK and injector on the PC, gets ADB root, backs up the OEM boot script to the PC, makes /system writable, pauses an older deployment, installs the signed Controls APK, stages the Frida injector, rearms, installs the root channel and the V3 boot entry, and runs the first-run check. The app then deploys its agents into /data/adb/open-voyah-controls through the root channel. Any Controls update revokes boot activation until Prepare and install runs again.</desc>
+<style>
+svg { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+.bg { fill: #FFFFFF; }
+.outer { fill: none; stroke: #888780; stroke-width: 1; }
+.head { font-size: 14px; font-weight: 600; fill: #2C2C2A; }
+.cap { font-size: 12px; fill: #5F5E5A; }
+.nr { fill: #FFFFFF; stroke: #B4B2A9; stroke-width: 0.75; }
+.nh { font-size: 14px; font-weight: 600; fill: #2C2C2A; }
+.ns { font-size: 12px; fill: #5F5E5A; }
+.dash { stroke-dasharray: 4 4; }
+.pr { fill: #EEEDFE; stroke: #534AB7; stroke-width: 0.75; }
+.pt { font-size: 14px; font-weight: 600; fill: #3C3489; }
+.ps { font-size: 12px; fill: #534AB7; }
+.tr { fill: #E1F5EE; stroke: #0F6E56; stroke-width: 0.75; }
+.tt { font-size: 14px; font-weight: 600; fill: #085041; }
+.tsub { font-size: 12px; fill: #0F6E56; }
+.cr { fill: #FAECE7; stroke: #993C1D; stroke-width: 0.75; }
+.ct { font-size: 14px; font-weight: 600; fill: #712B13; }
+.cs { font-size: 12px; fill: #993C1D; }
+.gr { fill: #F1EFE8; stroke: #5F5E5A; stroke-width: 0.75; }
+.gt { font-size: 14px; font-weight: 600; fill: #444441; }
+.gs { font-size: 12px; fill: #5F5E5A; }
+.link { fill: none; stroke: #B4B2A9; stroke-width: 1; }
+.arr { fill: none; stroke: #5F5E5A; stroke-width: 1.5; }
+.mk { fill: none; stroke: #5F5E5A; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+@media (prefers-color-scheme: dark) {
+  .bg { fill: #2C2C2A; }
+  .outer { stroke: #888780; }
+  .head, .nh { fill: #F1EFE8; }
+  .cap, .ns { fill: #B4B2A9; }
+  .nr { fill: #444441; stroke: #888780; }
+  .pr { fill: #3C3489; stroke: #AFA9EC; }
+  .pt { fill: #CECBF6; }
+  .ps { fill: #AFA9EC; }
+  .tr { fill: #085041; stroke: #5DCAA5; }
+  .tt { fill: #9FE1CB; }
+  .tsub { fill: #5DCAA5; }
+  .cr { fill: #712B13; stroke: #F0997B; }
+  .ct { fill: #F5C4B3; }
+  .cs { fill: #F0997B; }
+  .gr { fill: #444441; stroke: #B4B2A9; }
+  .gt { fill: #D3D1C7; }
+  .gs { fill: #B4B2A9; }
+  .link { stroke: #888780; }
+  .arr, .mk { stroke: #B4B2A9; }
+}
+</style>
+<defs>
+<marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="mk" d="M2 1L8 5L2 9"/></marker>
+</defs>
+<rect class="bg" x="0" y="0" width="680" height="1398"/>
+<rect class="outer" x="20" y="20" width="640" height="130" rx="20"/>
+<text class="head" x="40" y="42" dominant-baseline="central">PC · Windows installer, Installation tab</text>
+<rect class="pr" x="40" y="60" width="190" height="74" rx="6"/>
+<text class="pt" x="135" y="78" text-anchor="middle" dominant-baseline="central">Prepare and install</text>
+<text class="ps" x="135" y="98" text-anchor="middle" dominant-baseline="central">first setup and updates</text>
+<text class="ps" x="135" y="116" text-anchor="middle" dominant-baseline="central">steps 1–12 below</text>
+<rect class="gr" x="245" y="60" width="190" height="74" rx="6"/>
+<text class="gt" x="340" y="78" text-anchor="middle" dominant-baseline="central">APK only</text>
+<text class="gs" x="340" y="98" text-anchor="middle" dominant-baseline="central">Controls APK alone</text>
+<text class="gs" x="340" y="116" text-anchor="middle" dominant-baseline="central">APK checks + step 6</text>
+<rect class="gr" x="450" y="60" width="190" height="74" rx="6"/>
+<text class="gt" x="545" y="78" text-anchor="middle" dominant-baseline="central">Install APK folder…</text>
+<text class="gs" x="545" y="98" text-anchor="middle" dominant-baseline="central">other standalone APKs</text>
+<text class="gs" x="545" y="116" text-anchor="middle" dominant-baseline="central">adb install -r each</text>
+<line class="arr" x1="135" y1="134" x2="135" y2="182" marker-end="url(#a)"/>
+<text class="cap" x="150" y="168" dominant-baseline="central">Prepare and install, in order</text>
+<text class="cap" x="360" y="168" dominant-baseline="central">What it writes, and where</text>
+<rect class="nr" x="40" y="184" width="290" height="74" rx="6"/>
+<text class="nh" x="56" y="202" dominant-baseline="central">1 · Check the inputs on the PC</text>
+<text class="ns" x="56" y="222" dominant-baseline="central">injector SHA-256 vs FRIDA_RUNTIME.json</text>
+<text class="ns" x="56" y="240" dominant-baseline="central">APK: package, signer pin, version</text>
+<rect class="gr" x="360" y="184" width="280" height="74" rx="6"/>
+<text class="gt" x="376" y="202" dominant-baseline="central">Nothing written yet</text>
+<text class="gs" x="376" y="222" dominant-baseline="central">debuggable or split APK: refused</text>
+<text class="gs" x="376" y="240" dominant-baseline="central">older than installed: refused</text>
+<line class="arr" x1="330" y1="221" x2="358" y2="221" marker-end="url(#a)"/>
+<line class="link" x1="185" y1="258" x2="185" y2="272"/>
+<rect class="nr" x="40" y="272" width="290" height="74" rx="6"/>
+<text class="nh" x="56" y="290" dominant-baseline="central">2 · adb root and preflight</text>
+<text class="ns" x="56" y="310" dominant-baseline="central">BusyBox telnetd, SELinux Enforcing</text>
+<text class="ns" x="56" y="328" dominant-baseline="central">init service runs init.logcat.sh as root</text>
+<rect class="pr" x="360" y="272" width="280" height="74" rx="6"/>
+<text class="pt" x="376" y="290" dominant-baseline="central">/data/adb</text>
+<text class="ps" x="376" y="310" dominant-baseline="central">created as root, 0700, if missing</text>
+<text class="ps" x="376" y="328" dominant-baseline="central">nothing else changed yet</text>
+<line class="arr" x1="330" y1="309" x2="358" y2="309" marker-end="url(#a)"/>
+<line class="link" x1="185" y1="346" x2="185" y2="360"/>
+<rect class="nr" x="40" y="360" width="290" height="74" rx="6"/>
+<text class="nh" x="56" y="378" dominant-baseline="central">3 · Back up the boot script</text>
+<text class="ns" x="56" y="398" dominant-baseline="central">configure-boot.sh backup, then</text>
+<text class="ns" x="56" y="416" dominant-baseline="central">the verified original goes to the PC</text>
+<rect class="gr" x="360" y="360" width="280" height="74" rx="6"/>
+<text class="gt" x="376" y="378" dominant-baseline="central">PC: …\backups\boot-backup-&lt;time&gt;</text>
+<text class="gs" x="376" y="398" dominant-baseline="central">original, boot-backup.json</text>
+<text class="gs" x="376" y="416" dominant-baseline="central">device copy: …-boot/original</text>
+<line class="arr" x1="330" y1="397" x2="358" y2="397" marker-end="url(#a)"/>
+<line class="link" x1="185" y1="434" x2="185" y2="448"/>
+<rect class="nr" x="40" y="448" width="290" height="56" rx="6"/>
+<text class="nh" x="56" y="466" dominant-baseline="central">4 · Make /system writable</text>
+<text class="ns" x="56" y="486" dominant-baseline="central">adb remount; at most one reboot</text>
+<rect class="tr" x="360" y="448" width="280" height="56" rx="6"/>
+<text class="tt" x="376" y="466" dominant-baseline="central">/system remounted read-write</text>
+<text class="tsub" x="376" y="486" dominant-baseline="central">disable-verity only if needed</text>
+<line class="arr" x1="330" y1="476" x2="358" y2="476" marker-end="url(#a)"/>
+<line class="link" x1="185" y1="504" x2="185" y2="518"/>
+<rect class="nr" x="40" y="518" width="290" height="56" rx="6"/>
+<text class="nh" x="56" y="536" dominant-baseline="central">5 · Pause an older deployment</text>
+<text class="ns" x="56" y="556" dominant-baseline="central">only if a previous setup is active</text>
+<rect class="pr" x="360" y="518" width="280" height="56" rx="6"/>
+<text class="pt" x="376" y="536" dominant-baseline="central">Rollback: recovery.blocked</text>
+<text class="ps" x="376" y="556" dominant-baseline="central">boot script back to the original</text>
+<line class="arr" x1="330" y1="546" x2="358" y2="546" marker-end="url(#a)"/>
+<line class="link" x1="185" y1="574" x2="185" y2="588"/>
+<rect class="nr" x="40" y="588" width="290" height="74" rx="6"/>
+<text class="nh" x="56" y="606" dominant-baseline="central">6 · Install the Controls APK</text>
+<text class="ns" x="56" y="626" dominant-baseline="central">adb install -r --user 0</text>
+<text class="ns" x="56" y="644" dominant-baseline="central">pull it back and compare SHA-256</text>
+<rect class="pr" x="360" y="588" width="280" height="74" rx="6"/>
+<text class="pt" x="376" y="606" dominant-baseline="central">/data/app/…/base.apk</text>
+<text class="ps" x="376" y="626" dominant-baseline="central">org.openvoyah.controls</text>
+<text class="ps" x="376" y="644" dominant-baseline="central">app data kept on update</text>
+<line class="arr" x1="330" y1="625" x2="358" y2="625" marker-end="url(#a)"/>
+<line class="link" x1="185" y1="662" x2="185" y2="676"/>
+<rect class="nr" x="40" y="676" width="290" height="56" rx="6"/>
+<text class="nh" x="56" y="694" dominant-baseline="central">7 · Stage the Frida injector</text>
+<text class="ns" x="56" y="714" dominant-baseline="central">adb push, check SHA-256 and --version</text>
+<rect class="cr" x="360" y="676" width="280" height="56" rx="6"/>
+<text class="ct" x="376" y="694" dominant-baseline="central">frida-inject 17.26.2</text>
+<text class="cs" x="376" y="714" dominant-baseline="central">/data/adb/open-voyah-controls/, 0500</text>
+<line class="arr" x1="330" y1="704" x2="358" y2="704" marker-end="url(#a)"/>
+<line class="link" x1="185" y1="732" x2="185" y2="746"/>
+<rect class="nr" x="40" y="746" width="290" height="56" rx="6"/>
+<text class="nh" x="56" y="764" dominant-baseline="central">8 · Rearm</text>
+<text class="ns" x="56" y="784" dominant-baseline="central">reviewed firmware only</text>
+<rect class="pr" x="360" y="746" width="280" height="56" rx="6"/>
+<text class="pt" x="376" y="764" dominant-baseline="central">recovery.blocked removed</text>
+<text class="ps" x="376" y="784" dominant-baseline="central">the boot worker may start again</text>
+<line class="arr" x1="330" y1="774" x2="358" y2="774" marker-end="url(#a)"/>
+<line class="link" x1="185" y1="802" x2="185" y2="816"/>
+<rect class="nr" x="40" y="816" width="290" height="110" rx="6"/>
+<text class="nh" x="56" y="834" dominant-baseline="central">9 · Root channel and permissions</text>
+<text class="ns" x="56" y="854" dominant-baseline="central">microphone permission granted</text>
+<text class="ns" x="56" y="872" dominant-baseline="central">Accessibility button service on</text>
+<text class="ns" x="56" y="890" dominant-baseline="central">telnetd 127.0.0.1:2323 started</text>
+<rect class="pr" x="360" y="816" width="280" height="110" rx="6"/>
+<text class="pt" x="376" y="834" dominant-baseline="central">Root channel files</text>
+<text class="ps" x="376" y="854" dominant-baseline="central">/data/adb/open-voyah-controls-access/</text>
+<text class="ps" x="376" y="872" dominant-baseline="central">access-start.sh, login.sh, key, uid,</text>
+<text class="ps" x="376" y="890" dominant-baseline="central">busybox, fingerprint, checksums</text>
+<text class="ps" x="376" y="908" dominant-baseline="central">app: files/root-channel.key</text>
+<line class="arr" x1="330" y1="871" x2="358" y2="871" marker-end="url(#a)"/>
+<line class="link" x1="185" y1="926" x2="185" y2="940"/>
+<rect class="nr" x="40" y="940" width="290" height="74" rx="6"/>
+<text class="nh" x="56" y="958" dominant-baseline="central">10 · Install the boot entry</text>
+<text class="ns" x="56" y="978" dominant-baseline="central">configure-boot.sh install-access</text>
+<text class="ns" x="56" y="996" dominant-baseline="central">checked against the PC backup</text>
+<rect class="tr" x="360" y="940" width="280" height="74" rx="6"/>
+<text class="tt" x="376" y="958" dominant-baseline="central">/system/etc/init.logcat.sh</text>
+<text class="tsub" x="376" y="978" dominant-baseline="central">OEM script plus the V3 entry: starts</text>
+<text class="tsub" x="376" y="996" dominant-baseline="central">the root channel and boot-start.sh</text>
+<line class="arr" x1="330" y1="977" x2="358" y2="977" marker-end="url(#a)"/>
+<line class="link" x1="185" y1="1014" x2="185" y2="1028"/>
+<rect class="nr" x="40" y="1028" width="290" height="74" rx="6"/>
+<text class="nh" x="56" y="1046" dominant-baseline="central">11 · First-run check</text>
+<text class="ns" x="56" y="1066" dominant-baseline="central">am start SetupActivity --es request</text>
+<text class="ns" x="56" y="1084" dominant-baseline="central">waits up to 240 s for app-probe</text>
+<rect class="pr" x="360" y="1028" width="280" height="74" rx="6"/>
+<text class="pt" x="376" y="1046" dominant-baseline="central">Controls on the head unit</text>
+<text class="ps" x="376" y="1066" dominant-baseline="central">proves root, loads the voice model</text>
+<text class="ps" x="376" y="1084" dominant-baseline="central">answers in …-access/app-probe</text>
+<line class="arr" x1="330" y1="1065" x2="358" y2="1065" marker-end="url(#a)"/>
+<line class="link" x1="185" y1="1102" x2="185" y2="1116"/>
+<rect class="nr dash" x="40" y="1116" width="290" height="92" rx="6"/>
+<text class="nh" x="56" y="1134" dominant-baseline="central">12 · The app deploys the agents</text>
+<text class="ns" x="56" y="1154" dominant-baseline="central">through the root channel,</text>
+<text class="ns" x="56" y="1172" dominant-baseline="central">on reviewed firmware only;</text>
+<text class="ns" x="56" y="1190" dominant-baseline="central">boot-start.sh starts supervise.sh</text>
+<rect class="pr" x="360" y="1116" width="280" height="92" rx="6"/>
+<text class="pt" x="376" y="1134" dominant-baseline="central">/data/adb/open-voyah-controls/</text>
+<text class="ps" x="376" y="1154" dominant-baseline="central">trust.tsv: hashes of APKs and files</text>
+<text class="ps" x="376" y="1172" dominant-baseline="central">boot-start.sh, supervise.sh, enabled</text>
+<text class="ps" x="376" y="1190" dominant-baseline="central">launcher-buttons.js, window/, can/…</text>
+<line class="arr" x1="330" y1="1162" x2="358" y2="1162" marker-end="url(#a)"/>
+<rect class="nr" x="40" y="1232" width="600" height="110" rx="12"/>
+<text class="nh" x="56" y="1250" dominant-baseline="central">Every Controls update revokes boot activation</text>
+<text class="ns" x="56" y="1270" dominant-baseline="central">A new APK no longer matches its hash in trust.tsv. The supervisor then writes</text>
+<text class="ns" x="56" y="1288" dominant-baseline="central">recovery.blocked and deletes enabled, so after a reboot nothing is injected.</text>
+<text class="ns" x="56" y="1306" dominant-baseline="central">Prepare and install handles it: rollback (5), install (6), rearm (8) and a new</text>
+<text class="ns" x="56" y="1324" dominant-baseline="central">first run (11, 12). APK only refuses to replace Controls until a rollback.</text>
+<rect class="gr" x="40" y="1362" width="14" height="14" rx="3"/>
+<text class="cap" x="60" y="1369" dominant-baseline="central">PC</text>
+<rect class="pr" x="130" y="1362" width="14" height="14" rx="3"/>
+<text class="cap" x="150" y="1369" dominant-baseline="central">Controls files and app</text>
+<rect class="cr" x="330" y="1362" width="14" height="14" rx="3"/>
+<text class="cap" x="350" y="1369" dominant-baseline="central">Frida</text>
+<rect class="tr" x="430" y="1362" width="14" height="14" rx="3"/>
+<text class="cap" x="450" y="1369" dominant-baseline="central">OEM system files</text>
+<rect class="nr dash" x="560" y="1362" width="14" height="14" rx="3"/>
+<text class="cap" x="580" y="1369" dominant-baseline="central">app step</text>
+</svg>

@@ -85,6 +85,10 @@ public final class OemParityTest extends AndroidTestCase {
         good.getJSONObject("packages").put("system_server",new JSONObject());
         try { LocalizationSettings.validate(good.toString());fail(); } catch(IOException expected) { }
         try { LocalizationSettings.validate("x".repeat(48001));fail(); } catch(IOException expected) { }
+        var named=new JSONObject("{\"schema\":1,\"enabled\":true,\"preset\":\"ru\",\"products\":[],\"packages\":{\"com.qinggan.app.hiboard\":{}}}");
+        assertEquals("ru",LocalizationSettings.validate(named.toString()).getString("preset"));
+        named.put("preset","../ru");
+        try { LocalizationSettings.validate(named.toString());fail(); } catch(IOException expected) { }
     }
     public void testLanguageSettingsAreIndependentAndInvalidImportIsAtomic() throws Exception {
         VoiceSettings voice=new VoiceSettings(getContext()); String old=voice.exportJson(),ui=UiText.language();

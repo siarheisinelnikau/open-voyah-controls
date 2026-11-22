@@ -6,44 +6,62 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
+import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.DisplayMetrics
-import android.view.Gravity
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
 import android.widget.FrameLayout
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 
 /**
  * YouTube's touch site in the system WebView, as its own launcher app so Controls lists it and the window service
- * applies its width and DPI profile like any other app's.
+ * applies its width and DPI profile like any other app's. Until the page shows something, and whenever it cannot,
+ * [StatusView] covers it with a spinner or the reason, so the window is never silently black.
  */
 class YouTubeActivity : Activity() {
     private lateinit var root: FrameLayout
     private lateinit var page: ScaledFrame
-    private lateinit var web: WebView
-    private lateinit var offline: View
+    private lateinit var status: StatusView
     private lateinit var player: PlayerHost
+    private var web: WebView? = null
+    private val load = PageLoad()
+    private val main = Handler(Looper.getMainLooper())
+    private val webViewVersion: String? by lazy {
+        try { WebView.getCurrentWebViewPackage()?.versionName } catch (_: RuntimeException) { null }
+    }
     private val bridge by lazy { assets.open("player-bridge.js").bufferedReader().use { it.readText() } }
     private var fullscreen: View? = null
     private var fullscreenDone: WebChromeClient.CustomViewCallback? = null
+    /** The address the current main-frame load is for, so Retry repeats it. */
+    private var target = WebPolicy.START_URL
+    /** The first script error of the current load, shown when the page stays blank. */
+    private var scriptError = ""
+    private var logged: PageStatus? = null
+    private val timeout = Runnable { load.timedOut(); render() }
+    private val slow = Runnable { status.slow() }
+    private val blankCheck = Runnable { checkBlank() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,23 +74,26 @@ class YouTubeActivity : Activity() {
             else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
         page = ScaledFrame(this).apply { scale = pageScale() }
-        web = newWebView()
-        offline = offlineView()
-        page.addView(web, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        status = StatusView(this, ::retry, ::openAnyway)
         root.addView(page, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-        root.addView(offline, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        root.addView(status, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         setContentView(root)
-        web.loadUrl(WebPolicy.resumeUrl(savedInstanceState?.getString(STATE_URL)))
+        target = WebPolicy.resumeUrl(savedInstanceState?.getString(STATE_URL))
+        Log.i(TAG, "start webview=${webViewVersion ?: "none"} scale=${page.scale}")
+        when (val problem = WebViewSupport.problem(webViewVersion)) {
+            null -> open(target)
+            else -> fail(problem)
+        }
     }
 
     override fun onStart() {
         super.onStart()
-        web.onResume()
+        web?.onResume()
     }
 
     override fun onStop() {
         player.hidden()
-        web.onPause()
+        web?.onPause()
         CookieManager.getInstance().flush()
         super.onStop()
     }
@@ -83,25 +104,104 @@ class YouTubeActivity : Activity() {
      */
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putString(STATE_URL, WebPolicy.resumeUrl(web.url))
+        outState.putString(STATE_URL, WebPolicy.resumeUrl(web?.url ?: target))
     }
 
     override fun onDestroy() {
+        main.removeCallbacksAndMessages(null)
         player.release()
-        page.removeView(web)
-        web.destroy()
+        web?.let { page.removeView(it); it.destroy() }
+        web = null
         super.onDestroy()
     }
 
     @Deprecated("Android 13 and newer also deliver Back here while the app does not opt in to predictive back.")
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
-        when (WebPolicy.back(fullscreen != null, web.canGoBack())) {
+        val view = web
+        when (WebPolicy.back(fullscreen != null, view?.canGoBack() == true && load.status == PageStatus.Shown)) {
             WebPolicy.Back.EXIT_FULLSCREEN -> fullscreenDone?.onCustomViewHidden() ?: leaveFullscreen()
-            WebPolicy.Back.PAGE_BACK -> web.goBack()
+            WebPolicy.Back.PAGE_BACK -> view?.goBack()
             // Keep the page and its history for the next launch from the grid; leaving pauses the video.
             WebPolicy.Back.LEAVE -> moveTaskToBack(true)
         }
+    }
+
+    /** Loads [url], creating the WebView first; a WebView that cannot be created is reported, not thrown. */
+    private fun open(url: String) {
+        target = url
+        val view = web ?: try {
+            newWebView().also {
+                web = it
+                page.addView(it, 0, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+            }
+        } catch (error: RuntimeException) {
+            fail(Problem.NO_WEBVIEW, error.javaClass.simpleName)
+            return
+        }
+        started()
+        view.loadUrl(url)
+    }
+
+    private fun retry() {
+        if (web == null && WebViewSupport.problem(webViewVersion) == Problem.NO_WEBVIEW) recreate()
+        else open(WebPolicy.resumeUrl(target))
+    }
+
+    private fun openAnyway() = open(target)
+
+    private fun started() {
+        scriptError = ""
+        load.started()
+        main.removeCallbacks(timeout)
+        main.removeCallbacks(slow)
+        main.removeCallbacks(blankCheck)
+        main.postDelayed(slow, PageLoad.SLOW_MS)
+        main.postDelayed(timeout, PageLoad.TIMEOUT_MS)
+        render()
+    }
+
+    private fun visible() {
+        val wasShown = load.status == PageStatus.Shown
+        load.visible()
+        if (load.status == PageStatus.Shown && !wasShown) {
+            main.removeCallbacks(blankCheck)
+            main.postDelayed(blankCheck, PageLoad.BLANK_CHECK_MS)
+        }
+        render()
+    }
+
+    private fun fail(problem: Problem, detail: String = "") {
+        load.failed(problem, detail)
+        render()
+    }
+
+    private fun checkBlank() {
+        val view = web ?: return
+        if (load.status != PageStatus.Shown || fullscreen != null) return
+        view.evaluateJavascript(PageLoad.BLANK_PROBE) { result ->
+            if (load.status == PageStatus.Shown && PageLoad.drewNothing(result)) {
+                load.failed(Problem.BLANK, scriptError)
+                render()
+            }
+        }
+    }
+
+    private fun render() {
+        val current = load.status
+        if (current != PageStatus.Loading) {
+            main.removeCallbacks(timeout)
+            main.removeCallbacks(slow)
+        }
+        if (current is PageStatus.Failed && current != logged) Log.w(TAG, PageLoad.logLine(current, webViewVersion))
+        logged = current
+        status.show(current, webViewVersion)
+    }
+
+    private fun online(): Boolean {
+        val connectivity = getSystemService(ConnectivityManager::class.java) ?: return true
+        val network = connectivity.activeNetwork ?: return false
+        return connectivity.getNetworkCapabilities(network)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) != false
     }
 
     /** The DPI profile's density relative to the display's, which the WebView would otherwise ignore. */
@@ -113,7 +213,7 @@ class YouTubeActivity : Activity() {
     }
 
     private fun script(code: String) {
-        if (!isDestroyed) web.evaluateJavascript(code, null)
+        if (!isDestroyed) web?.evaluateJavascript(code, null)
     }
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
@@ -140,28 +240,6 @@ class YouTubeActivity : Activity() {
         view.webChromeClient = Chrome()
     }
 
-    private fun offlineView(): View = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER
-        setBackgroundColor(Color.BLACK)
-        visibility = View.GONE
-        isClickable = true
-        addView(TextView(context).apply {
-            setText(R.string.page_unavailable)
-            setTextColor(Color.WHITE)
-            textSize = 22f
-            gravity = Gravity.CENTER
-        }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
-        addView(Button(context).apply {
-            setText(R.string.retry)
-            textSize = 20f
-            setOnClickListener {
-                offline.visibility = View.GONE
-                if (web.url == null) web.loadUrl(WebPolicy.START_URL) else web.reload()
-            }
-        }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { topMargin = (24 * resources.displayMetrics.density).toInt() })
-    }
-
     private fun openOutside(url: String) {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
@@ -175,7 +253,7 @@ class YouTubeActivity : Activity() {
         page.removeView(view)
         fullscreen = null
         fullscreenDone = null
-        web.visibility = View.VISIBLE
+        web?.visibility = View.VISIBLE
         systemBars(show = true)
     }
 
@@ -209,26 +287,43 @@ class YouTubeActivity : Activity() {
         }
 
         override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
-            offline.visibility = View.GONE
+            if (url != null && WebPolicy.route(url) == WebPolicy.Route.IN_APP && !url.startsWith("data:")) target = url
+            started()
         }
+
+        override fun onPageCommitVisible(view: WebView, url: String?) = visible()
 
         override fun onPageFinished(view: WebView, url: String?) {
             view.evaluateJavascript(bridge, null)
+            visible()
         }
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-            if (request.isForMainFrame) offline.visibility = View.VISIBLE
+            if (!request.isForMainFrame) return
+            fail(if (online()) Problem.UNREACHABLE else Problem.NO_NETWORK, "${error.description} (${error.errorCode})")
         }
 
-        /** The renderer died, usually from memory pressure on the head unit: start a fresh page instead of closing. */
+        override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
+            if (request.isForMainFrame && response.statusCode >= 400) {
+                fail(Problem.HTTP, "HTTP ${response.statusCode} ${response.reasonPhrase.orEmpty()}")
+            }
+        }
+
+        @SuppressLint("WebViewClientOnReceivedSslError")
+        override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
+            handler.cancel()
+            if (load.status == PageStatus.Loading) fail(Problem.CERTIFICATE, "SSL error ${error.primaryError}")
+        }
+
+        /** The renderer died: report it and keep a fresh WebView ready, so Retry does not start from a dead one. */
         override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-            val url = WebPolicy.resumeUrl(view.url)
+            target = WebPolicy.resumeUrl(view.url ?: target)
             leaveFullscreen()
             page.removeView(view)
             view.destroy()
-            web = newWebView()
-            page.addView(web, 0, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-            web.loadUrl(url)
+            if (web === view) web = null
+            load.rendererGone(detail.didCrash())
+            render()
             return true
         }
     }
@@ -239,17 +334,25 @@ class YouTubeActivity : Activity() {
             fullscreen = view
             fullscreenDone = callback
             page.addView(view, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-            web.visibility = View.INVISIBLE
+            web?.visibility = View.INVISIBLE
             systemBars(show = false)
         }
 
         override fun onHideCustomView() = leaveFullscreen()
+
+        override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+            if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR && scriptError.isEmpty()) {
+                scriptError = PageLoad.bounded(message.message())
+            }
+            return false
+        }
 
         /** A black frame instead of the grey play arrow the WebView draws before a video's first frame. */
         override fun getDefaultVideoPoster(): Bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
     }
 
     private companion object {
+        const val TAG = "OvcYouTube"
         const val STATE_URL = "url"
     }
 }

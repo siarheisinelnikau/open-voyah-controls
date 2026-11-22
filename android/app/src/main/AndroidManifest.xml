@@ -15,6 +15,7 @@
         <package android:name="com.qinggan.app.vehicle" />
         <package android:name="com.qinggan.app.vehiclesetting" />
         <package android:name="com.qinggan.bluetoothphone" />
+        <package android:name="com.qinggan.app.hiboard" />
         <package android:name="com.qinggan.cluster" />
         <package android:name="com.qinggan.canbus.service" />
         <package android:name="com.qinggan.app.login" />

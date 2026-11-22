@@ -51,7 +51,12 @@ function harness(config, options = {}) {
             return {
                 activityInfo: {value:{packageName:{value:packageName}}},
                 loadIcon() {
-                    return {component:intent.component ?? intent.action, getIntrinsicWidth:() => 128, getIntrinsicHeight:() => 64};
+                    const component = intent.component ?? intent.action;
+                    // options.adaptive lists packages whose launcher icon is an adaptive icon.
+                    if (options.adaptive?.includes(packageName)) return {component, adaptive:true,
+                        getIntrinsicWidth:() => 128, getIntrinsicHeight:() => 128,
+                        getForeground:() => ({foreground:component, getIntrinsicWidth:() => 192, getIntrinsicHeight:() => 192})};
+                    return {component, getIntrinsicWidth:() => 128, getIntrinsicHeight:() => 64};
                 }
             };
         },
@@ -152,6 +157,7 @@ function harness(config, options = {}) {
         }; }},
         'android.graphics.drawable.RippleDrawable': {$new(color, layer, mask) { return object({color, layer, mask}); }},
         'android.graphics.drawable.GradientDrawable': {$new() { return {setColor(color) { this.color = color; }, setCornerRadius(radius) { this.radius = radius; }}; }},
+        'android.graphics.drawable.AdaptiveIconDrawable': {class: {isInstance: value => value?.adaptive === true}},
         'android.content.res.ColorStateList': {valueOf:color => color},
         'android.view.Gravity': {CENTER:{value:17}},
         'java.lang.ref.WeakReference': {$new(referent) { return {get: () => referent, $dispose() {}}; }},
@@ -564,6 +570,47 @@ test('panel glyphs stay inside their button', () => {
         const h = harness(config({mainApps:{kind:'CONTROLS_APPS'}}), {glyphs:{'org.openvoyah.controls':0x7f080042}, glyphSize});
         assert.deepEqual(h.bar(0).views.screen_up_all_app_icon.background.layer.size, size);
     }
+});
+
+test('a listed package draws its adaptive icon foreground without the plate and follows the setting', () => {
+    const navigator = {kind:'LAUNCH_APP', component:'ru.yandex.yandexnavi/.core.NavigatorActivity'};
+    const other = {kind:'LAUNCH_APP', component:'test.maps/.Maps'};
+    const actions = {navbar01:navigator, navbar02:other};
+    const h = harness({schema:1, enabled:true, actions, foregroundIcons:['ru.yandex.yandexnavi']},
+        {adaptive:['ru.yandex.yandexnavi', 'test.maps']});
+    const bar = h.bar(0), view = bar.views.screen_up_icon_1, music = bar.views.screen_up_icon_2;
+    assert.equal(view.background.layer.icon.foreground, navigator.component);
+    // The middle 72 of 108 dp shows 1.3 times larger than on the 56 px plate.
+    assert.deepEqual(view.background.layer.size, [109,109]);
+    assert.deepEqual(view.background.layer.gravity, [0, 17]);
+    assert.equal(view.background.mask.radius, 90 * 0.12);
+    // Adaptive icons of packages that are not listed keep their plate.
+    assert.equal(music.background.layer.icon.component, other.component);
+    assert.equal(music.background.mask, null);
+    for (const icons of [[], undefined]) {
+        h.setConfig({schema:1, enabled:true, actions, ...(icons && {foregroundIcons:icons})});
+        h.tick();
+        assert.equal(view.background.layer.icon.component, navigator.component);
+        assert.equal(view.background.mask, null);
+        h.setConfig({schema:1, enabled:true, actions, foregroundIcons:['ru.yandex.yandexnavi']});
+        h.tick();
+        assert.equal(view.background.layer.icon.foreground, navigator.component);
+    }
+    const token = 'c'.repeat(32);
+    h.setConfig({schema:1, enabled:false, restoreIcons:token});
+    h.tick();
+    assert.equal(view.background, view.stock);
+    assert.equal(music.background, music.stock);
+    assert.ok(h.logs.includes('OVC_PANEL_ICONS_RESTORED ' + token));
+});
+
+test('a listed package without an adaptive icon keeps its launcher icon', () => {
+    const navigator = {kind:'LAUNCH_APP', component:'ru.yandex.yandexnavi/.core.NavigatorActivity'};
+    const h = harness({schema:1, enabled:true, actions:{navbar01:navigator}, foregroundIcons:['ru.yandex.yandexnavi']});
+    const {background} = h.bar(0).views.screen_up_icon_1;
+    assert.equal(background.layer.icon.component, navigator.component);
+    assert.deepEqual(background.layer.size, [56,28]);
+    assert.equal(background.mask, null);
 });
 
 test('a missing or unreadable panel glyph falls back to the launcher icon', () => {

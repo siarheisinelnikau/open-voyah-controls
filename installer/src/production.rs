@@ -24,6 +24,7 @@ const OEM_PACKAGES: &[&str] = &[
     "com.qinggan.app.setting",
     "com.qinggan.app.vehicle",
     "com.qinggan.bluetoothphone",
+    "com.qinggan.app.hiboard",
     "com.qinggan.cluster",
     "com.qinggan.canbus.service",
     "com.qinggan.app.login",

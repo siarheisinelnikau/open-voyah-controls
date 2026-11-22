@@ -4,7 +4,7 @@ The inventory counts independently adjustable choices across supported firmware 
 
 | Area | Saved choices counted | Local | Portable archive section |
 | --- | --- | ---: | --- |
-| Buttons | Bindings enabled, hold time, debounce time, Android key assignments, panel assignments enabled, panel assignments, steering assignments | 7 | `buttons` (7) |
+| Buttons | Bindings enabled, hold time, debounce time, Android key assignments, panel assignments enabled, panel assignments, Yandex Navigator panel icon without the white background, steering assignments | 8 | `buttons` (8) |
 | Voice | Voice language, default seat levels, extended driver window venting, extended cabin venting, media ducking, spoken feedback, feedback style, speech rate, speech volume, ready sound, ready sound volume, end-of-listening sound, end-of-listening volume, offline voice, app assignments, voice contacts, optional online fallback, maximum listening time, result popup duration, recognized phrase visibility, ready signal style, spoken ready phrase, spoken reply channel | 23 | `voice` (22). Online fallback uses device-bound storage. |
 | Windows and displays | Per-app width, per-app DPI, per-app minimum panel margin, per-display default DPI, virtual display DPI, cluster media, navigation feed, window service, panel strip reserved by Android (experimental) | 9 | `appWindows`, `appDisplayDpi`, `display` (6). The navigation feed, window-service and reserved-strip choices are local. |
 | Language | App language, factory screen translation | 2 | `language`, `localization` (2) |
@@ -20,7 +20,7 @@ The inventory counts independently adjustable choices across supported firmware 
 | Vehicle routines | Lighting enabled, Drive action, Park action, actual driving-mode memory enabled | 4 | `vehicleAutomation` (4) |
 | Seasonal climate | Scenario enabled, outside threshold, driver temperature, passenger temperature, fan, gear, closed-door requirement, driver seat level, passenger seat level | 9 | `seasonalClimate` (9), each field counted once across presets |
 | If–then rules | Saved rules, rule enabled, gear condition, door condition, saved routine, minimum interval | 6 | `conditionalRules` (6), each repeatable field counted once |
-| **Total** | | **173** | **169** |
+| **Total** | | **175** | **171** |
 
 **Default desktop** selects a desktop within the app grid. **Start screen** selects the page opened by the **Open Controls** shortcut in the Android launcher icon's long-press menu. Tapping the icon or the first app-grid tile opens Settings. The current desktop tab, playback position, last-used driver number and most recent headlight observation are runtime or historical records. The factory vehicle stores seat and mirror positions. The archive can still read older driver label records.
 

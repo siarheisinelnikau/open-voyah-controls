@@ -122,6 +122,7 @@ internal class HomeSettingsCoordinator(
 
     override fun buttonsEnabled(enabled: Boolean) { if (active) model.buttonsEnabled(enabled) }
     override fun panelEnabled(enabled: Boolean) { if (active) model.panelEnabled(enabled) }
+    override fun plainNavigatorIcon(enabled: Boolean) { if (active) model.plainNavigatorIcon(enabled) }
     override fun choosePanel(slot: String) {
         if (!active || model.state.value.panels.none { it.slot == slot }) return
         bindings.choose { if (active) model.choosePanel(slot, it) }

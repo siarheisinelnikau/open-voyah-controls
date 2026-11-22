@@ -43,7 +43,7 @@ esac
 [ ! -e "$base/update.pending" ] && [ ! -L "$base/update.pending" ] || fail 'A runtime update is pending.'
 [ -f "$base/enabled" ] && [ ! -L "$base/enabled" ] || exit 0
 
-for channel in launcher setting vehicle bluetooth window navigation can; do
+for channel in launcher setting vehicle bluetooth hiboard window navigation can; do
     case "$channel" in
         launcher) dir=$base; set -- ;;
         window|navigation|can) dir=$base/$channel; set -- "$channel" ;;

@@ -1,6 +1,20 @@
 <resources>
     <string name="app_name" translatable="false">YouTube</string>
-    <string name="page_unavailable">YouTube is not reachable. Check the connection.</string>
+    <string name="loading">Loading YouTube…</string>
+    <string name="still_loading">Still loading… A slow or filtered connection can take a while.</string>
+    <string name="problem_no_webview">This device has no working system WebView, and YouTube cannot open without it. Install or enable Android System WebView.</string>
+    <string name="problem_old_webview">WebView %1$s is older than version %2$d, which YouTube needs. Update Android System WebView.</string>
+    <string name="problem_no_network">No internet connection.</string>
+    <string name="problem_unreachable">YouTube is not reachable from this network. It may be blocked or down.</string>
+    <string name="problem_http">YouTube answered with an error.</string>
+    <string name="problem_certificate">The connection to YouTube was refused because its certificate was not accepted. Check the device date and time or the network proxy.</string>
+    <string name="problem_renderer_crashed">The YouTube page crashed.</string>
+    <string name="problem_renderer_killed">Android closed the YouTube page to free memory.</string>
+    <string name="problem_timeout">YouTube did not respond within %d s. The network may block YouTube or be very slow.</string>
+    <string name="problem_blank">YouTube loaded but showed nothing. Its scripts may not run on this WebView.</string>
+    <string name="webview_version" translatable="false">WebView %s</string>
+    <string name="webview_none">WebView: none</string>
     <string name="retry">Try again</string>
+    <string name="open_anyway">Open anyway</string>
     <string name="no_browser">No browser is installed for this link.</string>
 </resources>

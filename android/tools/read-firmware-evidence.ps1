@@ -625,7 +625,7 @@ $evidence = @()
 $diagnostics = @()
 try {
     $catalogPackages = @('android', 'com.qinggan.app.launcher', 'com.qinggan.app.setting', 'com.qinggan.app.vehicle',
-        'com.qinggan.bluetoothphone', 'com.qinggan.cluster', 'com.qinggan.canbus.service', 'com.qinggan.app.login')
+        'com.qinggan.bluetoothphone', 'com.qinggan.app.hiboard', 'com.qinggan.cluster', 'com.qinggan.canbus.service', 'com.qinggan.app.login')
     if ($Scope -eq 'Cockpit') {
         $appPath = $null
         $appHash = $null

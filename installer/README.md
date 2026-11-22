@@ -18,6 +18,18 @@ The Android first-run check proves app-side root access and loads the selected o
 
 APK installation and launch are separate from handler readiness. Check the panel, windows, and voice status in Controls after connecting. For APKs installed in a batch from Windows, touch and hold the app in the Controls app grid to change its permissions or close it; firmware without Android's permission screens does not need them.
 
+## How Prepare and install works
+
+![Prepare and install in twelve steps: PC checks, ADB root, a PC backup of the boot script, a writable system partition, rollback of an older deployment, the Controls APK, the Frida injector, rearm, the root channel, the V3 boot entry, the first-run check, and the agents the app deploys itself](docs/diagrams/installer-setup.svg)
+
+The installer works only over ADB. It checks every input on the PC before it changes the head unit: the injector against `android/dist/FRIDA_RUNTIME.json`, and the Controls APK's package, release certificate pin, version and `apksigner` result. A debuggable or split APK stops here, so a local debug build of Controls cannot be installed with this tool.
+
+Before the first device change, the original `/system/etc/init.logcat.sh` is saved to `%LOCALAPPDATA%\OpenVoyahControlsInstaller\backups\boot-backup-<time>\` on the PC. The installer then installs the APK with `adb install -r --user 0`, pushes the injector to `/data/adb/open-voyah-controls`, writes the root channel to `/data/adb/open-voyah-controls-access` and adds the V3 entry to `init.logcat.sh`. It does not push the Frida agents. During the first-run check on reviewed firmware, Controls writes them, `supervise.sh`, `boot-start.sh` and `trust.tsv` to `/data/adb/open-voyah-controls` through the root channel.
+
+**APK only** runs the APK checks and installs Controls without the root channel or boot entry. **Install APK folder…** runs `adb install -r` for each standalone APK in a folder and refuses Controls and split APKs. Use it for companion apps such as the YouTube web app; they do not affect boot activation.
+
+`trust.tsv` records the hash of the installed Controls APK. After any Controls update the supervisor writes `recovery.blocked` and deletes `enabled`, and nothing is injected after the next reboot. To update, run **Prepare and install** with the new APK: it rolls back the old deployment, installs, rearms and repeats the first-run check. **APK only** refuses to replace an installed Controls until **Roll back Controls** has run.
+
 ## Back up and recover from the PC
 
 **Prepare and install** creates the verified PC backup before changing startup. Keep that folder. **Back up boot script to PC** and the older worker-only **Install optional boot entry** remain available as separate maintenance operations.

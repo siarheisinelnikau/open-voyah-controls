@@ -20,7 +20,7 @@ previous_legacy_injector=/data/local/tmp/$previous_runtime
 runtime_sha=b58f44918fc27843484fc62502b3d2c90ea686a85ed484bed062b23482cd1733
 previous_runtime_sha=d8ce6fe18db97594d1c7a43be4f8fb405fc76f6a01470df34504bca6461328d0
 app=org.openvoyah.controls
-channels='launcher locale-setting locale-vehicle locale-bluetooth window navigation can'
+channels='launcher locale-setting locale-vehicle locale-bluetooth locale-hiboard window navigation can'
 keys="$app.panel $app.voice $app.localization $app.clusterMedia $app.windowProfiles $app.windowRequest"
 marker_v1='# OPEN_VOYAH_CONTROLS_BOOT_V1'
 marker_v2='# OPEN_VOYAH_CONTROLS_BOOT_V2'
@@ -869,7 +869,7 @@ rollback() {
                 release_windows "$scope" || visuals=reboot-required
             elif exists "$scope/window/enabled"; then visuals=reboot-required
             fi
-            for item in locale-setting locale-vehicle locale-bluetooth navigation; do
+            for item in locale-setting locale-vehicle locale-bluetooth locale-hiboard navigation; do
                 if printf '%s\n' "$processes" | grep -Fq "injector $scope $item "; then visuals=reboot-required; fi
             done
         done

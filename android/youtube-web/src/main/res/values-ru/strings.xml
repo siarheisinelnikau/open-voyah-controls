@@ -1,5 +1,18 @@
 <resources>
-    <string name="page_unavailable">YouTube недоступен. Проверьте подключение.</string>
+    <string name="loading">Загрузка YouTube…</string>
+    <string name="still_loading">Всё ещё загружается… На медленной или фильтруемой сети это может занять время.</string>
+    <string name="problem_no_webview">На устройстве нет работающего системного WebView, а без него YouTube не открыть. Установите или включите Android System WebView.</string>
+    <string name="problem_old_webview">WebView %1$s старше версии %2$d, которая нужна YouTube. Обновите Android System WebView.</string>
+    <string name="problem_no_network">Нет подключения к интернету.</string>
+    <string name="problem_unreachable">YouTube недоступен в этой сети: возможно, он заблокирован или не работает.</string>
+    <string name="problem_http">YouTube ответил ошибкой.</string>
+    <string name="problem_certificate">Соединение с YouTube отклонено: сертификат не принят. Проверьте дату и время на устройстве или прокси сети.</string>
+    <string name="problem_renderer_crashed">Страница YouTube аварийно завершилась.</string>
+    <string name="problem_renderer_killed">Android закрыл страницу YouTube, чтобы освободить память.</string>
+    <string name="problem_timeout">YouTube не ответил за %d с. Возможно, сеть блокирует YouTube или очень медленная.</string>
+    <string name="problem_blank">YouTube загрузился, но ничего не показал. Возможно, его скрипты не работают на этом WebView.</string>
+    <string name="webview_none">WebView: нет</string>
     <string name="retry">Повторить</string>
+    <string name="open_anyway">Открыть всё равно</string>
     <string name="no_browser">Для этой ссылки не установлен браузер.</string>
 </resources>

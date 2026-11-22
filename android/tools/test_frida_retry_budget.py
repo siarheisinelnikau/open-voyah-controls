@@ -11,7 +11,7 @@ from test_boot_hook import BASH, posix_path
 
 WORKSPACE = Path(__file__).resolve().parents[1]
 SOURCE = WORKSPACE / "app/src/main/java/org/openvoyah/controls/data/frida/FridaBridge.java"
-CHANNELS = ("", "locale-setting", "locale-vehicle", "locale-bluetooth", "window", "navigation", "can")
+CHANNELS = ("", "locale-setting", "locale-vehicle", "locale-bluetooth", "locale-hiboard", "window", "navigation", "can")
 
 
 class FridaRetryBudgetTest(unittest.TestCase):

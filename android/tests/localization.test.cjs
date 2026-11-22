@@ -2,7 +2,8 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=name=>fs.readFileSync(path.join(__dirname,'../hooks',name),'utf8').replace(/^import .*;$/gm,'').replace(/^export /gm,'');
-const source=read('report.js')+'\n'+read('localization.js');
+const preset=name=>fs.readFileSync(path.join(__dirname,'../hooks/localization',name),'utf8');
+const source='const ru='+preset('ru.json')+';\nconst en='+preset('en.json')+';\n'+read('report.js')+'\n'+read('localization.js');
 const env={};vm.createContext(env);vm.runInContext(source,env);
 const config={schema:1,enabled:true,products:['f0506h'],packages:{'com.qinggan.app.launcher':{'设置':'Settings'}}};
 test('translations are exact and scoped to package and product',()=>{
@@ -15,6 +16,22 @@ test('disabled and missing dictionaries preserve original text',()=>{
     assert.equal(env.translated({...config,enabled:false},'com.qinggan.app.launcher','f0506h','设置'),'设置');
     assert.equal(env.translated(null,'com.qinggan.app.launcher','f0506h','设置'),'设置');
     assert.equal(env.translated(config,'com.qinggan.app.launcher','f0506h','toString'),'toString');
+    assert.equal(env.translated(config,'com.qinggan.app.launcher','f0506h','__proto__'),'__proto__');
+});
+test('a named preset applies per package and custom entries override it',()=>{
+    const presets={ru:{packages:{'com.qinggan.app.launcher':{Settings:'Настройки',Phone:'Телефон'}}}};
+    const named={schema:1,enabled:true,preset:'ru',products:[],packages:{'com.qinggan.app.launcher':{Phone:'Звонки'}}};
+    assert.equal(env.translated(named,'com.qinggan.app.launcher','any','Settings',presets),'Настройки');
+    assert.equal(env.translated(named,'com.qinggan.app.launcher','any','Phone',presets),'Звонки');
+    assert.equal(env.translated(named,'com.qinggan.app.vehicle','any','Settings',presets),'Settings');
+    assert.equal(env.translated({...named,preset:'de'},'com.qinggan.app.launcher','any','Settings',presets),'Settings');
+    assert.equal(env.translated({...named,preset:'toString'},'com.qinggan.app.launcher','any','Settings',presets),'Settings');
+    assert.equal(env.translated({...named,enabled:false},'com.qinggan.app.launcher','any','Settings',presets),'Settings');
+});
+test('the bundled presets are used when the setting names one',()=>{
+    const named={schema:1,enabled:true,preset:'ru',products:[],packages:{}};
+    assert.equal(env.translated(named,'com.qinggan.app.launcher','f6802h','设置'),'Настройки');
+    assert.equal(env.translated({...named,preset:'en'},'com.qinggan.app.launcher','f6802h','设置'),'Settings');
 });
 test('partial installation rolls back and retries independently',()=>{
     const text={overload(){return this;},call(){}};const retry=[];
@@ -33,7 +50,8 @@ function harness(options={}) {
     let raw=options.raw ?? JSON.stringify(config),tick,readFailure=false;
     const logs=[],passed=[],retries=[],refreshed=[],parses={count:0};
     const method=record=>({overload(){return this;},call(_view,value){record.push(value);return 'oem';}});
-    const text=method(passed),hint=method(passed),typed={overload(){return this;},call:()=>options.typed};
+    const text=method(passed),hint=method(passed),typed={overload(){return this;},call:()=>options.typed},
+        resource={overload(){return this;},call:()=>options.resource};
     const classes={
         'android.app.ActivityThread':{currentApplication(){return {
             getPackageName(){return options.packageName ?? 'com.qinggan.app.launcher';},getContentResolver(){return {};}};}},
@@ -46,7 +64,8 @@ function harness(options={}) {
         'android.widget.TextView':{setText:text,setHint:options.noHint?{overload(){
             throw Error('java.lang.NoSuchMethodError: private.Signature');
         }}:hint},
-        'android.content.res.TypedArray':{getText:typed}
+        'android.content.res.TypedArray':{getText:typed},
+        'android.content.res.Resources':{getText:resource}
     };
     const Java={perform:fn=>fn(),use:name=>classes[name],retain:view=>view,scheduleOnMainThread:fn=>fn(),
         choose(_name,callbacks){for(const view of options.views ?? []) callbacks.onMatch(view);callbacks.onComplete();}};
@@ -58,7 +77,8 @@ function harness(options={}) {
         failReads:value=>{readFailure=value;},
         setText:value=>text.implementation.call({},value,'NORMAL'),
         setHint:value=>hint.implementation.call({},value),
-        getText:()=>typed.implementation.call({},0)};
+        getText:()=>typed.implementation.call({},0),
+        getResourceText:()=>resource.implementation.call({},0x7f010001)};
 }
 // A Java CharSequence: String() on it is a JNI toString() call.
 function chars(text) {
@@ -157,4 +177,13 @@ test('visible text is refreshed on attach and a failing view is reported and rel
     assert.deepEqual(disposed,['working','broken']);
     assert.deepEqual(h.logs.filter(line=>line.startsWith('OVC_LOCALIZATION_ERROR')),
         ['OVC_LOCALIZATION_ERROR stage=refresh kind=IllegalStateException']);
+});
+
+test('a resource template is translated before the app formats it',()=>{
+    const named=JSON.stringify({schema:1,enabled:true,preset:'ru',products:[],packages:{}});
+    const h=harness({raw:named,packageName:'com.qinggan.bluetoothphone',resource:chars('%1$s connected')});
+    assert.deepEqual(h.getResourceText(),{translated:'%1$s подключён'});
+    const other=chars('Plain resource');
+    const k=harness({raw:named,packageName:'com.qinggan.bluetoothphone',resource:other});
+    assert.equal(k.getResourceText(),other);
 });
