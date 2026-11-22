@@ -1,6 +1,17 @@
 package org.openvoyah.controls.presentation.home
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Slider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +40,7 @@ internal fun HomeButtons(state: HomeControlsState, actions: HomeActions) {
             CockpitSwitch(UiText.get(R.string.home_navigator_card), state.navigatorHomeCard,
                 change = actions::navigatorHomeCard)
             if (state.navigatorHomeCard) {
+                NavigatorWidgetDpi(state.navigatorWidgetDpi, actions::navigatorWidgetDpi)
                 CockpitAction(UiText.get(R.string.home_navigator_widget_settings),
                     { actions.command(HomeCommand.NAVIGATOR_WIDGET) })
             }
@@ -98,5 +110,24 @@ internal fun HomeSettings(state: HomeControlsState, actions: HomeActions) {
     CockpitSection(UiText.get(R.string.ui_63), CockpitIcon.CAR) {
         Text(UiText.get(R.string.ui_64), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(UiText.get(R.string.ui_65), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+private val NAVIGATOR_WIDGET_DPI = (120..240 step 20).toList()
+
+/** Steps of 20 dpi; saved when the slider is let go, so the card is not redrawn on every step of a drag. */
+@Composable
+private fun NavigatorWidgetDpi(dpi: Int, change: (Int) -> Unit) {
+    var step by remember(dpi) { mutableIntStateOf(NAVIGATOR_WIDGET_DPI.indexOf(dpi).coerceAtLeast(0)) }
+    val shown = NAVIGATOR_WIDGET_DPI[step]
+    val value = if (shown == 160) UiText.get(R.string.home_navigator_widget_dpi_default) else "$shown DPI"
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(UiText.get(R.string.home_navigator_widget_dpi), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            Text(value, color = MaterialTheme.colorScheme.primary)
+        }
+        Slider(step.toFloat(), { step = it.roundToInt() }, Modifier.fillMaxWidth().semantics { stateDescription = value },
+            valueRange = 0f..NAVIGATOR_WIDGET_DPI.lastIndex.toFloat(), steps = NAVIGATOR_WIDGET_DPI.lastIndex - 1,
+            onValueChangeFinished = { change(NAVIGATOR_WIDGET_DPI[step]) })
     }
 }

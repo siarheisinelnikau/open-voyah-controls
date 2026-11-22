@@ -4,7 +4,7 @@ The inventory counts independently adjustable choices across supported firmware 
 
 | Area | Saved choices counted | Local | Portable archive section |
 | --- | --- | ---: | --- |
-| Buttons | Bindings enabled, hold time, debounce time, Android key assignments, panel assignments enabled, panel assignments, Yandex Navigator instead of the Baidu map on the home screen, weather on the home screen, city for the home screen weather, steering assignments | 10 | `buttons` (9). The weather city is local. |
+| Buttons | Bindings enabled, hold time, debounce time, Android key assignments, panel assignments enabled, panel assignments, Yandex Navigator instead of the Baidu map on the home screen, Navigator widget density, weather on the home screen, city for the home screen weather, steering assignments | 11 | `buttons` (10). The weather city is local. |
 | Voice | Voice language, speech engine, default seat levels, extended driver window venting, extended cabin venting, media ducking while listening, media ducking during calls, media level while lowered, media volume at startup, media volume at startup level, spoken feedback, feedback style, speech rate, speech volume, ready sound, ready sound volume, end-of-listening sound, end-of-listening volume, offline voice, app assignments, voice contacts, optional online fallback, maximum listening time, result popup duration, recognized phrase visibility, ready signal style, spoken ready phrase, spoken reply channel | 28 | `voice` (27). Online fallback uses device-bound storage. |
 | Windows and displays | Per-app width, per-app DPI, per-app minimum panel margin, per-display default DPI, window swipe between screens, screen shown after a window swipe, virtual display DPI, cluster media, navigation feed, window service, panel strip reserved by Android (experimental) | 11 | `appWindows`, `appDisplayDpi`, `display` (8). The navigation feed, window-service and reserved-strip choices are local. |
 | Language | App language, factory screen translation | 2 | `language`, `localization` (2) |
@@ -22,7 +22,7 @@ The inventory counts independently adjustable choices across supported firmware 
 | Seasonal climate | Scenario enabled, outside threshold, driver temperature, passenger temperature, fan, gear, closed-door requirement, driver seat level, passenger seat level | 9 | `seasonalClimate` (9), each field counted once across presets |
 | If–then rules | Saved rules, rule enabled, gear condition, door condition, saved routine, minimum interval | 6 | `conditionalRules` (6), each repeatable field counted once |
 | Allowed actions | Allowed, unverified or forbidden for each root operation, Frida agent channel and vehicle voice command | 1 | `actionPermissions` (1) |
-| **Total** | | **187** | **182** |
+| **Total** | | **188** | **183** |
 
 **Default desktop** selects a desktop within the app grid. **Start screen** selects the page opened by the **Open Controls** shortcut in the Android launcher icon's long-press menu. Tapping the icon or the first app-grid tile opens Settings. The current desktop tab, playback position, last-used driver number and most recent headlight observation are runtime or historical records. The factory vehicle stores seat and mirror positions. The archive can still read older driver label records.
 

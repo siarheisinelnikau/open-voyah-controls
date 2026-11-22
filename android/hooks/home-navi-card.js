@@ -23,6 +23,15 @@ export function cardPackage(config) {
     return typeof name === 'string' && name.length <= 128 && PACKAGE.test(name) ? name : null;
 }
 
+/**
+ * The widget's density in the card: 160 (the display's own) unless the configuration asks for 120 to 240. Lower
+ * values fit more map and smaller text, higher ones less map and larger text.
+ */
+export function widgetDpi(config) {
+    const dpi = cardPackage(config) === null ? undefined : config.homeCard.dpi;
+    return Number.isInteger(dpi) && dpi >= 120 && dpi <= 240 ? dpi : 160;
+}
+
 function clean(value) {
     if (value === null || value === undefined) return '';
     const text = String(value).replace(/\s+/g, ' ').trim();
@@ -216,7 +225,7 @@ function createWidgetSlot(Java) {
     }
 
     return {
-        /** A view of the widget sized to the card, or null when the navigator has no widget. */
+        /** A view of the widget for a card of this size, or null when the navigator has no widget. */
         create(context, name, width, height) {
             const info = bind(name, width / height);
             if (info === null) return null;
@@ -226,20 +235,30 @@ function createWidgetSlot(Java) {
             const plain = context.createConfigurationContext(context.getResources().getConfiguration());
             const view = host.createView(plain, id, info);
             users++;
-            const density = context.getResources().getDisplayMetrics().density.value;
-            const w = Math.round(width / density), h = Math.round(height / density);
             view.setPadding(0, 0, 0, 0);
-            view.updateAppWidgetSize(Bundle.$new(), w, h, w, h);
             return view;
         },
+        /** Tells the navigator the size the widget is laid out at, in dp. */
+        size(view, widthDp, heightDp) {
+            view.updateAppWidgetSize(Bundle.$new(), widthDp, heightDp, widthDp, heightDp);
+        },
+        /**
+         * No card shows the widget any more. The widget stays bound, with the settings the driver chose in
+         * Navigator (theme, map scale), for the next card or the next agent.
+         */
         drop() {
             users = Math.max(0, users - 1);
-            if (users > 0 || host === null) return;
+            if (users === 0 && host !== null) host.stopListening();
+        },
+        /** The setting is off: delete the host and its widget, so nothing stays registered. */
+        release() {
+            if (host === null) return;
             const released = host;
             host = null;
             id = -1;
-            try { released.stopListening(); }
+            try { if (users > 0) released.stopListening(); }
             finally {
+                users = 0;
                 released.deleteHost();
                 released.$dispose();
             }
@@ -356,12 +375,30 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
             return [width, height];
         }
 
-        let widgets = null, textCards = 0;
+        let widgets = null, textCards = 0, scale = 1;
+        const widgetOverlays = new Set();
+
+        /**
+         * Lays the widget out at the card's size divided by the scale and scales the view back to the card. The
+         * navigator renders for that logical size; Android maps taps through the view's scale itself.
+         */
+        function layoutWidget(overlay) {
+            const {widget} = overlay.views;
+            const [width, height] = overlay.size;
+            const w = Math.round(width / scale), h = Math.round(height / scale);
+            widget.setLayoutParams(FrameParams.$new(w, h));
+            widget.setPivotX(0);
+            widget.setPivotY(0);
+            widget.setScaleX(scale);
+            widget.setScaleY(scale);
+            widgets.size(widget, Math.round(w / overlay.density), Math.round(h / overlay.density));
+        }
         try { widgets = createWidgetSlot(Java); }
         catch (error) { report('widget', error); }
 
         function dropOverlay(overlay) {
             if (overlay.widget) {
+                widgetOverlays.delete(overlay);
                 try { widgets.drop(); } catch (error) { report('widget', error); }
             } else textCards = Math.max(0, textCards - 1);
             for (const view of Object.values(overlay.views)) view.$dispose();
@@ -417,10 +454,9 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
                 root.addView(column, FrameParams.$new(-1, -1));
                 // The navigator's own widget (its traffic map) when it has one; the icon and text otherwise.
                 let widget = null;
-                try {
-                    const [width, height] = cardSize(card, context);
-                    widget = widgets?.create(context, name, width, height) ?? null;
-                } catch (error) { report('widget', error); }
+                const size = cardSize(card, context);
+                try { widget = widgets?.create(context, name, size[0], size[1]) ?? null; }
+                catch (error) { report('widget', error); }
                 if (widget !== null) {
                     column.setVisibility(8);
                     root.addView(widget, FrameParams.$new(-1, -1));
@@ -431,7 +467,13 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
                 root.setContentDescription(chars(appName));
                 const views = {root: retain(root), icon: retain(icon), title: retain(title),
                     text: retain(text), sub: retain(sub), custom: retain(custom)};
-                return {name, appName, widget: widget !== null, views};
+                const overlay = {name, appName, widget: widget !== null, views, size, density};
+                if (widget !== null) {
+                    views.widget = retain(widget);
+                    widgetOverlays.add(overlay);
+                    try { layoutWidget(overlay); } catch (error) { report('widget_scale', error); }
+                }
+                return overlay;
             },
             render(overlay, model) {
                 if (overlay.widget) return;
@@ -543,9 +585,30 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
             };
         }
 
+        /** The configured app and widget density, as one key the timer compares. */
         function configured() {
             const app = ActivityThread.currentApplication();
-            return app === null ? null : cardPackage(readConfig(app));
+            if (app === null) return null;
+            const config = readConfig(app);
+            const name = cardPackage(config);
+            return name === null ? null : name + '@' + widgetDpi(config);
+        }
+
+        function configure(key) {
+            const name = key === null ? null : key.slice(0, key.lastIndexOf('@'));
+            const nextScale = key === null ? 1 : Number(key.slice(key.lastIndexOf('@') + 1)) / 160;
+            if (nextScale !== scale) {
+                scale = nextScale;
+                // Live: the widget keeps its id and the settings chosen in Navigator.
+                for (const overlay of widgetOverlays) {
+                    try { layoutWidget(overlay); } catch (error) { report('widget_scale', error); }
+                }
+            }
+            controller.configure(name);
+            if (name === null) {
+                try { widgets?.release(); } catch (error) { report('widget', error); }
+            }
+            applied = key;
         }
 
         let queued = false;
@@ -554,10 +617,7 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
             queued = true;
             Java.scheduleOnMainThread(() => {
                 try {
-                    if (disposed) return;
-                    const name = configured();
-                    controller.configure(name);
-                    applied = name;
+                    if (!disposed) configure(configured());
                 } catch (error) { report('refresh', error); }
                 finally { queued = false; }
             });
@@ -640,9 +700,7 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
                 Java.scheduleOnMainThread(() => {
                     try {
                         if (disposed) return;
-                        const name = configured();
-                        controller.configure(name);
-                        applied = name;
+                        configure(configured());
                         console.log('OVC_HOME_CARD_READY');
                     } catch (error) { report('install', error); }
                 });

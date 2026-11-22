@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.os.Build
+import android.os.CancellationSignal
 import org.json.JSONObject
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
@@ -13,6 +15,9 @@ import org.openvoyah.controls.domain.weather.HomeWeatherReading
 import org.openvoyah.controls.domain.weather.WeatherCondition
 import java.io.IOException
 import java.net.URL
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import javax.net.ssl.HttpsURLConnection
 
 /** The city the home screen weather falls back to when the car's location is unknown. */
@@ -22,6 +27,11 @@ class HomeWeatherPreferences(context: Context) {
     var city: String
         get() = preferences.getString("city", "") ?: ""
         set(value) { preferences.edit().putString("city", HomeWeather.cleanCity(value)).apply() }
+
+    /** When the last reading reached the launcher, 0 before the first. */
+    var publishedAt: Long
+        get() = preferences.getLong("publishedAt", 0)
+        set(value) { preferences.edit().putLong("publishedAt", value).apply() }
 }
 
 /** Why no reading could be made; the card then shows "no data" once the last reading is too old. */
@@ -58,7 +68,7 @@ class HomeWeatherSource(private val context: Context) {
         .toString()
 
     private fun position(): Pair<Double, Double>? {
-        lastKnown()?.let { return it.latitude to it.longitude }
+        (lastKnown() ?: currentFix())?.let { return it.latitude to it.longitude }
         val city = HomeWeatherPreferences(context).city
         if (city.isEmpty()) return null
         val results = get(HomeWeather.geocodeUrl(city, UiText.language())).optJSONArray("results")
@@ -67,14 +77,36 @@ class HomeWeatherSource(private val context: Context) {
     }
 
     private fun lastKnown(): Location? {
-        val granted = listOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
-            .any { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
-        if (!granted) return null
+        if (!locationGranted()) return null
         val manager = context.getSystemService(LocationManager::class.java) ?: return null
         return try {
             manager.getProviders(true).mapNotNull { manager.getLastKnownLocation(it) }.maxByOrNull { it.time }
         } catch (_: SecurityException) { null }
     }
+
+    /** Without a last known position, asks the enabled providers for a current one, up to 20 seconds each. */
+    private fun currentFix(): Location? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !locationGranted()) return null
+        val manager = context.getSystemService(LocationManager::class.java) ?: return null
+        val providers = try { manager.getProviders(true) } catch (_: SecurityException) { return null }
+        for (provider in providers.filter { it != LocationManager.PASSIVE_PROVIDER }.sortedBy { it != LocationManager.NETWORK_PROVIDER }) {
+            val latch = CountDownLatch(1)
+            val result = AtomicReference<Location?>()
+            val cancel = CancellationSignal()
+            try {
+                manager.getCurrentLocation(provider, cancel, { it.run() }) { location ->
+                    result.set(location)
+                    latch.countDown()
+                }
+                if (!latch.await(20, TimeUnit.SECONDS)) cancel.cancel()
+            } catch (_: SecurityException) { return null }
+            result.get()?.let { return it }
+        }
+        return null
+    }
+
+    private fun locationGranted() = listOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
+        .any { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
     private fun get(url: String): JSONObject {
         val connection = URL(url).openConnection() as HttpsURLConnection

@@ -43,6 +43,10 @@ object HomeWeather {
     const val MAX_AGE_MS = 3L * 60 * 60 * 1000
     const val REFRESH_MS = 30L * 60 * 1000
 
+    /** A refresh is due without a reading, after [REFRESH_MS], or when the clock went back. */
+    fun needsRefresh(publishedAt: Long, now: Long): Boolean =
+        publishedAt <= 0 || now < publishedAt || now - publishedAt >= REFRESH_MS
+
     fun temperature(celsius: Double): String {
         val rounded = celsius.roundToInt()
         return (if (rounded == 0) 0 else rounded).toString()

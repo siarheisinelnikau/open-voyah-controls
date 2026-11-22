@@ -157,7 +157,7 @@ class PlanTest(unittest.TestCase):
         manifest = (out / 'AndroidManifest.xml').read_text(encoding='utf-8')
         android = '{http://schemas.android.com/apk/res/android}'
         element = ET.fromstring(manifest).find('overlay')
-        self.assertEqual(ET.fromstring(manifest).get('package'), 'org.openvoyah.controls.overlay.ru.target')
+        self.assertEqual(ET.fromstring(manifest).get('package'), 'org.openvoyah.controls.overlay.ru.example.target')
         self.assertEqual(element.get(android + 'targetPackage'), 'com.example.target')
         self.assertEqual(element.get(android + 'isStatic'), 'false')
         self.assertEqual(element.get(android + 'requiredSystemPropertyValue'), 'brand/product/device:11/X/1:user/k')
@@ -166,10 +166,49 @@ class PlanTest(unittest.TestCase):
 
 class DictionaryTest(unittest.TestCase):
     def test_default_targets_have_tables(self):
-        packages, digest = overlays.load_dictionary('ru')
+        packages, targets, digest = overlays.load_tables('ru')
         self.assertRegex(digest, '^[0-9a-f]{64}$')
         for target in overlays.DEFAULT_PACKAGES:
-            self.assertIn(target, packages)
+            self.assertIn(target, targets)
+        for target in targets:
+            self.assertTrue(packages[target], target)
+
+    def test_overlay_tables_add_to_the_preset(self):
+        preset, _ = overlays.load_dictionary('ru')
+        packages, _, _ = overlays.load_tables('ru')
+        for target, table in preset.items():
+            for key, value in table.items():
+                self.assertEqual(packages[target][key], value, key)
+
+    def test_overlay_dictionary_follows_the_preset_rules(self):
+        # Same rules as tests/localization-presets.test.cjs for the texts only the overlays translate.
+        path = overlays.OVERLAY_DICTIONARIES / 'ru.json'
+        document = json.loads(path.read_text(encoding='utf-8'))
+        self.assertEqual((document['schema'], document['products']), (1, []))
+        cjk, cyrillic = re.compile('[㐀-鿿]'), re.compile('[Ѐ-ӿ]')
+        for package, table in document['packages'].items():
+            self.assertRegex(package, r'^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$')
+            self.assertTrue(table, package)
+            for source, value in table.items():
+                where = '%s %r' % (package, source)
+                self.assertTrue(source.strip() and value.strip() and value != source, where)
+                # Not bundled into the agent, so whole legal texts fit (the presets keep 1,024).
+                self.assertLessEqual(max(len(source), len(value)), 4096, where)
+                self.assertEqual(overlays.specifiers(value), overlays.specifiers(source), where)
+                self.assertEqual(source.count('\n'), value.count('\n'), where)
+                self.assertEqual(source.strip() == source, value.strip() == value, where)
+                if not cjk.search(source):
+                    self.assertRegex(value, cyrillic, where)
+
+    def test_overlay_names_are_unique_and_short(self):
+        names = {target: overlays.overlay_package(target, 'ru') for target in (
+            'com.qinggan.app.setting', 'com.qinggan.bluetoothphone', 'com.qinggan.app.qgime',
+            'com.qinggan.app.qgime.second', 'com.thunder.carplay', 'com.qinggan.media')}
+        self.assertEqual(names['com.qinggan.app.setting'], 'org.openvoyah.controls.overlay.ru.setting')
+        self.assertEqual(names['com.qinggan.bluetoothphone'], 'org.openvoyah.controls.overlay.ru.bluetoothphone')
+        self.assertEqual(names['com.qinggan.app.qgime.second'], 'org.openvoyah.controls.overlay.ru.qgime.second')
+        self.assertEqual(names['com.thunder.carplay'], 'org.openvoyah.controls.overlay.ru.thunder.carplay')
+        self.assertEqual(len(set(names.values())), len(names))
 
     def test_release_signer_passwords_stay_in_the_environment(self):
         environment = {name: 'value' for name in overlays.RELEASE_SIGNER}

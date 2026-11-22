@@ -1,10 +1,11 @@
 """Build runtime resource overlays (RRO) that show a built-in dictionary in factory apps.
 
-The Frida localization agent cannot attach to 32-bit app processes (on the 97C head unit, Settings and the Bluetooth
-phone), so for those apps the same dictionary (`hooks/localization/<language>.json`) is turned into resource overlays.
-Each dictionary key is an exact text the factory app shows; this tool finds the string resources whose text, as the
-app resolves it for the dictionary's language, equals a key and writes the translation under the same resource name in
-`values-<language>`. Only this project's dictionary is read; nothing is taken from other overlays.
+The Frida localization agent cannot attach to 32-bit app processes (on the 97C head unit, Settings, the Bluetooth
+phone, Vehicle settings and most other factory apps), so for those apps this project's dictionaries are turned into
+resource overlays: the agent's preset (`hooks/localization/<language>.json`) plus the texts only overlays translate
+(`hooks/localization/overlays/<language>.json`, one table per app). Each key is an exact text the factory app shows;
+this tool finds the string resources whose text, as the app resolves it for the dictionary's language, equals a key and
+writes the translation under the same resource name in `values-<language>`. Nothing is taken from other overlays.
 
 Input is an apktool-decoded copy of each factory APK (`<root>/<package>/res`). The overlays are linked with aapt2,
 aligned and signed with the release key from the OPEN_VOYAH_RELEASE_* variables, or with the Android debug key when
@@ -26,8 +27,12 @@ from xml.sax.saxutils import escape as xml_escape
 
 ROOT = Path(__file__).resolve().parents[1]
 DICTIONARIES = ROOT / 'hooks/localization'
-# The apps the localization agent cannot attach to on the 97C head unit (32-bit processes).
+# Texts only the overlays translate. Kept apart from the presets, which are bundled into the agent.
+OVERLAY_DICTIONARIES = DICTIONARIES / 'overlays'
+# Apps the localization agent cannot attach to on the 97C head unit (32-bit processes) that the preset covers; every
+# app with a table in the overlay dictionary is a target as well.
 DEFAULT_PACKAGES = ('com.qinggan.app.setting', 'com.qinggan.bluetoothphone')
+SHORT_PREFIXES = ('com.qinggan.app.', 'com.qinggan.', 'com.')
 OVERLAY_PREFIX = 'org.openvoyah.controls.overlay'
 # Same pattern as tests/localization-presets.test.cjs: a translation keeps the source's specifiers in the same order.
 SPEC = re.compile(r'%(?:\d+\$)?[-#+0,(]*\d*(?:\.\d+)?[sdcfxXoeEgGbBhHn%]')
@@ -206,7 +211,14 @@ def plan_overlay(target, table, resources, language, region=None):
 
 
 def overlay_package(target, language):
-    return '%s.%s.%s' % (OVERLAY_PREFIX, language, target.rsplit('.', 1)[-1].lower())
+    """org.openvoyah.controls.overlay.<language>.<app>, the app named without its vendor prefix."""
+    short = target
+    for prefix in SHORT_PREFIXES:
+        if short.startswith(prefix):
+            short = short[len(prefix):]
+            break
+    short = re.sub(r'[^a-z0-9.]', '', short.lower())
+    return '%s.%s.%s' % (OVERLAY_PREFIX, language, short)
 
 
 def values_xml(plan):
@@ -321,15 +333,30 @@ def load_dictionary(language, path=None):
     return document['packages'], sha256(path)
 
 
+def load_tables(language, path=None):
+    """Per-app tables, the default targets and a digest of the dictionaries they came from."""
+    if path:
+        packages, digest = load_dictionary(language, path)
+        return packages, sorted(packages), digest
+    preset, preset_digest = load_dictionary(language)
+    extra, extra_digest = {}, ''
+    if (OVERLAY_DICTIONARIES / (language + '.json')).is_file():
+        extra, extra_digest = load_dictionary(language, OVERLAY_DICTIONARIES / (language + '.json'))
+    tables = {package: dict(preset.get(package, {}), **extra.get(package, {})) for package in set(preset) | set(extra)}
+    targets = sorted(set(DEFAULT_PACKAGES) | set(extra))
+    return tables, targets, hashlib.sha256((preset_digest + extra_digest).encode()).hexdigest()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('apktool_root', type=Path,
                         help='Folder with an apktool-decoded copy of each target APK (<root>/<package>/res)')
     parser.add_argument('--package', action='append', dest='packages',
-                        help='Target package (repeatable); default: %s' % ', '.join(DEFAULT_PACKAGES))
+                        help='Target package (repeatable); default: %s and every app in the overlay dictionary'
+                        % ', '.join(DEFAULT_PACKAGES))
     parser.add_argument('--language', default='ru', help='Dictionary and values-<language> directory (default ru)')
     parser.add_argument('--dictionary', type=Path,
-                        help='Schema 1 dictionary to use instead of hooks/localization/<language>.json')
+                        help='Schema 1 dictionary to use instead of the preset and overlay dictionaries')
     parser.add_argument('--region', help='Also resolve values-<language>-r<REGION> (for example RU)')
     parser.add_argument('--target-apks', type=Path,
                         help='Folder with <package>.apk copies of the targets; their SHA-256 goes into overlays.json')
@@ -348,8 +375,8 @@ def main(argv=None):
         raise SystemExit('Use a language such as ru and a region such as RU.')
     if args.require_fingerprint and not re.fullmatch(r'[A-Za-z0-9_.:/+,-]+', args.require_fingerprint):
         raise SystemExit('Unexpected fingerprint.')
-    packages, dictionary_sha = load_dictionary(args.language, args.dictionary)
-    targets = args.packages or list(DEFAULT_PACKAGES)
+    packages, default_targets, dictionary_sha = load_tables(args.language, args.dictionary)
+    targets = args.packages or default_targets
     toolchain = None if args.sources_only else Toolchain(args.sdk, args.build_tools, args.platform)
     signer = None if args.sources_only else signer_from_environment()
     out = args.out / args.language

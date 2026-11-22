@@ -34,6 +34,9 @@ public final class ControlsApplication extends Application {
         });
         // Puts back a media level a killed process left lowered, and lowers media during phone calls.
         MediaDuck.start(this);
+        // The home screen weather jobs may be gone after an update or reinstall; put them back and refresh if due.
+        try { org.openvoyah.controls.platform.weather.HomeWeatherJobs.ensure(this); }
+        catch (RuntimeException ex) { ControlsLog.warn("home_weather_job", ex, "outcome", "ensure_failed"); }
     }
 
     @Override public void onConfigurationChanged(Configuration newConfig) {

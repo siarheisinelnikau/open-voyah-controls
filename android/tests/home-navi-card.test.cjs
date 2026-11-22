@@ -11,7 +11,7 @@ function load(extra = {}) {
     const logs = [];
     const context = {console: {log: line => logs.push(line)}, setInterval: () => 0, clearInterval() {}, ...extra};
     const api = vm.runInNewContext(source + '\n({cardPackage, pickNotification, guidanceLines, createHomeCardController,' +
-        ' installHomeNavigationCard, createReporter, CARD_MARK, pickWidget})', context);
+        ' installHomeNavigationCard, createReporter, CARD_MARK, pickWidget, widgetDpi})', context);
     return {api, logs};
 }
 
@@ -242,7 +242,7 @@ function adapterHarness(options = {}) {
     const plainContext = {plain: true};
     const card = view('card', {isCard: true, isShown: () => true, getWidth: () => 576, getHeight: () => 652,
         onResume() { events.push(['card_resume']); }});
-    const widget = {providers: options.widgets ?? [], bound: new Map(), next: 7, refuse: options.refuseBind === true,
+    const widget = {providers: options.widgets ?? [], bound: new Map(options.bound ?? []), next: 7, created: 0, refuse: options.refuseBind === true,
         listening: false, deleted: [], hostDeleted: 0, sizes: [], contexts: []};
     const widgetHost = {
         getAppWidgetIds: () => [...widget.bound.keys()],
@@ -252,7 +252,11 @@ function adapterHarness(options = {}) {
         deleteHost() { widget.hostDeleted++; widget.bound.clear(); },
         createView(context, id, info) {
             widget.contexts.push(context);
-            return view('widget', {id, info, updateAppWidgetSize(options, ...size) { widget.sizes.push(size); }});
+            widget.created++;
+            return view('widget', {id, info, updateAppWidgetSize(options, ...size) { widget.sizes.push(size); },
+                setLayoutParams(params) { this.params = params; }, setPivotX(x) { this.pivot = [x, this.pivot?.[1]]; },
+                setPivotY(y) { this.pivot = [this.pivot?.[0], y]; }, setScaleX(x) { this.scale = [x, this.scale?.[1]]; },
+                setScaleY(y) { this.scale = [this.scale?.[0], y]; }});
         },
         $dispose() {}
     };
@@ -468,16 +472,49 @@ test('turning the setting off releases the widget host', () => {
     assert.equal(h.widget.hostDeleted, 1);
 });
 
-test('a widget bound earlier by this host is reused, others are deleted', () => {
-    const h = adapterHarness({widgets: TRAFFIC});
-    assert.equal(h.result.restoreAll(), true);
-    // Reattach: one stale widget of another provider and none of the chosen one.
-    h.widget.bound.set(3, TRAFFIC[2]);
-    h.widget.bound.set(4, TRAFFIC[1]);
-    h.timers.find(timer => timer.ms === 1000).fn();
-    const hosted = h.overlay().children[1];
-    assert.equal(hosted.id, 4);
+test('a widget an earlier agent bound is reused with its settings, others are deleted', () => {
+    // A new agent finds one stale widget of another provider and the chosen one.
+    const h = adapterHarness({widgets: TRAFFIC, bound: [[3, TRAFFIC[2]], [4, TRAFFIC[1]]]});
+    assert.equal(h.overlay().children[1].id, 4);
     assert.deepEqual(h.widget.deleted, [3]);
+});
+
+test('the detach handshake keeps the widget bound; only turning the setting off deletes it', () => {
+    const h = adapterHarness({widgets: TRAFFIC});
+    const id = h.overlay().children[1].id;
+    assert.equal(h.result.restoreAll(), true);
+    assert.equal(h.overlay(), null);
+    assert.equal(h.widget.listening, false);
+    assert.equal(h.widget.hostDeleted, 0);
+    h.timers.find(timer => timer.ms === 1000).fn();
+    assert.equal(h.overlay().children[1].id, id);
+    assert.equal(h.widget.listening, true);
+});
+
+test('the widget density follows the setting live, without rebinding the widget', () => {
+    const h = adapterHarness({widgets: TRAFFIC, config: {schema: 1, homeCard: {package: NAVI, dpi: 120}}});
+    const hosted = h.overlay().children[1];
+    assert.deepEqual(hosted.params, {w: 768, h: 869});
+    assert.deepEqual(hosted.scale, [0.75, 0.75]);
+    assert.deepEqual(hosted.pivot, [0, 0]);
+    assert.deepEqual(h.widget.sizes.at(-1), [768, 869, 768, 869]);
+    h.config.value = {schema: 1, homeCard: {package: NAVI, dpi: 240}};
+    h.timers.find(timer => timer.ms === 1000).fn();
+    assert.equal(h.overlay().children[1], hosted);
+    assert.equal(h.widget.created, 1);
+    assert.deepEqual(hosted.params, {w: 384, h: 435});
+    assert.deepEqual(hosted.scale, [1.5, 1.5]);
+    assert.deepEqual(h.widget.sizes.at(-1), [384, 435, 384, 435]);
+});
+
+test('the widget density is 160 unless the configuration names 120 to 240', () => {
+    const {widgetDpi} = load().api;
+    const card = dpi => ({schema: 1, homeCard: {package: NAVI, dpi}});
+    assert.equal(widgetDpi(card(120)), 120);
+    assert.equal(widgetDpi(card(240)), 240);
+    for (const dpi of [undefined, 119, 241, 150.5, '200', null]) assert.equal(widgetDpi(card(dpi)), 160, String(dpi));
+    assert.equal(widgetDpi({schema: 1, homeCard: {package: NAVI, dpi: 200}, restoreIcons: 'x'}), 160);
+    assert.equal(widgetDpi(null), 160);
 });
 
 test('a refused widget binding falls back to the icon card and is reported', () => {

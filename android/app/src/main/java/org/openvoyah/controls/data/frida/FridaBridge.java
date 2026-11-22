@@ -135,7 +135,8 @@ public final class FridaBridge {
         try {
             JSONObject root = new JSONObject().put("schema", 1).put("enabled", state.panelEnabled).put("actions", hookActions(state.panelActions));
             // The launcher agent covers the factory navigation card with this app's card; absent keeps the Baidu map.
-            if (state.navigatorHomeCard) root.put("homeCard", new JSONObject().put("package", SettingsStore.YANDEX_NAVIGATOR));
+            if (state.navigatorHomeCard) root.put("homeCard", new JSONObject().put("package", SettingsStore.YANDEX_NAVIGATOR)
+                .put("dpi", SettingsStore.navigatorWidgetDpi(state.navigatorWidgetDpi)));
             // The launcher agent shows Controls' weather (HOME_WEATHER) in the factory weather card, or this text without it.
             if (state.weatherCard) root.put("weatherCard", new JSONObject().put("noData", UiText.get(R.string.home_weather_no_data)));
             return root
@@ -1275,11 +1276,13 @@ public final class FridaBridge {
         }
     }
     /** Weather for the launcher's home card (see HomeWeatherSource.payload); kept across reboots, aged out by the agent. */
-    public void publishHomeWeather(String payload) throws IOException {
+    /** False while the agents are not configured, so the caller can try again later. */
+    public boolean publishHomeWeather(String payload) throws IOException {
         synchronized (IO_LOCK) {
-            if (!runtimeConfigured()) return;
+            if (!runtimeConfigured()) return false;
             requireRoot();
             command(activationGuard() + "settings put global " + HOME_WEATHER + " " + quote(payload));
+            return true;
         }
     }
     public void publishClusterMedia(Media media) throws IOException {

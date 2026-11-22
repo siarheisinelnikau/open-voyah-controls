@@ -57,6 +57,14 @@ class HomeWeatherTest {
         assertEquals(60, HomeWeather.cleanCity("x".repeat(100)).length)
     }
 
+    @Test fun aRefreshIsDueWithoutAReadingAfterHalfAnHourOrAfterTheClockWentBack() {
+        val now = 1_795_368_460_000L
+        assertTrue(HomeWeather.needsRefresh(0, now))
+        assertTrue(HomeWeather.needsRefresh(now - HomeWeather.REFRESH_MS, now))
+        assertTrue(HomeWeather.needsRefresh(now + 60_000, now))
+        assertEquals(false, HomeWeather.needsRefresh(now - HomeWeather.REFRESH_MS + 1, now))
+    }
+
     @Test fun freshnessMatchesTheAgent() {
         // hooks/home-weather-card.js MAX_AGE_MS
         assertEquals(3L * 60 * 60 * 1000, HomeWeather.MAX_AGE_MS)
