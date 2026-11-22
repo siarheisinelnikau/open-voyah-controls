@@ -1,13 +1,11 @@
 use crate::{
     adb::{Adb, Device, Result, Target},
-    device::{self, PACKAGE},
-    init_service,
-    production::{self, ApkChoice, Identity, Product},
-    recovery,
+    device::PACKAGE,
+    production::{self, Identity},
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
 use std::{
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::atomic::{AtomicBool, Ordering},
     thread,
     time::{Duration, Instant},
@@ -16,7 +14,7 @@ use std::{
 const START: &str = include_str!("../../android/tools/access-start.sh");
 const LOGIN: &str = include_str!("../../android/tools/access-login.sh");
 const BASE: &str = "/data/adb/open-voyah-controls-access";
-const FIND_TELNET: &str = r#"
+pub const FIND_TELNET: &str = r#"
 busybox=
 for candidate in /system/bin/busybox /system/xbin/busybox /vendor/bin/busybox; do
     [ -f "$candidate" ] && [ ! -L "$candidate" ] && [ -x "$candidate" ] || continue
@@ -39,8 +37,9 @@ fn wait_selected(
     stop: &AtomicBool,
     root: bool,
     previous_boot: Option<&str>,
+    seconds: u64,
 ) -> Result<Device> {
-    let deadline = Instant::now() + Duration::from_secs(90);
+    let deadline = Instant::now() + Duration::from_secs(seconds);
     while Instant::now() < deadline {
         if stop.load(Ordering::Relaxed) {
             return Err("Setup canceled while waiting for the selected head unit.".into());
@@ -108,12 +107,35 @@ pub fn root_device(
     if result.contains("cannot run as root") || result.contains("not allowed") {
         return Err("This firmware does not allow ADB root. No startup files were changed.".into());
     }
-    let connected = wait_selected(adb, target.serial(), &identity, stop, true, None)?;
+    let connected = wait_selected(adb, target.serial(), &identity, stop, true, None, 90)?;
     production::require_root(&adb.target(&connected, stop)?)?;
     Ok((connected, identity))
 }
 
-fn remount(
+/// How long a restarted head unit may take to reconnect and finish booting.
+pub const BOOT_WAIT: u64 = 420;
+
+/// Restarts the selected unit, waits until the same hardware and build has booted again, and restores ADB root,
+/// which Android drops on every boot.
+pub fn restart(
+    adb: &Adb,
+    device: &Device,
+    identity: &Identity,
+    stop: &AtomicBool,
+    progress: &impl Fn(String),
+) -> Result<Device> {
+    let target = adb.target(device, stop)?;
+    identity.recheck(&target)?;
+    let boot = target.text(["shell", "cat", "/proc/sys/kernel/random/boot_id"], 10)?;
+    // The transport closes while the command runs; the new boot ID below is the confirmation.
+    let _ = target.text(["reboot"], 30);
+    let connected = wait_selected(adb, target.serial(), identity, stop, false, Some(&boot), BOOT_WAIT)
+        .map_err(|error| format!("The head unit did not come back after the restart. Reconnect it and select Retry. {error}"))?;
+    let (connected, _) = root_device(adb, &connected, stop, progress)?;
+    Ok(connected)
+}
+
+pub fn remount(
     adb: &Adb,
     device: Device,
     identity: &Identity,
@@ -137,7 +159,15 @@ fn remount(
     identity.recheck(&target)?;
     let boot = target.text(["shell", "cat", "/proc/sys/kernel/random/boot_id"], 10)?;
     target.text(["reboot"], 10)?;
-    let connected = wait_selected(adb, target.serial(), identity, stop, false, Some(&boot))?;
+    let connected = wait_selected(
+        adb,
+        target.serial(),
+        identity,
+        stop,
+        false,
+        Some(&boot),
+        BOOT_WAIT,
+    )?;
     let (connected, _) = root_device(adb, &connected, stop, progress)?;
     let target = adb.target(&connected, stop)?;
     target.text(["remount"], 30)?;
@@ -150,161 +180,23 @@ pub fn portable_runtime() -> Option<PathBuf> {
     let metadata: serde_json::Value =
         serde_json::from_str(include_str!("../../android/dist/FRIDA_RUNTIME.json")).ok()?;
     let file = metadata.get("file")?.as_str()?;
-    let candidate = std::env::current_exe()
-        .ok()?
-        .parent()?
-        .join("support")
-        .join(file);
-    candidate.is_file().then_some(candidate)
+    let exe = std::env::current_exe().ok()?;
+    let folder = exe.parent()?;
+    // The portable kit keeps it in support\; a development build finds the one prepare_runtime.py wrote.
+    [
+        folder.join("support").join(file),
+        folder.join("../../../android/dist/runtime").join(file),
+    ]
+    .into_iter()
+    .find(|candidate| candidate.is_file())
 }
 
-pub fn prepare(
-    adb: &Adb,
-    device: &Device,
-    controls: ApkChoice<'_>,
-    youtube: Option<ApkChoice<'_>>,
-    runtime: &Path,
-    storage: &Path,
-    stop: &AtomicBool,
-    progress: impl Fn(String),
-) -> Result<String> {
-    let (apk, expected) = (controls.path, controls.expected);
-    let metadata: serde_json::Value =
-        serde_json::from_str(include_str!("../../android/dist/FRIDA_RUNTIME.json"))
-            .map_err(device::message)?;
-    if Some(device::digest(runtime, stop)?.as_str())
-        != metadata.get("binary_sha256").and_then(|v| v.as_str())
-    {
-        return Err(
-            "Select the verified ARM64 Frida injector supplied with this installer.".into(),
-        );
-    }
-    let initial = adb.target(device, stop)?;
-    production::check_setup_device(&initial, &Identity::read(&initial)?)?;
-    production::check_candidate(
-        &initial,
-        apk,
-        expected,
-        &storage.join("verification"),
-        Product::Controls,
-    )?;
-    // A YouTube APK that cannot pass its checks stops setup before the first device change, not after Controls.
-    if let Some(choice) = youtube {
-        production::check_candidate(
-            &initial,
-            choice.path,
-            choice.expected,
-            &storage.join("verification"),
-            Product::YouTube,
-        )?;
-    }
-    let (device, identity) = root_device(adb, device, stop, &progress)?;
-    let target = adb.target(&device, stop)?;
-    target.script(FIND_TELNET, &[], 15)?;
-    progress(
-        "Checking the existing init service and its configured user before changing startup…"
-            .into(),
-    );
-    let boot_service = init_service::preflight(&target, identity.sdk).map_err(|error| {
-        format!(
-            "The logcat root-service preflight did not pass. {error} No startup files were changed."
-        )
-    })?;
-    identity.recheck(&target)?;
-    progress(format!(
-        "Observed root init service {} at {}. Cold-boot activation and SELinux permissions still require device verification.",
-        boot_service.name, boot_service.source,
-    ));
-    target.script("set -e\numask 077\nif [ ! -e /data/adb ]; then mkdir -m 700 /data/adb; fi\ntest ! -L /data/adb && test \"$(stat -c %u:%a /data/adb)\" = 0:700\n", &[], 10)?;
-    progress("Saving the original startup script and recovery metadata on this PC…".into());
-    let backup = recovery::export_boot_backup_folder(
-        &target,
-        &identity.fingerprint,
-        &storage.join("backups"),
-    )?;
-    progress(format!("Startup backup saved to {}", backup.display()));
-    let device = remount(adb, device, &identity, stop, &progress)?;
-    let target = adb.target(&device, stop)?;
-    if recovery::require_inactive(&target, &identity, false).is_err() {
-        progress(
-            "Pausing the previous Controls deployment and restoring its startup entry…".into(),
-        );
-        recovery::rollback(&target, &identity.fingerprint)?;
-    }
-    progress("Installing the signed app and verifying its installed bytes…".into());
-    production::install_controls(
-        &target,
-        apk,
-        expected,
-        &storage.join("verification"),
-        &progress,
-    )?;
-    production::verify_preparation(&target, &identity, &storage.join("verification"))?;
-    progress("Staging the verified Frida injector…".into());
-    recovery::stage_setup_runtime(&target, runtime, &storage.join("verification"), &progress)?;
-    // A completed rollback leaves a block. Only clear it after APK/runtime validation and inert-state checks.
-    if production::has_review(&identity) {
-        recovery::rearm(
-            &target,
-            &identity.fingerprint,
-            &storage.join("verification"),
-        )?;
-    }
-    progress("Provisioning the private root channel and Android permissions…".into());
-    install_access(&target, &identity)?;
-    recovery::install_access_boot(&target, &identity, &backup, &storage.join("verification"))?;
-    progress(
-        "Checking root access, offline speech and handler readiness from the Android app…".into(),
-    );
-    let result = probe_app(&target)?;
-    identity.recheck(&target)?;
-    // A separate step after Controls is ready. It changes nothing Controls relies on, so a failure here leaves the
-    // verified setup in place and is reported beside it.
-    let youtube = match youtube {
-        None => String::new(),
-        Some(choice) => {
-            progress("Installing the YouTube app as a separate step…".into());
-            match production::install_youtube(
-                &target,
-                choice.path,
-                choice.expected,
-                &storage.join("verification"),
-                &progress,
-            ) {
-                Ok(status) => format!(" {status}"),
-                Err(error) => format!(
-                    " The YouTube app was not installed; Controls setup is unaffected. Retry with Install YouTube. {error}"
-                ),
-            }
-        }
-    };
-    Ok(format!(
-        "Installation and root access verified from Android. Microphone: {}. Button service: {}. Startup backup: {}. {}{youtube}",
-        if result.mic {
-            "allowed"
-        } else {
-            "allow it on first use"
-        },
-        if result.buttons {
-            "connected"
-        } else {
-            "enable in Accessibility settings"
-        },
-        backup.display(),
-        if result.reviewed {
-            "Every enabled handler confirmed readiness. Physical actions and cold boot still need device verification."
-        } else {
-            "This exact firmware has no approved OEM profile. Local app and voice features are available; vehicle handlers remain disabled pending qualification."
-        }
-    ))
-}
-
-fn install_access(target: &Target<'_>, identity: &Identity) -> Result<()> {
+pub fn install_access(target: &Target<'_>, identity: &Identity) -> Result<()> {
     let script = format!(
         r#"set -eu
 umask 077
 base={BASE}
-[ "$(getprop ro.build.fingerprint)" = "$1" ] && [ "$(getenforce)" = Enforcing ]
+[ "$(getprop ro.build.fingerprint)" = "$1" ] && {selinux}
 uid=$(pm list packages -U --user 0 {PACKAGE} | sed -n 's/^package:{PACKAGE} uid:\([0-9]*\)$/\1/p')
 case "$uid" in ''|*[!0-9]*) exit 1;; esac
 [ "$uid" -ge 10000 ] && [ "$uid" -lt 100000 ]
@@ -397,6 +289,7 @@ settings put secure accessibility_enabled 1
 /system/bin/sh "$base/access-start.sh"
 "#,
         find_telnet = FIND_TELNET,
+        selinux = production::SELINUX_READY,
         start = STANDARD.encode(START.replace("\r\n", "\n")),
         login = STANDARD.encode(LOGIN.replace("\r\n", "\n"))
     );

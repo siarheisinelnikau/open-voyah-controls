@@ -19,6 +19,10 @@ fn main() {
             let bytes = fs::read_to_string(apk).unwrap();
             let package = if bytes == "wrong" {
                 "com.example.wrong"
+            } else if let Some(name) = bytes.strip_prefix("app-") {
+                // Other apps: "app-<name>" is package com.example.<name>.
+                println!("package: name='com.example.{name}' versionCode='7' versionName='1.{}'\nsdkVersion:'26'", name.len());
+                return;
             } else if bytes.starts_with("youtube") {
                 "org.openvoyah.youtube"
             } else {
@@ -30,10 +34,11 @@ fn main() {
                 "youtube-newer" => (5, "0.3.0"),
                 "youtube-update" => (4, "0.2.0"),
                 "youtube" | "youtube-controls-key" | "youtube-debug" => (3, "0.1.0"),
+                "owner-debug" => (30, "0.21.0-local"),
                 _ => (14, "0.12.0"),
             };
             println!("package: name='{package}' versionCode='{code}' versionName='{version}'\nsdkVersion:'28'");
-            if bytes == "youtube-debug" {
+            if bytes == "youtube-debug" || bytes == "owner-debug" {
                 println!("application-debuggable");
             }
             return;
@@ -46,6 +51,8 @@ fn main() {
         // The YouTube app has its own release key; one built with the Controls key must be refused.
         let cert = if bytes == "wrong-signer" {
             "2"
+        } else if bytes == "owner-debug" {
+            "4"
         } else if bytes.starts_with("youtube") && bytes != "youtube-controls-key" {
             "3"
         } else {
@@ -72,6 +79,24 @@ fn main() {
                 assert!(!active.exists() && !legacy.exists());
                 fs::write(state.join("buttons-detached"), "confirmed").unwrap();
                 println!("OVC_BUTTONS_DETACHED");
+                return;
+            }
+            [] if script.contains("OVC_SELINUX_READY") => {
+                println!("OVC_SELINUX_READY");
+                return;
+            }
+            [] if script.contains("pm list packages -3") => {
+                if let Ok(entries) = fs::read_dir(state.join("installed-apps")) {
+                    let mut names: Vec<_> = entries.filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+                    names.sort();
+                    for name in names {
+                        println!("{name}\t1.0");
+                    }
+                }
+                return;
+            }
+            [] if script.contains("recovery.blocked") && script.contains("echo unknown") => {
+                println!("{}", if blocked.exists() { "blocked" } else { "clear" });
                 return;
             }
             [] if script.contains("ro.build.version.sdk") => {
@@ -163,6 +188,21 @@ fn main() {
         }
         ["-t", "7", "pull", "/data/app/youtube/base.apk", destination] => {
             fs::copy(&youtube, destination).unwrap();
+        }
+        ["-t", "7", "install", "-r", "--user", "0", path]
+            if path.ends_with(".apk") && fs::read_to_string(path).unwrap().starts_with("app-") =>
+        {
+            let name = fs::read_to_string(path).unwrap();
+            let apps = state.join("installed-apps");
+            fs::create_dir_all(&apps).unwrap();
+            fs::write(apps.join(format!("com.example.{}", &name[4..])), &name).unwrap();
+            println!("Success");
+        }
+        ["-t", "7", "shell", "pm", "uninstall", "--user", "0", package] => {
+            match fs::remove_file(state.join("installed-apps").join(package)) {
+                Ok(()) => println!("Success"),
+                Err(_) => println!("Failure [DELETE_FAILED_INTERNAL_ERROR]"),
+            }
         }
         ["-t", "7", "install", "-r", "--user", "0", path] if path.ends_with(".apk") => {
             assert!(!active.exists() && !legacy.exists());

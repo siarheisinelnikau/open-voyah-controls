@@ -3,6 +3,8 @@
 #[cfg(any(windows, test))]
 mod adb;
 #[cfg(any(windows, test))]
+mod apps;
+#[cfg(any(windows, test))]
 mod device;
 #[cfg(any(windows, test))]
 mod init_service;
@@ -14,6 +16,8 @@ mod recovery;
 mod releases;
 #[cfg(any(windows, test))]
 mod setup;
+#[cfg(any(windows, test))]
+mod turnkey;
 #[cfg(windows)]
 mod windows;
 

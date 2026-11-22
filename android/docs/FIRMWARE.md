@@ -63,7 +63,7 @@ The H97 climate adapter verifies the OEM `AppConfig.isH97()` result and reads `A
 
 ## Startup and restore
 
-**Prepare and install** in the Windows installer prepares the root-run logcat boot entry and authenticated local Telnet. On a reviewed head unit, the first-run check and **Connect Frida** use this channel to stage the verified agents and enable recovery through the Android boot job. No `su` executable is needed. The supervisor waits for `sys.boot_completed` and three samples of the same `system_server` PID, then watches both the system process and the target PID. Connection status reports each installed adapter.
+**Install** in the Windows installer prepares the root-run logcat boot entry and authenticated local Telnet. On a reviewed head unit, the first-run check and **Connect Frida** use this channel to stage the verified agents and enable recovery through the Android boot job. No `su` executable is needed. The supervisor waits for `sys.boot_completed` and three samples of the same `system_server` PID, then watches both the system process and the target PID. Connection status reports each installed adapter.
 
 The integrated V3 entry is installed before connecting the reviewed OEM handlers, avoiding a startup dependency cycle. The older optional worker-only entry remains available for maintenance. Use an explicit ADB serial and full `ro.build.fingerprint`; start with `-Mode status`. The initial ADB-prepared channel does not prove the OEM service's SELinux permissions at cold boot. See the prerequisites and separate boot qualification in [first-launch preparation](PRODUCTION.md#prepare-the-first-launch).
 

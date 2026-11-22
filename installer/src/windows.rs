@@ -1,10 +1,12 @@
 use crate::{
     adb::{self, Adb, Device, Result},
+    apps::{self, App},
     device::{self, OemAction, message},
-    production::{self, ApkChoice, Identity, Product, ReleaseApk},
+    production::{self, ApkChoice, ApkFacts, Build, Identity, Product, ReleaseApk, Trust},
     recovery,
     releases::{self, Catalog},
     setup,
+    turnkey::{self, Lang, STEPS, StepState},
 };
 use std::{
     cell::{Cell, RefCell},
@@ -104,12 +106,8 @@ const APK: u16 = 30;
 const BROWSE_APK: u16 = 31;
 const INSTALL: u16 = 32;
 const LAUNCH: u16 = 33;
-const REMOVE: u16 = 34;
-const BATCH: u16 = 35;
-const RUNTIME: u16 = 36;
+const ROLLBACK: u16 = 34;
 const INFO: u16 = 37;
-const RECOVERY_PAGE: u16 = 38;
-const INSTALL_APK: u16 = 39;
 const FINGERPRINT: u16 = 40;
 const READ_FINGERPRINT: u16 = 41;
 const OEM: u16 = 42;
@@ -127,31 +125,64 @@ const RELEASE: u16 = 53;
 const DOWNLOAD: u16 = 54;
 const COLLECT: u16 = 55;
 const LOGS: u16 = 56;
-const YOUTUBE_APK: u16 = 57;
-const BROWSE_YOUTUBE: u16 = 58;
-const INSTALL_YOUTUBE: u16 = 59;
+const LANGUAGE: u16 = 57;
 const STATUS: u16 = 60;
 const CANCEL: u16 = 61;
-const TABS: [u16; 4] = [70, 71, 72, 73];
+const TABS: [u16; 5] = [70, 71, 72, 73, 74];
+const PAGE_INSTALL: usize = 0;
+const PAGE_APPS: usize = 1;
+const PAGE_CODES: usize = 2;
+const PAGE_SERVICE: usize = 3;
+const PAGE_RELEASES: usize = 4;
+const STEP_COLUMNS: [u16; 2] = [120, 121];
+const APPS_CHOOSE: u16 = 122;
+const APPS_REFRESH: u16 = 123;
+const APPS_LIST: u16 = 124;
+const APPS_OPEN: u16 = 125;
+const APPS_GRANT: u16 = 126;
+const APPS_EXPORT: u16 = 127;
+const APPS_REMOVE: u16 = 128;
 const DAILY_COPY: [u16; 3] = [100, 101, 102];
 const DAILY_DATE: [u16; 3] = [103, 104, 105];
 const LEGACY_COPY: [u16; 4] = [110, 111, 112, 113];
 const LEGACY_LABEL: [u16; 4] = [114, 115, 116, 117];
-const PAGE_TITLES: [&str; 4] = [
-    "Installation",
-    "Engineering menu",
-    "Maintenance",
-    "Releases and logs",
+type Text = (&'static str, &'static str);
+
+const PAGE_TITLES: [Text; 5] = [
+    ("Installation", "Установка"),
+    ("Other apps", "Приложения"),
+    ("Engineering menu", "Инженерное меню"),
+    ("Maintenance", "Обслуживание"),
+    ("Releases and logs", "Релизы и журналы"),
 ];
-const PAGE_HINTS: [&str; 4] = [
-    "Connect a head unit and install Open Voyah Controls.",
-    "Look up the access code for the date on your head unit.",
-    "Service the selected unit and retain a recovery path.",
-    "Find verified packages and collect diagnostics locally.",
+const PAGE_HINTS: [Text; 5] = [
+    (
+        "Connect the head unit, choose the APK and select Install. Everything else is automatic.",
+        "Подключите магнитолу, выберите APK и нажмите «Установить». Остальное установщик сделает сам.",
+    ),
+    (
+        "Install, update and manage other apps without touching Open Voyah Controls.",
+        "Установка и управление другими приложениями, не затрагивая Open Voyah Controls.",
+    ),
+    (
+        "Look up the access code for the date on your head unit.",
+        "Код доступа для даты, которая стоит на магнитоле.",
+    ),
+    (
+        "Service the selected unit and retain a recovery path.",
+        "Обслуживание выбранной магнитолы с сохранением пути восстановления.",
+    ),
+    (
+        "Find verified packages and collect diagnostics locally.",
+        "Проверенные пакеты и сбор диагностики на этом ПК.",
+    ),
 ];
 
 #[derive(Clone, Copy)]
 enum ServiceAction {
+    ApkOnly,
+    Runtime,
+    RemoveApp,
     Verify,
     BackupBoot,
     InstallBoot,
@@ -162,37 +193,97 @@ enum ServiceAction {
     Oem(OemAction),
 }
 
-const SERVICE_ACTIONS: [(&str, ServiceAction); 12] = [
-    ("Verify production firmware", ServiceAction::Verify),
-    ("Back up boot script to PC", ServiceAction::BackupBoot),
-    ("Install optional boot entry", ServiceAction::InstallBoot),
-    ("Roll back Controls", ServiceAction::Rollback),
+const SERVICE_ACTIONS: [(Text, ServiceAction); 15] = [
     (
-        "Restore Controls from PC backup",
+        ("Verify production firmware", "Проверить прошивку"),
+        ServiceAction::Verify,
+    ),
+    (
+        (
+            "Install Controls APK only",
+            "Установить только APK Controls",
+        ),
+        ServiceAction::ApkOnly,
+    ),
+    (
+        ("Install Frida injector…", "Установить инжектор Frida…"),
+        ServiceAction::Runtime,
+    ),
+    (
+        (
+            "Remove Controls app (keep data)",
+            "Удалить Controls (данные сохранить)",
+        ),
+        ServiceAction::RemoveApp,
+    ),
+    (
+        (
+            "Back up boot script to PC",
+            "Копия скрипта автозапуска на ПК",
+        ),
+        ServiceAction::BackupBoot,
+    ),
+    (
+        (
+            "Install optional boot entry",
+            "Установить запись автозапуска",
+        ),
+        ServiceAction::InstallBoot,
+    ),
+    (
+        ("Roll back Controls", "Откатить Controls"),
+        ServiceAction::Rollback,
+    ),
+    (
+        (
+            "Restore Controls from PC backup",
+            "Восстановить автозапуск из копии на ПК",
+        ),
         ServiceAction::RestoreExported,
     ),
-    ("Allow fresh Controls setup", ServiceAction::Rearm),
     (
-        "Remove old app for signer migration",
+        (
+            "Allow fresh Controls setup",
+            "Разрешить новую настройку Controls",
+        ),
+        ServiceAction::Rearm,
+    ),
+    (
+        (
+            "Remove old app for signer migration",
+            "Удалить старое приложение для смены подписи",
+        ),
         ServiceAction::Migrate,
     ),
     (
-        "Reset vehicle settings with backup",
+        (
+            "Reset vehicle settings with backup",
+            "Сбросить настройки машины с копией",
+        ),
         ServiceAction::Oem(OemAction::ResetSettings),
     ),
     (
-        "Restore vehicle settings backup",
+        (
+            "Restore vehicle settings backup",
+            "Вернуть копию настроек машины",
+        ),
         ServiceAction::Oem(OemAction::RestoreSettings),
     ),
     (
-        "Install signed OEM keyboard update",
+        (
+            "Install signed OEM keyboard update",
+            "Обновить клавиатуру OEM",
+        ),
         ServiceAction::Oem(OemAction::InstallKeyboard),
     ),
     (
-        "Restore stock OEM keyboard",
+        ("Restore stock OEM keyboard", "Вернуть штатную клавиатуру"),
         ServiceAction::Oem(OemAction::RestoreKeyboard),
     ),
-    ("Restart head unit", ServiceAction::Oem(OemAction::Reboot)),
+    (
+        ("Restart head unit", "Перезагрузить магнитолу"),
+        ServiceAction::Oem(OemAction::Reboot),
+    ),
 ];
 
 enum Job {
@@ -209,13 +300,14 @@ enum Job {
         path: PathBuf,
         expected: Option<ReleaseApk>,
     },
-    Prepare {
+    Turnkey {
         path: PathBuf,
         expected: Option<ReleaseApk>,
         runtime: PathBuf,
-        youtube: Option<(PathBuf, Option<ReleaseApk>)>,
+        lang: Lang,
     },
-    Batch(PathBuf),
+    RollBack(Lang),
+    Apps(AppsJob),
     Launch,
     Remove,
     Runtime(PathBuf),
@@ -231,9 +323,23 @@ enum Job {
     Download(releases::Asset, bool),
 }
 
+enum AppsJob {
+    List,
+    Install(Vec<PathBuf>),
+    Uninstall(String),
+    Open(String),
+    Grant(String),
+    Export(String, PathBuf),
+}
+
 enum Output {
     Status(String),
     Devices(Vec<Device>, String),
+    /// The turnkey cycle or its rollback finished: fresh devices, the result text and whether it succeeded.
+    Cycle(Vec<Device>, String, bool),
+    /// The chosen Controls APK is signed by a certificate this PC does not trust yet.
+    Trust(ApkFacts),
+    Apps(Vec<App>, String),
     Fingerprint(String),
     Apk(PathBuf, ReleaseApk, Product),
     Update(PathBuf, String),
@@ -241,6 +347,7 @@ enum Output {
 
 enum Event {
     Progress(String),
+    Step(usize, StepState),
     Done(Result<Output>),
     Catalog(Result<Catalog>, bool),
 }
@@ -265,7 +372,14 @@ struct State {
     dpi: i32,
     fonts: [HFONT; 6],
     controls: HashMap<u16, HWND>,
-    panels: [Vec<HWND>; 4],
+    panels: [Vec<HWND>; 5],
+    lang: Lang,
+    texts: Vec<(HWND, Text)>,
+    cues: Vec<(HWND, Text)>,
+    steps: [StepState; 12],
+    failed: bool,
+    apps: Vec<App>,
+    pending: Option<(PathBuf, Option<ReleaseApk>, PathBuf)>,
     connection: Vec<HWND>,
     daily: [String; 3],
     legacy: Vec<device::SavedCode>,
@@ -274,7 +388,6 @@ struct State {
     storage: PathBuf,
     catalog: Catalog,
     apk_release: Option<(PathBuf, ReleaseApk)>,
-    youtube_release: Option<(PathBuf, ReleaseApk)>,
     events: Events,
     rx: Receiver<Event>,
     cancel: Option<Arc<AtomicBool>>,
@@ -306,22 +419,24 @@ fn storage() -> PathBuf {
         .join("OpenVoyahControlsInstaller")
 }
 
-fn setup_completion(adb: &Adb, result: Result<String>) -> Output {
-    let status = match result {
-        Ok(status) => status,
-        Err(error) => format!("Operation stopped. {error}"),
-    };
-    // Root/reboot can invalidate the selected transport even when setup is
-    // canceled. This bounded read must still replace the UI's old connection list.
+fn fresh_devices(adb: &Adb, status: String) -> (Vec<Device>, String) {
+    // Root and restarts change the selected transport even when a job stops early. This bounded read must still
+    // replace the UI's old connection list.
     match adb.devices(&AtomicBool::new(false)) {
-        Ok(devices) => Output::Devices(devices, status),
-        Err(error) => Output::Devices(
+        Ok(devices) => (devices, status),
+        Err(error) => (
             Vec::new(),
             format!(
                 "{status}\r\nThe connection list could not be refreshed. Select Refresh before continuing. {error}"
             ),
         ),
     }
+}
+
+fn cycle_completion(adb: &Adb, result: std::result::Result<String, String>) -> Output {
+    let ok = result.is_ok();
+    let (devices, text) = fresh_devices(adb, result.unwrap_or_else(|error| error));
+    Output::Cycle(devices, text, ok)
 }
 
 fn preferred_device_index(devices: &[Device], serial: Option<&str>) -> Option<usize> {
@@ -341,6 +456,7 @@ fn run_job(
     store: &Path,
     stop: &AtomicBool,
     progress: impl Fn(String),
+    steps: &dyn Fn(usize, StepState),
 ) -> Result<Output> {
     if let Job::Download(asset, update) = job {
         let path = releases::download(&asset, &store.join("downloads"), stop, progress)?;
@@ -374,31 +490,66 @@ fn run_job(
     }
     let adb = adb
         .ok_or("Install Android SDK Platform-Tools, then select adb.exe under Releases & logs.")?;
-    if let Job::Prepare {
+    let trust = Trust::load(store);
+    let verification = store.join("verification");
+    if let Job::Turnkey {
         path,
         expected,
         runtime,
-        youtube,
+        lang,
     } = job
     {
         let selected = device.ok_or("Select the intended head unit before setup.")?;
-        let result = setup::prepare(
-            &adb,
-            &selected,
-            ApkChoice {
+        // The certificate decision comes first and changes nothing on the head unit.
+        let facts = adb
+            .target(&selected, stop)
+            .and_then(|target| production::inspect_apk(&target, &path, &verification));
+        let facts = match facts {
+            Ok(facts) => facts,
+            Err(error) => return Ok(cycle_completion(&adb, Err(error))),
+        };
+        if facts.package != device::PACKAGE {
+            return Ok(Output::Status(lang.pick(
+                &format!("{} is not Open Voyah Controls. Install other apps on the Other apps page.", facts.package),
+                &format!("{} — не Open Voyah Controls. Другие приложения устанавливаются на странице «Приложения».", facts.package),
+            )));
+        }
+        if expected.is_none() && trust.classify(Product::Controls, &facts.signer).is_err() {
+            return Ok(Output::Trust(facts));
+        }
+        let say = |text: String| progress(text);
+        let mut unit = turnkey::Live {
+            adb: &adb,
+            device: selected,
+            apk: ApkChoice {
                 path: &path,
                 expected: expected.as_ref(),
             },
-            youtube.as_ref().map(|(path, expected)| ApkChoice {
-                path,
-                expected: expected.as_ref(),
-            }),
-            &runtime,
+            runtime: &runtime,
             store,
+            trust: &trust,
             stop,
-            progress,
-        );
-        return Ok(setup_completion(&adb, result));
+            say: &say,
+            identity: None,
+            backup: None,
+            build: Build::Release,
+        };
+        let result = turnkey::run(
+            &mut unit,
+            &turnkey::Reporter {
+                lang,
+                step: steps,
+                say: &say,
+            },
+        )
+        .map_err(|failure| failure.text(lang));
+        return Ok(cycle_completion(&adb, result));
+    }
+    if let Job::RollBack(lang) = job {
+        let selected = device.ok_or("Select the intended head unit first.")?;
+        let say = |text: String| progress(text);
+        let result = turnkey::roll_back(&adb, &selected, stop, lang, &say);
+        return Ok(cycle_completion(&adb, result));
     }
     if matches!(job, Job::Refresh) {
         let devices = adb.devices(stop)?;
@@ -422,24 +573,49 @@ fn run_job(
     }
     let selected = device.ok_or("Select a connected head unit first.")?;
     let target = adb.target(&selected, stop)?;
-    let verification = store.join("verification");
+    if let Job::Apps(job) = job {
+        let status = match job {
+            AppsJob::List => {
+                let list = apps::list(&target)?;
+                let text = format!(
+                    "{} app(s) installed besides Open Voyah Controls.",
+                    list.len()
+                );
+                return Ok(Output::Apps(list, text));
+            }
+            AppsJob::Install(files) => apps::install(&target, &files, &verification, &progress)?,
+            AppsJob::Uninstall(package) => apps::uninstall(&target, &package)?,
+            AppsJob::Open(package) => apps::open(&target, &package)?,
+            AppsJob::Grant(package) => apps::grant(&target, &package)?,
+            AppsJob::Export(package, folder) => apps::export(&target, &package, &folder)?,
+        };
+        // Refresh the list so versions and removals show at once.
+        let list = apps::list(&target).unwrap_or_default();
+        return Ok(Output::Apps(list, status));
+    }
     let result = match job {
-        Job::Install { path, expected } => {
-            production::install_controls(&target, &path, expected.as_ref(), &verification, progress)
-        }
-        Job::InstallYouTube { path, expected } => {
-            production::install_youtube(&target, &path, expected.as_ref(), &verification, progress)
-        }
-        Job::Batch(folder) => device::install_apks(
+        Job::Install { path, expected } => production::install_controls(
             &target,
-            &device::apk_files(&folder)?,
+            &path,
+            expected.as_ref(),
             &verification,
+            &trust,
+            progress,
+        ),
+        Job::InstallYouTube { path, expected } => production::install_youtube(
+            &target,
+            &path,
+            expected.as_ref(),
+            &verification,
+            &trust,
             progress,
         ),
         Job::Launch => device::launch(&target),
         Job::Remove => recovery::uninstall(&target),
-        Job::Runtime(path) => recovery::install_runtime(&target, &path, &verification, progress),
-        Job::Info => recovery::device_status(&target),
+        Job::Runtime(path) => {
+            recovery::install_runtime(&target, &path, &verification, &trust, progress)
+        }
+        Job::Info => recovery::device_status(&target, &trust),
         Job::Fingerprint => {
             return target
                 .property("ro.build.fingerprint")
@@ -452,9 +628,12 @@ fn run_job(
             input,
             backup,
         } => match action {
+            ServiceAction::ApkOnly | ServiceAction::Runtime | ServiceAction::RemoveApp => {
+                unreachable!("dispatched as separate jobs")
+            }
             ServiceAction::Verify => {
                 let identity = Identity::confirmed(&target, &fingerprint)?;
-                production::check_reviewed(&target, &identity, &verification)?;
+                production::check_reviewed(&target, &identity, &verification, &trust)?;
                 Ok("The exact build and reviewed OEM packages matched. APK, injector, and boot setup are separate steps.".into())
             }
             ServiceAction::BackupBoot => {
@@ -467,6 +646,7 @@ fn run_job(
                     .as_deref()
                     .ok_or("Choose a verified PC boot backup.")?,
                 &verification,
+                &trust,
             ),
             ServiceAction::Rollback => recovery::rollback(&target, &fingerprint),
             ServiceAction::RestoreExported => recovery::restore_exported(
@@ -476,7 +656,7 @@ fn run_job(
                     .as_deref()
                     .ok_or("Choose a verified PC boot backup.")?,
             ),
-            ServiceAction::Rearm => recovery::rearm(&target, &fingerprint, &verification),
+            ServiceAction::Rearm => recovery::rearm(&target, &fingerprint, &verification, &trust),
             ServiceAction::Migrate => recovery::remove_for_migration(
                 &target,
                 &fingerprint,
@@ -489,6 +669,7 @@ fn run_job(
                 &fingerprint,
                 &input,
                 &store.join("backups"),
+                &trust,
                 progress,
             ),
         },
@@ -512,6 +693,7 @@ impl State {
         (px * self.dpi + 48) / 96
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn control(
         &mut self,
         panel: Option<usize>,
@@ -562,19 +744,41 @@ impl State {
         self.control(tab, id, "STATIC", text, rect, SS_NOPREFIX, font)
     }
 
-    fn button(&mut self, tab: Option<usize>, id: u16, text: &str, rect: [i32; 4]) {
-        self.control(
+    fn pick(&self, (en, ru): Text) -> &'static str {
+        match self.lang {
+            Lang::En => en,
+            Lang::Ru => ru,
+        }
+    }
+
+    /// A label in the current language that follows the language switch.
+    fn label(
+        &mut self,
+        tab: Option<usize>,
+        id: u16,
+        text: Text,
+        rect: [i32; 4],
+        font: usize,
+    ) -> HWND {
+        let handle = self.styled_label(tab, id, self.pick(text), rect, font);
+        self.texts.push((handle, text));
+        handle
+    }
+
+    fn button(&mut self, tab: Option<usize>, id: u16, text: Text, rect: [i32; 4]) {
+        let handle = self.control(
             tab,
             id,
             "BUTTON",
-            text,
+            self.pick(text),
             rect,
             WS_TABSTOP | BS_OWNERDRAW as u32,
             0,
         );
+        self.texts.push((handle, text));
     }
 
-    fn edit(&mut self, tab: Option<usize>, id: u16, rect: [i32; 4], hint: &str) {
+    fn edit(&mut self, tab: Option<usize>, id: u16, rect: [i32; 4], hint: Text) {
         let hwnd = self.control(
             tab,
             id,
@@ -584,7 +788,15 @@ impl State {
             WS_TABSTOP | ES_AUTOHSCROLL as u32,
             0,
         );
-        unsafe { SendMessageW(hwnd, EM_SETCUEBANNER, 0, wide(hint).as_ptr() as LPARAM) };
+        self.cues.push((hwnd, hint));
+        unsafe {
+            SendMessageW(
+                hwnd,
+                EM_SETCUEBANNER,
+                0,
+                wide(self.pick(hint)).as_ptr() as LPARAM,
+            )
+        };
     }
 
     fn combo(&mut self, tab: Option<usize>, id: u16, rect: [i32; 4]) {
@@ -602,10 +814,10 @@ impl State {
     fn init(&mut self) {
         self.styled_label(None, SIDEBAR_TEXT, "OPEN VOYAH", [22, 89, 176, 29], 1);
         self.styled_label(None, SIDEBAR_TEXT, "CONTROLS", [22, 117, 176, 27], 1);
-        self.styled_label(
+        self.label(
             None,
             SIDEBAR_MUTED,
-            "DEVICE WORKSPACE",
+            ("DEVICE WORKSPACE", "РАБОЧЕЕ МЕСТО"),
             [23, 151, 174, 21],
             3,
         );
@@ -614,23 +826,22 @@ impl State {
                 None,
                 TABS[index],
                 label,
-                [14, 203 + index as i32 * 52, 180, 42],
+                [14, 197 + index as i32 * 50, 180, 42],
             );
         }
-        self.styled_label(
+        self.button(None, LANGUAGE, ("Русский", "English"), [14, 532, 180, 36]);
+        self.label(
             None,
             SIDEBAR_MUTED,
-            "WINDOWS INSTALLER",
+            ("WINDOWS INSTALLER", "УСТАНОВЩИК"),
             [23, 603, 174, 20],
             3,
         );
-        self.styled_label(
-            None,
-            SIDEBAR_TEXT,
-            &format!("Version {}", env!("CARGO_PKG_VERSION")),
-            [23, 626, 174, 22],
-            0,
+        let version: Text = (
+            concat!("Version ", env!("CARGO_PKG_VERSION")),
+            concat!("Версия ", env!("CARGO_PKG_VERSION")),
         );
+        self.label(None, SIDEBAR_TEXT, version, [23, 626, 174, 22], 0);
 
         self.styled_label(
             None,
@@ -643,10 +854,10 @@ impl State {
         self.styled_label(None, HERO_HINT, "", [237, 96, 726, 24], 0);
 
         self.connection = vec![
-            self.styled_label(
+            self.label(
                 None,
                 PANEL_TEXT,
-                "Device connection",
+                ("Device connection", "Подключение магнитолы"),
                 [252, 146, 402, 28],
                 1,
             ),
@@ -654,86 +865,194 @@ impl State {
                 None,
                 DEVICE_BADGE,
                 "NO UNIT SELECTED",
-                [811, 151, 147, 22],
+                [771, 151, 187, 22],
                 3,
             ),
         ];
         self.combo(None, DEVICE, [252, 179, 551, 160]);
-        self.button(None, REFRESH, "Refresh", [816, 177, 141, 34]);
+        self.button(None, REFRESH, ("Refresh", "Обновить"), [816, 177, 141, 34]);
         self.edit(
             None,
             HOST,
             [252, 224, 387, 30],
-            "Wi-Fi address, e.g. 192.168.1.20:5555",
+            (
+                "Wi-Fi address, e.g. 192.168.1.20:5555",
+                "Адрес Wi-Fi, например 192.168.1.20:5555",
+            ),
         );
-        self.button(None, CONNECT, "Connect Wi-Fi", [652, 222, 142, 34]);
-        self.button(None, DISCONNECT, "Disconnect", [807, 222, 150, 34]);
+        self.button(
+            None,
+            CONNECT,
+            ("Connect Wi-Fi", "Подключить"),
+            [652, 222, 142, 34],
+        );
+        self.button(
+            None,
+            DISCONNECT,
+            ("Disconnect", "Отключить"),
+            [807, 222, 150, 34],
+        );
         for id in [DEVICE, REFRESH, HOST, CONNECT, DISCONNECT] {
             self.connection.push(self.controls[&id]);
         }
 
-        let tab = Some(0);
-        self.styled_label(
+        let tab = Some(PAGE_INSTALL);
+        self.label(
             tab,
             PANEL_TEXT,
-            "Open Voyah Controls",
-            [252, 292, 690, 28],
+            ("Open Voyah Controls", "Open Voyah Controls"),
+            [252, 288, 690, 28],
             1,
         );
-        self.styled_label(
+        self.label(
             tab,
             PANEL_MUTED,
-            "Choose a signed release. Setup prepares startup access and keeps your app data.",
-            [253, 324, 700, 24],
+            (
+                "Choose the APK. Install runs the whole cycle, restarts the head unit by itself and checks the result.",
+                "Выберите APK — установщик сам пройдёт весь цикл с перезагрузками и проверкой.",
+            ),
+            [253, 318, 704, 24],
             0,
         );
         self.edit(
             tab,
             APK,
-            [252, 354, 551, 31],
-            "Choose an Open Voyah Controls APK",
+            [252, 347, 551, 31],
+            (
+                "Choose or drop an Open Voyah Controls APK",
+                "Выберите или перетащите APK Open Voyah Controls",
+            ),
         );
-        self.button(tab, BROWSE_APK, "Browse APK…", [816, 352, 141, 34]);
-        self.button(tab, INSTALL, "Prepare and install", [252, 398, 204, 37]);
-        self.button(tab, LAUNCH, "Open on device", [468, 398, 154, 37]);
-        self.button(tab, REMOVE, "Remove app", [634, 398, 134, 37]);
-        self.button(tab, INSTALL_APK, "APK only", [780, 398, 177, 37]);
-        // The YouTube web wrapper: its own APK and certificate pin, never part of the boot setup.
-        self.edit(
+        self.button(
             tab,
-            YOUTUBE_APK,
-            [252, 449, 380, 31],
-            "Optional YouTube app APK",
+            BROWSE_APK,
+            ("Browse APK…", "Выбрать APK…"),
+            [816, 345, 141, 34],
         );
-        self.button(tab, BROWSE_YOUTUBE, "YouTube APK…", [644, 447, 148, 34]);
-        self.button(tab, INSTALL_YOUTUBE, "Install YouTube", [804, 447, 153, 34]);
-        self.button(tab, BATCH, "Install APK folder…", [236, 510, 183, 36]);
-        self.button(tab, RUNTIME, "Install Frida injector…", [431, 510, 198, 36]);
-        self.button(tab, INFO, "Device status", [641, 510, 143, 36]);
-        self.button(tab, RECOVERY_PAGE, "Boot and recovery", [795, 510, 163, 36]);
+        self.button(tab, INSTALL, ("Install", "Установить"), [252, 388, 204, 36]);
+        self.button(
+            tab,
+            ROLLBACK,
+            ("Roll back", "Откатить"),
+            [468, 388, 154, 36],
+        );
+        self.button(
+            tab,
+            INFO,
+            ("Device status", "Состояние"),
+            [634, 388, 160, 36],
+        );
+        self.button(
+            tab,
+            LAUNCH,
+            ("Open on device", "Открыть"),
+            [806, 388, 151, 36],
+        );
+        for (index, id) in STEP_COLUMNS.into_iter().enumerate() {
+            self.styled_label(tab, id, "", [252 + 356 * index as i32, 432, 350, 118], 5);
+        }
 
-        let tab = Some(1);
-        self.styled_label(
+        let tab = Some(PAGE_APPS);
+        self.label(
             tab,
             PANEL_TEXT,
-            "Daily access codes",
+            ("Other apps", "Другие приложения"),
+            [252, 292, 400, 28],
+            1,
+        );
+        self.label(
+            tab,
+            PANEL_MUTED,
+            (
+                "Drop APK files on this window or choose them. Open Voyah Controls is never touched.",
+                "Перетащите APK в это окно или выберите их. Open Voyah Controls не затрагивается.",
+            ),
+            [253, 324, 704, 24],
+            0,
+        );
+        self.button(
+            tab,
+            APPS_CHOOSE,
+            ("Install APKs…", "Установить APK…"),
+            [252, 354, 204, 35],
+        );
+        self.button(
+            tab,
+            APPS_REFRESH,
+            ("Refresh list", "Обновить список"),
+            [468, 354, 180, 35],
+        );
+        self.control(
+            tab,
+            APPS_LIST,
+            "LISTBOX",
+            "",
+            [252, 400, 551, 148],
+            WS_TABSTOP | WS_VSCROLL | WS_BORDER | (LBS_NOTIFY | LBS_NOINTEGRALHEIGHT) as u32,
+            5,
+        );
+        self.button(tab, APPS_OPEN, ("Open", "Открыть"), [816, 400, 141, 32]);
+        self.button(
+            tab,
+            APPS_GRANT,
+            ("Permissions", "Разрешения"),
+            [816, 438, 141, 32],
+        );
+        self.button(
+            tab,
+            APPS_EXPORT,
+            ("Export APK…", "Сохранить APK…"),
+            [816, 476, 141, 32],
+        );
+        self.button(
+            tab,
+            APPS_REMOVE,
+            ("Uninstall", "Удалить"),
+            [816, 514, 141, 32],
+        );
+
+        let tab = Some(PAGE_CODES);
+        self.label(
+            tab,
+            PANEL_TEXT,
+            ("Daily access codes", "Коды доступа на день"),
             [252, 146, 480, 28],
             1,
         );
-        self.styled_label(
+        self.label(
             tab,
             PANEL_MUTED,
-            "Codes change at midnight in Beijing. Use the date shown on the head unit.",
+            (
+                "Codes change at midnight in Beijing. Use the date shown on the head unit.",
+                "Коды меняются в полночь по Пекину. Используйте дату, которая стоит на магнитоле.",
+            ),
             [252, 179, 688, 23],
             0,
         );
-        self.edit(tab, DATE, [252, 211, 156, 31], "YYYY-MM-DD");
-        self.button(tab, CODE, "Use this date", [420, 210, 133, 34]);
-        self.button(tab, BEIJING, "Use Beijing date", [565, 210, 156, 34]);
-        for (index, label) in ["Yesterday", "Today", "Tomorrow"].into_iter().enumerate() {
+        self.edit(tab, DATE, [252, 211, 156, 31], ("YYYY-MM-DD", "ГГГГ-ММ-ДД"));
+        self.button(
+            tab,
+            CODE,
+            ("Use this date", "Эта дата"),
+            [420, 210, 133, 34],
+        );
+        self.button(
+            tab,
+            BEIJING,
+            ("Use Beijing date", "Дата в Пекине"),
+            [565, 210, 156, 34],
+        );
+        for (index, label) in [
+            ("Yesterday", "Вчера"),
+            ("Today", "Сегодня"),
+            ("Tomorrow", "Завтра"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
             let left = [250, 505, 760][index];
             let style = if index == 1 { ACCENT_TEXT } else { PANEL_TEXT };
-            self.styled_label(tab, style, label, [left, 284, 200, 27], 1);
+            self.label(tab, style, label, [left, 284, 200, 27], 1);
             self.styled_label(tab, DAILY_DATE[index], "", [left, 312, 200, 20], 3);
             self.control(
                 tab,
@@ -745,21 +1064,29 @@ impl State {
                 4,
             );
         }
-        self.styled_label(
+        self.label(
             tab,
             WORKSPACE_TEXT,
-            "Earlier firmware",
+            ("Earlier firmware", "Ранние прошивки"),
             [236, 416, 482, 27],
             1,
         );
-        self.styled_label(
+        self.label(
             tab,
             WORKSPACE_MUTED,
-            "Select a code to copy it. Letters are case-sensitive.",
+            (
+                "Select a code to copy it. Letters are case-sensitive.",
+                "Нажмите на код, чтобы скопировать. Регистр букв важен.",
+            ),
             [236, 446, 554, 23],
             0,
         );
-        self.button(tab, SAVED_CODES, "Load local codes…", [792, 425, 166, 35]);
+        self.button(
+            tab,
+            SAVED_CODES,
+            ("Load local codes…", "Загрузить коды…"),
+            [792, 425, 166, 35],
+        );
         for index in 0..LEGACY_COPY.len() {
             let [left, top] = legacy_origin(index);
             self.styled_label(
@@ -780,18 +1107,24 @@ impl State {
             );
         }
 
-        let tab = Some(2);
-        self.styled_label(
+        let tab = Some(PAGE_SERVICE);
+        self.label(
             tab,
             PANEL_TEXT,
-            "Boot, recovery and service",
+            (
+                "Boot, recovery and service",
+                "Автозапуск, восстановление и сервис",
+            ),
             [252, 291, 668, 27],
             1,
         );
-        self.styled_label(
+        self.label(
             tab,
             PANEL_MUTED,
-            "Confirm the exact build. Boot and recovery require authorized ADB root.",
+            (
+                "Confirm the exact build. Boot and recovery require authorized ADB root.",
+                "Подтвердите точную сборку. Автозапуск и восстановление требуют ADB root.",
+            ),
             [252, 323, 705, 24],
             0,
         );
@@ -799,59 +1132,125 @@ impl State {
             tab,
             FINGERPRINT,
             [252, 355, 551, 31],
-            "Exact build fingerprint",
+            ("Exact build fingerprint", "Точный fingerprint сборки"),
         );
-        self.button(tab, READ_FINGERPRINT, "Read build", [816, 353, 141, 35]);
-        self.combo(tab, OEM, [252, 402, 485, 246]);
-        self.set_items(
-            OEM,
-            SERVICE_ACTIONS.iter().map(|(label, _)| *label),
-            Some(0),
+        self.button(
+            tab,
+            READ_FINGERPRINT,
+            ("Read build", "Прочитать"),
+            [816, 353, 141, 35],
         );
-        self.button(tab, RUN_OEM, "Run operation…", [750, 399, 207, 36]);
+        self.combo(tab, OEM, [252, 402, 485, 300]);
+        self.button(
+            tab,
+            RUN_OEM,
+            ("Run operation…", "Выполнить…"),
+            [750, 399, 207, 36],
+        );
         self.edit(
             tab,
             KEYBOARD,
             [252, 453, 551, 31],
-            "Signed keyboard APK or exact package name for stock restore",
+            (
+                "Signed keyboard APK or exact package name for stock restore",
+                "APK клавиатуры или точное имя пакета для возврата штатной",
+            ),
         );
-        self.button(tab, BROWSE_KEYBOARD, "Keyboard APK…", [816, 451, 141, 35]);
-        self.styled_label(
+        self.button(
+            tab,
+            BROWSE_KEYBOARD,
+            ("Keyboard APK…", "APK клавиатуры…"),
+            [816, 451, 141, 35],
+        );
+        self.label(
             tab,
             PANEL_MUTED,
-            "Keep the boot backup on this PC. Roll back Controls before removing the app.",
+            (
+                "Keep the boot backup on this PC. Roll back Controls before removing the app.",
+                "Храните копию автозапуска на этом ПК. Перед удалением приложения откатите Controls.",
+            ),
             [252, 500, 704, 23],
             0,
         );
 
-        let tab = Some(3);
-        self.styled_label(tab, PANEL_TEXT, "Official releases", [252, 291, 668, 27], 1);
-        self.control(
+        let tab = Some(PAGE_RELEASES);
+        self.label(
+            tab,
+            PANEL_TEXT,
+            ("Official releases", "Официальные релизы"),
+            [252, 291, 668, 27],
+            1,
+        );
+        let startup = self.control(
             tab,
             STARTUP,
             "BUTTON",
-            "Check on startup",
+            self.pick(("Check on startup", "Проверять при запуске")),
             [252, 328, 173, 29],
             WS_TABSTOP | BS_AUTOCHECKBOX as u32,
             0,
         );
+        self.texts
+            .push((startup, ("Check on startup", "Проверять при запуске")));
         let auto = self.demo
             || !matches!(
                 fs::read_to_string(self.storage.join("startup-updates")).as_deref(),
                 Ok("off")
             );
         unsafe { SendMessageW(self.controls[&STARTUP], BM_SETCHECK, usize::from(auto), 0) };
-        self.button(tab, CHECK, "Check for updates", [431, 324, 163, 35]);
-        self.button(tab, UPDATE, "Download and install", [605, 324, 198, 35]);
+        self.button(
+            tab,
+            CHECK,
+            ("Check for updates", "Проверить"),
+            [431, 324, 163, 35],
+        );
+        self.button(
+            tab,
+            UPDATE,
+            ("Download and install", "Скачать и обновить"),
+            [605, 324, 198, 35],
+        );
         self.combo(tab, RELEASE, [252, 376, 485, 140]);
-        self.button(tab, DOWNLOAD, "Download APK", [750, 373, 207, 36]);
-        self.styled_label(tab, WORKSPACE_TEXT, "Diagnostics", [236, 471, 680, 27], 1);
-        self.button(tab, COLLECT, "Collect logs", [236, 502, 139, 36]);
-        self.button(tab, LOGS, "Open logs folder", [387, 502, 166, 36]);
-        self.button(tab, ADB_PATH, "Select adb.exe…", [565, 502, 156, 36]);
+        self.button(
+            tab,
+            DOWNLOAD,
+            ("Download APK", "Скачать APK"),
+            [750, 373, 207, 36],
+        );
+        self.label(
+            tab,
+            WORKSPACE_TEXT,
+            ("Diagnostics", "Диагностика"),
+            [236, 471, 680, 27],
+            1,
+        );
+        self.button(
+            tab,
+            COLLECT,
+            ("Collect logs", "Собрать журналы"),
+            [236, 502, 160, 36],
+        );
+        self.button(
+            tab,
+            LOGS,
+            ("Open logs folder", "Папка журналов"),
+            [408, 502, 166, 36],
+        );
+        self.button(
+            tab,
+            ADB_PATH,
+            ("Select adb.exe…", "Выбрать adb.exe…"),
+            [586, 502, 166, 36],
+        );
 
         // Tall enough for the descender of the heading font; the status box starts right below it.
-        self.styled_label(None, PANEL_TEXT, "Activity", [252, 572, 620, 27], 1);
+        self.label(
+            None,
+            PANEL_TEXT,
+            ("Activity", "Ход работы"),
+            [252, 572, 620, 27],
+            1,
+        );
         self.control(
             None,
             STATUS,
@@ -861,20 +1260,125 @@ impl State {
             WS_TABSTOP | WS_VSCROLL | (ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY) as u32,
             5,
         );
-        self.button(None, CANCEL, "Cancel operation", [792, 603, 165, 35]);
-        self.set_items(DEVICE, ["Select a head unit"], Some(0));
-        self.set_items(RELEASE, ["Check for official APK releases"], Some(0));
+        self.button(
+            None,
+            CANCEL,
+            ("Cancel operation", "Прервать"),
+            [792, 603, 165, 35],
+        );
+        self.relabel_lists();
         self.load_legacy();
         self.set_beijing_date();
-        self.switch(0);
-        self.status("Connect a head unit and authorize Android debugging.");
+        self.render_steps();
+        self.switch(PAGE_INSTALL);
+        self.status(self.pick((
+            "Connect a head unit and authorize Android debugging.",
+            "Подключите магнитолу и разрешите отладку Android.",
+        )));
         self.enable_controls();
+    }
+
+    /// Lists and placeholders whose items depend on the language.
+    fn relabel_lists(&self) {
+        let selection = self.index(OEM).unwrap_or(0);
+        self.set_items(
+            OEM,
+            SERVICE_ACTIONS.iter().map(|(label, _)| self.pick(*label)),
+            Some(selection),
+        );
+        if self.devices.is_empty() {
+            self.set_items(
+                DEVICE,
+                [self.pick(("Select a head unit", "Выберите магнитолу"))],
+                Some(0),
+            );
+        }
+        if self.catalog.apk.is_empty() && self.catalog.youtube.is_empty() {
+            self.set_items(
+                RELEASE,
+                [self.pick((
+                    "Check for official APK releases",
+                    "Проверьте официальные релизы APK",
+                ))],
+                Some(0),
+            );
+        }
+        if self.apps.is_empty() {
+            self.set_list([self.pick((
+                "Select Refresh list to see the installed apps.",
+                "Нажмите «Обновить список», чтобы увидеть установленные приложения.",
+            ))]);
+        }
+    }
+
+    fn set_language(&mut self, lang: Lang) {
+        self.lang = lang;
+        let _ = fs::create_dir_all(&self.storage).and_then(|_| {
+            fs::write(
+                self.storage.join("language"),
+                if lang == Lang::Ru { "ru" } else { "en" },
+            )
+        });
+        for (hwnd, text) in &self.texts {
+            unsafe { SetWindowTextW(*hwnd, wide(self.pick(*text)).as_ptr()) };
+        }
+        for (hwnd, text) in &self.cues {
+            unsafe {
+                SendMessageW(
+                    *hwnd,
+                    EM_SETCUEBANNER,
+                    0,
+                    wide(self.pick(*text)).as_ptr() as LPARAM,
+                )
+            };
+        }
+        if self.failed {
+            self.set(INSTALL, self.pick(("Retry", "Повторить")));
+        }
+        self.relabel_lists();
+        self.render_steps();
+        self.show_legacy();
+        self.switch(ACTIVE_PAGE.load(Ordering::Relaxed) as usize);
+        self.enable_controls();
+    }
+
+    fn render_steps(&self) {
+        for (column, id) in STEP_COLUMNS.into_iter().enumerate() {
+            let text: Vec<String> = (column * 6..column * 6 + 6)
+                .map(|index| {
+                    let mark = match self.steps[index] {
+                        StepState::Pending => "○",
+                        StepState::Running => "▶",
+                        StepState::Done => "✓",
+                        StepState::Skipped => "–",
+                        StepState::Failed => "✕",
+                    };
+                    format!("{mark}  {}. {}", index + 1, self.pick(STEPS[index]))
+                })
+                .collect();
+            self.set(id, &text.join("\r\n"));
+        }
+    }
+
+    fn set_list<'a>(&self, items: impl IntoIterator<Item = &'a str>) {
+        unsafe {
+            let hwnd = self.controls[&APPS_LIST];
+            SendMessageW(hwnd, LB_RESETCONTENT, 0, 0);
+            for item in items {
+                SendMessageW(hwnd, LB_ADDSTRING, 0, wide(item).as_ptr() as LPARAM);
+            }
+        }
+    }
+
+    fn selected_app(&self) -> Option<&App> {
+        let index = unsafe { SendMessageW(self.controls[&APPS_LIST], LB_GETCURSEL, 0, 0) };
+        usize::try_from(index).ok().and_then(|i| self.apps.get(i))
     }
 
     fn switch(&self, index: usize) {
         ACTIVE_PAGE.store(index as u32, Ordering::Relaxed);
-        self.set(HERO_TITLE, PAGE_TITLES[index]);
-        self.set(HERO_HINT, PAGE_HINTS[index]);
+        self.set(HERO_TITLE, self.pick(PAGE_TITLES[index]));
+        self.set(HERO_HINT, self.pick(PAGE_HINTS[index]));
         unsafe {
             for (i, (tab, controls)) in TABS.iter().zip(self.panels.iter()).enumerate() {
                 InvalidateRect(self.controls[tab], null(), 0);
@@ -883,7 +1387,14 @@ impl State {
                 }
             }
             for hwnd in &self.connection {
-                ShowWindow(*hwnd, if index == 1 { SW_HIDE } else { SW_SHOW });
+                ShowWindow(
+                    *hwnd,
+                    if index == PAGE_CODES {
+                        SW_HIDE
+                    } else {
+                        SW_SHOW
+                    },
+                );
             }
             InvalidateRect(self.hwnd, null(), 0);
         }
@@ -933,7 +1444,10 @@ impl State {
             let label = entry
                 .map(|code| code.label.as_str())
                 .unwrap_or(if index == 0 {
-                    "Load an early-firmware code list"
+                    self.pick((
+                        "Load an early-firmware code list",
+                        "Загрузите список кодов ранних прошивок",
+                    ))
                 } else {
                     ""
                 });
@@ -1042,20 +1556,6 @@ impl State {
             .map(|(_, asset)| asset)
     }
 
-    /// The YouTube APK in its field, with the official release it must match when it was downloaded here.
-    fn youtube_choice(&self) -> Option<(PathBuf, Option<ReleaseApk>)> {
-        let path = PathBuf::from(self.text(YOUTUBE_APK).trim());
-        if !path.is_file() {
-            return None;
-        }
-        let expected = self
-            .youtube_release
-            .as_ref()
-            .filter(|(downloaded, _)| downloaded == &path)
-            .map(|(_, release)| release.clone());
-        Some((path, expected))
-    }
-
     fn enable(&self, id: u16, enabled: bool) {
         unsafe { EnableWindow(self.controls[&id], i32::from(enabled)) };
     }
@@ -1065,18 +1565,20 @@ impl State {
         let ready = free && self.selected().is_some_and(Device::ready);
         for id in [
             INSTALL,
-            INSTALL_APK,
-            INSTALL_YOUTUBE,
+            ROLLBACK,
             LAUNCH,
-            REMOVE,
-            BATCH,
-            RUNTIME,
             INFO,
             READ_FINGERPRINT,
             RUN_OEM,
             COLLECT,
+            APPS_CHOOSE,
+            APPS_REFRESH,
         ] {
             self.enable(id, ready);
+        }
+        let app = ready && self.selected_app().is_some();
+        for id in [APPS_OPEN, APPS_GRANT, APPS_EXPORT, APPS_REMOVE] {
+            self.enable(id, app);
         }
         for id in [
             DEVICE,
@@ -1085,9 +1587,8 @@ impl State {
             DISCONNECT,
             ADB_PATH,
             BROWSE_APK,
-            BROWSE_YOUTUBE,
             BROWSE_KEYBOARD,
-            RECOVERY_PAGE,
+            LANGUAGE,
         ] {
             self.enable(id, free);
         }
@@ -1101,9 +1602,9 @@ impl State {
         self.set(
             DEVICE_BADGE,
             if self.selected().is_some_and(Device::ready) {
-                "ADB CONNECTED"
+                self.pick(("ADB CONNECTED", "ADB ПОДКЛЮЧЁН"))
             } else {
-                "NO UNIT SELECTED"
+                self.pick(("NO UNIT SELECTED", "НЕТ МАГНИТОЛЫ"))
             },
         );
     }
@@ -1112,7 +1613,7 @@ impl State {
         if self.demo || self.cancel.is_some() {
             return;
         }
-        self.status("Working…");
+        self.status(self.pick(("Working…", "Выполняется…")));
         let cancel = Arc::new(AtomicBool::new(false));
         self.cancel = Some(Arc::clone(&cancel));
         let events = self.events.clone();
@@ -1121,9 +1622,16 @@ impl State {
         let adb = self.adb.clone();
         self.enable_controls();
         thread::spawn(move || {
-            let result = run_job(job, adb, device, &store, &cancel, |s| {
-                events.send(Event::Progress(s))
-            });
+            let steps = |index, state| events.send(Event::Step(index, state));
+            let result = run_job(
+                job,
+                adb,
+                device,
+                &store,
+                &cancel,
+                |s| events.send(Event::Progress(s)),
+                &steps,
+            );
             events.send(Event::Done(result));
         });
     }
@@ -1134,17 +1642,54 @@ impl State {
         }
         self.checking = true;
         if !automatic {
-            self.status("Checking GitHub for official releases…");
+            self.status(self.pick((
+                "Checking GitHub for official releases…",
+                "Проверяю официальные релизы на GitHub…",
+            )));
         }
         self.enable_controls();
         let events = self.events.clone();
         thread::spawn(move || events.send(Event::Catalog(releases::check(), automatic)));
     }
 
+    fn show_devices(&mut self, devices: Vec<Device>) {
+        let selected = self.selected().map(|d| d.serial.clone());
+        let preferred = preferred_device_index(&devices, selected.as_deref());
+        self.devices = devices;
+        let labels: Vec<_> = self.devices.iter().map(Device::label).collect();
+        if labels.is_empty() {
+            self.set_items(
+                DEVICE,
+                [self.pick(("No devices found", "Устройства не найдены"))],
+                Some(0),
+            );
+        } else {
+            self.set_items(DEVICE, labels.iter().map(String::as_str), preferred);
+        }
+    }
+
+    fn set_failed(&mut self, failed: bool) {
+        self.failed = failed;
+        self.set(
+            INSTALL,
+            self.pick(if failed {
+                ("Retry", "Повторить")
+            } else {
+                ("Install", "Установить")
+            }),
+        );
+    }
+
     fn process_events(&mut self) {
         while let Ok(event) = self.rx.try_recv() {
             match event {
                 Event::Progress(text) => self.status(&text),
+                Event::Step(index, state) => {
+                    if let Some(slot) = self.steps.get_mut(index) {
+                        *slot = state;
+                        self.render_steps();
+                    }
+                }
                 Event::Done(result) => {
                     let result = dispatch_completion(result, &mut self.cancel, |path, digest| {
                         stage_update(path, digest, &self.storage)
@@ -1152,43 +1697,82 @@ impl State {
                     match result {
                         Ok(Output::Status(s)) => self.status(&s),
                         Ok(Output::Devices(devices, text)) => {
-                            let selected = self.selected().map(|d| d.serial.clone());
-                            let preferred = preferred_device_index(&devices, selected.as_deref());
-                            self.devices = devices;
-                            let labels: Vec<_> = self.devices.iter().map(Device::label).collect();
+                            self.show_devices(devices);
+                            self.status(&text);
+                        }
+                        Ok(Output::Cycle(devices, text, ok)) => {
+                            self.show_devices(devices);
+                            self.set_failed(!ok);
+                            self.status(&text);
+                        }
+                        Ok(Output::Trust(facts)) => {
+                            self.status(self.pick((
+                                "The APK is not signed with the release certificate. Confirm or decline your own certificate.",
+                                "APK подписан не релизным сертификатом. Подтвердите или отклоните свой сертификат.",
+                            )));
+                            self.ask_trust(facts);
+                        }
+                        Ok(Output::Apps(list, text)) => {
+                            self.apps = list;
+                            let labels: Vec<_> = self.apps.iter().map(App::label).collect();
                             if labels.is_empty() {
-                                self.set_items(DEVICE, ["No devices found"], Some(0));
+                                self.set_list([self.pick((
+                                    "No other apps are installed.",
+                                    "Других приложений не установлено.",
+                                ))]);
                             } else {
-                                self.set_items(
-                                    DEVICE,
-                                    labels.iter().map(String::as_str),
-                                    preferred,
-                                );
+                                self.set_list(labels.iter().map(String::as_str));
                             }
                             self.status(&text);
                         }
                         Ok(Output::Fingerprint(s)) => {
                             self.set(FINGERPRINT, &s);
-                            self.status("Verify the displayed build before running maintenance.");
+                            self.status(self.pick((
+                                "Verify the displayed build before running maintenance.",
+                                "Сверьте показанную сборку перед обслуживанием.",
+                            )));
                         }
-                        Ok(Output::Apk(path, release, product)) => {
-                            let (field, slot) = match product {
-                                Product::Controls => (APK, &mut self.apk_release),
-                                Product::YouTube => (YOUTUBE_APK, &mut self.youtube_release),
-                            };
-                            *slot = Some((path.clone(), release));
-                            self.set(field, &path.to_string_lossy());
-                            self.switch(0);
-                            self.status(match product {
-                                Product::Controls => "Release download matched its SHA-256. Select Prepare and install or APK only to check its APK signer and the selected device.",
-                                Product::YouTube => "YouTube release download matched its SHA-256. Select Install YouTube, or Prepare and install to add it after Controls.",
-                            });
-                        }
+                        Ok(Output::Apk(path, release, product)) => match product {
+                            Product::Controls => {
+                                self.apk_release = Some((path.clone(), release));
+                                self.set(APK, &path.to_string_lossy());
+                                self.switch(PAGE_INSTALL);
+                                self.status(self.pick((
+                                    "The release download matched its SHA-256. Select Install.",
+                                    "Скачанный релиз совпал по SHA-256. Нажмите «Установить».",
+                                )));
+                            }
+                            Product::YouTube => {
+                                self.switch(PAGE_APPS);
+                                self.status(self.pick((
+                                    "The YouTube release matched its SHA-256 and its own certificate pin is checked during installation.",
+                                    "Релиз YouTube совпал по SHA-256; его сертификат проверяется при установке.",
+                                )));
+                                self.enable_controls();
+                                if self.selected().is_some_and(Device::ready)
+                                    && confirm(
+                                        self.hwnd,
+                                        self.pick((
+                                            "Install the downloaded YouTube app on the selected head unit now? Open Voyah Controls is not touched.",
+                                            "Установить скачанное приложение YouTube на выбранную магнитолу? Open Voyah Controls не затрагивается.",
+                                        )),
+                                    )
+                                {
+                                    self.start(Job::InstallYouTube {
+                                        path,
+                                        expected: Some(release),
+                                    });
+                                }
+                            }
+                        },
                         Ok(Output::Update(_, _)) => {
                             unsafe { DestroyWindow(self.hwnd) };
                             return;
                         }
-                        Err(e) => self.status(&format!("Operation stopped. {e}")),
+                        Err(e) => self.status(&format!(
+                            "{} {e}",
+                            self.pick(("Operation stopped.", "Операция остановлена."))
+                        )),
                     }
                     if self.closing {
                         unsafe { DestroyWindow(self.hwnd) };
@@ -1203,7 +1787,10 @@ impl State {
                             if self.catalog.apk.is_empty() && self.catalog.youtube.is_empty() {
                                 self.set_items(
                                     RELEASE,
-                                    ["No official APK releases are available"],
+                                    [self.pick((
+                                        "No official APK releases are available",
+                                        "Официальных релизов APK пока нет",
+                                    ))],
                                     Some(0),
                                 );
                             } else {
@@ -1231,6 +1818,122 @@ impl State {
         }
     }
 
+    /// Shows the APK's certificate and asks whether to trust it as the owner's own. A Yes is stored on this PC and the
+    /// installation starts again with the same inputs.
+    fn ask_trust(&mut self, facts: ApkFacts) {
+        let Some((path, expected, runtime)) = self.pending.clone() else {
+            return;
+        };
+        let grouped: Vec<String> = facts
+            .signer
+            .to_ascii_uppercase()
+            .as_bytes()
+            .chunks(4)
+            .map(|chunk| String::from_utf8_lossy(chunk).into_owned())
+            .collect();
+        let certificate = format!("{}\n{}", grouped[..8].join(" "), grouped[8..].join(" "));
+        let kind = if facts.debuggable {
+            self.pick(("debuggable build", "отладочная сборка"))
+        } else {
+            self.pick(("non-debuggable build", "неотладочная сборка"))
+        };
+        let question = match self.lang {
+            Lang::En => format!(
+                "The selected APK is not signed with the official release certificate.\n\nPackage: {}\nVersion: {} (code {}, {kind})\nCertificate SHA-256:\n{certificate}\n\nTrust this certificate as your own on this PC? Use Yes only for a build you made yourself, for example a local-vehicle build. It is then installed and labelled as an owner build.",
+                facts.package, facts.version, facts.code
+            ),
+            Lang::Ru => format!(
+                "Выбранный APK подписан не официальным релизным сертификатом.\n\nПакет: {}\nВерсия: {} (код {}, {kind})\nSHA-256 сертификата:\n{certificate}\n\nДоверять этому сертификату как своему на этом ПК? Отвечайте «Да» только для сборки, которую вы сделали сами, например local-vehicle. Она будет установлена и помечена как сборка владельца.",
+                facts.package, facts.version, facts.code
+            ),
+        };
+        if !confirm(self.hwnd, &question) {
+            self.status(self.pick((
+                "Installation canceled: the certificate was not trusted. Nothing was changed.",
+                "Установка отменена: сертификату не доверили. Ничего не изменено.",
+            )));
+            return;
+        }
+        if let Err(error) = Trust::remember(&self.storage, &facts.signer) {
+            self.status(&error);
+            return;
+        }
+        self.start(Job::Turnkey {
+            path,
+            expected,
+            runtime,
+            lang: self.lang,
+        });
+    }
+
+    /// Files dropped on the window: one APK on the Installation page fills the Controls field; anything else goes to
+    /// Other apps.
+    fn dropped(&mut self, files: Vec<PathBuf>) -> Result<()> {
+        let files: Vec<_> = files
+            .into_iter()
+            .filter(|path| {
+                path.is_file()
+                    && path
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("apk"))
+            })
+            .collect();
+        if files.is_empty() {
+            return Err(self
+                .pick(("Drop .apk files.", "Перетащите файлы .apk."))
+                .into());
+        }
+        if files.len() == 1 && ACTIVE_PAGE.load(Ordering::Relaxed) as usize == PAGE_INSTALL {
+            self.apk_release = None;
+            self.set(APK, &files[0].to_string_lossy());
+            self.status(self.pick((
+                "APK selected. Select Install.",
+                "APK выбран. Нажмите «Установить».",
+            )));
+            return Ok(());
+        }
+        self.switch(PAGE_APPS);
+        self.install_apps(files)
+    }
+
+    fn install_apps(&mut self, files: Vec<PathBuf>) -> Result<()> {
+        let device = self
+            .selected()
+            .filter(|device| device.ready())
+            .ok_or(self.pick((
+                "Select a connected head unit first.",
+                "Сначала выберите подключённую магнитолу.",
+            )))?
+            .serial
+            .clone();
+        let names: Vec<_> = files
+            .iter()
+            .take(12)
+            .map(|path| {
+                path.file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default()
+            })
+            .collect();
+        let more = if files.len() > 12 { "\n…" } else { "" };
+        let question = match self.lang {
+            Lang::En => format!(
+                "Install or update {} app(s) on {device}?\n\n{}{more}\n\nUpdates keep app data. Open Voyah Controls and its startup activation are not touched.",
+                files.len(),
+                names.join("\n")
+            ),
+            Lang::Ru => format!(
+                "Установить или обновить приложения ({}) на {device}?\n\n{}{more}\n\nПри обновлении данные сохраняются. Open Voyah Controls и его автозапуск не затрагиваются.",
+                files.len(),
+                names.join("\n")
+            ),
+        };
+        if confirm(self.hwnd, &question) {
+            self.start(Job::Apps(AppsJob::Install(files)));
+        }
+        Ok(())
+    }
+
     fn action(&mut self, id: u16) {
         let result = self.dispatch(id);
         if let Err(e) = result {
@@ -1240,21 +1943,31 @@ impl State {
 
     fn dispatch(&mut self, id: u16) -> Result<()> {
         if let Some(tab) = TABS.iter().position(|candidate| *candidate == id) {
-            if tab == 1 {
+            if tab == PAGE_CODES {
                 self.set_beijing_date();
                 if self.cancel.is_none() {
-                    self.status("Select a code to copy it. This tool works offline.");
+                    self.status(self.pick((
+                        "Select a code to copy it. This tool works offline.",
+                        "Нажмите на код, чтобы скопировать. Работает без сети.",
+                    )));
                 }
             }
             self.switch(tab);
+            if tab == PAGE_APPS
+                && self.apps.is_empty()
+                && self.cancel.is_none()
+                && self.selected().is_some_and(Device::ready)
+            {
+                self.start(Job::Apps(AppsJob::List));
+            }
             return Ok(());
         }
-        if self.demo && !matches!(id, CODE | BEIJING) {
+        if self.demo && !matches!(id, CODE | BEIJING | LANGUAGE) {
             return Ok(());
         }
         if let Some(index) = DAILY_COPY.iter().position(|candidate| *candidate == id) {
             copy_to_clipboard(self.hwnd, &self.daily[index])?;
-            self.status("Engineering code copied.");
+            self.status(self.pick(("Engineering code copied.", "Инженерный код скопирован.")));
             return Ok(());
         }
         if let Some(index) = LEGACY_COPY.iter().position(|candidate| *candidate == id) {
@@ -1263,10 +1976,29 @@ impl State {
                 .get(index)
                 .ok_or("Load a local code list first.")?;
             copy_to_clipboard(self.hwnd, &code.code)?;
-            self.status("Engineering code copied.");
+            self.status(self.pick(("Engineering code copied.", "Инженерный код скопирован.")));
             return Ok(());
         }
+        let app = || -> Result<String> {
+            self.selected_app()
+                .map(|app| app.package.clone())
+                .ok_or_else(|| {
+                    self.pick((
+                        "Select an app in the list.",
+                        "Выберите приложение в списке.",
+                    ))
+                    .into()
+                })
+        };
         match id {
+            LANGUAGE => {
+                let next = if self.lang == Lang::Ru {
+                    Lang::En
+                } else {
+                    Lang::Ru
+                };
+                self.set_language(next);
+            }
             REFRESH => self.start(Job::Refresh),
             CONNECT | DISCONNECT => {
                 let mut address = self.text(HOST);
@@ -1282,107 +2014,134 @@ impl State {
                     address: adb::endpoint(&address)?,
                 });
             }
-            BROWSE_APK | BROWSE_YOUTUBE | BROWSE_KEYBOARD => {
+            BROWSE_APK | BROWSE_KEYBOARD => {
                 if let Some(path) = choose_file(self.hwnd, "Android packages\0*.apk\0\0") {
-                    let release = match id {
-                        BROWSE_APK => Some(&mut self.apk_release),
-                        BROWSE_YOUTUBE => Some(&mut self.youtube_release),
-                        _ => None,
-                    };
-                    if let Some(release) = release
-                        && release
+                    if id == BROWSE_APK
+                        && self
+                            .apk_release
                             .as_ref()
                             .is_some_and(|(downloaded, _)| downloaded != &path)
                     {
-                        *release = None;
+                        self.apk_release = None;
                     }
                     self.set(
-                        match id {
-                            BROWSE_APK => APK,
-                            BROWSE_YOUTUBE => YOUTUBE_APK,
-                            _ => KEYBOARD,
-                        },
+                        if id == BROWSE_APK { APK } else { KEYBOARD },
                         &path.to_string_lossy(),
                     );
                 }
             }
-            INSTALL_YOUTUBE => {
-                let (path, expected) = self
-                    .youtube_choice()
-                    .ok_or("Choose a YouTube app APK first.")?;
-                self.start(Job::InstallYouTube { path, expected });
-            }
-            INSTALL | INSTALL_APK => {
+            INSTALL => {
                 let path = PathBuf::from(self.text(APK).trim());
                 if !path.is_file() {
-                    return Err("Choose an APK file first.".into());
+                    return Err(self
+                        .pick((
+                            "Choose the Open Voyah Controls APK first.",
+                            "Сначала выберите APK Open Voyah Controls.",
+                        ))
+                        .into());
                 }
                 let expected = self
                     .apk_release
                     .as_ref()
                     .filter(|(downloaded, _)| downloaded == &path)
                     .map(|(_, release)| release.clone());
-                if id == INSTALL_APK {
-                    self.start(Job::Install { path, expected });
-                } else {
-                    let youtube = if self.text(YOUTUBE_APK).trim().is_empty() {
-                        None
-                    } else {
-                        Some(self.youtube_choice().ok_or(
-                            "The YouTube app APK was not found. Choose it again or clear its field.",
-                        )?)
-                    };
-                    let runtime = setup::portable_runtime().or_else(|| choose_file(self.hwnd,
-                        "Verified ARM64 Frida injector\0open-voyah-controls-frida-*\0All files\0*.*\0\0"));
-                    let question = format!(
-                        "Prepare and install Controls on the selected head unit? Setup requests ADB root, saves the original startup script on this PC, enables local startup access, microphone and button service. The head unit may restart once while preparing its system partition.{}",
-                        if youtube.is_some() {
-                            "\n\nThe selected YouTube app is installed afterwards as a separate step."
-                        } else {
-                            ""
-                        }
-                    );
-                    if let Some(runtime) = runtime
-                        && confirm(self.hwnd, &question)
-                    {
-                        self.start(Job::Prepare {
-                            path,
-                            expected,
-                            runtime,
-                            youtube,
-                        });
-                    }
+                let Some(runtime) = setup::portable_runtime().or_else(|| {
+                    choose_file(
+                        self.hwnd,
+                        "Verified ARM64 Frida injector\0open-voyah-controls-frida-*\0All files\0*.*\0\0",
+                    )
+                }) else {
+                    return Err(self.pick((
+                        "The Frida injector is missing. Keep the support folder next to the installer.",
+                        "Не найден инжектор Frida. Держите папку support рядом с установщиком.",
+                    ))
+                    .into());
+                };
+                let serial = self
+                    .selected()
+                    .map(|d| d.serial.clone())
+                    .unwrap_or_default();
+                let question = match self.lang {
+                    Lang::En => format!(
+                        "Install Open Voyah Controls on {serial}?\n\nThe installer requests ADB root, saves the original startup script on this PC, installs the app, the Frida injector, the private root channel and the startup entry, runs the first-run check and confirms that everything starts by itself.\n\nThe head unit restarts automatically twice when an earlier installation is updated, once on a fresh unit, and a first setup may need one more restart to prepare its system partition. Keep the vehicle parked with stable power and the cable connected until the installer says Done."
+                    ),
+                    Lang::Ru => format!(
+                        "Установить Open Voyah Controls на {serial}?\n\nУстановщик запросит ADB root, сохранит исходный скрипт автозапуска на этом ПК, установит приложение, инжектор Frida, закрытый root-канал и запись автозапуска, запустит первичную проверку и убедится, что всё запускается само.\n\nМагнитола перезагрузится автоматически: дважды при обновлении прежней установки, один раз на чистой магнитоле; при первой настройке может понадобиться ещё одна перезагрузка для подготовки системного раздела. Машина должна стоять с устойчивым питанием, кабель не отключайте, пока установщик не напишет «Готово»."
+                    ),
+                };
+                if confirm(self.hwnd, &question) {
+                    self.pending = Some((path.clone(), expected.clone(), runtime.clone()));
+                    self.steps = [StepState::Pending; 12];
+                    self.render_steps();
+                    self.start(Job::Turnkey {
+                        path,
+                        expected,
+                        runtime,
+                        lang: self.lang,
+                    });
+                }
+            }
+            ROLLBACK => {
+                let serial = self
+                    .selected()
+                    .map(|d| d.serial.clone())
+                    .unwrap_or_default();
+                let question = match self.lang {
+                    Lang::En => format!(
+                        "Roll back Open Voyah Controls on {serial}?\n\nIt stops Controls and restores the original startup script. The head unit may restart once by itself. The app and its settings stay; Install sets it up again."
+                    ),
+                    Lang::Ru => format!(
+                        "Откатить Open Voyah Controls на {serial}?\n\nControls будет остановлен, исходный скрипт автозапуска восстановлен. Магнитола может сама перезагрузиться один раз. Приложение и его настройки останутся; «Установить» настроит его снова."
+                    ),
+                };
+                if confirm(self.hwnd, &question) {
+                    self.start(Job::RollBack(self.lang));
                 }
             }
             LAUNCH => self.start(Job::Launch),
-            REMOVE => {
-                if confirm(
-                    self.hwnd,
-                    "Remove Open Voyah Controls after checking boot and Frida state? Android will keep the app data.",
-                ) {
-                    self.start(Job::Remove);
-                }
-            }
-            BATCH => {
-                if let Some(folder) = choose_folder(self.hwnd)
-                    && confirm(
-                        self.hwnd,
-                        &format!(
-                            "Install all standalone APKs in {} through ADB? Manage their permissions in Android app settings. Existing data is retained for updates.",
-                            folder.display()
-                        ),
-                    )
-                {
-                    self.start(Job::Batch(folder));
-                }
-            }
-            RUNTIME => {
-                if let Some(path) = choose_file(self.hwnd, "All files\0*.*\0\0") {
-                    self.start(Job::Runtime(path));
-                }
-            }
             INFO => self.start(Job::Info),
-            RECOVERY_PAGE => self.switch(2),
+            APPS_CHOOSE => {
+                let files = choose_files(self.hwnd, "Android packages\0*.apk\0\0");
+                if !files.is_empty() {
+                    self.install_apps(files)?;
+                }
+            }
+            APPS_REFRESH => self.start(Job::Apps(AppsJob::List)),
+            APPS_OPEN => self.start(Job::Apps(AppsJob::Open(app()?))),
+            APPS_GRANT => {
+                let package = app()?;
+                let question = match self.lang {
+                    Lang::En => format!(
+                        "Grant every runtime permission {package} requests (microphone, location, storage and so on)?"
+                    ),
+                    Lang::Ru => format!(
+                        "Выдать {package} все запрашиваемые разрешения (микрофон, местоположение, хранилище и т. д.)?"
+                    ),
+                };
+                if confirm(self.hwnd, &question) {
+                    self.start(Job::Apps(AppsJob::Grant(package)));
+                }
+            }
+            APPS_EXPORT => {
+                let package = app()?;
+                if let Some(folder) = choose_folder(self.hwnd) {
+                    self.start(Job::Apps(AppsJob::Export(package, folder)));
+                }
+            }
+            APPS_REMOVE => {
+                let package = app()?;
+                let question = match self.lang {
+                    Lang::En => {
+                        format!("Uninstall {package} from the head unit? Its data is removed too.")
+                    }
+                    Lang::Ru => {
+                        format!("Удалить {package} с магнитолы? Его данные тоже будут удалены.")
+                    }
+                };
+                if confirm(self.hwnd, &question) {
+                    self.start(Job::Apps(AppsJob::Uninstall(package)));
+                }
+            }
             READ_FINGERPRINT => self.start(Job::Fingerprint),
             RUN_OEM => {
                 let index = self.index(OEM).ok_or("Select a maintenance operation.")?;
@@ -1390,6 +2149,48 @@ impl State {
                 let (label, action) = *SERVICE_ACTIONS
                     .get(index)
                     .ok_or("Select a service operation.")?;
+                let label = self.pick(label);
+                match action {
+                    ServiceAction::ApkOnly => {
+                        let path = PathBuf::from(self.text(APK).trim());
+                        if !path.is_file() {
+                            return Err(
+                                "Choose the Controls APK on the Installation page first.".into()
+                            );
+                        }
+                        let expected = self
+                            .apk_release
+                            .as_ref()
+                            .filter(|(downloaded, _)| downloaded == &path)
+                            .map(|(_, release)| release.clone());
+                        if confirm(
+                            self.hwnd,
+                            &format!(
+                                "{label} on {}?\n\nOnly the APK is installed, without the root channel or startup entry. An installed Controls must be rolled back first.",
+                                device.serial
+                            ),
+                        ) {
+                            self.start(Job::Install { path, expected });
+                        }
+                        return Ok(());
+                    }
+                    ServiceAction::Runtime => {
+                        if let Some(path) = choose_file(self.hwnd, "All files\0*.*\0\0") {
+                            self.start(Job::Runtime(path));
+                        }
+                        return Ok(());
+                    }
+                    ServiceAction::RemoveApp => {
+                        if confirm(
+                            self.hwnd,
+                            "Remove Open Voyah Controls after checking boot and Frida state? Android will keep the app data.",
+                        ) {
+                            self.start(Job::Remove);
+                        }
+                        return Ok(());
+                    }
+                    _ => {}
+                }
                 let fingerprint = self.text(FINGERPRINT).trim().to_owned();
                 if fingerprint.is_empty() {
                     return Err(
@@ -1397,6 +2198,9 @@ impl State {
                     );
                 }
                 let note = match action {
+                    ServiceAction::ApkOnly | ServiceAction::Runtime | ServiceAction::RemoveApp => {
+                        ""
+                    }
                     ServiceAction::Verify => "",
                     ServiceAction::BackupBoot => {
                         "Save and verify a copy of the original boot script on this PC."
@@ -1558,9 +2362,10 @@ impl State {
             CANCEL => {
                 if let Some(cancel) = &self.cancel {
                     cancel.store(true, Ordering::Relaxed);
-                    self.status(
+                    self.status(self.pick((
                         "Stopping the operation. Check the head unit before retrying a write.",
-                    );
+                        "Останавливаю операцию. Проверьте магнитолу, прежде чем повторять запись.",
+                    )));
                 }
             }
             _ => {}
@@ -1671,6 +2476,54 @@ fn choose_file(owner: HWND, filter: &str) -> Option<PathBuf> {
     Some(std::ffi::OsString::from_wide(&path[..length]).into())
 }
 
+/// Several files from one folder. The dialog returns the folder and then each name, or one full path.
+fn choose_files(owner: HWND, filter: &str) -> Vec<PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+    let mut buffer = vec![0u16; 65536];
+    let filter = wide(filter);
+    let mut data: OPENFILENAMEW = unsafe { zeroed() };
+    data.lStructSize = size_of::<OPENFILENAMEW>() as u32;
+    data.hwndOwner = owner;
+    data.lpstrFilter = filter.as_ptr();
+    data.lpstrFile = buffer.as_mut_ptr();
+    data.nMaxFile = buffer.len() as u32;
+    data.Flags = OFN_FILEMUSTEXIST
+        | OFN_PATHMUSTEXIST
+        | OFN_NOCHANGEDIR
+        | OFN_DONTADDTORECENT
+        | OFN_ALLOWMULTISELECT
+        | OFN_EXPLORER;
+    if unsafe { GetOpenFileNameW(&mut data) } == 0 {
+        return Vec::new();
+    }
+    let parts: Vec<PathBuf> = buffer
+        .split(|c| *c == 0)
+        .take_while(|part| !part.is_empty())
+        .map(|part| std::ffi::OsString::from_wide(part).into())
+        .collect();
+    match parts.as_slice() {
+        [] => Vec::new(),
+        [single] => vec![single.clone()],
+        [folder, names @ ..] => names.iter().map(|name| folder.join(name)).collect(),
+    }
+}
+
+fn dropped_files(drop: HDROP) -> Vec<PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+    let mut files = Vec::new();
+    unsafe {
+        let count = DragQueryFileW(drop, u32::MAX, null_mut(), 0);
+        for index in 0..count.min(64) {
+            let length = DragQueryFileW(drop, index, null_mut(), 0) as usize;
+            let mut name = vec![0u16; length + 1];
+            let copied = DragQueryFileW(drop, index, name.as_mut_ptr(), name.len() as u32) as usize;
+            files.push(std::ffi::OsString::from_wide(&name[..copied]).into());
+        }
+        DragFinish(drop);
+    }
+    files
+}
+
 fn choose_folder(owner: HWND) -> Option<PathBuf> {
     use std::os::windows::ffi::OsStringExt;
     let mut name = [0u16; 260];
@@ -1779,9 +2632,11 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM
         }
         let id = w as u16;
         let code = (w >> 16) as u16;
-        let button = msg == WM_COMMAND && code == 0;
-        let device_change = msg == WM_COMMAND && id == DEVICE && code == CBN_SELCHANGE as u16;
-        if button || device_change || matches!(msg, WAKE | WM_CLOSE | WM_TIMER) {
+        let button = msg == WM_COMMAND && code == 0 && id != APPS_LIST;
+        let device_change = msg == WM_COMMAND
+            && ((id == DEVICE && code == CBN_SELCHANGE as u16)
+                || (id == APPS_LIST && code == LBN_SELCHANGE as u16));
+        if button || device_change || matches!(msg, WAKE | WM_CLOSE | WM_TIMER | WM_DROPFILES) {
             let slot = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const WindowSlot;
             if let Some(slot) = slot.as_ref() {
                 let Ok(mut state) = slot.state.try_borrow_mut() else {
@@ -1790,7 +2645,15 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM
                     }
                     return 0;
                 };
-                if button {
+                if msg == WM_DROPFILES {
+                    let files = dropped_files(w as HDROP);
+                    if state.cancel.is_none()
+                        && !state.demo
+                        && let Err(error) = state.dropped(files)
+                    {
+                        state.status(&error);
+                    }
+                } else if button {
                     state.action(id);
                 } else if device_change {
                     state.enable_controls();
@@ -1849,8 +2712,8 @@ unsafe fn paint_header(hwnd: HWND, dc: HDC) {
             GetStockObject(DC_BRUSH) as HBRUSH,
         );
         let card = |bounds, tint, edge| rounded(dc, rect(bounds), tint, edge, scale(18));
-        match ACTIVE_PAGE.load(Ordering::Relaxed) {
-            1 => {
+        match ACTIVE_PAGE.load(Ordering::Relaxed) as usize {
+            PAGE_CODES => {
                 card([234, 131, 975, 258], WHITE, LINE);
                 card([234, 272, 464, 398], WHITE, LINE);
                 card([489, 272, 719, 398], ACCENT_SOFT, ACCENT_SOFT_EDGE);
@@ -1859,9 +2722,9 @@ unsafe fn paint_header(hwnd: HWND, dc: HDC) {
             page => {
                 card([234, 131, 975, 269], WHITE, LINE);
                 let bottom = match page {
-                    2 => 544,
-                    3 => 435,
-                    _ => 496,
+                    PAGE_INSTALL | PAGE_APPS => 554,
+                    PAGE_SERVICE => 544,
+                    _ => 435,
                 };
                 card([234, 279, 975, bottom], WHITE, LINE);
             }
@@ -1897,13 +2760,12 @@ unsafe fn paint_button(item: &DRAWITEMSTRUCT) {
         let active = tab.is_some_and(|index| index as u32 == ACTIVE_PAGE.load(Ordering::Relaxed));
         let disabled = item.itemState & ODS_DISABLED != 0;
         let pressed = item.itemState & ODS_SELECTED != 0;
-        let main = matches!(id, INSTALL | RUN_OEM | UPDATE | CONNECT) || id == DAILY_COPY[1];
-        let danger = id == REMOVE || id == CANCEL;
-        let on_workspace = matches!(
-            id,
-            BATCH | RUNTIME | INFO | COLLECT | LOGS | ADB_PATH | SAVED_CODES
-        ) || LEGACY_COPY.contains(&id);
-        let background = if tab.is_some() {
+        let main =
+            matches!(id, INSTALL | RUN_OEM | UPDATE | CONNECT | APPS_CHOOSE) || id == DAILY_COPY[1];
+        let danger = id == APPS_REMOVE || id == CANCEL;
+        let on_workspace =
+            matches!(id, COLLECT | LOGS | ADB_PATH | SAVED_CODES) || LEGACY_COPY.contains(&id);
+        let background = if tab.is_some() || id == LANGUAGE {
             SIDEBAR
         } else if on_workspace {
             BG
@@ -1920,6 +2782,8 @@ unsafe fn paint_button(item: &DRAWITEMSTRUCT) {
         } else if tab.is_some() {
             let tint = if pressed { NAV_BASE } else { SIDEBAR };
             (tint, tint, NAV_TEXT)
+        } else if id == LANGUAGE {
+            (if pressed { SIDEBAR } else { NAV_BASE }, NAV_BASE, NAV_TEXT)
         } else {
             (
                 if pressed { ACCENT_SOFT } else { WHITE },
@@ -1979,7 +2843,7 @@ impl State {
         probe.phase += 1;
         unsafe {
             match probe.phase {
-                3 => self.switch(2),
+                3 => self.switch(PAGE_SERVICE),
                 6 => {
                     ShowWindow(self.hwnd, SW_HIDE);
                 }
@@ -2113,6 +2977,13 @@ pub fn run() {
             )
         };
         let store = storage();
+        let store_for_language = store.clone();
+        let capture_language = capture
+            .as_ref()
+            .and_then(|_| args.get(4))
+            .and_then(|a| a.to_str())
+            .map(|a| if a == "ru" { Lang::Ru } else { Lang::En })
+            .or(capture.as_ref().map(|_| Lang::En));
         let adb = if demo {
             None
         } else {
@@ -2145,7 +3016,13 @@ pub fn run() {
             storage: store,
             catalog: Catalog::default(),
             apk_release: None,
-            youtube_release: None,
+            lang: initial_language(&store_for_language, capture_language),
+            texts: Vec::new(),
+            cues: Vec::new(),
+            steps: [StepState::Pending; 12],
+            failed: false,
+            apps: Vec::new(),
+            pending: None,
             events: Events {
                 hwnd: hwnd as usize,
                 tx,
@@ -2164,9 +3041,9 @@ pub fn run() {
                 .and_then(|a| a.to_str())
                 .and_then(|a| a.parse::<usize>().ok())
                 .unwrap_or(0)
-                .min(3);
+                .min(PAGE_RELEASES);
             state.switch(tab);
-            if matches!(tab, 0 | 2) {
+            if matches!(tab, PAGE_INSTALL | PAGE_APPS | PAGE_SERVICE) {
                 let sample = Device {
                     serial: "DEMO-USB".into(),
                     model: "Sample head unit".into(),
@@ -2175,24 +3052,50 @@ pub fn run() {
                 };
                 state.set_items(DEVICE, [sample.label().as_str()], Some(0));
                 state.devices.push(sample);
-                if tab == 0 {
-                    state.set(APK, "OpenVoyahControls-v0.17.0.apk");
-                    state.set(YOUTUBE_APK, "ovcYouTube-v0.1.0.apk");
-                    state.status("Preview device and signed release selected.");
+                if tab == PAGE_INSTALL {
+                    state.set(APK, "OpenVoyahControls-v0.21.0.apk");
+                    for index in 0..5 {
+                        state.steps[index] = StepState::Done;
+                    }
+                    state.steps[4] = StepState::Skipped;
+                    state.steps[5] = StepState::Running;
+                    state.render_steps();
+                    state.status(state.pick((
+                        "Installing Controls 0.21.0…",
+                        "Устанавливаю Controls 0.21.0…",
+                    )));
+                } else if tab == PAGE_APPS {
+                    state.apps = vec![
+                        App {
+                            package: "org.openvoyah.youtube".into(),
+                            version: "0.2.0".into(),
+                        },
+                        App {
+                            package: "com.example.navigator".into(),
+                            version: "24.6.1".into(),
+                        },
+                        App {
+                            package: "com.example.radio".into(),
+                            version: "3.4".into(),
+                        },
+                    ];
+                    let labels: Vec<_> = state.apps.iter().map(App::label).collect();
+                    state.set_list(labels.iter().map(String::as_str));
+                    SendMessageW(state.controls[&APPS_LIST], LB_SETCURSEL, 0, 0);
+                    state.status(state.pick((
+                        "Installed 1 app(s): org.openvoyah.youtube 0.2.0. Open Voyah Controls activation checked: unchanged.",
+                        "Установлено приложений: 1 (org.openvoyah.youtube 0.2.0). Активация Open Voyah Controls проверена: не изменилась.",
+                    )));
                 } else {
                     state.set(
                         FINGERPRINT,
                         "sample/device/demo:11/preview/1:user/release-keys",
                     );
-                    state.set_items(
-                        OEM,
-                        SERVICE_ACTIONS.iter().map(|(label, _)| *label),
-                        Some(3),
-                    );
+                    SendMessageW(state.controls[&OEM], CB_SETCURSEL, 6, 0);
                     state.status("Preview recovery on a sample head unit.");
                 }
                 state.enable_controls();
-            } else if tab == 1 {
+            } else if tab == PAGE_CODES {
                 for id in DAILY_COPY {
                     state.set(id, "•••••");
                 }
@@ -2236,6 +3139,7 @@ pub fn run() {
             );
             SetTimer(hwnd, 1, 2000, None);
         } else {
+            DragAcceptFiles(hwnd, 1);
             ShowWindow(hwnd, SW_SHOWNORMAL);
             if state.adb.is_some() {
                 state.start(Job::Refresh);
@@ -2260,6 +3164,26 @@ pub fn run() {
             DeleteObject(font);
         }
         CoUninitialize();
+    }
+}
+
+/// The saved choice, or Russian when Windows itself is in Russian.
+fn initial_language(store: &Path, forced: Option<Lang>) -> Lang {
+    if let Some(lang) = forced {
+        return lang;
+    }
+    match fs::read_to_string(store.join("language"))
+        .as_deref()
+        .map(str::trim)
+    {
+        Ok("ru") => Lang::Ru,
+        Ok("en") => Lang::En,
+        _ if unsafe { windows_sys::Win32::Globalization::GetUserDefaultUILanguage() } & 0x3ff
+            == 0x19 =>
+        {
+            Lang::Ru
+        }
+        _ => Lang::En,
     }
 }
 
@@ -2580,28 +3504,29 @@ mod tests {
                 &root,
                 &stop,
                 |_| {},
+                &|_, _| {},
             )
             .is_err()
         );
         let completed = run_job(
-            Job::Prepare {
+            Job::Turnkey {
                 path: root.join("unused.apk"),
                 expected: None,
                 runtime: root.join("missing-runtime"),
-                youtube: None,
+                lang: Lang::En,
             },
             Some(adb.clone()),
             Some(selected.clone()),
             &root,
             &stop,
             |_| {},
+            &|_, _| {},
         );
-        let Ok(Output::Devices(devices, status)) = completed else {
+        let Ok(Output::Cycle(devices, _, false)) = completed else {
             panic!(
                 "Setup completion must replace the UI's stale device transports, including on failure"
             );
         };
-        assert!(status.starts_with("Operation stopped."));
         let selected = devices
             .get(preferred_device_index(&devices, Some(&selected.serial)).unwrap())
             .unwrap()
@@ -2625,6 +3550,7 @@ mod tests {
                     &root,
                     &stop,
                     |_| {},
+                    &|_, _| {},
                 )
                 .is_ok()
             );
@@ -2637,8 +3563,8 @@ mod tests {
         let stop = AtomicBool::new(false);
         let selected = adb.devices(&stop).unwrap().remove(0);
         fs::write(platform.join("transport"), "9").unwrap();
-        let Output::Devices(devices, status) =
-            setup_completion(&adb, Ok("Setup verified by Android.".into()))
+        let Output::Cycle(devices, status, true) =
+            cycle_completion(&adb, Ok("Setup verified by Android.".into()))
         else {
             panic!("Successful setup must refresh its connection");
         };
@@ -2648,19 +3574,20 @@ mod tests {
         fs::write(root.join("runtime"), b"fixture runtime").unwrap();
         stop.store(true, Ordering::Relaxed);
         let result = run_job(
-            Job::Prepare {
+            Job::Turnkey {
                 path: root.join("unused.apk"),
                 expected: None,
                 runtime: root.join("runtime"),
-                youtube: None,
+                lang: Lang::En,
             },
             Some(adb.clone()),
             Some(selected),
             &root,
             &stop,
             |_| {},
+            &|_, _| {},
         );
-        let Ok(Output::Devices(devices, status)) = result else {
+        let Ok(Output::Cycle(devices, status, false)) = result else {
             panic!("Canceled setup must still discard the old transport");
         };
         assert!(status.contains("Canceled"));
@@ -2668,8 +3595,8 @@ mod tests {
         assert!(stop.load(Ordering::Relaxed));
 
         fs::write(platform.join("devices-unavailable"), b"yes").unwrap();
-        let Output::Devices(devices, status) =
-            setup_completion(&adb, Err("Canceled after requesting root.".into()))
+        let Output::Cycle(devices, status, false) =
+            cycle_completion(&adb, Err("Canceled after requesting root.".into()))
         else {
             panic!("A failed refresh must clear the old connection list");
         };
@@ -2791,6 +3718,7 @@ mod tests {
                 &root,
                 &stop,
                 |_| {},
+                &|_, _| {},
             )
         };
         let youtube = |name: &str, expected: Option<ReleaseApk>| Job::InstallYouTube {
@@ -2907,6 +3835,7 @@ mod tests {
                 &root,
                 &stop,
                 |_| {},
+                &|_, _| {},
             )
         };
         let install = |name: &str| Job::Install {
@@ -3024,5 +3953,137 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(perform(Job::Launch, 0), Err(e) if e.contains("transport changed")));
+    }
+
+    #[test]
+    fn an_unknown_owner_certificate_is_shown_before_anything_changes_and_trusted_builds_install() {
+        let (root, platform, executable) = mock_sdk();
+        for library in ["AdbWinApi.dll", "AdbWinUsbApi.dll"] {
+            fs::write(platform.join(library), b"mock adb library").unwrap();
+        }
+        fs::write(root.join("owner.apk"), "owner-debug").unwrap();
+        let adb = Adb::from_path(executable).unwrap();
+        let stop = AtomicBool::new(false);
+        let device = adb.devices(&stop).unwrap().remove(0);
+        let perform = |job| {
+            run_job(
+                job,
+                Some(adb.clone()),
+                Some(device.clone()),
+                &root,
+                &stop,
+                |_| {},
+                &|_, _| {},
+            )
+        };
+        let turnkey = || Job::Turnkey {
+            path: root.join("owner.apk"),
+            expected: None,
+            runtime: root.join("missing-runtime"),
+            lang: Lang::Ru,
+        };
+        let Ok(Output::Trust(facts)) = perform(turnkey()) else {
+            panic!("An untrusted certificate must be shown to the user first");
+        };
+        assert_eq!(facts.signer, "4".repeat(64));
+        assert!(facts.debuggable);
+        assert_eq!(facts.version, "0.21.0-local");
+        assert!(
+            !platform.join("installed-apk").exists(),
+            "nothing reaches the head unit"
+        );
+        let install = || Job::Install {
+            path: root.join("owner.apk"),
+            expected: None,
+        };
+        assert!(matches!(perform(install()), Err(e) if e.contains("signer")));
+
+        // Trusted, the debuggable build installs and is labelled; the turnkey cycle goes past the certificate step.
+        Trust::remember(&root, &"4".repeat(64)).unwrap();
+        Trust::remember(&root, &"4".repeat(64)).unwrap();
+        assert_eq!(
+            fs::read_to_string(root.join(production::TRUSTED_SIGNERS))
+                .unwrap()
+                .lines()
+                .count(),
+            1
+        );
+        assert!(matches!(perform(install()), Ok(Output::Status(s)) if s.contains("owner-build")));
+        assert_eq!(
+            fs::read_to_string(platform.join("installed-apk")).unwrap(),
+            "owner-debug"
+        );
+        let Ok(Output::Cycle(_, text, false)) = perform(turnkey()) else {
+            panic!("The trusted build runs the cycle");
+        };
+        assert!(text.contains("Остановлено на шаге 1"), "{text}");
+        assert!(text.contains("Frida"), "{text}");
+    }
+
+    #[test]
+    fn other_apps_install_list_and_remove_without_touching_controls() {
+        let (root, platform, executable) = mock_sdk();
+        for library in ["AdbWinApi.dll", "AdbWinUsbApi.dll"] {
+            fs::write(platform.join(library), b"mock adb library").unwrap();
+        }
+        fs::write(root.join("maps.apk"), "app-maps").unwrap();
+        fs::write(root.join("radio.apk"), "app-radio").unwrap();
+        fs::write(root.join("controls.apk"), "valid").unwrap();
+        fs::write(platform.join("active-hooks"), "running").unwrap();
+        fs::write(platform.join("installed-apk"), "valid").unwrap();
+        let adb = Adb::from_path(executable).unwrap();
+        let stop = AtomicBool::new(false);
+        let device = adb.devices(&stop).unwrap().remove(0);
+        let perform = |job| {
+            run_job(
+                job,
+                Some(adb.clone()),
+                Some(device.clone()),
+                &root,
+                &stop,
+                |_| {},
+                &|_, _| {},
+            )
+        };
+        let Ok(Output::Apps(list, text)) = perform(Job::Apps(AppsJob::Install(vec![
+            root.join("maps.apk"),
+            root.join("radio.apk"),
+        ]))) else {
+            panic!("Installing other apps refreshes the list");
+        };
+        assert!(text.starts_with("Installed 2 app(s)"), "{text}");
+        assert!(text.contains("activation checked: unchanged"), "{text}");
+        assert_eq!(
+            list.iter()
+                .map(|app| app.package.as_str())
+                .collect::<Vec<_>>(),
+            ["com.example.maps", "com.example.radio"]
+        );
+        assert!(platform.join("active-hooks").is_file());
+        assert_eq!(
+            fs::read_to_string(platform.join("installed-apk")).unwrap(),
+            "valid"
+        );
+
+        // Controls in the batch stops it before the first install.
+        fs::remove_dir_all(platform.join("installed-apps")).unwrap();
+        assert!(matches!(
+            perform(Job::Apps(AppsJob::Install(vec![root.join("maps.apk"), root.join("controls.apk")]))),
+            Err(e) if e.contains("Installation page")
+        ));
+        assert!(!platform.join("installed-apps").exists());
+
+        perform(Job::Apps(AppsJob::Install(vec![root.join("maps.apk")]))).unwrap();
+        let Ok(Output::Apps(list, text)) =
+            perform(Job::Apps(AppsJob::Uninstall("com.example.maps".into())))
+        else {
+            panic!("Uninstall refreshes the list");
+        };
+        assert!(list.is_empty() && text.contains("removed"));
+        assert!(matches!(
+            perform(Job::Apps(AppsJob::Uninstall("org.openvoyah.controls".into()))),
+            Err(e) if e.contains("Installation page")
+        ));
+        assert!(platform.join("installed-apk").is_file());
     }
 }

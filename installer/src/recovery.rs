@@ -1,7 +1,7 @@
 use crate::{
     adb::{Result, Target, require_success},
     device::{PACKAGE, digest, message, new_folder},
-    production::{self, Identity, ScratchFile, field, is_sha256, safe_id},
+    production::{self, Identity, ScratchFile, Trust, field, is_sha256, safe_id},
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::{Deserialize, Serialize};
@@ -68,14 +68,14 @@ fn boot(target: &Target<'_>, identity: &Identity, mode: &str, sha: Option<&str>)
     target.script(BOOT_TOOL, &args, 120)
 }
 
-pub fn device_status(target: &Target<'_>) -> Result<String> {
+pub fn device_status(target: &Target<'_>, trust: &Trust) -> Result<String> {
     let identity = Identity::read(target)?;
     let installed = if production::apk_path(target, PACKAGE)?.is_some() {
         "Installed"
     } else {
         "Absent"
     };
-    let review = if production::has_review(&identity) {
+    let review = if production::has_review(&identity, trust) {
         "Profile listed (OEM APK verification runs during activation)"
     } else {
         "No exact reviewed firmware profile"
@@ -105,6 +105,69 @@ pub fn device_status(target: &Target<'_>) -> Result<String> {
         "Controls APK (Android user 0): {installed}\r\nYouTube app (Android user 0): {youtube}\r\n{hook_status}\r\nProduction review: {review}\r\nProduct: {}\r\nAndroid SDK: {} • {}\r\nBuild: {}\r\nHardware serial: {}",
         identity.product, identity.sdk, identity.abi, identity.fingerprint, identity.serial,
     ))
+}
+
+/// The parts of `configure-boot.sh status` the turnkey cycle acts on.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct BootStatus {
+    pub entry: String,
+    pub access: String,
+    pub blocked: bool,
+    pub legacy: String,
+    pub inert: bool,
+    pub ready: Vec<String>,
+}
+
+impl BootStatus {
+    pub fn parse(output: &str) -> Result<Self> {
+        Ok(Self {
+            entry: field(output, "OVC_BOOT_ENTRY")?.into(),
+            access: field(output, "OVC_ACCESS").unwrap_or("unknown").into(),
+            blocked: field(output, "OVC_RECOVERY_BLOCKED")? == "yes",
+            legacy: field(output, "OVC_LEGACY_STATE")?.into(),
+            inert: field(output, "OVC_ROLLBACK_INERT")? == "yes",
+            ready: field(output, "OVC_READY_CHANNELS")
+                .unwrap_or("")
+                .split(',')
+                .filter(|item| !item.is_empty())
+                .map(str::to_owned)
+                .collect(),
+        })
+    }
+
+    pub fn has(&self, channel: &str) -> bool {
+        self.ready.iter().any(|item| item == channel)
+    }
+}
+
+pub fn boot_status(target: &Target<'_>, identity: &Identity) -> Result<BootStatus> {
+    BootStatus::parse(&boot(target, identity, "status", None)?)
+}
+
+/// The newest PC boot backup that matches this exact unit and build, if any.
+pub fn latest_backup(store: &Path, identity: &Identity) -> Option<PathBuf> {
+    let mut folders: Vec<_> = fs::read_dir(store.join("backups"))
+        .ok()?
+        .filter_map(std::result::Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with("boot-backup-"))
+        })
+        .collect();
+    folders.sort();
+    folders
+        .into_iter()
+        .rev()
+        .find(|folder| load_pc_backup(folder, identity).is_ok())
+}
+
+/// True when a rollback stopped only because the launcher or window visuals need a restart to finish; the boot
+/// script itself was restored. The documented cycle restarts the unit and checks the inactive state again.
+pub fn rollback_needs_restart(error: &str) -> bool {
+    error.contains("OVC_ROLLBACK_VISUALS=reboot-required")
+        && !error.contains("OVC_BOOT_RESTORE=unconfirmed")
 }
 
 pub fn require_inactive(
@@ -321,9 +384,10 @@ pub fn install_access_boot(
     identity: &Identity,
     backup_folder: &Path,
     storage: &Path,
+    trust: &Trust,
 ) -> Result<String> {
     let (backup, _) = load_pc_backup(backup_folder, identity)?;
-    production::verify_preparation(target, identity, storage)?;
+    production::verify_preparation(target, identity, storage, trust)?;
     let result = boot(target, identity, "install-access", Some(&backup.sha256))?;
     identity.recheck(target)?;
     Ok(result)
@@ -347,10 +411,11 @@ pub fn install_boot(
     fingerprint: &str,
     backup_folder: &Path,
     storage: &Path,
+    trust: &Trust,
 ) -> Result<String> {
     let identity = Identity::confirmed(target, fingerprint)?;
     let (backup, _) = load_pc_backup(backup_folder, &identity)?;
-    production::verify_activation(target, &identity, storage)?;
+    production::verify_activation(target, &identity, storage, trust)?;
     if backup != BootBackup::reported(&boot(target, &identity, "backup", None)?)? {
         return Err("The head unit's verified original or its attributes differ from the selected PC backup.".into());
     }
@@ -436,16 +501,22 @@ fn confirm_rollback(target: &Target<'_>, identity: &Identity, result: String) ->
     ))
 }
 
-pub fn rearm(target: &Target<'_>, fingerprint: &str, storage: &Path) -> Result<String> {
+pub fn rearm(
+    target: &Target<'_>,
+    fingerprint: &str,
+    storage: &Path,
+    trust: &Trust,
+) -> Result<String> {
     let identity = Identity::confirmed(target, fingerprint)?;
-    production::verify_activation(target, &identity, storage)?;
+    production::verify_activation(target, &identity, storage, trust)?;
     boot(target, &identity, "rearm", None)
 }
 
 const RUNTIME_GUARD: &str = r#"set -eu
 export PATH=/system/bin:/system/xbin
 [ "$(id -u)" = 0 ]
-[ "$(getenforce)" = Enforcing ]
+{ [ "$(getenforce)" = Enforcing ] || { [ "$(getenforce)" = Permissive ] && tr ' ' '
+' < /proc/cmdline | grep -qx androidboot.selinux=permissive; }; }
 [ "$(getprop ro.build.fingerprint)" = "$1" ]
 [ "$(getprop ro.serialno)" = "$2" ]
 [ "$(getprop ro.product.cpu.abi)" = arm64-v8a ]
@@ -457,24 +528,27 @@ pub fn install_runtime(
     target: &Target<'_>,
     source: &Path,
     storage: &Path,
+    trust: &Trust,
     progress: impl Fn(String),
 ) -> Result<String> {
-    stage_runtime(target, source, storage, true, progress)
+    stage_runtime(target, source, storage, trust, true, progress)
 }
 
 pub fn stage_setup_runtime(
     target: &Target<'_>,
     source: &Path,
     storage: &Path,
+    trust: &Trust,
     progress: impl Fn(String),
 ) -> Result<String> {
-    stage_runtime(target, source, storage, false, progress)
+    stage_runtime(target, source, storage, trust, false, progress)
 }
 
 fn stage_runtime(
     target: &Target<'_>,
     source: &Path,
     storage: &Path,
+    trust: &Trust,
     reviewed: bool,
     progress: impl Fn(String),
 ) -> Result<String> {
@@ -500,9 +574,9 @@ fn stage_runtime(
     let identity = Identity::read(target)?;
     progress("Checking the reviewed firmware and installed Controls release…".into());
     if reviewed {
-        production::verify_activation(target, &identity, storage)?;
+        production::verify_activation(target, &identity, storage, trust)?;
     } else {
-        production::verify_preparation(target, &identity, storage)?;
+        production::verify_preparation(target, &identity, storage, trust)?;
     }
     let existing = target.script(&format!("{RUNTIME_GUARD}\nif [ -f \"$base/$3\" ] && [ ! -L \"$base/$3\" ] && [ \"$(stat -c %u:%a:%h \"$base/$3\")\" = 0:500:1 ] && [ \"$(sha256sum \"$base/$3\" | awk '{{print $1}}')\" = \"$4\" ]; then echo OVC_RUNTIME_PRESENT; else echo OVC_RUNTIME_MISSING; fi\n"),
         &[&identity.fingerprint, &identity.serial, &runtime.file, &runtime.binary_sha256], 30)?;

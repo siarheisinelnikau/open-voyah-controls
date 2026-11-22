@@ -9,7 +9,7 @@ The app has been tested on a Voyah Free 318 head unit with firmware 6.1.0, in gu
 ## Projects
 
 - [Android](android/README.md) — source, build instructions, and feature guides.
-- [Windows installer](installer/README.md) — USB and Wi-Fi setup, APK installation, head unit maintenance, and diagnostics. [How Prepare and install works](installer/README.md#how-prepare-and-install-works) shows each setup step and what it writes where.
+- [Windows installer](installer/README.md) — USB and Wi-Fi setup, one-button installation with the restarts and the final check, other apps, head unit maintenance, and diagnostics. [How Install works](installer/README.md#how-install-works) shows each setup step and what it writes where.
 
 ## Screenshots
 

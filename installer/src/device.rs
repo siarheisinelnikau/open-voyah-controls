@@ -1,6 +1,6 @@
 use crate::{
     adb::{Result, Target},
-    production::{self, Identity, ScratchFile},
+    production::{self, Identity},
 };
 use sha2::{Digest, Sha256};
 use std::{
@@ -34,70 +34,6 @@ for property in \
     printf '[%s]: [%s]\n' "$property" "$value"
 done
 "#;
-
-pub fn apk_files(folder: &Path) -> Result<Vec<PathBuf>> {
-    let mut files = Vec::new();
-    for entry in fs::read_dir(folder).map_err(message)? {
-        let entry = entry.map_err(message)?;
-        let path = entry.path();
-        if entry.file_type().map_err(message)?.is_file()
-            && path
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("apk"))
-        {
-            files.push(path);
-        }
-    }
-    files.sort();
-    if files.is_empty() {
-        return Err("The folder contains no standalone APKs.".into());
-    }
-    Ok(files)
-}
-
-pub fn install_apks(
-    target: &Target<'_>,
-    files: &[PathBuf],
-    storage: &Path,
-    progress: impl Fn(String),
-) -> Result<String> {
-    let identity = Identity::read(target)?;
-    for path in files {
-        let info = target.adb.apk_info(path, target.stop)?;
-        if info.package == PACKAGE || info.split {
-            return Err("The folder contains Controls or a split APK. Install Controls with its separate verified action and choose standalone APKs for batch installation.".into());
-        }
-    }
-    for (index, path) in files.iter().enumerate() {
-        progress(format!(
-            "Installing {} of {} • {}",
-            index + 1,
-            files.len(),
-            filename(path)
-        ));
-        let result = (|| {
-            let copy = ScratchFile::copy_from(storage, path, target)?;
-            let _locked = copy.lock()?;
-            let info = target.adb.apk_info(&copy.path, target.stop)?;
-            if info.package == PACKAGE || info.split {
-                return Err("An input changed after the folder check.".into());
-            }
-            identity.recheck(target)?;
-            target.install(&copy.path)
-        })();
-        result.map_err(|e: String| {
-            format!(
-                "Installed {index} of {}. {} failed. {e}",
-                files.len(),
-                filename(path)
-            )
-        })?;
-    }
-    Ok(format!(
-        "Installed {} APK(s) through ADB. Use Android app settings for their permissions. Existing app data was retained for updates.",
-        files.len()
-    ))
-}
 
 pub fn launch(target: &Target<'_>) -> Result<String> {
     let output = target.text(["shell", "am", "start", "-n", ACTIVITY], 20)?;
@@ -230,6 +166,7 @@ pub fn maintenance(
     fingerprint: &str,
     input: &str,
     storage: &Path,
+    trust: &production::Trust,
     progress: impl Fn(String),
 ) -> Result<String> {
     let identity = Identity::confirmed(target, fingerprint)?;
@@ -248,7 +185,7 @@ pub fn maintenance(
         ));
     }
     progress("Checking the reviewed firmware on the selected unit…".into());
-    production::check_reviewed(target, &identity, &storage.join("verification"))?;
+    production::check_reviewed(target, &identity, &storage.join("verification"), trust)?;
     identity.recheck(target)?;
     match action {
         OemAction::InstallKeyboard => install_keyboard(target, Path::new(input)),
@@ -529,13 +466,6 @@ pub fn new_folder(root: &Path, label: &str) -> Result<PathBuf> {
     let folder = root.join(format!("{label}-{time}"));
     fs::create_dir(&folder).map_err(message)?;
     Ok(folder)
-}
-
-fn filename(path: &Path) -> String {
-    path.file_name()
-        .unwrap_or(path.as_os_str())
-        .to_string_lossy()
-        .into_owned()
 }
 
 pub fn message(e: impl std::fmt::Display) -> String {
