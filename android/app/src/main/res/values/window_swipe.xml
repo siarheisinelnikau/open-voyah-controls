@@ -6,6 +6,9 @@
     <string name="window_swipe_off">Off</string>
     <string name="window_swipe_two">Two fingers</string>
     <string name="window_swipe_three">Three fingers</string>
+    <string name="window_swipe_after">After a window leaves the central screen, show</string>
+    <string name="window_swipe_after_home">Home screen</string>
+    <string name="window_swipe_after_apps">Controls apps</string>
     <string name="window_swipe_recall">Return windows</string>
     <string name="window_swipe_unreadable">Could not load the saved setting.</string>
     <string name="window_swipe_failed">Could not save the setting.</string>

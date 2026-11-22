@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -119,6 +120,7 @@ internal fun <T> CockpitOptionDialog(
     description: String? = null,
     enabled: Boolean = true,
     detail: ((T) -> String?)? = null,
+    preview: (@Composable (T) -> Unit)? = null,
 ) {
     CockpitAlertDialog(
         onDismissRequest = onDismiss,
@@ -129,7 +131,8 @@ internal fun <T> CockpitOptionDialog(
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
                 options.forEach { option ->
-                    CockpitOptionRow(label(option), detail?.invoke(option), option == selected, enabled) {
+                    CockpitOptionRow(label(option), detail?.invoke(option), option == selected, enabled,
+                        preview = preview?.let { { it(option) } }) {
                         onDismiss()
                         if (option != selected) onSelect(option)
                     }
@@ -140,7 +143,14 @@ internal fun <T> CockpitOptionDialog(
 }
 
 @Composable
-internal fun CockpitOptionRow(title: String, detail: String?, selected: Boolean, enabled: Boolean = true, choose: () -> Unit) {
+internal fun CockpitOptionRow(
+    title: String,
+    detail: String?,
+    selected: Boolean,
+    enabled: Boolean = true,
+    preview: (@Composable () -> Unit)? = null,
+    choose: () -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     val press = rememberPressMotion(enabled)
     Surface(
@@ -158,6 +168,8 @@ internal fun CockpitOptionRow(title: String, detail: String?, selected: Boolean,
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 detail?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = LocalContentColor.current.copy(alpha = .78f)) }
             }
+            // A small live sample of the option, drawn in its own colours and sizes; it carries no meaning of its own.
+            preview?.let { Box(Modifier.clearAndSetSemantics { }) { it() } }
         }
     }
 }

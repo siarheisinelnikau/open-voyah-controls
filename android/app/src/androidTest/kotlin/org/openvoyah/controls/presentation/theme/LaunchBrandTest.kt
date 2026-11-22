@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.os.Build
 import android.os.SystemClock
@@ -23,6 +24,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.LaunchBrandActivity
 import org.openvoyah.controls.MainActivity
@@ -38,6 +40,8 @@ import org.openvoyah.controls.presentation.navigation.ControlsRoute
 
 class LaunchBrandTest : InstrumentationTestCase() {
     private val app get() = instrumentation.targetContext
+    // The intro's own area on screen; it starts right of the strip kept free for the launcher's panel.
+    private var area = Rect()
 
     fun testInstalledLauncherIconContainsBothWings() {
         val launcher = checkNotNull(app.packageManager.getLaunchIntentForPackage(app.packageName))
@@ -188,6 +192,7 @@ class LaunchBrandTest : InstrumentationTestCase() {
                 }
             }
             await("Brand frame") { hasTag(brand, LAUNCH_BRAND_TAG) }
+            area = brandArea(brand)
             test { point ->
                 instrumentation.runOnMainSync { phase = point }
                 instrumentation.waitForIdleSync()
@@ -220,8 +225,8 @@ class LaunchBrandTest : InstrumentationTestCase() {
 
     private fun hasPlainBackground(bitmap: Bitmap): Boolean {
         val background = app.getColor(R.color.cockpit_background)
-        val xs = pixelRange(bitmap.width, 30 until 70).step(maxOf(bitmap.width / 96, 1))
-        val ys = pixelRange(bitmap.height, 19 until 81).step(maxOf(bitmap.height / 72, 1))
+        val xs = columns(30 until 70).step(maxOf(bitmap.width / 96, 1))
+        val ys = rows(19 until 81).step(maxOf(bitmap.height / 72, 1))
         for (y in ys) for (x in xs) {
             val pixel = bitmap.getPixel(x, y)
             if (abs(Color.red(pixel) - Color.red(background)) > 3 ||
@@ -231,14 +236,15 @@ class LaunchBrandTest : InstrumentationTestCase() {
         return true
     }
 
-    // The regions below follow the centered block on the 1920 x 720, 240 dpi reference display.
+    // The regions below are percentages of the intro's area and follow the centered block on the 1920 x 720,
+    // 240 dpi reference display.
     private fun hasOnlyWings(bitmap: Bitmap): Boolean {
-        val wingRows = pixelRange(bitmap.height, WING_ROWS)
-        val left = brightPixels(bitmap, pixelRange(bitmap.width, 40 until 46), wingRows, threshold = 130)
-        val right = brightPixels(bitmap, pixelRange(bitmap.width, 54 until 60), wingRows, threshold = 130)
-        val spine = brightPixels(bitmap, pixelRange(bitmap.width, 49 until 51), pixelRange(bitmap.height, SPINE_ROWS),
+        val wingRows = rows(WING_ROWS)
+        val left = brightPixels(bitmap, columns(40 until 46), wingRows, threshold = 130)
+        val right = brightPixels(bitmap, columns(54 until 60), wingRows, threshold = 130)
+        val spine = brightPixels(bitmap, columns(49 until 51), rows(SPINE_ROWS),
             threshold = 110)
-        val title = brightPixels(bitmap, pixelRange(bitmap.width, TEXT_COLUMNS), pixelRange(bitmap.height, TITLE_ROWS),
+        val title = brightPixels(bitmap, columns(TEXT_COLUMNS), rows(TITLE_ROWS),
             threshold = 110)
         return left > 40 && right > 40 && spine == 0 && title == 0
     }
@@ -262,8 +268,8 @@ class LaunchBrandTest : InstrumentationTestCase() {
     }
 
     private fun colorsIn(bitmap: Bitmap, horizontal: IntRange, vertical: IntRange): StageColors {
-        val xs = pixelRange(bitmap.width, horizontal)
-        val ys = pixelRange(bitmap.height, vertical)
+        val xs = columns(horizontal)
+        val ys = rows(vertical)
         var accentBlue = 0
         var accentAmber = 0
         var crimson = 0
@@ -284,8 +290,24 @@ class LaunchBrandTest : InstrumentationTestCase() {
         return StageColors(accentBlue, accentAmber, crimson, steel)
     }
 
-    private fun pixelRange(size: Int, percents: IntRange): IntRange =
-        size * percents.first / 100 until size * (percents.last + 1) / 100
+    private fun columns(percents: IntRange): IntRange =
+        area.left + area.width() * percents.first / 100 until area.left + area.width() * (percents.last + 1) / 100
+
+    private fun rows(percents: IntRange): IntRange =
+        area.top + area.height() * percents.first / 100 until area.top + area.height() * (percents.last + 1) / 100
+
+    private fun brandArea(activity: Activity): Rect {
+        val area = Rect()
+        instrumentation.runOnMainSync {
+            val root = checkNotNull(findRoot(activity.window.decorView))
+            val bounds = checkNotNull(root.semanticsOwner.rootSemanticsNode.find(LAUNCH_BRAND_TAG)).boundsInWindow
+            val origin = IntArray(2).also(activity.window.decorView::getLocationOnScreen)
+            area.set(origin[0] + bounds.left.roundToInt(), origin[1] + bounds.top.roundToInt(),
+                origin[0] + bounds.right.roundToInt(), origin[1] + bounds.bottom.roundToInt())
+        }
+        check(!area.isEmpty) { "The intro has no area on screen" }
+        return area
+    }
 
     private fun findRoot(view: View): ViewRootForTest? {
         if (view is ViewRootForTest) return view
@@ -293,8 +315,10 @@ class LaunchBrandTest : InstrumentationTestCase() {
         return null
     }
 
-    private fun SemanticsNode.containsTag(tag: String): Boolean =
-        config.getOrNull(SemanticsProperties.TestTag) == tag || children.any { it.containsTag(tag) }
+    private fun SemanticsNode.containsTag(tag: String): Boolean = find(tag) != null
+
+    private fun SemanticsNode.find(tag: String): SemanticsNode? =
+        takeIf { config.getOrNull(SemanticsProperties.TestTag) == tag } ?: children.firstNotNullOfOrNull { it.find(tag) }
 
     private fun await(description: String, timeoutMillis: Long = 5_000L, condition: () -> Boolean) {
         val stop = SystemClock.uptimeMillis() + timeoutMillis
@@ -317,7 +341,7 @@ class LaunchBrandTest : InstrumentationTestCase() {
         const val WINGS_ONLY = LaunchTimeline.BODY_START - 11f / LaunchTimeline.DURATION_MILLIS
         const val CHARGED = (LaunchTimeline.CHARGE_FULL + LaunchTimeline.CHARGE_FADE) / 2
         const val AT_REST = (LaunchTimeline.CHARGE_END + LaunchTimeline.EXIT_START) / 2
-        // The intro runs 4.5 s at the normal animator scale; a device set to up to three times slower still fits.
+        // The intro waits at most 5 s for steady frames, then runs 4.7 s with its backdrop at the normal animator scale.
         const val CLOSE_TIMEOUT_MILLIS = 15_000L
         val WING_ROWS = 22 until 37
         val BODY_ROWS = 33 until 55

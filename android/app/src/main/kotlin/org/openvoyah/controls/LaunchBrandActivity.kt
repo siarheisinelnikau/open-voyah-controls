@@ -4,17 +4,19 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import org.openvoyah.controls.data.settings.AppearancePreferences
 import org.openvoyah.controls.diagnostics.ControlsLog
-import org.openvoyah.controls.domain.settings.AppPalette
 import org.openvoyah.controls.platform.display.useControlsDensity
-import org.openvoyah.controls.presentation.theme.ControlsTheme
+import org.openvoyah.controls.platform.startup.StartupWork
 import org.openvoyah.controls.presentation.theme.LaunchBrand
 
 /** Owns the launcher animation in a separate task from the cockpit. */
 class LaunchBrandActivity : ComponentActivity() {
+    private var releaseStartupWork: (() -> Unit)? = null
+
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(newBase)
         useControlsDensity(newBase)
@@ -44,16 +46,38 @@ class LaunchBrandActivity : ComponentActivity() {
             return
         }
         ControlsLog.info("launch_brand", "outcome", "shown")
+        // The cold start of this process would otherwise load the speech model while the intro draws.
+        releaseStartupWork = StartupWork.hold()
+        // The window is transparent until the intro shows; until then touches reach home underneath.
+        window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
         setContent {
-            // The window starts on the dark cockpit background, so the intro keeps the dark roles in every palette
-            // and only takes the accent, contrast and type choices from Appearance.
-            ControlsTheme(appearance = appearance, temporaryPalette = AppPalette.DARK) { LaunchBrand(::finish) }
+            // The intro draws the dark cockpit backdrop itself; the window stays transparent.
+            LaunchBrand(
+                appearance = appearance,
+                onShown = { window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) },
+                onFinished = { run ->
+                    ControlsLog.info("launch_brand", "outcome", if (run.completed) "played" else "closed",
+                        "settle", if (run.settled) "steady" else "limit", "settle_ms", run.settleMillis,
+                        "frames", run.frames, "slow_frames", run.slowFrames, "longest_gap_ms", run.longestGapMillis,
+                        "elapsed_ms", run.elapsedMillis)
+                    finish()
+                },
+            )
         }
     }
 
     override fun onPause() {
         super.onPause()
-        if (!isFinishing) finish()
+        if (!isFinishing) {
+            ControlsLog.info("launch_brand", "outcome", "interrupted")
+            finish()
+        }
+    }
+
+    override fun onDestroy() {
+        releaseStartupWork?.invoke()
+        releaseStartupWork = null
+        super.onDestroy()
     }
 
     companion object {

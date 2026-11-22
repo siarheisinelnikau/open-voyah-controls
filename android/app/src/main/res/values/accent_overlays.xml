@@ -1,0 +1,11 @@
+<resources>
+    <!-- android:colorAccent for Android's own widgets (window edges, the time picker) in the accent chosen in
+         Appearance. The values are the accents' primary colours from CockpitAccentColors.kt; ControlsAccent.kt
+         picks one per accent and palette. -->
+    <style name="ControlsAccent.Default.Dark" parent=""><item name="android:colorAccent">@color/cockpit_accent</item></style>
+    <style name="ControlsAccent.Default.Day" parent=""><item name="android:colorAccent">@color/cockpit_day_accent</item></style>
+    <style name="ControlsAccent.Teal.Dark" parent=""><item name="android:colorAccent">#7AD7CA</item></style>
+    <style name="ControlsAccent.Teal.Day" parent=""><item name="android:colorAccent">#006358</item></style>
+    <style name="ControlsAccent.Amber.Dark" parent=""><item name="android:colorAccent">#F5CF71</item></style>
+    <style name="ControlsAccent.Amber.Day" parent=""><item name="android:colorAccent">#774F00</item></style>
+</resources>

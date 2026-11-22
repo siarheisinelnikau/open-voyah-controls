@@ -6,6 +6,9 @@
     <string name="window_swipe_off">Выключен</string>
     <string name="window_swipe_two">Двумя пальцами</string>
     <string name="window_swipe_three">Тремя пальцами</string>
+    <string name="window_swipe_after">Когда окно ушло с центрального экрана, показывать</string>
+    <string name="window_swipe_after_home">Домашний экран</string>
+    <string name="window_swipe_after_apps">Приложения OVC</string>
     <string name="window_swipe_recall">Вернуть окна</string>
     <string name="window_swipe_unreadable">Не удалось загрузить сохранённую настройку.</string>
     <string name="window_swipe_failed">Не удалось сохранить настройку.</string>

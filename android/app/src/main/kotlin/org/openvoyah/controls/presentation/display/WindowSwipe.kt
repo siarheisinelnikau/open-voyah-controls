@@ -45,6 +45,8 @@ internal class WindowSwipeViewModel(private val windows: AppWindowConfiguration)
         /** The stored number of fingers, or null before it was read. */
         val saved: Int? = null,
         val fingers: Int = 0,
+        /** After a window left the central display it shows the Controls app grid instead of the factory home. */
+        val showsApps: Boolean = false,
         val working: Boolean = false,
         val message: Int? = null,
     )
@@ -56,9 +58,10 @@ internal class WindowSwipeViewModel(private val windows: AppWindowConfiguration)
         if (mutable.value.visible) return
         mutable.value = State(visible = true, working = true)
         viewModelScope.launch {
-            val saved = attempt { windows.readDisplayDefaults().moveFingers }
-            mutable.value = State(visible = true, saved = saved, fingers = saved ?: 0,
-                message = if (saved == null) R.string.window_swipe_unreadable else null)
+            val stored = attempt { windows.readDisplayDefaults() }
+            mutable.value = State(visible = true, saved = stored?.moveFingers, fingers = stored?.moveFingers ?: 0,
+                showsApps = stored?.moveShowsApps ?: false,
+                message = if (stored == null) R.string.window_swipe_unreadable else null)
         }
     }
 
@@ -72,13 +75,22 @@ internal class WindowSwipeViewModel(private val windows: AppWindowConfiguration)
         mutable.value = state.copy(fingers = fingers, message = null)
     }
 
+    fun chooseTarget(showsApps: Boolean) {
+        val state = mutable.value
+        if (state.working || state.saved == null) return
+        mutable.value = state.copy(showsApps = showsApps, message = null)
+    }
+
     fun save() {
         val state = mutable.value
         if (state.working || state.saved == null) return
         mutable.value = state.copy(working = true, message = null)
         viewModelScope.launch {
             // The densities are read again: only the swipe changes here.
-            val delivery = attempt { windows.changeDisplayDefaults(windows.readDisplayDefaults().copy(moveFingers = state.fingers)) }
+            val delivery = attempt {
+                windows.changeDisplayDefaults(windows.readDisplayDefaults()
+                    .copy(moveFingers = state.fingers, moveShowsApps = state.showsApps))
+            }
             val message = when {
                 delivery == null -> R.string.window_swipe_failed
                 delivery == DisplayDefaultsDelivery.SAVED -> R.string.window_swipe_pending
@@ -126,7 +138,10 @@ internal fun WindowSwipeControl(model: WindowSwipeViewModel) {
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(label(R.string.window_swipe_description))
-                if (state.saved != null) FingerPicker(state.fingers, !state.working, model::choose)
+                if (state.saved != null) {
+                    FingerPicker(state.fingers, !state.working, model::choose)
+                    TargetPicker(state.showsApps, !state.working && state.fingers != 0, model::chooseTarget)
+                }
                 val message = if (state.working) R.string.ui_80 else state.message
                 message?.let { Text(label(it), Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                 if (state.working) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -152,6 +167,19 @@ private fun FingerPicker(fingers: Int, enabled: Boolean, change: (Int) -> Unit) 
             { choosing = false }, enabled = enabled)
     }
 }
+
+@Composable
+private fun TargetPicker(showsApps: Boolean, enabled: Boolean, change: (Boolean) -> Unit) {
+    var choosing by remember { mutableStateOf(false) }
+    val title = label(R.string.window_swipe_after)
+    CockpitChoice(title, targetText(showsApps), enabled) { choosing = true }
+    if (choosing) {
+        CockpitOptionDialog(title, listOf(false, true), showsApps, ::targetText, change, { choosing = false }, enabled = enabled)
+    }
+}
+
+internal fun targetText(showsApps: Boolean): String =
+    label(if (showsApps) R.string.window_swipe_after_apps else R.string.window_swipe_after_home)
 
 internal fun fingerText(fingers: Int): String = label(when (fingers) {
     2 -> R.string.window_swipe_two

@@ -181,6 +181,9 @@ function unit({clusterPresent = true, passengerPublic = true} = {}) {
         clusterDisplay: () => clusterPresent ? 6 : null,
         publicDisplay: id => id === 1 && passengerPublic,
         follow: (stack, dx, alpha) => follows.push([stack.stack, dx, alpha]),
+        startHome: (display, user) => { log.push('home ' + display + ' user ' + user); return true; },
+        frontLauncher: display => { log.push('launcher ' + display); return true; },
+        openControlsApps: user => { log.push('apps user ' + user); },
     };
     const placed = [];
     const car = {refuse: false};
@@ -206,7 +209,7 @@ function unit({clusterPresent = true, passengerPublic = true} = {}) {
         send(MOTION.pointerUp, fingers, 800, x1);
         run();
     };
-    return Object.assign(car, {mover, tasks, add, log, follows, placed, reports, swipe, run,
+    return Object.assign(car, {api, mover, tasks, add, log, follows, placed, reports, swipe, run,
         listening: () => listening !== null, unlistens: () => unlistens, maxDepth: () => maxDepth});
 }
 
@@ -229,7 +232,8 @@ test('a left swipe sends the app under the fingers to the cluster and the window
     car.add(45);
     car.mover.sync({fingers: 3, passenger: 1});
     car.swipe(0, 1200, 500);
-    assert.deepEqual(car.log, ['prepare 45', 'move 45->6', 'OVC_WINDOW_MOVE from=0 to=6 reason=swipe outcome=moved']);
+    assert.deepEqual(car.log, ['prepare 45', 'move 45->6', 'OVC_WINDOW_MOVE from=0 to=6 reason=swipe outcome=moved',
+        'home 0 user 0']);
     assert.deepEqual(car.placed, [['org.example.nav/org.example.nav.Main', 0, 45, 6]]);
     assert.ok(car.follows.some(([, dx, alpha]) => dx < 0 && alpha < 1), 'the window followed the fingers');
     assert.deepEqual(car.follows.at(-1), [45, 0, 1], 'and was put back before it moved');
@@ -369,13 +373,59 @@ test('the window document carries the swipe setting, and the app may ask for the
     const read = extra => move.readWindowConfig(JSON.stringify({...base, ...extra}));
     assert.equal(read({}).displayMove, null);
     assert.equal(read({displayMove: null}).displayMove, null);
-    assert.deepEqual({...read({displayMove: {fingers: 2}}).displayMove}, {fingers: 2});
-    assert.deepEqual({...read({displayMove: {fingers: 3}}).displayMove}, {fingers: 3});
-    for (const invalid of [{fingers: 4}, {fingers: '3'}, {}, [], true, {fingers: 3, extra: 1}]) {
+    assert.deepEqual({...read({displayMove: {fingers: 2}}).displayMove}, {fingers: 2, reveal: 'home'});
+    assert.deepEqual({...read({displayMove: {fingers: 3, reveal: 'apps'}}).displayMove}, {fingers: 3, reveal: 'apps'});
+    for (const invalid of [{fingers: 4}, {fingers: '3'}, {}, [], true, {fingers: 3, extra: 1},
+        {fingers: 3, reveal: 'grid'}]) {
         assert.equal(read({displayMove: invalid}), null, JSON.stringify(invalid));
     }
     const request = operation => move.readWindowRequest(JSON.stringify({schema: 1, id: 'a'.repeat(32), user: 0,
         expires: 5000, operation}), 1000);
     assert.deepEqual({...request('recall')}, {id: 'a'.repeat(32), user: 0, operation: 'recall'});
     assert.equal(request('recall-all'), null);
+});
+
+test('the central display shows home or the Controls app grid once a window left it, the passenger its launcher', () => {
+    const car = unit();
+    car.add(45);
+    car.mover.sync({fingers: 3, passenger: 1, reveal: 'home'});
+    car.swipe(0, 600, 1400);
+    assert.equal(car.log.at(-1), 'home 0 user 0');
+    car.swipe(1, 1400, 400);
+    assert.equal(car.log.at(-1), 'launcher 1', 'the passenger display shows its own home again');
+
+    const apps = unit();
+    apps.add(45);
+    apps.mover.sync({fingers: 3, passenger: 1, reveal: 'apps'});
+    apps.swipe(0, 1200, 400);
+    assert.equal(apps.log.at(-1), 'apps user 0');
+    assert.equal(apps.log.filter(line => line.startsWith('home')).length, 0);
+});
+
+test('nothing is shown over a window that came back from the cluster in exchange or by a recall', () => {
+    const car = unit();
+    car.add(45);
+    car.mover.sync({fingers: 3, passenger: 1, reveal: 'home'});
+    car.swipe(0, 1200, 400);
+    car.add(46, {component: 'org.example.music/org.example.music.Player', topPackage: 'org.example.music'});
+    car.log.length = 0;
+    car.swipe(0, 1200, 400);
+    assert.equal(car.tasks.get(45).display, 0);
+    assert.equal(car.log.some(line => line.startsWith('home')), false);
+    // The window that came back stays clear of the fingers, so this right swipe recalls the cluster's window.
+    car.tasks.get(45).bounds = [1500, 0, 1920, 720];
+    car.log.length = 0;
+    car.swipe(0, 300, 1300);
+    assert.equal(car.tasks.get(46).display, 0);
+    assert.equal(car.log.some(line => line.startsWith('home')), false);
+});
+
+test('a failure to show home is reported and leaves the moved window where it went', () => {
+    const car = unit();
+    car.add(45);
+    car.mover.sync({fingers: 3, passenger: 1, reveal: 'home'});
+    car.api.startHome = () => { throw Object.assign(Error('no home'), {code: 'no_home'}); };
+    car.swipe(0, 600, 1400);
+    assert.equal(car.tasks.get(45).display, 1);
+    assert.deepEqual(car.reports, ['move_reveal:no_home']);
 });

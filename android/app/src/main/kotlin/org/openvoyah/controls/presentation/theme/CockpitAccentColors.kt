@@ -2,6 +2,8 @@ package org.openvoyah.controls.presentation.theme
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import org.openvoyah.controls.domain.settings.AppAccent
 import org.openvoyah.controls.domain.settings.AppPalette
 
@@ -51,12 +53,38 @@ internal fun cockpitAccentColors(
         AppAccent.AMBER -> AmberAccent
     }
     val roles = family.roles(palette, highContrast)
+    val primary = Color(roles.primary)
+    // The standard schemes draw outlines and the secondary role in a blue grey that belongs to the default accent.
+    // A custom accent tints them instead, at the same luminance, so borders keep their contrast.
     return base.copy(
-        primary = Color(roles.primary),
+        primary = primary,
         onPrimary = Color(roles.onPrimary),
         primaryContainer = Color(roles.container),
         onPrimaryContainer = Color(roles.onContainer),
         inversePrimary = Color(roles.inverse),
-        surfaceTint = Color(roles.primary),
+        surfaceTint = primary,
+        secondary = accentTint(base.secondary, primary, SECONDARY_TINT),
+        outline = accentTint(base.outline, primary, OUTLINE_TINT),
+        outlineVariant = accentTint(base.outlineVariant, primary, OUTLINE_TINT),
     )
+}
+
+private const val OUTLINE_TINT = .4f
+private const val SECONDARY_TINT = .55f
+
+/** [neutral] without its own hue, moved [amount] toward [accent], then brought back to [neutral]'s luminance. */
+internal fun accentTint(neutral: Color, accent: Color, amount: Float): Color {
+    val grey = (neutral.red + neutral.green + neutral.blue) / 3f
+    val tinted = lerp(Color(grey, grey, grey), accent, amount)
+    val target = neutral.luminance()
+    val toward = if (tinted.luminance() > target) Color.Black else Color.White
+    var low = 0f
+    var high = 1f
+    repeat(24) {
+        val middle = (low + high) / 2f
+        val brighter = lerp(tinted, toward, middle).luminance() > target
+        // Moving toward black lowers luminance and toward white raises it; keep the half that holds the target.
+        if (brighter == (toward == Color.Black)) low = middle else high = middle
+    }
+    return lerp(tinted, toward, (low + high) / 2f).copy(alpha = neutral.alpha)
 }

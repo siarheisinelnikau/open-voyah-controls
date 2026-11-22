@@ -79,7 +79,10 @@ internal object SpeechModelDownloads {
                 mutable.update { it.copy(active = it.active - model.id) }
                 refresh(app)
                 synchronized(jobs) { jobs.remove(model.id) }
-                if (outcome == "installed") SpeechModels.warmUp(app, "download")
+                if (outcome == "installed") {
+                    SpeechModels.clearFailure(model.engine)
+                    SpeechModels.warmUp(app, "download")
+                }
             }
         }
     }

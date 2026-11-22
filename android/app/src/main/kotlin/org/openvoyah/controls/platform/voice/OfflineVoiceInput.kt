@@ -63,8 +63,9 @@ class OfflineVoiceInput(
             // The model and recognizer stay prepared after the request; see SpeechModels.
             val speech = SpeechModels.of(context)
             val result = speech.lock.withLock {
-                capture(speech, language, grammar, { stage = it }) {
-                    emit(SpeechEvent.Listening(UiText.get(R.string.voice_listening_action)))
+                capture(speech, language, grammar, { stage = it }) { fallback ->
+                    emit(SpeechEvent.Listening(UiText.get(
+                        if (fallback) R.string.voice_listening_fallback else R.string.voice_listening_action)))
                 }
             }
             emit(result)
@@ -89,7 +90,7 @@ class OfflineVoiceInput(
         language: String,
         grammar: Set<String>,
         stage: (String) -> Unit,
-        listening: suspend () -> Unit,
+        listening: suspend (fallback: Boolean) -> Unit,
     ): SpeechEvent {
         stage("permission")
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -99,9 +100,11 @@ class OfflineVoiceInput(
         stage("model_load")
         // Usually prepared at process start; a warm-up still running is awaited through the lock, never repeated.
         val engine = engine ?: SpeechModels.engineFor(context, VoiceSettings(context), language)
-        val prepared = speech.prepare(SpeechModels.key(engine, language), speechGrammar(grammar), "request") {
-            captureContext.isActive
-        }
+        val recognition = speechGrammar(grammar)
+        // An optional engine that cannot start falls back to Vosk for this request and is skipped until chosen again.
+        val (prepared, fallback) = withVoskFallback(engine, { candidate ->
+            speech.prepare(SpeechModels.key(candidate, language), recognition, "request") { captureContext.isActive }
+        }, SpeechModels::recordFailure)
         captureContext.ensureActive()
         // The captured audio stays available after the microphone is released: Vosk replays a phrase that is not a
         // command without the grammar, so the popup can show what was heard, and the Zipformer decodes the phrase.
@@ -145,7 +148,7 @@ class OfflineVoiceInput(
                 audio.startRecording()
                 if (audio.recordingState != AudioRecord.RECORDSTATE_RECORDING) throw IOException(UiText.get(R.string.ui_142))
                 val deadline = SystemClock.elapsedRealtime() + listeningWindow.millis()
-                listening()
+                listening(fallback)
                 stage("read")
                 read(audio, decoder, focusLost, replay, deadline)
             } finally {

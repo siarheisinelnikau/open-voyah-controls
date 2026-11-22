@@ -20,4 +20,6 @@
     <string name="voice_model_failed_storage">Не хватает свободного места для модели.</string>
     <string name="voice_model_failed_verification">Скачанный файл не совпал с ожидаемым. Ничего не установлено.</string>
     <string name="voice_model_megabytes">%1$d МБ</string>
+    <string name="voice_listening_fallback">Слушаю через Vosk: Zipformer не запустился</string>
+    <string name="voice_engine_failed">Не запустился на этой магнитоле (%1$s). Работает Vosk; выберите Zipformer снова, чтобы повторить.</string>
 </resources>

@@ -20,6 +20,7 @@ import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.domain.apps.AppGridHiddenAppsFull
 import org.openvoyah.controls.domain.apps.AppGridManualOrderFull
 import org.openvoyah.controls.domain.apps.AppGridPins
+import org.openvoyah.controls.platform.apps.AppCatalogCache
 import org.openvoyah.controls.platform.apps.AppsCatalog
 import org.openvoyah.controls.platform.apps.LocalApp
 
@@ -47,10 +48,23 @@ internal class AppsViewModel(
         val working: Boolean get() = error == null
     }
 
-    private val mutableState = MutableStateFlow(State())
+    // The first frame shows the catalog and settings the process loaded in advance; a refresh then updates them.
+    private val mutableState = MutableStateFlow(AppCatalogCache.snapshot.value.let { cached ->
+        State(apps = cached.orEmpty(), loading = cached == null)
+    })
     val state = combine(mutableState, grid.observeSettings()) { current, settings ->
         current.copy(grid = settings)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), State())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(),
+        mutableState.value.copy(grid = AppCatalogCache.settings.value?.let { Result.success(it) }))
+
+    init {
+        // A package added or removed while the grid is open reaches it through the cache.
+        viewModelScope.launch {
+            AppCatalogCache.snapshot.collect { cached ->
+                if (cached != null) mutableState.update { it.copy(apps = cached, loading = false) }
+            }
+        }
+    }
     private var refresh: Job? = null
 
     fun refresh() {
@@ -59,6 +73,7 @@ internal class AppsViewModel(
             try {
                 val apps = withContext(Dispatchers.IO) { catalog.load() }
                 mutableState.update { it.copy(apps = apps, loading = false) }
+                AppCatalogCache.store(apps)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: RuntimeException) {

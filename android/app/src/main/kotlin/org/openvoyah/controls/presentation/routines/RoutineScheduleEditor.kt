@@ -2,6 +2,7 @@ package org.openvoyah.controls.presentation.routines
 
 import android.app.TimePickerDialog
 import android.text.format.DateFormat
+import android.view.ContextThemeWrapper
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -47,6 +48,7 @@ import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitReveal
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
+import org.openvoyah.controls.presentation.theme.LocalControlsAccentOverlay
 
 private fun weekInDisplayOrder(locale: Locale): List<DayOfWeek> {
     val first = WeekFields.of(locale).firstDayOfWeek
@@ -144,12 +146,14 @@ internal fun RoutineScheduleEditor(draft: RoutineScheduleDraft, state: RoutinesU
     val activity = LocalActivity.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val use24 = DateFormat.is24HourFormat(context)
+    val accentOverlay = LocalControlsAccentOverlay.current
     val dialogTheme = if (MaterialTheme.colorScheme.background.luminance() > .5f)
         android.R.style.Theme_Material_Light_Dialog_Alert else android.R.style.Theme_Material_Dialog_Alert
     editingStart?.let { starting ->
         if (activity != null) DisposableEffect(activity, lifecycle, starting) {
             val minute = if (starting) draft.start else draft.end
-            val dialog = TimePickerDialog(activity, dialogTheme, { _, hour, minutes ->
+            // The platform dialog takes its theme from the wrapper and only the accent from the overlay on top of it.
+            val dialog = TimePickerDialog(ContextThemeWrapper(activity, dialogTheme), accentOverlay, { _, hour, minutes ->
                 if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) model.chooseTime(starting, hour * 60 + minutes)
             }, minute / 60, minute % 60, use24)
             dialog.setOnDismissListener { editingStart = null }

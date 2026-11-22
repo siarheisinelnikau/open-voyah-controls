@@ -2,23 +2,23 @@ package org.openvoyah.controls.core.voice;
 
 import java.text.Normalizer;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Maps the free transcript of an engine without a grammar to the nearest command phrase. A phrase is chosen only when it
  * is at least {@link #CUTOFF} similar (rapidfuzz {@code fuzz.ratio}: twice the longest common subsequence over both
  * lengths) and no other phrase scores the same, so a near miss between two commands is never guessed. This is the
  * matching that the offline engine comparison measured for the Zipformer models.
+ *
+ * <p>Plain character tests instead of regular expressions: Android's regex engine rejects the Unicode character class
+ * flag, and Matcher replacement into a StringBuilder needs API 34 (see AndroidApiGuardTest).
  */
 public final class TranscriptMatcher {
     public static final double CUTOFF = 85.0;
-    private static final Pattern PUNCTUATION = Pattern.compile("[^\\w\\s]", Pattern.UNICODE_CHARACTER_CLASS);
-    private static final Pattern UNITS = Pattern.compile(
-        "(?<![\\w])(процентов|процента|процент|градусов|градуса|градус|percent|degrees)(?![\\w])",
-        Pattern.UNICODE_CHARACTER_CLASS);
-    private static final Map<String, String> UNIT_ROOT = Map.of("процентов", "процент", "процента", "процент",
-        "градусов", "градус", "градуса", "градус");
+    private static final Map<String, String> UNIT_ROOT = new HashMap<>();
+    static {
+        for (String unit : new String[]{"процентов", "процента", "процент"}) UNIT_ROOT.put(unit, "процент");
+        for (String unit : new String[]{"градусов", "градуса", "градус"}) UNIT_ROOT.put(unit, "градус");
+    }
     private final Map<String, String> phrases = new TreeMap<>();
 
     public TranscriptMatcher(Collection<String> grammar) {
@@ -55,12 +55,26 @@ public final class TranscriptMatcher {
     static String key(String text) {
         String value = Normalizer.normalize(text == null ? "" : text, Normalizer.Form.NFC).toLowerCase(Locale.ROOT)
             .replace('ё', 'е').replace("%", " процент ").replace("°", " градус ");
-        value = PUNCTUATION.matcher(value).replaceAll(" ").trim().replaceAll("\\s+", " ");
-        Matcher units = UNITS.matcher(value);
-        StringBuilder out = new StringBuilder();
-        while (units.find()) units.appendReplacement(out, UNIT_ROOT.getOrDefault(units.group(1), units.group(1)));
-        units.appendTail(out);
+        StringBuilder cleaned = new StringBuilder(value.length());
+        value.codePoints().forEach(point -> {
+            if (wordCharacter(point)) cleaned.appendCodePoint(point);
+            else cleaned.append(' ');
+        });
+        StringBuilder out = new StringBuilder(cleaned.length());
+        for (String word : cleaned.toString().trim().split("\\s+")) {
+            if (word.isEmpty()) continue;
+            if (out.length() > 0) out.append(' ');
+            out.append(UNIT_ROOT.getOrDefault(word, word));
+        }
         return out.toString();
+    }
+
+    /** Python's Unicode {@code \w}: letters, digits, marks and the connector underscore. */
+    private static boolean wordCharacter(int point) {
+        if (Character.isLetterOrDigit(point) || point == '_') return true;
+        int type = Character.getType(point);
+        return type == Character.NON_SPACING_MARK || type == Character.COMBINING_SPACING_MARK
+            || type == Character.ENCLOSING_MARK;
     }
 
     static double ratio(String a, String b) {

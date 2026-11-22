@@ -32,6 +32,15 @@ internal object AppGridRows {
         if (rows < 2) return minimumTileHeight
         return maxOf(minimumTileHeight, ((availableHeight - spacing * (rows - 1)) / rows).toInt())
     }
+
+    /**
+     * The height of each of [rows] rows that share [availableHeight] with [spacing] between them, at least one pixel.
+     * A lowered display uses it to keep two rows of smaller tiles instead of one.
+     */
+    fun sharedHeight(availableHeight: Int, rows: Int, spacing: Int): Int {
+        require(rows > 0 && spacing >= 0)
+        return ((availableHeight.toLong() - spacing.toLong() * (rows - 1)) / rows).toInt().coerceAtLeast(1)
+    }
 }
 
 internal enum class AppGridShortcut(val storedValue: String) {

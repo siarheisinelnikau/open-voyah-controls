@@ -84,6 +84,7 @@ import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.platform.apps.PermissionChange
 import org.openvoyah.controls.presentation.apps.APP_SETTINGS_MODEL_KEY
 import org.openvoyah.controls.presentation.apps.AppSettingsViewModel
+import org.openvoyah.controls.domain.display.LoweredScreen
 import org.openvoyah.controls.domain.display.AppWindowProfile
 import org.openvoyah.controls.domain.display.DisplayPreviewArrangement
 import org.openvoyah.controls.domain.display.DisplayPreviewContent
@@ -524,6 +525,9 @@ class ComposeScreensTest : InstrumentationTestCase() {
         try {
             preferences.restoreSettings(pagedGridFixture())
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
+            // The process preloaded the catalog, so the first frame already has the apps.
+            assertNull("The grid waited for its catalog", textNode(UiText.get(R.string.apps_loading)))
+            assertNotNull("The first app was not on the first frame", textNode(first))
             assertAppGrid(activity)
             awaitText(first)
             assertNull("The last app should be on a later page", textNode(last))
@@ -547,6 +551,53 @@ class ComposeScreensTest : InstrumentationTestCase() {
             awaitPageState(UiText.get(R.string.apps_grid_page).format(1, dots.size))
         } finally {
             preferences.restoreSettings(original)
+        }
+    }
+
+    fun testLoweredDisplayKeepsTwoGridRowsInItsVisibleBandAndTheNormalLayoutReturns() {
+        val preferences = AppGridPreferences(app)
+        val original = preferences.exportSettings()
+        val labels = gridApps().map { it.label() }.toSet()
+        check(labels.size > 12) { "The fixture needs more apps than one page holds" }
+        fun tiles(): List<Rect> = nodes().filter { it.isVisibleToUser && it.text?.toString() in labels }
+            .map { Rect().also(it::getBoundsInScreen) }.toList()
+        fun rows(bounds: List<Rect>) = bounds.map { it.top }.distinct().size
+        fun lowered(type: Int) = app.sendBroadcast(Intent(LoweredScreen.LAYOUT_CHANGED).putExtra("type", type))
+        try {
+            preferences.restoreSettings(pagedGridFixture())
+            val activity = launch(MainActivity.appsIntent(app)) as MainActivity
+            assertAppGrid(activity)
+            awaitCondition("The grid shows its apps") { tiles().isNotEmpty() }
+            val normal = tiles().sortedWith(compareBy({ it.top }, { it.left }))
+            capture("app-grid-normal")
+
+            lowered(1)
+            awaitCondition("The lowered grid ends in the visible band") {
+                tiles().isNotEmpty() && tiles().all { it.bottom <= LoweredScreen.VISIBLE_HEIGHT_PX }
+            }
+            val small = tiles()
+            assertEquals("A lowered display keeps two rows", 2, rows(small))
+            assertTrue("The captions shrink with the tiles", small.first().height() <= normal.first().height())
+            assertTrue("The page dots stay in sight", pageDots().all {
+                Rect().also(it::getBoundsInScreen).bottom <= LoweredScreen.VISIBLE_HEIGHT_PX })
+            capture("app-grid-lowered")
+
+            lowered(2)
+            awaitCondition("The normal layout returns as the display rises") {
+                tiles().sortedWith(compareBy({ it.top }, { it.left })) == normal
+            }
+        } finally {
+            lowered(2)
+            preferences.restoreSettings(original)
+        }
+    }
+
+    private fun awaitCondition(message: String, timeout: Long = 5_000, condition: () -> Boolean) {
+        val deadline = SystemClock.uptimeMillis() + timeout
+        while (!condition()) {
+            assertTrue(message, SystemClock.uptimeMillis() < deadline)
+            instrumentation.waitForIdleSync()
+            SystemClock.sleep(50)
         }
     }
 
@@ -2499,6 +2550,12 @@ class ComposeScreensTest : InstrumentationTestCase() {
             enable(R.string.appearance_high_contrast, "highContrast")
             choose(R.string.appearance_palette, R.string.appearance_palette_day, "palette", "day")
             choose(R.string.appearance_accent, R.string.appearance_accent_teal, "accent", "teal")
+            // Each accent option shows a swatch and two mini buttons in its own colour.
+            scrollTo(UiText.get(R.string.appearance_accent))
+            clickText(UiText.get(R.string.appearance_accent))
+            awaitText(UiText.get(R.string.appearance_accent_amber))
+            capture("appearance-accent-previews")
+            clickText(UiText.get(R.string.ui_89))
             choose(R.string.appearance_background, R.string.appearance_background_solid, "backgroundTreatment", "solid")
             choose(R.string.appearance_wallpaper_dimming, R.string.appearance_wallpaper_dimming_strong,
                 "wallpaperDimming", "strong")

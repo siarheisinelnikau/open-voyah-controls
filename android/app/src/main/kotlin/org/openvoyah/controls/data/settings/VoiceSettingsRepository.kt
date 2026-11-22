@@ -7,6 +7,7 @@ import org.openvoyah.controls.data.voice.CloudVoiceSettings
 import org.openvoyah.controls.domain.audio.DuckSettings
 import org.openvoyah.controls.domain.audio.StartupVolume
 import org.openvoyah.controls.platform.voice.OfflineVoiceInput
+import org.openvoyah.controls.domain.voice.SpeechEngine
 import org.openvoyah.controls.platform.voice.SpeechModels
 import org.openvoyah.controls.presentation.voice.VoiceSettingsChange
 import org.openvoyah.controls.presentation.voice.VoiceSettingsConfiguration
@@ -37,7 +38,11 @@ internal class VoiceSettingsRepository(context: Context) : VoiceSettingsSource {
     override fun change(change: VoiceSettingsChange) {
         when (change) {
             is VoiceSettingsChange.Language -> settings.language(change.language)
-            is VoiceSettingsChange.Engine -> settings.engine(change.engine)
+            is VoiceSettingsChange.Engine -> {
+                settings.engine(change.engine)
+                // Choosing an engine again retries one that failed to start earlier in this process.
+                SpeechEngine.fromKey(change.engine)?.let(SpeechModels::clearFailure)
+            }
             is VoiceSettingsChange.App -> settings.app(change.command, change.component)
             is VoiceSettingsChange.Level -> settings.level(change.command, change.level)
             is VoiceSettingsChange.Windows -> settings.windowOptions(change.smoke, change.ventilation)

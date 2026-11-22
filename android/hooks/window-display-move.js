@@ -4,6 +4,9 @@ import { MOTION, followOffset, swipeDestination, swipeRecognizer } from './windo
 export const CLUSTER_NAVI_DISPLAY = 'Cluster-Navi-Display';
 export const CLUSTER_PACKAGE = 'com.qinggan.cluster';
 const SYSTEM_UID = 1000;
+const LAUNCHER_PACKAGE = 'com.qinggan.app.launcher';
+const CONTROLS_PACKAGE = 'org.openvoyah.controls';
+const REASON = 'OpenVoyahControls';
 
 /** Windows that never leave the central display, beyond the packages the profile policy already protects. */
 const staying = new Set(['com.qinggan.systemui', 'com.android.systemui', 'com.android.permissioncontroller',
@@ -37,6 +40,15 @@ export function android11DisplayMoves(Java) {
     const virtualType = Display.TYPE_VIRTUAL.value;
     const standardType = Java.use('android.app.WindowConfiguration').ACTIVITY_TYPE_STANDARD.value;
     const content = id => root.getDisplayContent(id);
+    const startHome = root.startHomeOnDisplay.overload('int', 'java.lang.String', 'int');
+    const toFront = Stack.moveToFront.overload('java.lang.String');
+    const ensureVisible = root.ensureActivitiesVisible.overload('com.android.server.wm.ActivityRecord', 'int', 'boolean');
+    const resume = root.resumeFocusedStacksTopActivities.overload();
+    const Intent = Java.use('android.content.Intent');
+    const Component = Java.use('android.content.ComponentName');
+    const Options = Java.use('android.app.ActivityOptions');
+    const UserHandle = Java.use('android.os.UserHandle');
+    const system = Java.use('android.app.ActivityThread').currentActivityThread().getSystemContext();
 
     return {
         listener,
@@ -112,6 +124,38 @@ export function android11DisplayMoves(Java) {
         publicDisplay(displayId) {
             const display = content(displayId)?.getDisplay() ?? null;
             return display !== null && (display.getFlags() & privateFlag) === 0 && display.getType() !== virtualType;
+        },
+        /** Starts home on [displayId], as the Home key does for display 0. Needs the global lock. */
+        startHome(displayId, user) {
+            return startHome.call(root, user, REASON, displayId);
+        },
+        /**
+         * Brings the factory launcher's own task on [displayId] (the passenger display's second home, an ordinary
+         * task there) to the front and lets Android show and resume it. Needs the global lock.
+         */
+        frontLauncher(displayId) {
+            const area = content(displayId)?.getDefaultTaskDisplayArea() ?? null;
+            if (area === null) return false;
+            for (let i = area.getStackCount() - 1; i >= 0; i--) {
+                const stack = Java.cast(area.getStackAt(i), Stack);
+                const component = stack.realActivity.value;
+                if (component === null || String(component.getPackageName()) !== LAUNCHER_PACKAGE) continue;
+                toFront.call(stack, REASON);
+                ensureVisible.call(root, null, 0, false);
+                resume.call(root);
+                return true;
+            }
+            return false;
+        },
+        /** Opens the Controls app grid on the central display. Must not hold the global lock: it starts an activity. */
+        openControlsApps(user) {
+            const intent = Intent.$new(CONTROLS_PACKAGE + '.action.OPEN_APPS');
+            intent.setComponent(Component.$new(CONTROLS_PACKAGE, CONTROLS_PACKAGE + '.MainActivity'));
+            intent.addFlags(0x10000000 | 0x04000000 | 0x20000000);
+            const options = Options.makeBasic();
+            options.setLaunchDisplayId(0);
+            system.startActivityAsUser.overload('android.content.Intent', 'android.os.Bundle', 'android.os.UserHandle')
+                .call(system, intent, options.toBundle(), UserHandle.of(user));
         },
         /** Lets the window follow the fingers: shifts and fades the task's root surface, nothing else. */
         follow(stack, dx, alpha) {
@@ -237,8 +281,20 @@ export function displayMover({api, componentKey, prepare, placed, schedule, repo
     }
 
     /** Moves the task described by [info] to [to]. A task already on the cluster first returns to the centre. */
+    /**
+     * What a display shows once a window has left it, instead of whatever stopped task lay below (a grey screen).
+     * The central display shows home or the Controls app grid, as set; the passenger display its factory launcher.
+     */
+    function reveal(display) {
+        try {
+            if (display === 0 && settings?.reveal === 'apps') api.openControlsApps(api.user());
+            else if (display === 0) api.lock(() => api.startHome(0, api.user()));
+            else api.lock(() => api.frontLauncher(display));
+        } catch (error) { report('move_reveal', error); }
+    }
+
     function moveTo(info, to, reason) {
-        let outcome, prepared = false;
+        let outcome, prepared = false, returned = 0;
         try {
             outcome = api.lock(() => {
                 const task = api.find(info.taskId);
@@ -246,7 +302,7 @@ export function displayMover({api, componentKey, prepare, placed, schedule, repo
                 if (!now || now.display !== info.display || !movableTask(now, api.user(), componentKey)) return 'changed';
                 if (to !== 0) {
                     for (const [taskId, entry] of moved) {
-                        if (entry.to === to && taskId !== info.taskId) returnTask(taskId, entry);
+                        if (entry.to === to && taskId !== info.taskId && returnTask(taskId, entry)) returned++;
                     }
                 }
                 if (info.display === 0) {
@@ -263,7 +319,11 @@ export function displayMover({api, componentKey, prepare, placed, schedule, repo
             report('move', error);
         }
         announce('OVC_WINDOW_MOVE from=' + info.display + ' to=' + to + ' reason=' + reason + ' outcome=' + outcome);
-        if (outcome === 'moved') placed(info.component, info.user, info.taskId, to);
+        if (outcome === 'moved') {
+            placed(info.component, info.user, info.taskId, to);
+            // A window that came back from the cluster in exchange already fills the central display.
+            if (returned === 0) schedule(() => reveal(info.display));
+        }
         // A task that stayed put after its native placement came back is placed beside the panel again.
         else if (prepared) placed(info.component, info.user, info.taskId, 0);
         return outcome;
@@ -298,7 +358,7 @@ export function displayMover({api, componentKey, prepare, placed, schedule, repo
 
     return {
         onEvent,
-        /** [next]: null (off) or {fingers: 2 | 3, passenger: displayId}. */
+        /** [next]: null (off) or {fingers: 2 | 3, passenger: displayId, reveal: 'home' | 'apps'}. */
         sync(next) {
             const measured = next === null ? new Map() : api.lock(() => {
                 const found = new Map();

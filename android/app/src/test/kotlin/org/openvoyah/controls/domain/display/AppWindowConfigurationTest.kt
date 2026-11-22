@@ -107,6 +107,8 @@ class AppWindowConfigurationTest {
 
     @Test fun theWindowSwipeIsOnByDefaultWithThreeFingers() {
         assertEquals(3, AppDisplayDefaults().moveFingers)
+        // The central display shows the factory home after a move unless the Controls app grid is chosen.
+        assertEquals(false, AppDisplayDefaults().moveShowsApps)
     }
 
     @Test fun onlyTwoOrThreeFingersMoveWindows() {

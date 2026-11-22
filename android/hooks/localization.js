@@ -101,9 +101,64 @@ export function installLocalization(Java, report = createReporter('OVC_LOCALIZAT
                 installed.push(typed);
                 // getString and getString(id, args) read through getText(int), so a template such as "%1$s connected"
                 // is translated before the app formats it, and the formatted text needs no entry of its own.
-                const resource = Java.use('android.content.res.Resources').getText.overload('int');
+                const Resources = Java.use('android.content.res.Resources');
+                const resource = Resources.getText.overload('int');
                 resource.implementation = function(id) { return convert(resource.call(this, id)); };
                 installed.push(resource);
+                // Compiled framework code can reach those methods with the call inlined, past the hooks: an app's
+                // TextView.setText(int) and a layout's android:text did, on a 97C launcher. So text is also checked
+                // where the app hands over a resource id, where it asks for a string, and when a view is shown.
+                const plain = TextView.setText.overload('java.lang.CharSequence');
+                const fix = view => {
+                    // Typed text in an editor is the driver's, never a label.
+                    if (!view.onCheckIsTextEditor()) {
+                        const old = view.getText(), next = convert(old);
+                        if (next !== old) plain.call(view, next);
+                    }
+                    const oldHint = view.getHint(), nextHint = convert(oldHint);
+                    if (nextHint !== oldHint) hint.call(view, nextHint);
+                };
+                const checked = (method, name) => {
+                    method.implementation = function(...args) {
+                        const result = method.call(this, ...args);
+                        try { fix(this); } catch (error) { report(name, error); }
+                        return result;
+                    };
+                    installed.push(method);
+                };
+                checked(TextView.setText.overload('int'), 'resource_text');
+                checked(TextView.setText.overload('int', 'android.widget.TextView$BufferType'), 'resource_text');
+                checked(TextView.setHint.overload('int'), 'resource_text');
+                checked(TextView.onAttachedToWindow.overload(), 'attach_text');
+                // getString(id, args) formats inside the framework, so a translated template is formatted here.
+                const format = Java.use('java.lang.String').format.overload('java.lang.String', '[Ljava.lang.Object;');
+                const formatted = (resources, id, args) => {
+                    if (table === null) return null;
+                    const template = resource.call(resources, id);
+                    if (template === null) return null;
+                    const source = String(template), replacement = lookup(table, source);
+                    return replacement === source ? null : format.call(JString, replacement, args);
+                };
+                const strings = (owner, resourcesOf) => {
+                    const single = owner.getString.overload('int');
+                    single.implementation = function(id) { return convert(single.call(this, id)); };
+                    installed.push(single);
+                    const withArgs = owner.getString.overload('int', '[Ljava.lang.Object;');
+                    withArgs.implementation = function(id, args) {
+                        try {
+                            const value = formatted(resourcesOf(this), id, args);
+                            if (value !== null) return value;
+                        } catch (error) { report('format', error); }
+                        return withArgs.call(this, id, args);
+                    };
+                    installed.push(withArgs);
+                };
+                strings(Resources, resources => resources);
+                const Context = Java.use('android.content.Context');
+                strings(Context, context => context.getResources());
+                const contextText = Context.getText.overload('int');
+                contextText.implementation = function(id) { return convert(contextText.call(this, id)); };
+                installed.push(contextText);
                 // Refresh text that is already visible.
                 Java.choose('android.widget.TextView', {
                     onMatch(view) {

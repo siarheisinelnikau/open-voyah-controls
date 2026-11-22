@@ -21,4 +21,6 @@
     <string name="voice_model_failed_storage">Not enough free storage for the model.</string>
     <string name="voice_model_failed_verification">The downloaded file did not match. Nothing was installed.</string>
     <string name="voice_model_megabytes">%1$d MB</string>
+    <string name="voice_listening_fallback">Listening with Vosk: Zipformer did not start</string>
+    <string name="voice_engine_failed">Did not start on this head unit (%1$s). Vosk is used; choose Zipformer again to retry.</string>
 </resources>

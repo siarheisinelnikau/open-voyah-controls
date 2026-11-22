@@ -48,10 +48,34 @@ test('partial installation rolls back and retries independently',()=>{
 
 function harness(options={}) {
     let raw=options.raw ?? JSON.stringify(config),tick,readFailure=false;
-    const logs=[],passed=[],retries=[],refreshed=[],parses={count:0};
-    const method=record=>({overload(){return this;},call(_view,value){record.push(value);return 'oem';}});
-    const text=method(passed),hint=method(passed),typed={overload(){return this;},call:()=>options.typed},
-        resource={overload(){return this;},call:()=>options.resource};
+    const logs=[],passed=[],retries=[],refreshed=[],parses={count:0},originals=[];
+    // One Frida method object per signature; call() runs the original OEM method.
+    const overloads=original=>{
+        const bySig={};
+        return {bySig,overload(...sig){
+            const key=sig.join(',');
+            return bySig[key] ??= {call:(self,...args)=>original(key,self,...args)};
+        }};
+    };
+    const setText=overloads((sig,_self,...args)=>{
+        if(sig.startsWith('java.lang.CharSequence')) { passed.push(args[0]); return 'oem'; }
+        originals.push('setText('+sig+')');
+    });
+    const setHint=options.noHint?{overload(){throw Error('java.lang.NoSuchMethodError: private.Signature');}}:
+        overloads((sig,_self,...args)=>{
+            if(sig==='java.lang.CharSequence') { passed.push(args[0]); return 'oem'; }
+            originals.push('setHint('+sig+')');
+        });
+    const attached=overloads(()=>{ originals.push('onAttachedToWindow'); });
+    const typed=overloads(()=>options.typed);
+    const resourceText=overloads(()=>options.resource);
+    const strings=(name)=>overloads((sig,_self,id,args)=>{
+        originals.push(name+'.getString('+sig+')');
+        return sig==='int' ? (options.string ?? 'plain') : 'oem formatted';
+    });
+    const resourceStrings=strings('Resources'),contextStrings=strings('Context');
+    const contextText=overloads(()=>options.string ?? 'plain');
+    const format=overloads((_sig,_self,template,args)=>({formatted:template,args}));
     const classes={
         'android.app.ActivityThread':{currentApplication(){return {
             getPackageName(){return options.packageName ?? 'com.qinggan.app.launcher';},getContentResolver(){return {};}};}},
@@ -60,12 +84,11 @@ function harness(options={}) {
             if(readFailure) throw Error('java.lang.IllegalStateException: provider for private.package unavailable');
             return raw;
         }},
-        'java.lang.String':{$new:value=>({translated:value})},
-        'android.widget.TextView':{setText:text,setHint:options.noHint?{overload(){
-            throw Error('java.lang.NoSuchMethodError: private.Signature');
-        }}:hint},
+        'java.lang.String':{$new:value=>({translated:value}),format},
+        'android.widget.TextView':{setText,setHint,onAttachedToWindow:attached},
         'android.content.res.TypedArray':{getText:typed},
-        'android.content.res.Resources':{getText:resource}
+        'android.content.res.Resources':{getText:resourceText,getString:resourceStrings},
+        'android.content.Context':{getString:contextStrings,getText:contextText}
     };
     const Java={perform:fn=>fn(),use:name=>classes[name],retain:view=>view,scheduleOnMainThread:fn=>fn(),
         choose(_name,callbacks){for(const view of options.views ?? []) callbacks.onMatch(view);callbacks.onComplete();}};
@@ -73,14 +96,24 @@ function harness(options={}) {
     vm.runInNewContext(source+'\ninstallLocalization(Java);',{Java,console:{log:line=>logs.push(line)},
         setInterval:fn=>{tick=fn;},setTimeout:(fn,ms)=>retries.push({fn,ms}),
         JSON:{parse:value=>{parses.count++;return JSON.parse(value);},stringify:JSON.stringify}});
-    return {logs,passed,retries,refreshed,parses,tick:()=>tick(),setRaw:value=>{raw=value;},
+    const main=setText.overload('java.lang.CharSequence','android.widget.TextView$BufferType'),
+        hint=options.noHint?{}:setHint.overload('java.lang.CharSequence'),typedText=typed.overload('int'),
+        resource=resourceText.overload('int');
+    // An OEM call: through the hook while one is installed, straight to the original method otherwise.
+    const invoke=(method,self,...args)=>(method.implementation ?? ((...a)=>method.call(self,...a))).call(self,...args);
+    return {logs,passed,retries,refreshed,parses,originals,tick:()=>tick(),setRaw:value=>{raw=value;},
         failReads:value=>{readFailure=value;},
-        // An OEM call: through the hook while one is installed, straight to the original method otherwise.
-        hooked:()=>[text,hint,typed,resource].map(item=>typeof item.implementation==='function'),
-        setText:value=>(text.implementation ?? ((v,t)=>text.call({},v,t))).call({},value,'NORMAL'),
-        setHint:value=>(hint.implementation ?? (v=>hint.call({},v))).call({},value),
-        getText:()=>(typed.implementation ?? (()=>typed.call({},0))).call({},0),
-        getResourceText:()=>(resource.implementation ?? (()=>resource.call({},0))).call({},0x7f010001)};
+        hooked:()=>[main,hint,typedText,resource].map(item=>typeof item.implementation==='function'),
+        setText:value=>invoke(main,{},value,'NORMAL'),
+        setHint:value=>invoke(hint,{},value),
+        getText:()=>invoke(typedText,{},0),
+        getResourceText:()=>invoke(resource,{},0x7f010001),
+        setTextId:view=>invoke(setText.overload('int'),view,0x7f010002),
+        attach:view=>invoke(attached.overload(),view),
+        resourcesString:(...args)=>invoke(resourceStrings.overload(...(args.length>1?['int','[Ljava.lang.Object;']:['int'])),
+            {},...args),
+        contextString:(...args)=>invoke(contextStrings.overload(...(args.length>1?['int','[Ljava.lang.Object;']:['int'])),
+            {getResources:()=>({})},...args)};
 }
 // A Java CharSequence: String() on it is a JNI toString() call.
 function chars(text) {
@@ -217,4 +250,33 @@ test('a hook that cannot be installed later is reported, reset and not retried f
     assert.deepEqual(h.hooked(),[false,false,false,false]);
     assert.deepEqual(h.logs.slice(1),['OVC_LOCALIZATION_ERROR stage=install kind=NoSuchMethodError']);
     assert.deepEqual(h.retries,[]);
+});
+
+test('a resource id or a shown view gets its label translated after the original call',()=>{
+    const h=harness();
+    const set=[];
+    const label={onCheckIsTextEditor:()=>false,getText:()=>chars('设置'),getHint:()=>null};
+    h.setTextId(label);
+    assert.deepEqual(h.originals,['setText(int)']);
+    assert.deepEqual(h.passed,[{translated:'Settings'}]);
+    const editor={onCheckIsTextEditor:()=>true,getText:()=>chars('设置'),getHint:()=>chars('设置')};
+    h.attach(editor);
+    assert.deepEqual(h.originals,['setText(int)','onAttachedToWindow']);
+    // The driver's typed text stays; only the hint is a label.
+    assert.deepEqual(h.passed,[{translated:'Settings'},{translated:'Settings'}]);
+    const other={onCheckIsTextEditor:()=>false,getText:()=>chars('其他'),getHint:()=>null};
+    h.attach(other);
+    assert.equal(h.passed.length,2);
+});
+
+test('getString translates plain strings and formats a translated template itself',()=>{
+    const named=JSON.stringify({schema:1,enabled:true,preset:'ru',products:[],packages:{}});
+    const h=harness({raw:named,packageName:'com.qinggan.bluetoothphone',string:'Phone',resource:chars('%1$s connected')});
+    assert.deepEqual(h.contextString(1),{translated:'Телефон'});
+    const args=['Redmi'];
+    assert.deepEqual(h.resourcesString(1,args),{formatted:'%1$s подключён',args});
+    assert.deepEqual(h.contextString(1,args),{formatted:'%1$s подключён',args});
+    const plain=harness({raw:named,packageName:'com.qinggan.bluetoothphone',resource:chars('Unknown %1$s')});
+    assert.equal(plain.resourcesString(1,args),'oem formatted');
+    assert.deepEqual(plain.originals,['Resources.getString(int,[Ljava.lang.Object;)']);
 });

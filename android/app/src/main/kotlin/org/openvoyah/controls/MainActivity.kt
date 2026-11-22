@@ -58,6 +58,7 @@ import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.routines.RoutineAppNotice
 import org.openvoyah.controls.presentation.routines.RoutineInteractionFrame
 import org.openvoyah.controls.presentation.routines.RoutineStartupNotice
+import org.openvoyah.controls.presentation.theme.controlsAccentOverlay
 import org.openvoyah.controls.presentation.routines.route
 import org.openvoyah.controls.presentation.theme.ControlsTheme
 import org.openvoyah.controls.presentation.theme.SessionPalette
@@ -92,7 +93,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // The manifest theme is dark. With the Daytime palette saved, the window itself must open light, or every
         // start and every recreate() shows one near-black frame before Compose paints.
-        if (appearancePreferences.load().palette == AppPalette.DAY) setTheme(R.style.AppTheme_Day)
+        val saved = appearancePreferences.load()
+        if (saved.palette == AppPalette.DAY) setTheme(R.style.AppTheme_Day)
+        // Android's own widgets (edge glow, text handles) take the Appearance accent too; Compose follows it live.
+        theme.applyStyle(controlsAccentOverlay(saved.accent, saved.palette), true)
         super.onCreate(savedInstanceState)
         val provider = ViewModelProvider(this)
         navigation = provider[ControlsNavigationViewModel::class.java]

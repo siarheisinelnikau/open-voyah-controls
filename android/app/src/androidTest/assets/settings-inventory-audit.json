@@ -4,7 +4,8 @@
       "appDisplayDpi": {
         "central": 170,
         "secondary": 190,
-        "moveFingers": 2
+        "moveFingers": 2,
+        "moveShowsApps": false
       },
       "appGrid": {
         "pinnedApps": [
@@ -519,7 +520,8 @@
       "appDisplayDpi": {
         "central": 230,
         "secondary": 260,
-        "moveFingers": 3
+        "moveFingers": 3,
+        "moveShowsApps": true
       },
       "appGrid": {
         "pinnedApps": [
@@ -1215,6 +1217,11 @@
       "area": "Windows and displays",
       "name": "window swipe between screens",
       "path": "/appDisplayDpi/moveFingers"
+    },
+    {
+      "area": "Windows and displays",
+      "name": "screen shown after a window swipe",
+      "path": "/appDisplayDpi/moveShowsApps"
     },
     {
       "area": "Windows and displays",

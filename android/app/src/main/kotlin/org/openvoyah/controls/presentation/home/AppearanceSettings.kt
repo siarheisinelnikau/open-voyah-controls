@@ -38,51 +38,59 @@ internal fun AppearanceSettings(state: AppearanceUiState, change: (AppearanceCha
             change(AppearanceChange.AnimateRoutes(it))
         }
         AppearanceChoiceRow(R.string.appearance_transition_speed, current.transitionSpeed, RouteTransitionSpeed.entries,
-            enabled && current.animateRoutes, { UiText.get(it.label) }) {
+            enabled && current.animateRoutes, { UiText.get(it.label) }, preview = { TransitionSample(it) }) {
             change(AppearanceChange.TransitionSpeed(it))
         }
         CockpitSwitch(UiText.get(R.string.appearance_high_contrast), current.highContrast, enabled) {
             change(AppearanceChange.HighContrast(it))
         }
-        AppearanceChoiceRow(R.string.appearance_palette, current.palette, AppPalette.entries, enabled, { UiText.get(it.label) }) {
+        AppearanceChoiceRow(R.string.appearance_palette, current.palette, AppPalette.entries, enabled, { UiText.get(it.label) },
+            preview = { PaletteSample(it, current) }) {
             change(AppearanceChange.Palette(it))
         }
-        AppearanceChoiceRow(R.string.appearance_accent, current.accent, AppAccent.entries, enabled, { UiText.get(it.label) }) {
+        AppearanceChoiceRow(R.string.appearance_accent, current.accent, AppAccent.entries, enabled, { UiText.get(it.label) },
+            preview = { AccentSample(it, current) }) {
             change(AppearanceChange.Accent(it))
         }
         AppearanceChoiceRow(R.string.appearance_background, current.backgroundTreatment, AppBackgroundTreatment.entries,
-            enabled, { UiText.get(it.label) }) {
+            enabled, { UiText.get(it.label) }, preview = { BackgroundSample(it, current) }) {
             change(AppearanceChange.BackgroundTreatment(it))
         }
         AppearanceChoiceRow(R.string.appearance_wallpaper_dimming, current.wallpaperDimming, WallpaperDimming.entries,
-            enabled, { UiText.get(it.label) }, description = R.string.appearance_wallpaper_dimming_description) {
+            enabled, { UiText.get(it.label) }, description = R.string.appearance_wallpaper_dimming_description,
+            preview = { WallpaperSample(it, current) }) {
             change(AppearanceChange.WallpaperShade(it))
         }
-        AppearanceChoiceRow(R.string.appearance_text_size, current.textSize, AppTextSize.entries, enabled, { UiText.get(it.label) }) {
+        AppearanceChoiceRow(R.string.appearance_text_size, current.textSize, AppTextSize.entries, enabled, { UiText.get(it.label) },
+            preview = { TextSizeSample(it, current) }) {
             change(AppearanceChange.TextSize(it))
         }
         AppearanceChoiceRow(R.string.appearance_navigation_label_size, current.navigationLabelSize,
-            AppRoleTextSize.entries, enabled, { UiText.get(it.label) }) {
+            AppRoleTextSize.entries, enabled, { UiText.get(it.label) }, preview = { RoleTextSizeSample(it, current) }) {
             change(AppearanceChange.NavigationLabelSize(it))
         }
         AppearanceChoiceRow(R.string.appearance_page_title_size, current.pageTitleSize,
-            AppRoleTextSize.entries, enabled, { UiText.get(it.label) }) {
+            AppRoleTextSize.entries, enabled, { UiText.get(it.label) }, preview = { RoleTextSizeSample(it, current) }) {
             change(AppearanceChange.PageTitleSize(it))
         }
-        AppearanceChoiceRow(R.string.appearance_font_family, current.fontFamily, AppFontFamily.entries, enabled, { UiText.get(it.label) }) {
+        AppearanceChoiceRow(R.string.appearance_font_family, current.fontFamily, AppFontFamily.entries, enabled,
+            { UiText.get(it.label) }, preview = { FontSample(it, current) }) {
             change(AppearanceChange.FontFamily(it))
         }
         CockpitSwitch(UiText.get(R.string.appearance_bold_text), current.boldText, enabled) {
             change(AppearanceChange.BoldText(it))
         }
-        AppearanceChoiceRow(R.string.appearance_spacing, current.spacing, AppSpacing.entries, enabled, { UiText.get(it.label) }) {
+        AppearanceChoiceRow(R.string.appearance_spacing, current.spacing, AppSpacing.entries, enabled, { UiText.get(it.label) },
+            preview = { SpacingSample(it) }) {
             change(AppearanceChange.Spacing(it))
         }
-        AppearanceChoiceRow(R.string.appearance_corners, current.corners, AppCorners.entries, enabled, { UiText.get(it.label) }) {
+        AppearanceChoiceRow(R.string.appearance_corners, current.corners, AppCorners.entries, enabled, { UiText.get(it.label) },
+            preview = { CornersSample(it) }) {
             change(AppearanceChange.Corners(it))
         }
         AppearanceChoiceRow(R.string.appearance_start_screen, current.launcherEntry, LauncherEntry.entries, enabled,
-            { UiText.get(it.label) }, description = R.string.appearance_start_screen_description) {
+            { UiText.get(it.label) }, description = R.string.appearance_start_screen_description,
+            preview = { StartScreenSample(it) }) {
             change(AppearanceChange.StartScreen(it))
         }
         CockpitSwitch(UiText.get(R.string.appearance_limit_media_on_launch), current.limitMediaVolumeOnLaunch, enabled) {
@@ -92,7 +100,7 @@ internal fun AppearanceSettings(state: AppearanceUiState, change: (AppearanceCha
             val percentFormat = UiText.get(R.string.appearance_media_volume_percent)
             AppearanceChoiceRow(R.string.appearance_launch_media_limit, current.launchMediaVolumePercent,
                 LAUNCH_MEDIA_VOLUME_PERCENTS, enabled, { percentFormat.format(Locale.ROOT, it) },
-                description = R.string.appearance_launch_media_limit_description) {
+                description = R.string.appearance_launch_media_limit_description, preview = { VolumeSample(it) }) {
                 change(AppearanceChange.LaunchMediaVolumePercent(it))
             }
         }
@@ -108,13 +116,14 @@ private fun <T> AppearanceChoiceRow(
     enabled: Boolean,
     label: (T) -> String,
     description: Int? = null,
+    preview: (@Composable (T) -> Unit)? = null,
     change: (T) -> Unit,
 ) {
     var choosing by rememberSaveable { mutableStateOf(false) }
     CockpitChoice(UiText.get(title), label(current), enabled) { choosing = true }
     if (!choosing) return
     CockpitOptionDialog(UiText.get(title), choices, current, label, change, { choosing = false },
-        description = description?.let { UiText.get(it) }, enabled = enabled)
+        description = description?.let { UiText.get(it) }, enabled = enabled, preview = preview)
 }
 
 private val AppTextSize.label: Int get() = when (this) {

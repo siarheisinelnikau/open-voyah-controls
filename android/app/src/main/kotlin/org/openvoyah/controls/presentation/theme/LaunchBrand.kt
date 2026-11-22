@@ -1,21 +1,30 @@
 package org.openvoyah.controls.presentation.theme
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.MotionDurationScale
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -39,6 +48,8 @@ import androidx.compose.ui.unit.sp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.diagnostics.ControlsLog
+import org.openvoyah.controls.domain.settings.AppAppearance
+import org.openvoyah.controls.domain.settings.AppPalette
 
 internal const val LAUNCH_BRAND_TAG = "launchBrand"
 
@@ -110,27 +121,126 @@ internal fun launchPalette(colors: ColorScheme): LaunchPalette {
 
 private val WingEasing = CubicBezierEasing(.22f, 1.18f, .36f, 1f)
 
-@Composable
-internal fun LaunchBrand(onFinished: () -> Unit) {
-    val phase = remember { Animatable(0f) }
-    val finish = rememberUpdatedState(onFinished)
+/** The cockpit backdrop fades in before the mark and out after it; the window itself is transparent. */
+internal const val LAUNCH_BACKDROP_MILLIS = CockpitMotion.ENTER
 
-    LaunchedEffect(phase) {
-        ControlsLog.debug("launch_brand", "phase", "started")
-        phase.animateTo(1f, tween(LaunchTimeline.DURATION_MILLIS, easing = LinearEasing))
-        ControlsLog.debug("launch_brand", "phase", "completed")
-        finish.value()
+/** The longest the intro waits, invisibly, for steady frames before it plays anyway. */
+internal const val LAUNCH_SETTLE_LIMIT_MILLIS = 5_000L
+
+/** A point at which nearly every part of the mark is drawn, used to prepare the drawing before the intro shows. */
+private const val WARM_PHASE = (LaunchTimeline.CHARGE_FULL + LaunchTimeline.CHARGE_FADE) / 2
+
+/** One step of the 8-bit color range: drawn, so paths, text and shaders are prepared, yet not visible. */
+private const val WARM_ALPHA = 1f / 255f
+
+/** Backdrop opacity at [introMillis] of the intro's own time. */
+internal fun launchBackdrop(introMillis: Float): Float =
+    if (introMillis < LaunchTimeline.DURATION_MILLIS) {
+        CockpitMotion.Arrive.transform((introMillis / LAUNCH_BACKDROP_MILLIS).coerceIn(0f, 1f))
+    } else {
+        1f - CockpitMotion.Leave.transform(
+            ((introMillis - LaunchTimeline.DURATION_MILLIS) / LAUNCH_BACKDROP_MILLIS).coerceIn(0f, 1f))
     }
 
-    LaunchBrandFrame({ phase.value }, Modifier.pointerInput(Unit) { detectTapGestures(onPress = { finish.value() }) })
+private class LaunchRun {
+    var done = false
+    var settled = false
+    var settleNanos = 0L
+    var clock: LaunchClock? = null
+
+    fun report(completed: Boolean) = LaunchReport(
+        completed = completed,
+        settled = settled,
+        settleMillis = settleNanos / 1_000_000L,
+        frames = clock?.frames ?: 0,
+        slowFrames = clock?.slowFrames ?: 0,
+        longestGapMillis = (clock?.longestGapNanos ?: 0L) / 1_000_000L,
+        elapsedMillis = (clock?.wallNanos ?: 0L) / 1_000_000L,
+    )
 }
 
 /**
- * The intro at one point of [LaunchTimeline]. [phase] is read while drawing, which keeps composition, layout and
- * text measurement out of the frame loop; it also lets a test show a single stage for as long as it needs.
+ * Runs the intro in two parts. First it draws nothing visible and waits until frames arrive steadily (see
+ * [LaunchSettle]), drawing the whole mark once per frame at an invisible alpha so that the first visible frames do
+ * not pay for text, paths and shaders. [onShown] then lets the window take touches, the backdrop fades in and the
+ * timeline plays on [LaunchClock]. [onFinished] receives what the run looked like; a tap ends it early.
+ *
+ * The backdrop covers the whole window, including the strip that [ControlsTheme] keeps free for the launcher's
+ * panel, as the opaque window background used to; the mark stays centered beside the panel.
  */
 @Composable
-internal fun LaunchBrandFrame(phase: () -> Float, modifier: Modifier = Modifier) {
+internal fun LaunchBrand(appearance: AppAppearance, onShown: () -> Unit, onFinished: (LaunchReport) -> Unit) {
+    val shown = rememberUpdatedState(onShown)
+    val finish = rememberUpdatedState(onFinished)
+    val run = remember { LaunchRun() }
+    var warming by remember { mutableStateOf(true) }
+    val warmFrame = remember { mutableLongStateOf(0L) }
+    val introMillis = remember { mutableFloatStateOf(0f) }
+    val refreshRate = LocalView.current.display?.refreshRate?.takeIf { it >= 20f } ?: 60f
+
+    fun end(completed: Boolean) {
+        if (run.done) return
+        run.done = true
+        finish.value(run.report(completed))
+    }
+
+    LaunchedEffect(run) {
+        val scale = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
+        val frameNanos = (1_000_000_000L / refreshRate).toLong()
+        val settle = LaunchSettle(frameNanos)
+        val first = withFrameNanos { it }
+        var now = first
+        while (now - first < LAUNCH_SETTLE_LIMIT_MILLIS * 1_000_000L) {
+            now = withFrameNanos { it }
+            warmFrame.longValue = now
+            if (settle.onFrame(now)) {
+                run.settled = true
+                break
+            }
+        }
+        run.settleNanos = now - first
+        warming = false
+        shown.value()
+        ControlsLog.debug("launch_brand", "phase", "started", "settled", run.settled)
+        val totalMillis = LaunchTimeline.DURATION_MILLIS + LAUNCH_BACKDROP_MILLIS
+        val clock = LaunchClock(frameNanos, (totalMillis * scale.coerceAtLeast(0f) * 1_000_000.0).toLong())
+        run.clock = clock
+        while (scale > 0f && introMillis.floatValue < totalMillis) {
+            introMillis.floatValue = clock.onFrame(withFrameNanos { it }) / 1_000_000f / scale
+        }
+        ControlsLog.debug("launch_brand", "phase", "completed")
+        end(completed = true)
+    }
+
+    val backdropColor = colorResource(R.color.cockpit_background)
+    Box(Modifier.fillMaxSize()
+        .drawBehind {
+            val alpha = launchBackdrop(introMillis.floatValue)
+            if (alpha > 0f) drawRect(backdropColor, alpha = alpha)
+        }
+        .pointerInput(Unit) { detectTapGestures(onPress = { end(completed = false) }) }) {
+        // The intro keeps the dark roles in every palette and only takes accent, contrast and type from Appearance.
+        ControlsTheme(appearance = appearance, temporaryPalette = AppPalette.DARK) {
+            Box(Modifier.fillMaxSize()) {
+                LaunchBrandFrame({
+                    warmFrame.longValue
+                    WARM_PHASE
+                }, Modifier.graphicsLayer { alpha = if (warming) WARM_ALPHA else 0f }, backdrop = { 0f })
+                LaunchBrandFrame({ (introMillis.floatValue / LaunchTimeline.DURATION_MILLIS).coerceIn(0f, 1f) },
+                    backdrop = { 0f })
+            }
+        }
+    }
+}
+
+/**
+ * The intro at one point of [LaunchTimeline] on a [backdrop] of the given opacity. [phase] is read while drawing,
+ * which keeps composition, layout and text measurement out of the frame loop; it also lets a test show a single
+ * stage for as long as it needs.
+ */
+@Composable
+internal fun LaunchBrandFrame(phase: () -> Float, modifier: Modifier = Modifier, backdrop: () -> Float = { 1f }) {
+    val backdropColor = colorResource(R.color.cockpit_background)
     val title = stringResource(R.string.app_name)
     val caption = UiText.get(R.string.ui_33)
     val measureText = rememberTextMeasurer()
@@ -192,6 +302,8 @@ internal fun LaunchBrandFrame(phase: () -> Float, modifier: Modifier = Modifier)
             val pulseStroke = Stroke(1.5.dp.toPx())
 
             onDrawBehind {
+                val backdropAlpha = backdrop()
+                if (backdropAlpha > 0f) drawRect(backdropColor, alpha = backdropAlpha.coerceAtMost(1f))
                 val progress = phase()
                 if (progress <= LaunchTimeline.WINGS_START) return@onDrawBehind
 

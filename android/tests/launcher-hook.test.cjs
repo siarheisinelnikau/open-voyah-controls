@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const source = ['report.js', 'panel-icons.js', 'panel-state.js', 'home-navi-card.js', 'home-weather-card.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+const source = ['report.js', 'panel-icons.js', 'panel-state.js', 'home-navi-card.js', 'home-weather-card.js', 'screen-lift.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import .*;$/gm, '').replaceAll('export function', 'function')).join('\n') + '\ninstall(Java);';
 
 function harness(config, options = {}) {
@@ -46,6 +46,9 @@ function harness(config, options = {}) {
         finally { inTheme = false; }
     }
     const release = { call() {} };
+    // The launcher's screen-lift switch and the Settings.Global values the agent writes.
+    const lift = { call(nav, type) { nav.liftType = type; } };
+    const written = [];
     const selection = { call(nav) {
         nav.stockUpdates++;
         nav.checked = nav.stockChecked ?? -1;
@@ -205,6 +208,7 @@ function harness(config, options = {}) {
             initScreenUpViews: {overload:() => init},
             initScreenDownViews: options.noLowered ? undefined : {overload:() => initDown}, updateTheme: options.noTheme ? undefined : {overload:() => theme},
             release: {overload:() => release},
+            doScreenLift: options.noLift ? undefined : {overload(...types) { assert.deepEqual(types, ['int']); return lift; }},
             updateSelectedApp: options.noSelection ? undefined : {overload:() => selection}
         },
         'android.view.View': { performLongClick: { overload(...coordinates) { return holds[coordinates.length ? 1 : 0]; } } },
@@ -225,7 +229,14 @@ function harness(config, options = {}) {
         }}},
         'android.view.ViewGroup$MarginLayoutParams': {},
         'android.view.View$OnClickListener': {},
-        'android.provider.Settings$Global': { getString(resolver, key) {
+        'com.qinggan.utils.ScreenLiftUtils': {getScreenLiftState() {
+            if (options.failLiftState) throw new Error('java.lang.RuntimeException: private property');
+            return options.liftState ?? 2;
+        }},
+        'android.provider.Settings$Global': { putString(resolver, key, value) {
+            if (options.failPut) return false;
+            written.push([key, value]); return true;
+        }, getString(resolver, key) {
             if (key === 'org.openvoyah.controls.panelIcons') {
                 iconReads++;
                 return options.panelIcons === undefined ? null : JSON.stringify(options.panelIcons);
@@ -295,7 +306,9 @@ function harness(config, options = {}) {
     }
     return {
         retries, logs, existing, get iconReads() { return iconReads; }, get decodes() { return decodes; },
-        hooks: {click, init, initDown, selection, holds, theme, release},
+        hooks: {click, init, initDown, selection, holds, theme, release, lift},
+        written,
+        lift(nav, type) { lift.implementation.call(nav, type); },
         initDown(nav) { initDown.implementation.call(nav); },
         holdView(view, ...coordinates) { return performHold(view, coordinates); },
         bar,
@@ -1136,4 +1149,34 @@ test('a bar built while the agent runs gets its lowered buttons once the OEM inf
     assert.equal(bar.views[lowered.home].background.layer.icon.component, 'org.example.home/.Main');
     h.tick();
     assert.equal(h.added(bar).length, 3);
+});
+
+test('the lowered display state reaches Controls once per change and leaves with the agent', () => {
+    const key = 'org.openvoyah.controls.screenLowered';
+    const h = harness(config({}), {liftState:1}), center = h.bar(0), passenger = h.bar(1);
+    assert.deepEqual(h.written, [[key, '1']]);
+    h.lift(center, 1); h.lift(passenger, 2);
+    assert.deepEqual(h.written, [[key, '1']]);
+    h.lift(center, 2); h.lift(center, 2);
+    assert.deepEqual(h.written, [[key, '1'], [key, '0']]);
+    assert.equal(center.liftType, 2);
+    h.lift(center, 1);
+    assert.deepEqual(h.written.at(-1), [key, '1']);
+    // A failed installation removes the value, so Controls falls back to its full-height grid.
+    const failed = harness(config({}), {failChoose:true, liftState:1});
+    assert.deepEqual(failed.written, [[key, '1'], [key, null]]);
+    assert.equal(failed.hooks.lift.implementation, null);
+});
+
+test('an unreadable start state or a refused write is reported and keeps the panel', () => {
+    for (const options of [{failLiftState:true}, {failPut:true, liftState:1}, {noLift:true}]) {
+        const h = harness(config({navbar01:action}), options), bar = h.bar(0);
+        h.tap(bar, 'screen_up_icon_1');
+        assert.equal(h.launched.at(-1).intent.component, action.component);
+        assert.deepEqual(h.written, []);
+        if (options.failPut) { h.lift(bar, 1); assert.deepEqual(h.written, []); }
+        const errors = h.logs.filter(line => line.startsWith('OVC_PANEL_ERROR'));
+        assert.deepEqual(errors, options.failPut ? [] : ['OVC_PANEL_ERROR stage=screen_lift kind='
+            + (options.noLift ? 'TypeError' : 'RuntimeException')]);
+    }
 });

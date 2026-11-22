@@ -55,8 +55,11 @@ export function readWindowConfig(raw) {
     if (typeof systemInsets !== 'boolean' || !Number.isInteger(systemInsetsAttempt) || systemInsetsAttempt < 0) return null;
     // The swipe that moves app windows between screens: absent or null when off.
     const displayMove = config.displayMove ?? null;
+    // What the central display shows after a window left it: the factory home (default) or the Controls app grid.
     if (displayMove !== null && (typeof displayMove !== 'object' || Array.isArray(displayMove) ||
-        (displayMove.fingers !== 2 && displayMove.fingers !== 3) || Object.keys(displayMove).length !== 1)) return null;
+        (displayMove.fingers !== 2 && displayMove.fingers !== 3) ||
+        !['home', 'apps', undefined].includes(displayMove.reveal) ||
+        Object.keys(displayMove).some(name => name !== 'fingers' && name !== 'reveal'))) return null;
     const apps = new Map();
     for (const entry of config.apps) {
         const profile = normalizeProfile(entry);
@@ -66,7 +69,7 @@ export function readWindowConfig(raw) {
         apps.set(pkg, profile);
     }
     return {enabled: config.enabled, user: config.user, apps, displayDpi, passengerDisplayId, systemInsets, systemInsetsAttempt,
-        displayMove: displayMove === null ? null : {fingers: displayMove.fingers}};
+        displayMove: displayMove === null ? null : {fingers: displayMove.fingers, reveal: displayMove.reveal ?? 'home'}};
 }
 
 /**

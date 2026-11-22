@@ -2,6 +2,10 @@
 
 Open Voyah Controls is an Android app for Voyah head units. It opens directly to installed apps, with one tile for its own settings. Assign launcher and hardware buttons, use offline English or Russian voice commands, and access driver seat/mirror memory and translations on reviewed firmware.
 
+## Tested on
+
+The app has been tested on a Voyah Free 318 head unit with firmware 6.1.0, in guest mode.
+
 ## Projects
 
 - [Android](android/README.md) — source, build instructions, and feature guides.

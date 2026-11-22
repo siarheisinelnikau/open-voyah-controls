@@ -17,9 +17,9 @@ final class SpokenNumbers {
     private static final String[] RU_TENS = {"", "", "двадцать", "тридцать", "сорок", "пятьдесят",
         "шестьдесят", "семьдесят", "восемьдесят", "девяносто"};
     /** Kazakh builds 11–99 as tens plus units, including the teens (он бір). */
-    private static final List<String> KK_ONES = List.of("нөл", "бір", "екі", "үш", "төрт", "бес", "алты", "жеті",
+    private static final List<String> KK_ONES = Arrays.asList("нөл", "бір", "екі", "үш", "төрт", "бес", "алты", "жеті",
         "сегіз", "тоғыз");
-    private static final List<String> KK_TENS = List.of("", "он", "жиырма", "отыз", "қырық", "елу", "алпыс", "жетпіс",
+    private static final List<String> KK_TENS = Arrays.asList("", "он", "жиырма", "отыз", "қырық", "елу", "алпыс", "жетпіс",
         "сексен", "тоқсан");
     private static final String KK_HUNDRED = "жүз";
 

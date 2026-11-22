@@ -48,7 +48,8 @@ public final class VoiceSettings {
     /** The media level set once per head unit boot. */
     private static final String STARTUP_VOLUME = "startupVolume";
     private static final String STARTUP_VOLUME_PERCENT = "startupVolumePercent";
-    private static final Set<String> LANGUAGES = Set.of("ru", "en", "kk");
+    // Set.of needs API 30; Android 9 head units run API 28.
+    private static final Set<String> LANGUAGES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList("ru", "en", "kk")));
     private static final String CONTACT_PREFIX = "contact.";
     private static final Pattern CONTACT_PHONE = Pattern.compile("\\+?[0-9]{3,15}");
     private static final int MAX_VOICE_VALUES = 512 + 16;

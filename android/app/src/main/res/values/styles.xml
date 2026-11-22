@@ -27,7 +27,11 @@
         <item name="android:windowBackground">@color/cockpit_day_background</item>
     </style>
 
-    <style name="LaunchBrandTheme" parent="AppTheme" />
+    <!-- Transparent: home stays on screen while the cold-started process settles; the intro draws its own backdrop. -->
+    <style name="LaunchBrandTheme" parent="AppTheme">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
 
     <style name="CockpitButton" parent="android:style/Widget.Material.Button">
         <item name="android:background">@drawable/cockpit_button</item>

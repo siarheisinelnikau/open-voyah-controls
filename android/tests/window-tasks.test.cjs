@@ -786,7 +786,7 @@ test('the swipe between screens follows the window document and the service swit
     assert.equal(service.moves.wanted.at(-1), null);
     service.setProfiles(documentWith([], {displayMove:{fingers:2}}));
     service.tick();
-    assert.deepEqual({...service.moves.wanted.at(-1)}, {fingers:2, passenger:1});
+    assert.deepEqual({...service.moves.wanted.at(-1)}, {fingers:2, passenger:1, reveal:'home'});
     for (const off of [documentWith([], {displayMove:{fingers:2}, enabled:false}), documentWith([]),
         documentWith([], {displayMove:{fingers:5}})]) {
         service.setProfiles(off);

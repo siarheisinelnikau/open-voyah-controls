@@ -7,6 +7,7 @@ import org.openvoyah.controls.data.settings.LocalSettingsArchive;
 import org.openvoyah.controls.diagnostics.ControlsLog;
 import org.openvoyah.controls.diagnostics.Diagnostics;
 import org.openvoyah.controls.platform.audio.MediaDuck;
+import org.openvoyah.controls.platform.startup.StartupWork;
 import org.openvoyah.controls.platform.voice.SpeechModels;
 
 /** Process entry: diagnostics come first so the recovery of an interrupted settings restore is already recorded. */
@@ -24,8 +25,13 @@ public final class ControlsApplication extends Application {
         // Every process start (boot, jobs, services) passes here; the archive opens about twenty stores.
         try { if (LocalSettingsArchive.hasPendingRollback(this)) new LocalSettingsArchive(this).recoverInterruptedRestore(); }
         catch (Exception ex) { ControlsLog.error("settings_restore_recovery", ex, "outcome", "failed"); }
-        // Off the main thread: the first voice key press after boot then finds the speech model ready.
-        SpeechModels.warmUp(this, "startup");
+        // Heavy start-up work waits while the startup intro plays, so the intro keeps the CPU it needs to stay smooth.
+        StartupWork.afterIntro(() -> {
+            // Off the main thread: the first voice key press after boot then finds the speech model ready.
+            SpeechModels.warmUp(this, "startup");
+            // Off the main thread too: the first open of the app grid then shows its apps, icons and pages at once.
+            org.openvoyah.controls.platform.apps.AppCatalogCache.start(this);
+        });
         // Puts back a media level a killed process left lowered, and lowers media during phone calls.
         MediaDuck.start(this);
     }

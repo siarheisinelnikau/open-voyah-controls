@@ -18,6 +18,9 @@ public class TranscriptMatcherTest {
         assertEquals("громкость пятьдесят процент", TranscriptMatcher.key("Громкость, пятьдесят процентов!"));
         assertEquals("громкость 50 процент", TranscriptMatcher.key("громкость 50%"));
         assertEquals("включи подогрев", TranscriptMatcher.key("Включи  подогрёв"));
+        assertEquals("открой люк на пятьдесят процент", TranscriptMatcher.key("«Открой люк» — на пятьдесят процентов…"));
+        assertEquals("жүргізуші бір", TranscriptMatcher.key("Жүргізуші, бір!"));
+        assertEquals("", TranscriptMatcher.key("…!?"));
     }
 
     @Test public void aSlightlyMisheardCommandFindsItsPhrase() {

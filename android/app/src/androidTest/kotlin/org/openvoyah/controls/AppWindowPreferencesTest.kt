@@ -98,7 +98,13 @@ class AppWindowPreferencesTest : AndroidTestCase() {
             assertEquals(3, preferences.exportDefaults().getInt("moveFingers"))
             assertFalse(JSONObject(preferences.agentConfig(true)).has("displayMove"))
             val config = JSONObject(preferences.agentConfig(true, allowDisplayMove = true))
-            assertEquals("""{"fingers":3}""", config.getJSONObject("displayMove").toString())
+            assertEquals("""{"fingers":3,"reveal":"home"}""", config.getJSONObject("displayMove").toString())
+            preferences.saveDefaults(AppDisplayDefaults(moveFingers = 3, moveShowsApps = true))
+            assertEquals(true, AppWindowPreferences(context).loadDefaults().moveShowsApps)
+            assertEquals(true, preferences.exportDefaults().getBoolean("moveShowsApps"))
+            assertEquals("apps", JSONObject(preferences.agentConfig(true, allowDisplayMove = true))
+                .getJSONObject("displayMove").getString("reveal"))
+            preferences.saveDefaults(AppDisplayDefaults(moveFingers = 3))
             // The swipe alone is no density override for the agent.
             assertFalse(config.has("displayDpi"))
             assertEquals(AppDisplayDefaults(moveFingers = 3),

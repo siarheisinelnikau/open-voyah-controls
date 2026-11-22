@@ -71,6 +71,8 @@ When the motorised display is lowered, each `NavigationBar` hides its normal pan
 
 **Failures.** If the button class is missing, or the menu refuses a button, the lowered menu keeps its own Home and the normal panel stays as assigned. Such a failure is reported once per slot (`OVC_PANEL_ICONS_ERROR stage=lowered`) and is not retried every second.
 
+**State for Controls.** `screen-lift.js` hooks `NavigationBar.doScreenLift(int)`. When the central bar switches, it writes Settings.Global `org.openvoyah.controls.screenLowered` (`1` lowered, `0` not), only when the value changes. At start it publishes `ScreenLiftUtils.getScreenLiftState()`. Disposal deletes the value, so Controls never keeps its lowered grid layout after the agent has gone. Failures are reported as `OVC_PANEL_ERROR stage=screen_lift` and leave the panel alone.
+
 ## Oversea launcher (`Build.PRODUCT = f6811`)
 
 Entry: `hooks/navbar-oversea.js`. This branch has separate classes and exposes different controls.

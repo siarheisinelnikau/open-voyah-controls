@@ -23,6 +23,8 @@ class RecognitionSectionTest {
         assertEquals("English has no Zipformer", RecognitionEngine.VOSK, RecognitionEngine.effective("zipformer", "en", setOf(zipformer)))
         assertEquals(RecognitionEngine.VOSK, RecognitionEngine.effective("vosk", "ru", setOf(zipformer)))
         assertEquals("Unknown stored value", RecognitionEngine.VOSK, RecognitionEngine.effective("other", "ru", setOf(zipformer)))
+        assertEquals("Failed to start in this process", RecognitionEngine.VOSK,
+            RecognitionEngine.effective("zipformer", "ru", setOf(zipformer), setOf(SpeechEngine.ZIPFORMER)))
         assertTrue(SpeechEngine.VOSK.supports("kk"))
     }
 }

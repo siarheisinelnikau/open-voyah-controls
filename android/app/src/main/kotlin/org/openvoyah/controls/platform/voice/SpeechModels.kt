@@ -6,11 +6,16 @@ import android.content.pm.PackageManager
 import android.os.SystemClock
 import java.io.File
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
@@ -131,6 +136,20 @@ internal object SpeechModels {
     private val vosk = VoskModels()
     @Volatile private var instance: PreparedSpeech<LoadedSpeechModel, SpeechDecoder>? = null
     @Volatile private var modelStore: SpeechModelStore? = null
+    private val failures = MutableStateFlow<Map<SpeechEngine, String>>(emptyMap())
+
+    /**
+     * Engines that could not start in this process, with the name of the error. Voice uses Vosk for them until the
+     * engine is chosen again in Recognition or its model is downloaded again.
+     */
+    val engineFailures: StateFlow<Map<SpeechEngine, String>> = failures.asStateFlow()
+
+    fun recordFailure(engine: SpeechEngine, failure: Throwable) {
+        failures.update { it + (engine to rootCauseName(failure)) }
+        ControlsLog.warn("voice_engine_fallback", failure, "engine", engine.key, "fallback", SpeechEngine.VOSK.key)
+    }
+
+    fun clearFailure(engine: SpeechEngine) = failures.update { it - engine }
 
     fun of(context: Context): PreparedSpeech<LoadedSpeechModel, SpeechDecoder> = instance ?: synchronized(this) {
         instance ?: create(context.applicationContext).also { instance = it }
@@ -148,9 +167,9 @@ internal object SpeechModels {
      */
     fun engineFor(context: Context, settings: VoiceSettings, language: String): SpeechEngine {
         val chosen = SpeechEngine.forLanguage(SpeechEngine.fromKey(settings.engine()), language)
+        if (chosen == SpeechEngine.VOSK || chosen in failures.value) return SpeechEngine.VOSK
         val model = SpeechModelCatalog.forEngine(chosen, language)
-        return if (chosen != SpeechEngine.VOSK && (model == null || !store(context).installed(model))) SpeechEngine.VOSK
-        else chosen
+        return if (model == null || !store(context).installed(model)) SpeechEngine.VOSK else chosen
     }
 
     /**
@@ -174,7 +193,8 @@ internal object SpeechModels {
                         "reason", "not_downloaded", "model", key(engine, language))
                     return@launch
                 }
-                of(app).warm(key(engine, language), speechGrammar(settings.withContacts().grammar()), trigger)
+                val grammar = speechGrammar(settings.withContacts().grammar())
+                withVoskFallback(engine, { candidate -> of(app).warm(key(candidate, language), grammar, trigger) }, ::recordFailure)
             } catch (_: Exception) {
                 // Reported by the preparation; the next request tries again.
             } catch (_: LinkageError) {
@@ -185,7 +205,8 @@ internal object SpeechModels {
     /** First-run check: the same model as voice requests, so setup never holds a second copy in memory. */
     suspend fun prepareForSetup(context: Context, language: String) {
         val app = context.applicationContext
-        of(app).warm(key(engineFor(app, VoiceSettings(app), language), language), null, "setup")
+        withVoskFallback(engineFor(app, VoiceSettings(app), language),
+            { candidate -> of(app).warm(key(candidate, language), null, "setup") }, ::recordFailure)
     }
 
     /** Forgets the unpacked bundled model of [language], so the next preparation copies it again from the APK. */
@@ -241,6 +262,37 @@ internal object SpeechModels {
             SpeechEngine.ZIPFORMER -> ZipformerSpeechModel.open(checkNotNull(downloaded))
         }
     }
+}
+
+/**
+ * Prepares [engine]; when an engine other than Vosk fails to start, reports it to [failed] and prepares Vosk instead,
+ * so a broken optional engine never leaves voice input without recognition. The second value is true after a fallback.
+ */
+internal inline fun <T> withVoskFallback(
+    engine: SpeechEngine,
+    prepare: (SpeechEngine) -> T,
+    failed: (SpeechEngine, Throwable) -> Unit,
+): Pair<T, Boolean> {
+    try {
+        return prepare(engine) to false
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        if (engine == SpeechEngine.VOSK) throw failure
+        failed(engine, failure)
+    } catch (failure: LinkageError) {
+        // A native library or class that cannot load on this head unit.
+        if (engine == SpeechEngine.VOSK) throw failure
+        failed(engine, failure)
+    }
+    return prepare(SpeechEngine.VOSK) to true
+}
+
+/** The class of the innermost cause: what the user and the journal can name, without a message that may hold data. */
+internal fun rootCauseName(failure: Throwable): String {
+    var cause = failure
+    repeat(8) { cause = cause.cause?.takeIf { it !== cause } ?: return cause.javaClass.simpleName }
+    return cause.javaClass.simpleName
 }
 
 /** The Vosk grammar for the catalog phrases: digits are transcript aliases only, and `[unk]` absorbs other speech. */

@@ -101,6 +101,8 @@ import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 import org.openvoyah.controls.presentation.theme.rememberPressMotion
 import org.openvoyah.controls.presentation.theme.scaledText
 import java.util.Locale
+import org.openvoyah.controls.platform.display.rememberScreenLowered
+import org.openvoyah.controls.platform.display.visibleWhenLowered
 
 /** The launcher root keeps apps and Controls shortcuts available on every desktop. */
 @Composable
@@ -193,8 +195,10 @@ internal fun AppsScreen(
     val smoothPaging = animateDesktopPaging && grid.smoothDesktopPaging &&
         state.selection?.let { it.entry == entry && it.desktop == desktop } == true
     val banner = rememberClosingStatus(state.status)
+    // A lowered display shows only its top part: the grid ends there and keeps two rows of smaller tiles.
+    val lowered by rememberScreenLowered()
     DesktopWallpaperBackdrop(desktop) {
-        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()
+        Column(Modifier.fillMaxSize().visibleWhenLowered(lowered).windowInsetsPadding(WindowInsets.safeDrawing).imePadding()
             .padding(horizontal = layout.spacing(24.dp), vertical = layout.spacing(20.dp)),
             verticalArrangement = Arrangement.spacedBy(layout.spacing(12.dp))) {
             if (grid.desktops.enabled || desktopPins.size > 1) {
@@ -241,8 +245,13 @@ internal fun AppsScreen(
                 val columnCount = with(density) {
                     grid.columns.fit(constraints.maxWidth, tiles.cellWidth.roundToPx(), gridSpacing.roundToPx())
                 }
+                val tileContent = tiles.contentHeight(labelStyle, grid.showAppLabels, density)
+                // Rows that are lower than a tile's content shrink its icon and caption to fit; the normal display
+                // never asks for that.
+                val fitted: (Dp) -> GridTileMetrics = { rowHeight -> tiles.fittedTo(rowHeight, tileContent) }
                 val layoutFor: (Dp) -> GridPageLayout = { height ->
-                    tiles.pageLayout(height, gridSpacing, labelStyle, grid.showAppLabels, density)
+                    tiles.pageLayout(height, gridSpacing, labelStyle, grid.showAppLabels, density,
+                        minimumRows = if (lowered) 2 else 1)
                 }
                 val cards = if (searching) emptyList() else rememberDesktopInfoCards(desktop)
                 val arranged = remember(visible) { visible.map(LocalApp::id) }
@@ -306,15 +315,16 @@ internal fun AppsScreen(
                     val ring = if (move?.selected == app.id) Modifier.drawBehind {
                         drawCircle(ringColor, radius = size.minDimension / 2 + 6.dp.toPx(), style = Stroke(3.dp.toPx()))
                     } else Modifier
-                    LauncherTile(app.label, tiles.copy(height = context.rowHeight),
+                    val metrics = fitted(context.rowHeight)
+                    LauncherTile(app.label, metrics,
                         open = if (move == null) { { if (app.launchEntry == null) showSettings(app) else open(app) } } else { { tapToMove(app) } },
                         settings = if (move == null) { { showSettings(app) } } else null,
                         modifier = gridItemMotion().then(context.anchor).then(announcement).then(moveModifier),
                         showLabel = grid.showAppLabels) {
-                        if (pinned) Box(ring.size(tiles.iconSize)) {
+                        if (pinned) Box(ring.size(metrics.iconSize)) {
                             AppIcon(app, Modifier.fillMaxSize(), grid.iconStyle)
                             PinMark(Modifier.align(Alignment.TopEnd).offset(x = 7.dp, y = (-4).dp))
-                        } else AppIcon(app, ring.size(tiles.iconSize), grid.iconStyle)
+                        } else AppIcon(app, ring.size(metrics.iconSize), grid.iconStyle)
                     }
                 }
                 val cardCells = cards.map { tile ->
@@ -325,10 +335,11 @@ internal fun AppsScreen(
                 val appCells = shown.map { app -> GridCell("app:${app.id}", 1, app) { context -> appTile(app, context) } }
                 val cells = buildList {
                     add(GridCell("controls-settings", 1) { context ->
-                        LauncherTile(text(R.string.app_name), tiles.copy(height = context.rowHeight), open = { navigate(ControlsRoute.SETTINGS) },
+                        val metrics = fitted(context.rowHeight)
+                        LauncherTile(text(R.string.app_name), metrics, open = { navigate(ControlsRoute.SETTINGS) },
                             modifier = gridItemMotion(), enabled = !moving) {
                             Image(painterResource(R.drawable.ic_controls_art), contentDescription = null,
-                                modifier = Modifier.size(tiles.iconSize).clip(CircleShape),
+                                modifier = Modifier.size(metrics.iconSize).clip(CircleShape),
                                 colorFilter = if (grid.iconStyle == AppGridIconStyle.MONOCHROME) monochromeIcons else null)
                         }
                     })
@@ -336,7 +347,7 @@ internal fun AppsScreen(
                     if (AppGridShortcut.QUICK_VOICE in grid.visibleShortcuts) {
                         val quickVoice = AppGridShortcut.QUICK_VOICE.details
                         add(GridCell(quickVoice.key, 1) { context ->
-                            Shortcut(quickVoice.label, quickVoice.icon, tiles.copy(height = context.rowHeight), gridItemMotion(),
+                            Shortcut(quickVoice.label, quickVoice.icon, fitted(context.rowHeight), gridItemMotion(),
                                 enabled = !moving, open = listen)
                         })
                     }
@@ -348,7 +359,7 @@ internal fun AppsScreen(
                     optionalShortcuts.forEach { shortcut ->
                         val details = shortcut.details
                         add(GridCell(details.key, 1) { context ->
-                            Shortcut(details.label, details.icon, tiles.copy(height = context.rowHeight), gridItemMotion(),
+                            Shortcut(details.label, details.icon, fitted(context.rowHeight), gridItemMotion(),
                                 enabled = !moving && (shortcut != AppGridShortcut.INSTALL_APK || installEnabled)) {
                                 when (shortcut) {
                                     AppGridShortcut.QUICK_VOICE -> listen()
@@ -360,7 +371,7 @@ internal fun AppsScreen(
                     }
                     if (!alwaysShowSearch) {
                         add(GridCell("controls-search", 1) { context ->
-                            Shortcut(R.string.ui_113, CockpitIcon.SEARCH, tiles.copy(height = context.rowHeight), gridItemMotion(),
+                            Shortcut(R.string.ui_113, CockpitIcon.SEARCH, fitted(context.rowHeight), gridItemMotion(),
                                 enabled = !moving) { search = true }
                         })
                     }
@@ -455,7 +466,7 @@ private fun LauncherTile(label: String, tiles: GridTileMetrics, open: () -> Unit
  * [height] is the least height of a tile. With [fillsHeight] the rows are stretched to fill the page's height with
  * whole rows (see [pageLayout]); [labelScale] sizes the caption relative to the title style.
  */
-private data class GridTileMetrics(
+internal data class GridTileMetrics(
     val cellWidth: Dp,
     val height: Dp,
     val iconSize: Dp,
@@ -468,16 +479,36 @@ private data class GridTileMetrics(
      * Whole rows of this size on a page [visibleHeight] tall and their height. A size that fills the grid stretches
      * its rows to end at the bottom edge; the others keep the height their icon and two caption lines need.
      */
-    fun pageLayout(visibleHeight: Dp, spacing: Dp, label: TextStyle, showLabel: Boolean, density: Density): GridPageLayout =
+    fun pageLayout(visibleHeight: Dp, spacing: Dp, label: TextStyle, showLabel: Boolean, density: Density,
+                   minimumRows: Int = 1): GridPageLayout =
         with(density) {
-            val labelHeight = if (showLabel) labelSpacing + label.lineHeight.toDp() * 2 else 0.dp
-            val content = maxOf(height, verticalPadding * 2 + iconSize + labelHeight)
+            val content = contentHeight(label, showLabel, density)
             val available = if (visibleHeight.isFinite) visibleHeight.roundToPx() else content.roundToPx()
             val rowHeight = if (fillsHeight) {
                 AppGridRows.fittedTileHeight(available, content.roundToPx(), spacing.roundToPx()).toDp()
             } else content
-            GridPageLayout(AppGridPages.rows(available, rowHeight.roundToPx(), spacing.roundToPx()), rowHeight)
+            val rows = AppGridPages.rows(available, rowHeight.roundToPx(), spacing.roundToPx())
+            // Fewer rows than asked for share the height instead; their tiles shrink to fit (see [fittedTo]).
+            if (rows >= minimumRows) GridPageLayout(rows, rowHeight)
+            else GridPageLayout(minimumRows, AppGridRows.sharedHeight(available, minimumRows, spacing.roundToPx()).toDp())
         }
+
+    /** The height a tile's padding, icon and caption need. */
+    fun contentHeight(label: TextStyle, showLabel: Boolean, density: Density): Dp = with(density) {
+        val labelHeight = if (showLabel) labelSpacing + label.lineHeight.toDp() * 2 else 0.dp
+        maxOf(height, verticalPadding * 2 + iconSize + labelHeight)
+    }
+
+    /**
+     * These metrics in a row [rowHeight] tall. A row lower than the tile's [content] scales the padding, icon,
+     * spacing and caption down by the same factor, so the caption keeps both its lines in sight.
+     */
+    fun fittedTo(rowHeight: Dp, content: Dp): GridTileMetrics {
+        if (rowHeight >= content || content <= 0.dp) return copy(height = rowHeight)
+        val scale = rowHeight / content
+        return copy(height = rowHeight, iconSize = iconSize * scale, verticalPadding = verticalPadding * scale,
+            labelSpacing = labelSpacing * scale, labelScale = labelScale * scale)
+    }
 }
 
 private val AppGridTileSize.metrics: GridTileMetrics

@@ -49,6 +49,12 @@ class CockpitColorOptionsTest {
                 assertEquals(base.background, scheme.background)
                 assertEquals(base.tertiary, scheme.tertiary)
                 assertEquals(base.error, scheme.error)
+                // Outlines follow the accent but keep the base luminance, so borders read as before.
+                for ((tinted, neutral) in listOf(scheme.outline to base.outline, scheme.outlineVariant to base.outlineVariant)) {
+                    assertNotEquals(neutral, tinted)
+                    assertEquals(neutral.luminance(), tinted.luminance(), .004f)
+                    assertTrue("outline $tinted leans toward ${scheme.primary}", leansToward(tinted, scheme.primary))
+                }
             }
         }
     }
@@ -66,6 +72,13 @@ class CockpitColorOptionsTest {
                 assertContrast(base.onSurface, scrim.compositeOver(Color.Black), 7f)
             }
         }
+    }
+
+    /** The colour's strongest channel is the accent's strongest channel: a teal outline is not blue, an amber one is warm. */
+    private fun leansToward(color: Color, accent: Color): Boolean {
+        fun strongest(c: Color) = listOf(c.red, c.green, c.blue).withIndex().maxBy { it.value }.index
+        fun weakest(c: Color) = listOf(c.red, c.green, c.blue).withIndex().minBy { it.value }.index
+        return weakest(color) == weakest(accent) || strongest(color) == strongest(accent)
     }
 
     private fun assertContrast(foreground: Color, background: Color, minimum: Float) {

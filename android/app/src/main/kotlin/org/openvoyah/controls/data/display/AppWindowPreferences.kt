@@ -53,7 +53,8 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
         if (defaults.centralDpi != 0 || defaults.secondaryDpi != null) config.put("displayDpi", densities(defaults))
         if (defaults.secondaryDpi != null && passengerDisplayId != null) config.put("passengerDisplayId", passengerDisplayId)
         if (allowDisplayMove && stored.moveFingers != 0) {
-            config.put("displayMove", JSONObject().put("fingers", stored.moveFingers))
+            config.put("displayMove", JSONObject().put("fingers", stored.moveFingers)
+                .put("reveal", if (stored.moveShowsApps) "apps" else "home"))
         }
         config.toString()
     }
@@ -109,7 +110,9 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
             // Documents written before the swipe existed take its default.
             val fingers = if (data.has("moveFingers")) data.get("moveFingers") as? Int
                 ?: error("Invalid window swipe") else AppDisplayDefaults.DEFAULT_MOVE_FINGERS
-            return AppDisplayDefaults(central, secondary, fingers)
+            val apps = if (data.has("moveShowsApps")) data.get("moveShowsApps") as? Boolean
+                ?: error("Invalid window swipe target") else false
+            return AppDisplayDefaults(central, secondary, fingers, apps)
         }
 
         private fun decode(data: JSONArray): List<AppWindowProfile> {
@@ -140,5 +143,6 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
 
         /** What is stored and backed up. The swipe is always written, so a swipe turned off stays off. */
         private fun encodeDefaults(defaults: AppDisplayDefaults) = densities(defaults).put("moveFingers", defaults.moveFingers)
+            .put("moveShowsApps", defaults.moveShowsApps)
     }
 }

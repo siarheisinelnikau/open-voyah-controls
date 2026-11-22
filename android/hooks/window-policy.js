@@ -297,7 +297,8 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         announce: line => console.log(line),
     });
     const moveWanted = () => !released && config?.enabled === true && config.displayMove
-        ? {fingers: config.displayMove.fingers, passenger: config.passengerDisplayId ?? 1} : null;
+        ? {fingers: config.displayMove.fingers, passenger: config.passengerDisplayId ?? 1, reveal: config.displayMove.reveal}
+        : null;
 
     function refresh() {
         const windows = raw(WINDOW_CONFIG);

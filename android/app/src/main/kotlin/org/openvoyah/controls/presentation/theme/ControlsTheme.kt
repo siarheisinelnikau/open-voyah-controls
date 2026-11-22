@@ -28,6 +28,7 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openvoyah.controls.R
 import org.openvoyah.controls.data.settings.AppearancePreferences
+import org.openvoyah.controls.domain.settings.AppAccent
 import org.openvoyah.controls.domain.settings.AppAppearance
 import org.openvoyah.controls.domain.settings.AppCorners
 import org.openvoyah.controls.domain.settings.AppFontFamily
@@ -184,12 +185,7 @@ internal fun ControlsTheme(
     val sessionPalette by SessionPalette.selected.collectAsStateWithLifecycle()
     val activePalette = temporaryPalette ?: sessionPalette ?: settings.palette
     val daytime = activePalette == AppPalette.DAY
-    val baseColors = when {
-        daytime && settings.highContrast -> HighContrastDayCockpitColors
-        daytime -> DayCockpitColors
-        settings.highContrast -> HighContrastCockpitColors
-        else -> standardCockpitColors()
-    }
+    val baseColors = cockpitBaseColors(activePalette, settings.highContrast)
     val colors = remember(baseColors, settings.accent, activePalette, settings.highContrast) {
         cockpitAccentColors(baseColors, settings.accent, activePalette, settings.highContrast)
     }
@@ -202,6 +198,7 @@ internal fun ControlsTheme(
         LocalCockpitWallpaperScrim provides wallpaperScrim,
         LocalCockpitBackgroundTreatment provides settings.backgroundTreatment,
         LocalCockpitMotion provides CockpitMotionSettings(settings.animateRoutes, settings.transitionSpeed),
+        LocalControlsAccentOverlay provides controlsAccentOverlay(settings.accent, activePalette),
     ) {
         MaterialTheme(
             colorScheme = rememberBlendedColors(colors, settings.animateRoutes),
@@ -235,6 +232,21 @@ private fun persistedAppearance(): AppAppearance {
     val initial = remember(preferences) { preferences.load() }
     val settings = remember(preferences) { preferences.observeSettings() }
     return settings.collectAsStateWithLifecycle(initialValue = initial).value
+}
+
+@Composable
+private fun cockpitBaseColors(palette: AppPalette, highContrast: Boolean): ColorScheme = when {
+    palette == AppPalette.DAY && highContrast -> HighContrastDayCockpitColors
+    palette == AppPalette.DAY -> DayCockpitColors
+    highContrast -> HighContrastCockpitColors
+    else -> standardCockpitColors()
+}
+
+/** The colours [ControlsTheme] gives these choices, so a choice can be previewed before it is made. */
+@Composable
+internal fun cockpitColorsFor(accent: AppAccent, palette: AppPalette, highContrast: Boolean): ColorScheme {
+    val base = cockpitBaseColors(palette, highContrast)
+    return remember(base, accent, palette, highContrast) { cockpitAccentColors(base, accent, palette, highContrast) }
 }
 
 @Composable
