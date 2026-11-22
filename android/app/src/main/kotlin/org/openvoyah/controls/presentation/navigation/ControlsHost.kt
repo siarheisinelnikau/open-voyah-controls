@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -52,12 +54,13 @@ import org.openvoyah.controls.presentation.display.DisplayDestination
 import org.openvoyah.controls.presentation.dock.QuickActionsDestination
 import org.openvoyah.controls.presentation.dock.QuickActionsHost
 import org.openvoyah.controls.presentation.dock.quickActionsModel
-import org.openvoyah.controls.presentation.firmware.FirmwareDestination
 import org.openvoyah.controls.presentation.home.AppearanceViewModel
 import org.openvoyah.controls.presentation.home.ControlsSettingsDestination
 import org.openvoyah.controls.presentation.permissions.ActionPermissionsDestination
 import org.openvoyah.controls.presentation.keyboard.KeyboardDestination
 import org.openvoyah.controls.presentation.routines.RoutinesDestination
+import org.openvoyah.controls.presentation.settings.RecentSettingsWatcher
+import org.openvoyah.controls.presentation.settings.VisibleSettingsPart
 import org.openvoyah.controls.presentation.rules.ConditionalRulesDestination
 import org.openvoyah.controls.presentation.seatmemory.SeatMemoryDestination
 import org.openvoyah.controls.presentation.theme.CockpitMotion
@@ -101,6 +104,13 @@ internal fun ControlsHost(
     val exitOffset = with(density) { 9.dp.roundToPx() } * mirror
 
     LaunchedEffect(state.route) { focus.clearFocus(force = true) }
+    // Settings lists the pages where something was changed last; see RecentSettingsWatcher.
+    val recentContext = LocalContext.current.applicationContext
+    val recent = remember(recentContext) {
+        RecentSettingsWatcher(recentContext) { VisibleSettingsPart.at(navigation.state.value.route) }
+    }
+    DisposableEffect(recent) { onDispose(recent::stop) }
+    LaunchedEffect(state.route, state.entry) { recent.arrived() }
     BackHandler(state.stack.size > 1, onBack = navigation::back)
     val activity = checkNotNull(LocalActivity.current as? ComponentActivity)
     KeepHeadlightsObserved(activity)
@@ -138,24 +148,24 @@ internal fun ControlsHost(
                     when (route) {
                         ControlsRoute.APPS -> AppsDestination(destination.entry, destination.entryDesktop, navigation::open,
                             listen, animateDesktopPaging = look.settings?.animateRoutes == true)
-                        ControlsRoute.SETTINGS, ControlsRoute.BUTTONS -> ControlsSettingsDestination(
-                            route == ControlsRoute.BUTTONS, navigation::back, navigation::open, appearance, navigation::clearTemporaryPalette,
-                        )
+                        ControlsRoute.SETTINGS, ControlsRoute.BUTTONS, ControlsRoute.HOME_SCREEN, ControlsRoute.WINDOWS,
+                        ControlsRoute.SOUND, ControlsRoute.APPEARANCE, ControlsRoute.LANGUAGE, ControlsRoute.SYSTEM ->
+                            ControlsSettingsDestination(route, destination.focus, navigation::back, navigation::open,
+                                navigation::open, appearance, navigation::clearTemporaryPalette,
+                                vehicleReport = { showVehicleDiagnostics = true })
                         ControlsRoute.VOICE -> VoiceDestination(navigation::back, listen)
                         ControlsRoute.DISPLAY -> DisplayDestination(navigation::back)
                         ControlsRoute.VEHICLE -> VehicleSettingsDestination(navigation::back,
                             seatMemory = { navigation.open(ControlsRoute.SEAT_MEMORY) },
                             serviceReminder = { navigation.open(ControlsRoute.SERVICE_REMINDER) },
-                            automation = { navigation.open(ControlsRoute.VEHICLE_AUTOMATION) },
                             assistance = { navigation.open(ControlsRoute.FACTORY_ASSISTANCE) },
                         )
                         ControlsRoute.VEHICLE_AUTOMATION -> VehicleAutomationDestination(activity.vehicleAutomationModel(), navigation::back,
                             climate = { navigation.open(ControlsRoute.SEASONAL_CLIMATE) },
                             rules = { navigation.open(ControlsRoute.CONDITIONAL_RULES) },
-                            apollo = { navigation.open(ControlsRoute.FACTORY_ASSISTANCE) },
+                            routines = { navigation.open(ControlsRoute.ROUTINES) },
                             factoryLighting = factory.intent(FactoryVehicleDestination.LIGHTING)?.let { { openFactory(FactoryVehicleDestination.LIGHTING) } },
                             factoryDriving = factory.intent(FactoryVehicleDestination.VEHICLE)?.let { { openFactory(FactoryVehicleDestination.VEHICLE) } },
-                            diagnostics = { showVehicleDiagnostics = true },
                         )
                         ControlsRoute.SEASONAL_CLIMATE -> SeasonalClimateDestination(activity.seasonalClimateModel(), navigation::back)
                         ControlsRoute.CONDITIONAL_RULES -> ConditionalRulesDestination(navigation::back,
@@ -165,9 +175,6 @@ internal fun ControlsHost(
                         ControlsRoute.SERVICE_REMINDER -> ServiceReminderDestination(navigation::back)
                         ControlsRoute.QUICK_ACTIONS -> QuickActionsDestination(dock, dockState, navigation::back)
                         ControlsRoute.ROUTINES -> RoutinesDestination(navigation::back) { routine -> runRoutine(routine, destination) }
-                        ControlsRoute.FIRMWARE -> FirmwareDestination(navigation::back, { navigation.open(ControlsRoute.CLUSTER) }) {
-                            navigation.open(ControlsRoute.TEXT_OVERLAYS)
-                        }
                         ControlsRoute.CLUSTER -> ClusterDestination(navigation::back)
                         ControlsRoute.UPDATES -> UpdatesDestination(navigation::back)
                         ControlsRoute.DIAGNOSTICS -> DiagnosticsDestination(navigation::back)

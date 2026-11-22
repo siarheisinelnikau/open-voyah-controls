@@ -21,7 +21,7 @@ Application code writes entries through `ControlsLog` (`app/src/main/kotlin/org/
 | Destination | Contents | How to read it |
 | --- | --- | --- |
 | Logcat, tag `OpenVoyahControls` | Every entry. Debug entries and stack traces only in debuggable builds. | `adb logcat -s OpenVoyahControls` |
-| On-device journal | INFO, WARN and ERROR entries with a local timestamp and level. | **Settings → Diagnostic log**, or `adb shell run-as org.openvoyah.controls cat files/diagnostics/journal.log` on a debuggable build |
+| On-device journal | INFO, WARN and ERROR entries with a local timestamp and level. | **Settings → System → Diagnostics → Diagnostic log**, or `adb shell run-as org.openvoyah.controls cat files/diagnostics/journal.log` on a debuggable build |
 | Agent logs under the deployment directory | Lines printed by the injected JavaScript agents and the supervisor. | **Buttons → Check Frida status** shows the latest error lines of each worker |
 
 The journal exists because Logcat is rarely within reach when something fails in a car: a boot-time connection problem or a refused update should still be readable later, on the head unit itself.

@@ -13,7 +13,7 @@
     <string name="cluster_install_heading">Install or restore</string>
     <string name="cluster_install_description">Keep an exported backup with the matching firmware details before replacing cluster files.</string>
     <string name="cluster_status_heading">Operation status</string>
-    <string name="display_screen_description">Manage app scaling, preview density and the data shown on the virtual display.</string>
+    <string name="display_screen_description">Preview density and the data shown on the virtual display and the cluster.</string>
     <string name="display_scale_heading">Display scaling</string>
     <string name="display_sources_heading">Media and navigation</string>
     <string name="display_preview_description">Private preview for track information and local route updates.</string>

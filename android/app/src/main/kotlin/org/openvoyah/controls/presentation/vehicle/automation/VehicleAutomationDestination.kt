@@ -41,14 +41,13 @@ internal fun VehicleAutomationDestination(
     back: () -> Unit,
     climate: () -> Unit,
     rules: () -> Unit,
-    apollo: () -> Unit,
+    routines: () -> Unit,
     factoryLighting: (() -> Unit)?,
     factoryDriving: (() -> Unit)?,
-    diagnostics: () -> Unit,
 ) {
     val state by model.state.collectAsStateWithLifecycle()
     var choosingDrive by remember { mutableStateOf<Boolean?>(null) }
-    VehicleAutomationScreen(state, back, climate, rules, apollo, factoryLighting, factoryDriving, diagnostics,
+    VehicleAutomationScreen(state, back, climate, rules, routines, factoryLighting, factoryDriving,
         model::setHeadlightsEnabled, { choosingDrive = true }, { choosingDrive = false }, model::setDrivingMemoryEnabled,
         model::prepareRestore, model::rememberCurrent)
     choosingDrive?.let { drive ->
@@ -82,17 +81,18 @@ internal fun VehicleAutomationDestination(
 @Composable
 internal fun VehicleAutomationScreen(
     state: VehicleAutomationState,
-    back: () -> Unit, climate: () -> Unit, rules: () -> Unit, apollo: () -> Unit,
-    factoryLighting: (() -> Unit)?, factoryDriving: (() -> Unit)?, diagnostics: () -> Unit,
+    back: () -> Unit, climate: () -> Unit, rules: () -> Unit, routines: () -> Unit,
+    factoryLighting: (() -> Unit)?, factoryDriving: (() -> Unit)?,
     setHeadlightsEnabled: (Boolean) -> Unit, chooseDrive: () -> Unit, choosePark: () -> Unit,
     setDrivingMemoryEnabled: (Boolean) -> Unit, restore: () -> Unit, rememberCurrent: () -> Unit,
 ) {
     val enabled = state.settings != null && !state.saving && !state.working
-    CockpitDetail(text(R.string.vehicle_automation_title), text(R.string.vehicle_automation_description), back) {
+    // Settings → Routines and automation: the routines of Controls and everything the car does on its own.
+    CockpitDetail(text(R.string.settings_section_automation), text(R.string.vehicle_automation_description), back) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            CockpitChoice(text(R.string.vehicle_automation_climate), modifier = Modifier.weight(1f), onClick = climate)
+            CockpitChoice(text(R.string.settings_my_routines), modifier = Modifier.weight(1f), onClick = routines)
             CockpitChoice(text(R.string.vehicle_automation_rules), modifier = Modifier.weight(1f), onClick = rules)
-            CockpitChoice(text(R.string.vehicle_automation_apollo), modifier = Modifier.weight(1f), onClick = apollo)
+            CockpitChoice(text(R.string.vehicle_automation_climate), modifier = Modifier.weight(1f), onClick = climate)
         }
         VehicleStatusSection(state.telemetry)
         CockpitColumns(first = {
@@ -146,7 +146,6 @@ internal fun VehicleAutomationScreen(
             CockpitFeedback(text(if (state.saveFailed) R.string.vehicle_automation_save_failed else R.string.vehicle_automation_load_failed), error = true)
         }
         state.outcome?.let { CockpitFeedback(text(outcomeLabel(it)), error = it in setOf(VehicleAutomationOutcome.FAILED, VehicleAutomationOutcome.UNCONFIRMED)) }
-        CockpitChoice(text(R.string.vehicle_automation_diagnostics), text(R.string.vehicle_automation_diagnostics_hint), onClick = diagnostics)
     }
 }
 

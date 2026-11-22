@@ -73,9 +73,14 @@ function harness(sdk, options = {}) {
             JSON.stringify(a.pinned ?? null) === JSON.stringify(b.pinned ?? null),
         setOverride: (_, value) => { override = value; writes++; overrides.push({mode, pinned:value.pinned ?? null}); },
         revealHome: () => { reveals++; return true; },
-        rootPackage: owner => owner.root,
         activityBounds: activity => activity.bounds ?? null,
-        placeActivity: (activity, target) => { activity.bounds = Array.from(target); guests.push(activity); },
+        activityPlacement: () => options.activityPlacement !== false,
+        sizeCompat: activity => activity.sizeCompat === true,
+        preinstalled: activity => activity.preinstalled === true,
+        placeActivity: (activity, target) => {
+            activity.bounds = target === null ? null : Array.from(target);
+            if (target !== null) guests.push(activity);
+        },
         topBar: () => options.topBar ?? 0,
         multiWindowAvailable: () => {
             if (options.multiWindow instanceof Error) throw options.multiWindow;
@@ -460,15 +465,18 @@ function livePolicy(sdk, h, options = {}) {
          * Controls opens another app's activity inside its own task, as an "open file" does with the document
          * picker: an intent without NEW_TASK, the result returned to Controls.
          */
-        guest({pkg = 'com.android.documentsui', root = 'org.openvoyah.controls', displayId = 0, taskMode = 1} = {}) {
+        guest({pkg = 'com.android.documentsui', root = 'org.openvoyah.controls', displayId = 0, taskMode = 1,
+            preinstalled = false, resizeable = true, sizeCompat = false} = {}) {
             const options = {getLaunchDisplayId:()=>-1, getLaunchWindowingMode:()=>0, getLaunchBounds:()=>null};
             const owner = {root, getWindowingMode:()=>taskMode};
             const record = {
                 launchedFromPackage:field('org.openvoyah.controls'), packageName:field(pkg),
                 intent:field({getAction:()=>'android.intent.action.OPEN_DOCUMENT', hasCategory:()=>false,
                     getFlags:()=>0, getIntExtra:()=>0, getBooleanExtra:()=>false, getComponent:()=>null}),
-                isActivityTypeStandardOrUndefined:()=>true, isActivityTypeHome:()=>false, isResizeable:()=>true,
+                isActivityTypeStandardOrUndefined:()=>true, isActivityTypeHome:()=>false, isResizeable:()=>resizeable,
                 getDisplayId:()=>displayId, getTask:()=>owner, equals:other=>other === record,
+                finishing:field(false), preinstalled, sizeCompat, delivered:0,
+                ensureActivityConfiguration() { record.delivered++; },
             };
             const from = {getDisplayId:()=>displayId, getWindowingMode:()=>1, isActivityTypeHome:()=>false};
             const start = () => late.implementation.call({mLastStartActivityRecord:field(record)}, record, from, null,
@@ -523,26 +531,69 @@ test('back-to-back starts schedule one layout and disabling before delivery rest
     }
 });
 
-test("on Android 11 another app's screen opened inside the Controls task is placed beside the panel", () => {
+test('on Android 11 a desktop wallpaper picker opened from Controls is placed beside the panel', () => {
     const h = harness(30, {displayId:0});
     const service = livePolicy(30, h);
+    // App grid -> desktop wallpaper: ActivityResultContracts.OpenDocument(), DocumentsUI's PickActivity in Controls' task.
     const picker = service.guest();
     assert.deepEqual(picker.record.bounds, [145, 0, 1920, 720]);
     assert.equal(h.guests.length, 1);
+    // The configuration is delivered at once, for an activity that is already running.
+    assert.equal(picker.record.delivered, 1);
     // Started again in place (delivered to the same activity): nothing to change.
     picker.start();
-    assert.equal(h.guests.length, 1);
-    // Controls' own screens, other apps' tasks, a task that is not fullscreen and other displays stay as they are.
-    for (const start of [{pkg:'org.openvoyah.controls'}, {root:'org.example.app'}, {taskMode:6}, {displayId:1}]) {
-        assert.equal(service.guest(start).record.bounds, undefined);
-    }
     assert.equal(h.guests.length, 1);
     assert.ok(!service.logs.some(line => line.startsWith('OVC_WINDOW_ERROR')));
     // Android 9 and a window service that was turned off leave it to Android.
     const older = livePolicy(28, harness(28, {displayId:0}));
     assert.equal(older.guest().record.bounds, undefined);
     service.request('release');
+    assert.equal(picker.record.bounds, null);
+    assert.equal(picker.record.delivered, 2);
     assert.equal(service.guest().record.bounds, undefined);
+    const missing = livePolicy(30, harness(30, {displayId:0, activityPlacement:false}));
+    assert.equal(missing.guest().record.bounds, undefined);
+});
+
+test('on Android 11 choosers, galleries and other screens in any fullscreen task keep clear of the panel', () => {
+    const h = harness(30, {displayId:0});
+    const service = livePolicy(30, h);
+    const placed = [
+        // The system chooser inside Controls' task, in a task of its own, and inside a factory app's task.
+        {pkg:'android'}, {pkg:'android', root:'android'}, {pkg:'android', root:'com.qinggan.app.vehiclesetting'},
+        // A gallery or crop screen and AOSP settings started in tasks of their own by another app.
+        {pkg:'com.android.gallery3d', root:'com.android.gallery3d', preinstalled:true},
+        {pkg:'com.android.settings', root:'com.android.settings', preinstalled:true},
+        // A third-party screen another app opened: its whole task is not placed, the activity is.
+        {pkg:'org.example.app', root:'org.example.app'},
+    ];
+    for (const start of placed) assert.deepEqual(service.guest(start).record.bounds, [145, 0, 1920, 720], JSON.stringify(start));
+    // Screens that keep clear of the panel themselves, tasks that are not fullscreen and other displays stay.
+    const kept = [
+        {pkg:'org.openvoyah.controls'}, {pkg:'com.qinggan.app.vehiclesetting', root:'com.qinggan.app.vehiclesetting'},
+        {pkg:'com.baidu.naviauto', root:'com.baidu.naviauto'}, {pkg:'com.android.systemui', root:'com.android.systemui'},
+        {taskMode:6}, {taskMode:5}, {displayId:1},
+        // Vendor apps the firmware ships (projection, media), activities that cannot take another size.
+        {pkg:'com.huawei.hicar', root:'com.huawei.hicar', preinstalled:true},
+        {pkg:'com.tencent.wecarflow', root:'com.tencent.wecarflow', preinstalled:true},
+        {resizeable:false}, {sizeCompat:true},
+    ];
+    for (const start of kept) assert.equal(service.guest(start).record.bounds, undefined, JSON.stringify(start));
+    // A launch from the panel, Controls or home is placed as a whole task instead.
+    service.launch();
+    assert.equal(h.guests.length, placed.length);
+    // A task with a density of its own (a density-only profile) is this agent's whole-task business.
+    const dense = livePolicy(30, harness(30, {displayId:0, dpi:200}));
+    assert.equal(dense.guest({root:'org.example.app', pkg:'org.example.app'}).record.bounds, undefined);
+    assert.ok(!service.logs.some(line => line.startsWith('OVC_WINDOW_ERROR')));
+});
+
+test('a task placed as a whole takes back the bounds its activities had of their own', () => {
+    const h = harness(30, {displayId:0, multiWindow:true});
+    h.task.getChildAt(0).bounds = [145, 0, 1920, 720];
+    h.agent.apply({...profile, width:60}, 0, 45);
+    assert.equal(h.mode(), 6);
+    assert.equal(h.task.getChildAt(0).bounds, null);
 });
 
 test('on Android 11 Home on the central display hides the placed apps it now covers, once per burst', () => {

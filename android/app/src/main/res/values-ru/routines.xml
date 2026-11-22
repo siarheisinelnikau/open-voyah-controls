@@ -10,7 +10,7 @@
     <string name="routines_layout">Макет рабочего стола</string>
     <string name="routines_layout_keep">Оставить текущий макет</string>
     <string name="routines_layout_hint">При запуске сценария макет заменит текущую сетку приложений, карточки и обои.</string>
-    <string name="routines_layout_empty">Чтобы использовать макет в сценарии, сохраните его в разделе «Сетка приложений → Раскладки рабочих столов».</string>
+    <string name="routines_layout_empty">Чтобы использовать макет в сценарии, сохраните его в разделе «Главный экран и приложения → Рабочие столы → Раскладки рабочих столов».</string>
     <string name="routines_layout_summary">Применить макет «%1$s»</string>
     <string name="routines_layout_missing">Сохранённый макет недоступен</string>
     <string name="routines_layout_repair">Выберите другой макет или оставьте текущий.</string>

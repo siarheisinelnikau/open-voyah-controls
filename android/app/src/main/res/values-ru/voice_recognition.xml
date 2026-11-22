@@ -10,7 +10,7 @@
     <string name="voice_recognition_online_detail">Через интернет. Отправляется только текст фразы, которой нет в списке команд, звук не отправляется.</string>
     <string name="voice_recognition_on">Включено</string>
     <string name="voice_recognition_off">Выключено</string>
-    <string name="voice_model_not_downloaded">Модель распознавания для этого языка или движка не скачана. Скачайте её в Голосовые настройки → Распознавание.</string>
+    <string name="voice_model_not_downloaded">Модель распознавания для этого языка или движка не скачана. Скачайте её в разделе «Голос → Распознавание».</string>
     <string name="voice_model_download">Скачать · %1$s</string>
     <string name="voice_model_downloading">Загрузка %1$d%%</string>
     <string name="voice_model_cancel">Отменить</string>

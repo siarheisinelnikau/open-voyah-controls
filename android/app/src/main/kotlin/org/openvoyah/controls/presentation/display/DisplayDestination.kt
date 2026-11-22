@@ -40,7 +40,6 @@ import kotlinx.coroutines.launch
 import org.openvoyah.controls.MediaAccessService
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
-import org.openvoyah.controls.appWindowConfiguration
 import org.openvoyah.controls.data.display.DisplayPreferences
 import org.openvoyah.controls.data.display.DisplayPreviewPreferences
 import org.openvoyah.controls.data.frida.FridaNavigationFeed
@@ -61,8 +60,7 @@ internal fun DisplayDestination(back: () -> Unit) {
     val app = activity.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
     val store = remember(activity) { ViewModelStore() }
-    val windows = remember(app) { appWindowConfiguration(app) }
-    val provider = remember(store, app, windows) {
+    val provider = remember(store, app) {
         ViewModelProvider(object : ViewModelStoreOwner {
             override val viewModelStore = store
         }, viewModelFactory {
@@ -71,17 +69,9 @@ internal fun DisplayDestination(back: () -> Unit) {
                     DisplayPreviewPreferences(app), PreviewMediaController(app), PreviewMediaSources(app),
                     Locale.forLanguageTag(UiText.language()))
             }
-            initializer { AppDisplayDefaultsViewModel(windows) }
-            initializer { WindowSwipeViewModel(windows) }
         })
     }
     val model = remember(provider) { provider[DisplayViewModel::class.java] }
-    val defaults = remember(provider, windows) {
-        if (windows.supported) provider[AppDisplayDefaultsViewModel::class.java] else null
-    }
-    val swipe = remember(provider, windows) {
-        if (windows.supported) provider[WindowSwipeViewModel::class.java] else null
-    }
     val preview = remember(activity) { VirtualDisplayPreview(activity) }
     val dialogs = remember(activity) { CockpitDialogs(activity) }
     val scope = rememberCoroutineScope()
@@ -102,9 +92,8 @@ internal fun DisplayDestination(back: () -> Unit) {
             store.clear()
         }
     }
-    LaunchedEffect(lifecycleOwner, model, defaults, preview, dialogs) {
+    LaunchedEffect(lifecycleOwner, model, preview, dialogs) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            defaults?.close()
             started = true
             try {
                 model.refresh()
@@ -116,7 +105,6 @@ internal fun DisplayDestination(back: () -> Unit) {
                 sourcePicker?.cancel()
                 preview.stop()
                 dialogs.dismiss()
-                defaults?.close()
             }
         }
     }
@@ -135,7 +123,7 @@ internal fun DisplayDestination(back: () -> Unit) {
         if (started && preferred.isNotEmpty()) preferredLabel = model.mediaSourceLabel(preferred)
     }
     DisplayScreen(
-        state, status, if (started) defaults else null, if (started) swipe else null, media, preferredLabel, back,
+        state, status, media, preferredLabel, back,
         needsMediaAccess = needsMediaAccess,
         canvasDensity = canvasDensity,
         chooseDensity = {

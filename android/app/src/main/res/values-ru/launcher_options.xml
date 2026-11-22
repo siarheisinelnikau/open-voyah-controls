@@ -32,7 +32,7 @@
     <string name="apps_hide_reason_extra">Дополнительный ярлык приложения</string>
     <string name="apps_grid_show_search_field">Всегда показывать поиск в «Всех приложениях»</string>
     <string name="apps_grid_clear_search">Очистить поиск</string>
-    <string name="apps_grid_hidden_full">Слишком много приложений со своим выбором «Скрывать». Сначала нажмите «Как по умолчанию» в разделе «Сетка приложений → Скрытые приложения».</string>
+    <string name="apps_grid_hidden_full">Слишком много приложений со своим выбором «Скрывать». Сначала нажмите «Как по умолчанию» в разделе «Главный экран и приложения → Сетка приложений → Скрытые приложения».</string>
     <string name="apps_grid_columns">Колонки сетки</string>
     <string name="apps_grid_columns_auto">Автоматически</string>
     <string name="apps_grid_columns_fit">Если места мало, сетка использует меньше колонок.</string>

@@ -11,7 +11,7 @@
     <string name="voice_recognition_on">On</string>
     <string name="voice_recognition_off">Off</string>
     <string name="language_name_kazakh" translatable="false">Қазақша</string>
-    <string name="voice_model_not_downloaded">The speech model for this language or engine is not downloaded. Download it in Voice settings → Recognition.</string>
+    <string name="voice_model_not_downloaded">The speech model for this language or engine is not downloaded. Download it in Voice → Recognition.</string>
     <string name="voice_model_download">Download · %1$s</string>
     <string name="voice_model_downloading">Downloading %1$d%%</string>
     <string name="voice_model_cancel">Cancel</string>

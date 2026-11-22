@@ -51,7 +51,7 @@ public final class ClusterTest extends InstrumentationTestCase {
         }
     }
     public void testPackRoundTripAndRevalidation() throws Exception {
-        // Local payload fixtures are prepared separately and are never committed as MIT assets.
+        // Local payload fixtures are prepared separately and are never committed as project assets.
         File directory=context().getExternalFilesDir(null);
         for(String version:new String[]{"20260104134234","20260530180446"}) {
             File fixture=new File(directory,"cluster-ru-H97CSA8155-DAILY-"+version+"-USR.zip");

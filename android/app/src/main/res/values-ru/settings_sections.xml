@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_section_home">Главный экран и приложения</string>
+    <string name="settings_section_home_summary">Сетка, рабочие столы, карточки и штатный главный экран</string>
+    <string name="settings_section_windows">Окна и экраны</string>
+    <string name="settings_section_windows_summary">Масштаб приложений, перенос окон и виртуальный экран</string>
+    <string name="settings_section_buttons">Кнопки и быстрый доступ</string>
+    <string name="settings_section_buttons_summary">Штатная панель, руль, аппаратные кнопки и панель быстрых действий</string>
+    <string name="settings_section_voice">Голос</string>
+    <string name="settings_section_voice_summary">Распознавание, команды, ответы и сигналы</string>
+    <string name="settings_section_sound">Звук и медиа</string>
+    <string name="settings_section_sound_summary">Громкость при запуске, приглушение и перезапуск мультимедиа</string>
+    <string name="settings_section_vehicle">Машина</string>
+    <string name="settings_section_vehicle_summary">Фары, сиденья и зеркала, ТО и ассистенты</string>
+    <string name="settings_section_automation">Сценарии и автоматика</string>
+    <string name="settings_section_automation_summary">Сценарии, правила «Если — тогда», фары в Drive и Park, сезонный климат</string>
+    <string name="settings_section_appearance">Оформление</string>
+    <string name="settings_section_appearance_summary">Тема, акцент, текст, форма и переходы</string>
+    <string name="settings_section_language">Язык и ввод</string>
+    <string name="settings_section_language_summary">Controls, заводские приложения, перевод Android, приборка и клавиатура</string>
+    <string name="settings_section_system">Система</string>
+    <string name="settings_section_system_summary">Обновления, резервная копия, разрешения, подключение и перезапуск</string>
+
+    <string name="settings_part_grid">Сетка приложений</string>
+    <string name="settings_part_desktops">Рабочие столы</string>
+    <string name="settings_part_cards">Карточки</string>
+    <string name="settings_part_factory_home">Штатный главный экран</string>
+    <string name="settings_part_app_windows">Окна приложений</string>
+    <string name="settings_part_displays">Виртуальный экран и приборка</string>
+    <string name="settings_part_panel">Штатная панель</string>
+    <string name="settings_part_steering">Руль</string>
+    <string name="settings_part_hardware">Аппаратные кнопки</string>
+    <string name="settings_part_dock">Панель быстрых действий</string>
+    <string name="settings_part_startup_volume">Громкость при запуске</string>
+    <string name="settings_part_ducking">Приглушение медиа</string>
+    <string name="settings_part_media">Доступ к медиа и перезапуск</string>
+    <string name="settings_part_theme">Тема</string>
+    <string name="settings_part_text">Текст</string>
+    <string name="settings_part_shape">Отступы и скругления</string>
+    <string name="settings_part_motion">Переходы</string>
+    <string name="settings_part_app_language">Интерфейс и ввод</string>
+    <string name="settings_part_factory_language">Заводские приложения и Android</string>
+    <string name="settings_part_backup">Резервная копия</string>
+    <string name="settings_part_start">Стартовая страница</string>
+    <string name="settings_part_connection">Подключение</string>
+    <string name="settings_part_factory_profiles">Профили OEM</string>
+    <string name="settings_part_diagnostics">Диагностика</string>
+    <string name="settings_part_about">О приложении и перезапуск</string>
+
+    <string name="settings_search">Поиск настройки</string>
+    <string name="settings_search_empty">Ничего не найдено.</string>
+    <string name="settings_recent">Недавно изменённые</string>
+    <string name="settings_my_routines">Мои сценарии</string>
+
+    <string name="settings_factory_home_summary">Карточки штатного лаунчера на центральном экране.</string>
+    <string name="settings_factory_home_unsupported">В этой прошивке нет поддерживаемых карточек штатного главного экрана.</string>
+    <string name="settings_steering_unsupported">Штатные кнопки руля на этой магнитоле переназначить нельзя.</string>
+    <string name="settings_windows_unsupported">Служба окон недоступна в этой версии Android.</string>
+    <string name="settings_app_scale_title">Масштаб и перенос окон</string>
+    <string name="settings_app_scale_hint_title">Масштаб (DPI) и ширина отдельного приложения</string>
+    <string name="settings_app_scale_hint">Чтобы изменить масштаб, ширину или значок одного приложения, удерживайте его значок в сетке и откройте «Настройки приложения».</string>
+    <string name="settings_virtual_display_summary">Масштаб предпросмотра, медиа и маршрут, трек на приборке</string>
+    <string name="settings_startup_volume_title">После запуска магнитолы</string>
+    <string name="settings_launch_volume_title">При открытии Controls</string>
+    <string name="settings_media_access_summary">Разрешает Controls читать текущий трек для виртуального экрана, приборки и медиакарточки рабочего стола.</string>
+    <string name="settings_media_access_on">Доступ разрешён.</string>
+    <string name="settings_media_access_off">Доступ не разрешён.</string>
+    <string name="settings_media_access_open">Открыть настройки доступа Android</string>
+    <string name="settings_media_restart_title">Мультимедиа</string>
+    <string name="settings_cluster_summary">Установка или восстановление русификации приборки из локального ZIP</string>
+    <string name="settings_cards_heading">Что показывать на столах</string>
+    <string name="settings_wallpaper_heading">Вид обоев</string>
+    <string name="settings_start_heading">Запуск Controls</string>
+    <string name="settings_part_service">Обслуживание</string>
+</resources>

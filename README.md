@@ -1,6 +1,6 @@
 # Open Voyah Controls
 
-Open Voyah Controls is an Android app for Voyah head units. It opens directly to installed apps, with one tile for its own settings. Assign launcher and hardware buttons, use offline English or Russian voice commands, and access driver seat/mirror memory and translations. Every vehicle and root action is allowed by default; **Settings → Allowed actions** marks any of them unverified or forbids it. The root channel still checks the exact firmware identity and the APK pins of the hooked OEM packages ([what changed and what stays](android/docs/PRODUCTION.md#allowed-actions-and-what-still-guards-the-root-channel)).
+Open Voyah Controls is an Android app for Voyah head units. It opens directly to installed apps, with one tile for its own settings. Assign launcher and hardware buttons, use offline English or Russian voice commands, and access driver seat/mirror memory and translations. Every vehicle and root action is allowed by default; **Settings → System → Allowed actions** marks any of them unverified or forbids it. The root channel still checks the exact firmware identity and the APK pins of the hooked OEM packages ([what changed and what stays](android/docs/PRODUCTION.md#allowed-actions-and-what-still-guards-the-root-channel)).
 
 ## Tested on
 
@@ -27,4 +27,4 @@ Choose **Driver 1**, **Driver 2**, or **Driver 3** to open the corresponding sea
 
 The [account-record recovery appendix](android/docs/ACCOUNT_RECOVERY.md) explains OEM account limits.
 
-[GPLv3](LICENSE)
+[GNU General Public License v3.0 or later](LICENSE)

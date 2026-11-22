@@ -12,6 +12,20 @@ const protectedPackages = new Set([
     'com.qinggan.app.setting', 'com.qinggan.app.vehicle', 'com.qinggan.cluster'
 ]);
 
+/**
+ * Whether [pkg] draws its screens clear of the launcher's left panel by itself, so its windows are left as they are:
+ * Controls, the system UI and the apps the head unit's firmware ships ([preinstalled]) apart from the Android
+ * platform's own. Those were integrated for this screen: the factory apps are laid out around the panel (the vehicle
+ * settings layout uses the panel width, Baidu navigation starts its controls at 145 dp), and the bundled projection
+ * and media apps (HiCar, CarPlay, WeCarFlow) are the vendor's. Android's own apps (`android`, `com.android.*`, such
+ * as the document picker, the chooser, settings and the gallery) and installed apps are not.
+ */
+export function drawsBesidePanel(pkg, preinstalled = false) {
+    if (pkg === CONTROLS || pkg === 'com.android.systemui' || pkg === 'com.baidu.naviauto' ||
+        pkg.startsWith('com.qinggan.') || pkg.startsWith('com.pateo.')) return true;
+    return preinstalled && pkg !== 'android' && !pkg.startsWith('com.android.');
+}
+
 export function componentKey(value) {
     if (typeof value !== 'string' || value.length > 200) return null;
     const match = /^([a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+)\/(\.?[a-zA-Z_$][a-zA-Z0-9_.$]*)$/.exec(value);

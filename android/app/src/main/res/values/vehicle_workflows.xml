@@ -1,5 +1,5 @@
 <resources>
-    <string name="vehicle_automation_entry">Vehicle routines</string>
+    <string name="vehicle_automation_entry">Automation</string>
     <string name="vehicle_automation_entry_summary">Lights, climate, driving mode and If–then rules</string>
     <string name="vehicle_diagnostics_title">Vehicle signal report</string>
     <string name="vehicle_diagnostics_description">Read-only checks for this head unit. Saved history never triggers an action.</string>

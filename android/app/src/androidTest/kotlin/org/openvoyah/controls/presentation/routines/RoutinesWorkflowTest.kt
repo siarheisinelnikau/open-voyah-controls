@@ -82,7 +82,10 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             }
 
             launch(MainActivity.settingsIntent(app))
-            click(UiText.get(R.string.routines_title))
+            // Settings → Routines and automation → My routines.
+            click(UiText.get(R.string.settings_section_automation))
+            awaitRoute(ControlsRoute.VEHICLE_AUTOMATION)
+            click(UiText.get(R.string.settings_my_routines))
             awaitRoute(ControlsRoute.ROUTINES)
             click(UiText.get(R.string.routines_create))
             enterText(commute)
@@ -431,7 +434,10 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             val notice = UiText.get(R.string.routines_app_missing_notice).format(component)
             await("Missing app feedback on the prepared page") { nodes().any { it.isVisibleToUser && it.matches(notice) } }
             click(UiText.get(R.string.routines_app_dismiss_notice))
-            click(UiText.get(R.string.routines_title))
+            // Settings → Routines and automation → My routines.
+            click(UiText.get(R.string.settings_section_automation))
+            awaitRoute(ControlsRoute.VEHICLE_AUTOMATION)
+            click(UiText.get(R.string.settings_my_routines))
             awaitRoute(ControlsRoute.ROUTINES)
             click(UiText.get(R.string.routines_edit_named).format(name))
             click(UiText.get(R.string.routines_app))

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_section_home">Home screen and apps</string>
+    <string name="settings_section_home_summary">App grid, desktops, cards and the factory home screen</string>
+    <string name="settings_section_windows">Windows and screens</string>
+    <string name="settings_section_windows_summary">App scale, window swipe and the virtual display</string>
+    <string name="settings_section_buttons">Buttons and quick access</string>
+    <string name="settings_section_buttons_summary">Launcher panel, steering wheel, hardware buttons and the quick action bar</string>
+    <string name="settings_section_voice">Voice</string>
+    <string name="settings_section_voice_summary">Recognition, commands, replies and signals</string>
+    <string name="settings_section_sound">Sound and media</string>
+    <string name="settings_section_sound_summary">Volume at startup, media ducking and the multimedia restart</string>
+    <string name="settings_section_vehicle">Vehicle</string>
+    <string name="settings_section_vehicle_summary">Headlights, seats and mirrors, service and driver assistance</string>
+    <string name="settings_section_automation">Routines and automation</string>
+    <string name="settings_section_automation_summary">Routines, if–then rules, lights in Drive and Park, seasonal climate</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_appearance_summary">Theme, accent, text, shapes and transitions</string>
+    <string name="settings_section_language">Language and input</string>
+    <string name="settings_section_language_summary">Controls, factory apps, Android translation, cluster and keyboard</string>
+    <string name="settings_section_system">System</string>
+    <string name="settings_section_system_summary">Updates, backup, allowed actions, connection and restarts</string>
+
+    <string name="settings_part_grid">App grid</string>
+    <string name="settings_part_desktops">Desktops</string>
+    <string name="settings_part_cards">Cards</string>
+    <string name="settings_part_factory_home">Factory home screen</string>
+    <string name="settings_part_app_windows">App windows</string>
+    <string name="settings_part_displays">Virtual display and cluster</string>
+    <string name="settings_part_panel">Launcher panel</string>
+    <string name="settings_part_steering">Steering wheel</string>
+    <string name="settings_part_hardware">Hardware buttons</string>
+    <string name="settings_part_dock">Quick action bar</string>
+    <string name="settings_part_startup_volume">Volume at startup</string>
+    <string name="settings_part_ducking">Media ducking</string>
+    <string name="settings_part_media">Media access and restart</string>
+    <string name="settings_part_theme">Theme</string>
+    <string name="settings_part_text">Text</string>
+    <string name="settings_part_shape">Spacing and corners</string>
+    <string name="settings_part_motion">Transitions</string>
+    <string name="settings_part_app_language">Interface and input</string>
+    <string name="settings_part_factory_language">Factory apps and Android</string>
+    <string name="settings_part_backup">Backup</string>
+    <string name="settings_part_start">Start screen</string>
+    <string name="settings_part_connection">Connection</string>
+    <string name="settings_part_factory_profiles">Factory profiles</string>
+    <string name="settings_part_diagnostics">Diagnostics</string>
+    <string name="settings_part_about">About and restart</string>
+
+    <string name="settings_search">Search settings</string>
+    <string name="settings_search_empty">No settings match.</string>
+    <string name="settings_recent">Recently changed</string>
+    <string name="settings_my_routines">My routines</string>
+
+    <string name="settings_factory_home_summary">Cards of the factory launcher on the central display.</string>
+    <string name="settings_factory_home_unsupported">This firmware has no supported factory home screen cards.</string>
+    <string name="settings_steering_unsupported">The factory steering wheel keys cannot be reassigned on this head unit.</string>
+    <string name="settings_windows_unsupported">The window service is not available on this Android version.</string>
+    <string name="settings_app_scale_title">Scale and window swipe</string>
+    <string name="settings_app_scale_hint_title">App scale (DPI) and width of one app</string>
+    <string name="settings_app_scale_hint">To change the scale, width or icon of one app, hold its icon in the app grid and open App settings.</string>
+    <string name="settings_virtual_display_summary">Preview density, media and route, track on the cluster</string>
+    <string name="settings_startup_volume_title">After the head unit starts</string>
+    <string name="settings_launch_volume_title">When Open Controls is chosen</string>
+    <string name="settings_media_access_summary">Lets Controls read the playing track for the virtual display, the cluster and the desktop media card.</string>
+    <string name="settings_media_access_on">Access is allowed.</string>
+    <string name="settings_media_access_off">Access is not allowed.</string>
+    <string name="settings_media_access_open">Open Android access settings</string>
+    <string name="settings_media_restart_title">Multimedia</string>
+    <string name="settings_cluster_summary">Install or restore the Russian cluster translation from a local ZIP</string>
+    <string name="settings_cards_heading">What the desktops show</string>
+    <string name="settings_wallpaper_heading">Wallpaper look</string>
+    <string name="settings_start_heading">Starting Controls</string>
+    <string name="settings_part_service">Maintenance</string>
+</resources>

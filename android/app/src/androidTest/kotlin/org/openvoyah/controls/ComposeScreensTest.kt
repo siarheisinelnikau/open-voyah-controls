@@ -111,6 +111,7 @@ import org.openvoyah.controls.platform.voice.VoiceUiActions
 import org.openvoyah.controls.presentation.navigation.ControlsNavigation
 import org.openvoyah.controls.presentation.navigation.ControlsNavigationViewModel
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
+import org.openvoyah.controls.presentation.settings.SettingsPartId
 import org.openvoyah.controls.presentation.theme.DayCockpitColors
 import org.openvoyah.controls.presentation.vehicle.VEHICLE_SETTINGS_MODEL_KEY
 import org.openvoyah.controls.presentation.vehicle.VehicleSettingsViewModel
@@ -155,7 +156,10 @@ class ComposeScreensTest : InstrumentationTestCase() {
     fun testNormalRoutesAndProtectedNativeActivitiesRenderCompose() {
         val routes = listOf(
             ControlsRoute.APPS to "home", ControlsRoute.APPS to "apps",
-            ControlsRoute.VOICE to "voice", ControlsRoute.FIRMWARE to "firmware",
+            ControlsRoute.VOICE to "voice", ControlsRoute.SYSTEM to "system",
+            ControlsRoute.HOME_SCREEN to "settings-home-screen", ControlsRoute.WINDOWS to "settings-windows",
+            ControlsRoute.SOUND to "settings-sound", ControlsRoute.APPEARANCE to "settings-appearance",
+            ControlsRoute.LANGUAGE to "settings-language",
             ControlsRoute.VEHICLE to "vehicle", ControlsRoute.CLUSTER to "cluster",
             ControlsRoute.DISPLAY to "display", ControlsRoute.UPDATES to "updates",
         )
@@ -212,8 +216,12 @@ class ComposeScreensTest : InstrumentationTestCase() {
         clickText(appName)
         awaitRoute(activity, ControlsRoute.SETTINGS)
         awaitText(UiText.get(R.string.cockpit_back))
-        scrollTo(systemSettings)
         capture("settings")
+        scrollTo(UiText.get(R.string.settings_section_system))
+        clickText(UiText.get(R.string.settings_section_system))
+        awaitRoute(activity, ControlsRoute.SYSTEM)
+        openSettingsPart(activity, SettingsPartId.SYSTEM_ABOUT)
+        scrollTo(systemSettings)
         clickText(systemSettings)
         val systemSettingsPackage = checkNotNull(Intent(Settings.ACTION_SETTINGS).resolveActivity(app.packageManager)).packageName
         val automation = instrumentation.uiAutomation
@@ -224,7 +232,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         assertEquals(systemSettingsPackage, automation.rootInActiveWindow?.packageName?.toString())
         backFromExternalApp()
         awaitText(UiText.get(R.string.cockpit_back))
-        clickText(UiText.get(R.string.cockpit_back))
+        backFromSettingsSection(activity)
         assertAppGrid(activity)
     }
 
@@ -235,21 +243,23 @@ class ComposeScreensTest : InstrumentationTestCase() {
         awaitRoute(activity, ControlsRoute.SETTINGS)
         awaitText(UiText.get(R.string.cockpit_back))
         capture("settings")
-        scrollTo(UiText.get(R.string.cockpit_buttons))
-        clickText(UiText.get(R.string.cockpit_buttons))
+        scrollTo(UiText.get(R.string.settings_section_buttons))
+        clickText(UiText.get(R.string.settings_section_buttons))
         awaitRoute(activity, ControlsRoute.BUTTONS)
         awaitText(UiText.get(R.string.ui_67))
         assertComposeContent(activity)
         capture("buttons-panel")
+        openSettingsPart(activity, SettingsPartId.BUTTONS_STEERING)
         scrollTo(UiText.get(R.string.oem_steering))
         capture("buttons-assignments")
-        clickText(UiText.get(R.string.oem_steering))
+        // The part's heading and its action share the label; the action is the clickable one.
+        clickButton(UiText.get(R.string.oem_steering))
         awaitText(UiText.get(R.string.oem_restore_keys))
         capture("steering-dialog")
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         capture("after-steering-back")
-        clickText(UiText.get(R.string.cockpit_back))
-        awaitRoute(activity, ControlsRoute.SETTINGS)
+        // The press timings sit with the hardware buttons now, not on the Settings page.
+        openSettingsPart(activity, SettingsPartId.BUTTONS_HARDWARE)
         scrollTo(UiText.get(R.string.ui_59))
         clickText(UiText.get(R.string.ui_59))
         awaitText(UiText.get(R.string.ui_117))
@@ -257,6 +267,8 @@ class ComposeScreensTest : InstrumentationTestCase() {
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         assertComposeContent(activity)
         capture("settings-controls")
+        clickText(UiText.get(R.string.cockpit_back))
+        awaitRoute(activity, ControlsRoute.SETTINGS)
         val recreation = instrumentation.addMonitor(MainActivity::class.java.name, null, false)
         instrumentation.runOnMainSync { activity.recreate() }
         active = checkNotNull(instrumentation.waitForMonitorWithTimeout(recreation, 5_000))
@@ -266,8 +278,8 @@ class ComposeScreensTest : InstrumentationTestCase() {
         awaitRoute(recreated, ControlsRoute.SETTINGS)
         assertComposeContent(recreated)
 
-        scrollTo(UiText.get(R.string.voice_options_title), towardsStart = true)
-        clickText(UiText.get(R.string.voice_options_title))
+        scrollTo(UiText.get(R.string.settings_section_voice), towardsStart = true)
+        clickText(UiText.get(R.string.settings_section_voice))
         awaitRoute(recreated, ControlsRoute.VOICE)
         awaitText(UiText.get(R.string.ui_185), 10_000)
         awaitText(UiText.get(R.string.cockpit_back))
@@ -959,6 +971,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             assertAppGrid(activity)
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_GRID)
             chooseOrder(manual, "manual")
             scrollTo(edit)
             clickText(edit)
@@ -971,7 +984,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             chooseOrder(nameOrder, "name")
             assertEquals(expectedOrder, preferences.exportSettings().getJSONArray("manualAppOrder").toString())
             chooseOrder(manual, "manual")
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
             awaitOrder(second, first)
         } finally {
@@ -1030,6 +1043,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             scrollTo(settings)
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_GRID)
             scrollTo(hiddenApps)
             clickText(hiddenApps)
             awaitText(UiText.get(R.string.apps_grid_hidden_intro))
@@ -1044,7 +1058,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             assertEquals(0, AppGridPreferences(app).exportSettings().getJSONArray("hiddenApps").length())
             assertEquals(component, preferences.exportSettings().getJSONArray("pinnedApps").getString(0))
             clickText(UiText.get(R.string.apps_desktop_done))
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
             scrollTo(label)
         } finally {
@@ -1095,6 +1109,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
 
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_GRID)
             scrollTo(columns)
             clickText(columns)
             clickText("4")
@@ -1104,7 +1119,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             clickText(display)
             awaitSavedSetting { it.getJSONArray("visibleShortcuts").length() == 0 }
             clickText(done)
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
 
             assertAppGrid(activity)
             if (activity.resources.configuration.screenWidthDp >= 1150) {
@@ -1163,6 +1178,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
 
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_GRID)
             scrollTo(tileSize)
             clickText(tileSize)
             clickText(compact)
@@ -1178,7 +1194,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             scrollTo(UiText.get(R.string.apps_grid_settings))
             capture("app-grid-settings")
 
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
             awaitText(pinned.label())
             val compactBounds = settingsTileBounds()
@@ -1233,6 +1249,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_DESKTOPS)
             scrollTo(desktopEnable)
             clickText(desktopEnable)
             scrollTo(desktopDefault)
@@ -1242,7 +1259,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             while (preferences.exportSettings().getJSONObject("desktops").getString("defaultDesktop") != "favorites2" &&
                 SystemClock.uptimeMillis() < deadline) SystemClock.sleep(50)
             assertEquals("favorites2", preferences.exportSettings().getJSONObject("desktops").getString("defaultDesktop"))
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
 
             clickText(first)
@@ -1332,14 +1349,14 @@ class ComposeScreensTest : InstrumentationTestCase() {
             awaitSelectedTab(favorite)
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
-            scrollTo(UiText.get(R.string.apps_grid_settings))
+            openSettingsPart(activity, SettingsPartId.HOME_DESKTOPS)
             scrollTo(backOption)
             clickText(backOption)
             clickText(UiText.get(R.string.apps_grid_favorites_back_main))
             await("The favorites Back choice must be saved") {
                 preferences.exportSettings().getString("favoritesBackBehavior") == "mainDesktop"
             }
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             awaitSelectedTab(favorite)
 
             clickText(pinned.label(), longPress = true)
@@ -1411,6 +1428,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_DESKTOPS)
             scrollTo(names)
             clickText(names)
             val fieldDeadline = SystemClock.uptimeMillis() + 5_000
@@ -1427,7 +1445,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             clickText(save)
             awaitSetting(name, ::firstName)
 
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
             awaitSelectedTab(allApps)
             clickText(namedTab, contentDescription = true)
@@ -1436,6 +1454,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
 
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_DESKTOPS)
             scrollTo(default)
             clickText(default)
             clickText(namedTab)
@@ -1448,12 +1467,13 @@ class ComposeScreensTest : InstrumentationTestCase() {
 
             clickText(settings)
             awaitRoute(reopened, ControlsRoute.SETTINGS)
+            openSettingsPart(reopened, SettingsPartId.HOME_DESKTOPS)
             scrollTo(names)
             clickText(names)
             clickText(UiText.get(R.string.apps_grid_names_reset_for).format(first), contentDescription = true)
             clickText(save)
             awaitSetting("", ::firstName)
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(reopened)
             assertAppGrid(reopened)
             awaitSelectedTab(first)
             assertEquals("favorites1", preferences.exportSettings().getJSONObject("desktops").getString("defaultDesktop"))
@@ -1523,6 +1543,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             awaitClock()
             clickText(UiText.get(R.string.app_name))
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_DESKTOPS)
             scrollTo(layoutSettings)
             clickText(layoutSettings)
             clickText(UiText.get(R.string.desktop_layouts_save_current))
@@ -1532,9 +1553,11 @@ class ComposeScreensTest : InstrumentationTestCase() {
             awaitText(name)
             clickText(done)
 
+            openSettingsPart(activity, SettingsPartId.HOME_GRID)
             scrollTo(columns, towardsStart = true)
             clickText(columns)
             clickText("4")
+            openSettingsPart(activity, SettingsPartId.HOME_CARDS)
             scrollTo(cards)
             clickText(cards)
             val clock = UiText.get(R.string.desktop_info_clock)
@@ -1546,6 +1569,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             clickText(done)
             val changed = archive.captureDesktopLayout().toString()
 
+            openSettingsPart(activity, SettingsPartId.HOME_DESKTOPS)
             scrollTo(layoutSettings)
             clickText(layoutSettings)
             clickText(name)
@@ -1567,7 +1591,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             capture("desktop-layouts")
             assertEquals("5", grid.exportSettings().getString("columns"))
             clickText(done)
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
             awaitClock()
         } finally {
@@ -1634,6 +1658,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             assertAppGrid(activity)
             clickText(UiText.get(R.string.app_name))
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_CARDS)
             scrollTo(desktopCards)
             clickText(desktopCards)
             scrollTo(phoneCard)
@@ -1654,7 +1679,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             clickText(done)
             awaitText(desktopCards)
             clickText(done)
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
             awaitText(phoneCard)
 
@@ -1771,6 +1796,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             assertNull(renderedCard(serviceTag))
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_CARDS)
             scrollTo(desktopCards)
             clickText(desktopCards)
             clickText(clock)
@@ -1799,7 +1825,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             expectSaved("favorites1", "clock", "wide")
             expectSaved("favorites1", "clockFormat", "system")
             clickText(UiText.get(R.string.apps_desktop_done))
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
             awaitSelectedTab(all)
 
@@ -1925,11 +1951,12 @@ class ComposeScreensTest : InstrumentationTestCase() {
 
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_DESKTOPS)
             val paging = UiText.get(R.string.apps_grid_smooth_paging)
-            scrollTo(UiText.get(R.string.apps_grid_settings))
             scrollTo(paging)
             clickText(paging)
             awaitOption("smoothDesktopPaging", true)
+            openSettingsPart(activity, SettingsPartId.HOME_CARDS)
             val placement = UiText.get(R.string.apps_grid_card_placement)
             scrollTo(placement)
             clickText(placement)
@@ -1939,7 +1966,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             scrollTo(outlines)
             clickText(outlines)
             awaitOption("showDesktopCardOutlines", false)
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
             awaitCard(outlined = false, pinFirst = true)
             capture("desktop-cards-pins-first")
@@ -2007,6 +2034,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             val activity = launch(MainActivity.appsIntent(app)) as MainActivity
             clickText(UiText.get(R.string.app_name))
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_GRID)
             val icons = UiText.get(R.string.apps_grid_icon_style)
             scrollTo(icons)
             clickText(icons)
@@ -2019,13 +2047,14 @@ class ComposeScreensTest : InstrumentationTestCase() {
             clickText(sort)
             clickText(UiText.get(R.string.apps_grid_sort_recent))
 
+            openSettingsPart(activity, SettingsPartId.HOME_DESKTOPS)
             val wallpaper = UiText.get(R.string.apps_wallpaper_title)
             scrollTo(wallpaper)
             clickText(wallpaper)
             awaitText(UiText.get(R.string.apps_wallpaper_custom))
             capture("desktop-wallpaper-settings")
             clickText(UiText.get(R.string.apps_desktop_done))
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
 
             val settings = grid.exportSettings()
@@ -2080,6 +2109,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             scrollTo(settings)
             clickText(settings)
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_GRID)
             scrollTo(setting)
             clickText(setting)
             val saved = SystemClock.uptimeMillis() + 5_000
@@ -2087,7 +2117,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
                 SystemClock.sleep(50)
             }
             assertTrue(preferences.exportSettings().getBoolean("showSearchField"))
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
             awaitField("")
             assertFalse("The persistent field should wait for the user's input", checkNotNull(field()).isFocused)
@@ -2160,7 +2190,8 @@ class ComposeScreensTest : InstrumentationTestCase() {
         // Ensure the outgoing grid has left composition before its saved state is restored.
         instrumentation.waitForIdleSync()
         SystemClock.sleep(350)
-        assertNull("Search remained active behind Settings", editor())
+        // Settings has its own search field; the grid's query must not be in any field.
+        assertNull("Search remained active behind Settings", editor()?.takeIf { it.text?.toString() == query })
 
         instrumentation.runOnMainSync { recreated.startActivity(MainActivity.appsIntent(recreated)) }
         awaitRoute(recreated, ControlsRoute.APPS)
@@ -2525,7 +2556,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
     fun testAppearanceControlsApplyAndPersist() {
         val preferences = AppearancePreferences(app)
         val original = preferences.exportSettings()
-        val appearance = UiText.get(R.string.appearance_title)
+        val appearance = UiText.get(R.string.settings_part_theme)
         fun choose(setting: Int, option: Int, field: String, expected: String) {
             val name = UiText.get(setting)
             scrollTo(name)
@@ -2544,8 +2575,9 @@ class ComposeScreensTest : InstrumentationTestCase() {
                 "palette":"dark","highContrast":false,"animateRoutes":false,"accent":"default","wallpaperDimming":"standard",
                 "fontFamily":"system","backgroundTreatment":"ambient","boldText":false,
                 "navigationLabelSize":"follow","pageTitleSize":"follow"}"""))
-            val activity = launch(ControlsNavigation.intent(app, ControlsRoute.SETTINGS)) as MainActivity
-            awaitRoute(activity, ControlsRoute.SETTINGS)
+            val activity = launch(ControlsNavigation.intent(app, ControlsRoute.APPEARANCE)) as MainActivity
+            awaitRoute(activity, ControlsRoute.APPEARANCE)
+            openSettingsPart(activity, SettingsPartId.APPEARANCE_THEME)
             scrollTo(appearance)
             enable(R.string.appearance_high_contrast, "highContrast")
             choose(R.string.appearance_palette, R.string.appearance_palette_day, "palette", "day")
@@ -2557,8 +2589,11 @@ class ComposeScreensTest : InstrumentationTestCase() {
             capture("appearance-accent-previews")
             clickText(UiText.get(R.string.ui_89))
             choose(R.string.appearance_background, R.string.appearance_background_solid, "backgroundTreatment", "solid")
+            // Wallpaper dimming sits with the desktops and their wallpapers.
+            openSettingsPart(activity, SettingsPartId.HOME_DESKTOPS)
             choose(R.string.appearance_wallpaper_dimming, R.string.appearance_wallpaper_dimming_strong,
                 "wallpaperDimming", "strong")
+            openSettingsPart(activity, SettingsPartId.APPEARANCE_TEXT)
             choose(R.string.appearance_text_size, R.string.appearance_text_extra_large, "textSize", "extra_large")
             choose(R.string.appearance_navigation_label_size, R.string.appearance_option_standard,
                 "navigationLabelSize", "standard")
@@ -2566,6 +2601,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             choose(R.string.appearance_font_family, R.string.appearance_font_golos, "fontFamily", "golosText")
             enable(R.string.appearance_bold_text, "boldText")
             capture("appearance-options")
+            openSettingsPart(activity, SettingsPartId.APPEARANCE_SHAPE)
             choose(R.string.appearance_spacing, R.string.appearance_spacing_compact, "spacing", "compact")
             choose(R.string.appearance_corners, R.string.appearance_corners_subtle, "corners", "subtle")
 
@@ -2581,7 +2617,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             assertEquals("golosText", saved.getString("fontFamily"))
             assertEquals("solid", saved.getString("backgroundTreatment"))
             assertTrue(saved.getBoolean("boldText"))
-            scrollTo(appearance, towardsStart = true)
+            scrollTo(UiText.get(R.string.settings_part_shape), towardsStart = true)
             capture("appearance-daylight")
             instrumentation.runOnMainSync {
                 val window = activity.window
@@ -2617,6 +2653,10 @@ class ComposeScreensTest : InstrumentationTestCase() {
             ))
             val activity = launch(ControlsNavigation.intent(app, ControlsRoute.SETTINGS)) as MainActivity
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            scrollTo(UiText.get(R.string.settings_section_appearance))
+            clickText(UiText.get(R.string.settings_section_appearance))
+            awaitRoute(activity, ControlsRoute.APPEARANCE)
+            openSettingsPart(activity, SettingsPartId.APPEARANCE_MOTION)
             chooseSpeed(R.string.appearance_transition_smooth, "smooth")
 
             scrollTo(animate)
@@ -2628,8 +2668,10 @@ class ComposeScreensTest : InstrumentationTestCase() {
             chooseSpeed(R.string.appearance_transition_short, "short")
             capture("appearance-transition-speed")
 
-            val vehicle = UiText.get(R.string.vehicle_settings_title)
-            scrollTo(vehicle, towardsStart = true)
+            clickText(UiText.get(R.string.cockpit_back))
+            awaitRoute(activity, ControlsRoute.SETTINGS)
+            val vehicle = UiText.get(R.string.settings_section_vehicle)
+            scrollTo(vehicle)
             clickText(vehicle)
             awaitRoute(activity, ControlsRoute.VEHICLE)
             clickText(UiText.get(R.string.cockpit_back))
@@ -2647,8 +2689,9 @@ class ComposeScreensTest : InstrumentationTestCase() {
         val limit = UiText.get(R.string.appearance_launch_media_limit)
         try {
             preferences.restoreSettings(JSONObject().put("limitMediaVolumeOnLaunch", false).put("launchMediaVolumePercent", 40))
-            val activity = launch(ControlsNavigation.intent(app, ControlsRoute.SETTINGS)) as MainActivity
-            awaitRoute(activity, ControlsRoute.SETTINGS)
+            val activity = launch(ControlsNavigation.intent(app, ControlsRoute.SOUND)) as MainActivity
+            awaitRoute(activity, ControlsRoute.SOUND)
+            openSettingsPart(activity, SettingsPartId.SOUND_STARTUP)
             scrollTo(control)
             clickText(control)
             awaitAppearanceSave(preferences, "limitMediaVolumeOnLaunch", true)
@@ -2851,6 +2894,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             val contentSetting = UiText.get(R.string.desktop_info_headlights_content)
             clickText(UiText.get(R.string.app_name))
             awaitRoute(activity, ControlsRoute.SETTINGS)
+            openSettingsPart(activity, SettingsPartId.HOME_CARDS)
             scrollTo(editor)
             clickText(editor)
             scrollTo(contentSetting)
@@ -2863,7 +2907,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             assertEquals("lamps", savedContent())
             capture("desktop-headlight-content-setting")
             clickText(UiText.get(R.string.apps_desktop_done))
-            clickText(UiText.get(R.string.cockpit_back))
+            backFromSettingsSection(activity)
             assertAppGrid(activity)
             awaitText(lampContent)
             val unconfirmed = R.string.desktop_info_headlights_lamps_unconfirmed
@@ -3550,6 +3594,45 @@ class ComposeScreensTest : InstrumentationTestCase() {
             cards.zipWithNext().all { (left, right) -> left.region.right <= right.region.left })
         assertTrue("All three chairs must share the same horizontal row. Found $cards",
             cards.maxOf { it.chair.top } < cards.minOf { it.chair.bottom })
+    }
+
+    /** Opens [part] of its Settings section in the existing host, as a Settings search result does. */
+    private fun openSettingsPart(activity: MainActivity, part: SettingsPartId) {
+        instrumentation.runOnMainSync {
+            ViewModelProvider(activity)[ControlsNavigationViewModel::class.java].open(part.section.route, part.name)
+        }
+        awaitRoute(activity, part.section.route)
+        instrumentation.waitForIdleSync()
+        // The chosen part fades in beside the list of parts.
+        SystemClock.sleep(350)
+    }
+
+    /** A section opened over Settings returns to the grid in two steps: the section, then Settings. */
+    private fun backFromSettingsSection(activity: MainActivity) {
+        clickText(UiText.get(R.string.cockpit_back))
+        awaitRoute(activity, ControlsRoute.SETTINGS)
+        clickText(UiText.get(R.string.cockpit_back))
+    }
+
+    /** Clicks the control labelled [text] when a heading nearby carries the same words. */
+    private fun clickButton(text: String) {
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        while (SystemClock.uptimeMillis() < deadline) {
+            for (candidate in nodes().filter { it.isVisibleToUser && it.text?.toString() == text }.toList()) {
+                var node: AccessibilityNodeInfo? = candidate
+                var depth = 0
+                while (node != null && depth++ < 3) {
+                    if (node.isEnabled && node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_CLICK } &&
+                        node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                        instrumentation.waitForIdleSync()
+                        return
+                    }
+                    node = node.parent
+                }
+            }
+            SystemClock.sleep(50)
+        }
+        failWithEvidence("click-$text", "No control labelled $text")
     }
 
     private fun awaitRoute(activity: MainActivity, route: ControlsRoute) {

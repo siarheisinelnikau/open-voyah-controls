@@ -161,28 +161,38 @@ export function android11Tasks(Java, framework) {
             }
             return pin(next, dpi, pinned, displayId);
         },
+        /** Whether this release can give an activity bounds of its own (the members exist). */
+        activityPlacement() {
+            try { setBounds(); setAppBounds(); return true; } catch (_) { return false; }
+        },
+        /** Whether [record] runs in size compatibility mode: Android then sizes it from its own display copy. */
+        sizeCompat: record => record.mCompatDisplayInsets.value !== null,
+        /** Whether [record]'s app comes with the firmware (a system app, updated or not). */
+        preinstalled: record => (record.info.value.applicationInfo.value.flags.value & 1) !== 0,
         /** The bounds [record] has of its own inside its task, or null while it fills the task. */
         activityBounds(record) {
             const rect = record.getRequestedOverrideBounds();
             return rect === null || rect.isEmpty() ? null
                 : [rect.left.value, rect.top.value, rect.right.value, rect.bottom.value];
         },
-        /** The package of the activity that started [task], or null. */
-        rootPackage(task) {
-            const root = task.realActivity.value;
-            return root === null ? null : String(root.getPackageName());
-        },
         /**
-         * Gives [record] [bounds] of its own inside its fullscreen task, with the resource sizes a freeform task of
+         * Gives [record] [bounds] of its own inside its fullscreen task (null: none again), with the resource sizes a freeform task of
          * those bounds gets. Android 11 resolves such an activity's configuration from its own bounds
          * (`ActivityRecord.resolveFullscreenConfiguration`), lays its windows out in them (`WindowState.computeFrameLw`)
          * and letterboxes the rest of the task, the same path it uses for an app's maximum aspect ratio. The task
          * and the other activities in it keep their size. Needs the global lock.
          */
         placeActivity(record, bounds) {
-            const next = pin(framework.Configuration.$new(record.getRequestedOverrideConfiguration()), 0, bounds,
-                record.getDisplayId());
-            setBounds().call(next.windowConfiguration.value, Rect.$new(...bounds));
+            const next = framework.Configuration.$new(record.getRequestedOverrideConfiguration());
+            if (bounds === null) {
+                // Back to filling its task, with the sizes Android computes.
+                for (const field of SIZES) next[field].value = 0;
+                setAppBounds().call(next.windowConfiguration.value, null);
+                setBounds().call(next.windowConfiguration.value, null);
+            } else {
+                pin(next, 0, bounds, record.getDisplayId());
+                setBounds().call(next.windowConfiguration.value, Rect.$new(...bounds));
+            }
             record.onRequestedOverrideConfigurationChanged(next);
         },
         /** Whether the overrides agree on density, resource sizes and app bounds. */

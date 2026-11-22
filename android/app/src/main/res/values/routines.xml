@@ -10,7 +10,7 @@
     <string name="routines_layout">Desktop layout</string>
     <string name="routines_layout_keep">Keep current layout</string>
     <string name="routines_layout_hint">The layout replaces the current app grid, cards, and wallpapers when this routine runs.</string>
-    <string name="routines_layout_empty">Save a layout in App grid → Desktop layouts to use it in a routine.</string>
+    <string name="routines_layout_empty">Save a layout in Home screen and apps → Desktops → Desktop layouts to use it in a routine.</string>
     <string name="routines_layout_summary">Apply layout “%1$s”</string>
     <string name="routines_layout_missing">Saved layout unavailable</string>
     <string name="routines_layout_repair">Choose another layout or keep the current one.</string>

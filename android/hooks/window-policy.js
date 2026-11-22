@@ -432,11 +432,17 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
                 const shown = this.mLastStartActivityRecord.value;
                 if (shown !== null && shown.isActivityTypeHome() && shown.getDisplayId() === 0) revealHomeLater();
             } catch (error) { reportError('home', error); }
+        }
+        if (sdk === 30 && !released && started.has(result)) {
             try {
-                // A picker or another app's screen that Controls opened inside its own task. Placed here, before
-                // its process draws it, so it does not start once more at the new size.
+                // Every other start that leaves an activity filling a fullscreen task under the panel: a picker or
+                // chooser inside Controls' task, a gallery or browser in a task of its own. A launch this agent
+                // places as a whole task is left to that. Placed here, before the activity's process draws it,
+                // so it does not start once more at the new size.
                 const shown = this.mLastStartActivityRecord.value;
-                if (shown !== null && config?.enabled === true && config.user === tasks.userOf(shown) &&
+                let managed = false;
+                try { managed = launch != null && allowed(launch) != null; } catch (_) { }
+                if (shown !== null && !managed && config?.enabled === true && config.user === tasks.userOf(shown) &&
                     reservation.width() === 0) tasks.placeGuest(shown);
             } catch (error) { reportError('guest', error); }
         }

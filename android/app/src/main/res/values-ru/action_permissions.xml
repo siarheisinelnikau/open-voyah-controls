@@ -16,8 +16,8 @@
     <string name="action_group_voice">Голосовые команды для машины</string>
     <string name="action_group_voice_summary">Действуют и в сценариях, памяти сидений, сезонном климате и автоматике.</string>
     <string name="action_group_voice_empty">Список голосовых команд недоступен.</string>
-    <string name="action_forbidden">Это действие запрещено в «Настройки» → «Разрешённые действия».</string>
-    <string name="action_unverified_note">Это действие помечено как непроверенное в «Разрешённых действиях».</string>
+    <string name="action_forbidden">Это действие запрещено в «Настройки → Система → Разрешённые действия».</string>
+    <string name="action_unverified_note">Это действие помечено как непроверенное в «Настройки → Система → Разрешённые действия».</string>
 
     <string name="action_window_service">Окна приложений</string>
     <string name="action_window_service_summary">Агент окон в системном сервере: размер, масштаб и положение окон приложений.</string>

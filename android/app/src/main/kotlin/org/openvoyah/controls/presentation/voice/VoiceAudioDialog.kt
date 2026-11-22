@@ -66,11 +66,6 @@ internal fun VoiceAudioDialog(
 ) {
     val options = configuration.audioOptions
     val language = configuration.language
-    var duck by remember { mutableStateOf(configuration.duckMedia) }
-    var duckCalls by remember { mutableStateOf(configuration.duckCalls) }
-    var duckLevel by remember { mutableIntStateOf(configuration.duckLevelPercent) }
-    var startupVolume by remember { mutableStateOf(configuration.startupVolume) }
-    var startupPercent by remember { mutableIntStateOf(configuration.startupVolumePercent) }
     var feedback by remember { mutableStateOf(configuration.spokenFeedback) }
     var rate by remember { mutableIntStateOf(options.speechRatePercent()) }
     var speechVolume by remember { mutableIntStateOf(options.speechVolumePercent()) }
@@ -98,8 +93,10 @@ internal fun VoiceAudioDialog(
     val saveDraft = {
         if (canSave) {
             val savedPhrase = if (phraseValid) phrase else configuration.readyPrompt
-            save(VoiceSettingsChange.Audio(duck, feedback, draft(), language, voiceName, savedPhrase, duckCalls, duckLevel,
-                startupVolume, startupPercent))
+            // The media settings travel unchanged; the repository keeps the stored ones (see VoiceSettingsRepository).
+            save(VoiceSettingsChange.Audio(configuration.duckMedia, feedback, draft(), language, voiceName, savedPhrase,
+                configuration.duckCalls, configuration.duckLevelPercent, configuration.startupVolume,
+                configuration.startupVolumePercent))
         } else editingPopup = false
     }
     if (choosingVoice) {
@@ -151,23 +148,7 @@ internal fun VoiceAudioDialog(
     }
     val captureSettings: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            CockpitSwitch(UiText.get(R.string.voice_duck_media), duck) { duck = it }
-            CockpitSwitch(UiText.get(R.string.voice_duck_calls), duckCalls) { duckCalls = it }
-            CockpitReveal(duck || duckCalls) {
-                Column {
-                    VoiceAudioChoice(R.string.voice_duck_level, DUCK_LEVELS, duckLevel, announceGroup = true) { duckLevel = it }
-                    Text(UiText.get(R.string.voice_duck_hint), style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            CockpitSwitch(UiText.get(R.string.voice_startup_volume), startupVolume) { startupVolume = it }
-            CockpitReveal(startupVolume) {
-                Column {
-                    VoiceAudioLevel(R.string.voice_startup_volume_level, startupPercent, STARTUP_VOLUME) { startupPercent = it }
-                    Text(UiText.get(R.string.voice_startup_volume_hint), style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            // Media ducking and the startup volume are in Settings → Sound and media.
             CockpitSwitch(UiText.get(R.string.voice_ready_cue), readyCue) { readyCue = it }
             CockpitReveal(readyCue) {
                 Column {
@@ -251,7 +232,7 @@ private fun ReadyPromptField(language: String, prompt: String, valid: Boolean, c
 }
 
 @Composable
-private fun <T> VoiceAudioChoice(label: Int, choices: List<Pair<T, Int>>, selected: T, announceGroup: Boolean = false, change: (T) -> Unit) {
+internal fun <T> VoiceAudioChoice(label: Int, choices: List<Pair<T, Int>>, selected: T, announceGroup: Boolean = false, change: (T) -> Unit) {
     val palette = MaterialTheme.colorScheme
     val chipColors = FilterChipDefaults.filterChipColors(
         selectedContainerColor = palette.primaryContainer,
@@ -271,7 +252,7 @@ private fun <T> VoiceAudioChoice(label: Int, choices: List<Pair<T, Int>>, select
 }
 
 @Composable
-private fun VoiceAudioLevel(label: Int, value: Int, range: IntRange, steps: Int = (range.last - range.first) / 5 - 1,
+internal fun VoiceAudioLevel(label: Int, value: Int, range: IntRange, steps: Int = (range.last - range.first) / 5 - 1,
                             trailing: (@Composable () -> Unit)? = null, change: (Int) -> Unit) {
     val title = UiText.get(label)
     val percentage = "$value%"
@@ -299,8 +280,8 @@ private fun VoiceAudioLevel(label: Int, value: Int, range: IntRange, steps: Int 
 }
 
 private val VOICE_VOLUME = VoiceAudioOptions.MIN_VOLUME..VoiceAudioOptions.MAX_VOLUME
-private val STARTUP_VOLUME = StartupVolume.MIN_PERCENT..StartupVolume.MAX_PERCENT
-private val DUCK_LEVELS = listOf(0 to R.string.voice_duck_level_silent, 10 to R.string.voice_duck_level_10,
+internal val STARTUP_VOLUME = StartupVolume.MIN_PERCENT..StartupVolume.MAX_PERCENT
+internal val DUCK_LEVELS = listOf(0 to R.string.voice_duck_level_silent, 10 to R.string.voice_duck_level_10,
     20 to R.string.voice_duck_level_20, 35 to R.string.voice_duck_level_35)
 private val READY_STYLES = listOf(ReadyCueStyle.TONE to R.string.voice_ready_tone, ReadyCueStyle.SPOKEN to R.string.voice_ready_spoken)
 private val REPLY_CHANNELS = listOf(SpokenReplyChannel.ASSISTANT to R.string.voice_channel_assistant,

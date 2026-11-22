@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.test.InstrumentationTestCase
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -36,17 +37,23 @@ class FirmwareScreenTest : InstrumentationTestCase() {
         check(BuildConfig.DEBUG && Build.HARDWARE in setOf("ranchu", "goldfish") && Build.PRODUCT.startsWith("sdk_"))
         savedLanguage = app.getSharedPreferences("ui", 0).getString("language", null)
         UiText.language("en")
-        val launched = instrumentation.startActivitySync(ControlsNavigation.intent(app, ControlsRoute.FIRMWARE)) as MainActivity
+        val launched = instrumentation.startActivitySync(ControlsNavigation.intent(app, ControlsRoute.WINDOWS)) as MainActivity
         activity = launched
         instrumentation.runOnMainSync {
             launched.setContent {
                 ControlsTheme {
-                    FirmwareScreen("fixture · TEST", translationEnabled = false, windowStatus = service, windowStrip = strip,
-                        state = work, back = {}, select = { synchronized(selected) { selected += it } })
+                    // Settings shows the window part in Windows and screens and the translation in Language and input.
+                    Column {
+                        for (part in listOf(FirmwarePart.WINDOWS, FirmwarePart.TRANSLATION)) {
+                            FirmwareScreen(part, "fixture · TEST", windowsSupported = true, translationEnabled = false,
+                                windowStatus = service, windowStrip = strip, state = work,
+                                select = { synchronized(selected) { selected += it } })
+                        }
+                    }
                 }
             }
         }
-        await("the page title") { text(label(R.string.firmware_settings)) != null }
+        await("the window part") { text(label(R.string.settings_part_app_windows)) != null }
     }
 
     override fun tearDown() {
@@ -107,8 +114,7 @@ class FirmwareScreenTest : InstrumentationTestCase() {
         await("no window rows") {
             text(label(R.string.window_strip_title)) == null && text(label(R.string.window_hook_title)) == null
         }
-        // The rest of the page does not depend on the service.
-        assertNotNull(text(label(R.string.cluster_title)))
+        // The translation part does not depend on the service.
         assertNotNull(text(label(R.string.translation_import)))
     }
 

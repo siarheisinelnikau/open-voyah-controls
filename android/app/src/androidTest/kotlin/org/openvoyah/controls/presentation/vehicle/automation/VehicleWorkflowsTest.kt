@@ -117,11 +117,17 @@ class VehicleWorkflowsTest : InstrumentationTestCase() {
 
     fun testVehicleWorkflowNavigationPersistenceAndClosedHardwareActionsAtHeadUnitSize() {
         try {
-            val activity = launch(ControlsNavigation.intent(app, ControlsRoute.VEHICLE))
+            // Vehicle and Routines and automation are neighbouring sections of Settings.
+            val activity = launch(ControlsNavigation.intent(app, ControlsRoute.SETTINGS))
+            awaitRoute(activity, ControlsRoute.SETTINGS)
+            scrollTo(label(R.string.settings_section_vehicle))
+            click(label(R.string.settings_section_vehicle))
             awaitRoute(activity, ControlsRoute.VEHICLE)
-            scrollTo(label(R.string.vehicle_automation_entry))
             capture("vehicle-settings")
-            click(label(R.string.vehicle_automation_entry))
+            click(label(R.string.cockpit_back))
+            awaitRoute(activity, ControlsRoute.SETTINGS)
+            scrollTo(label(R.string.settings_section_automation))
+            click(label(R.string.settings_section_automation))
             awaitRoute(activity, ControlsRoute.VEHICLE_AUTOMATION)
             awaitText(label(R.string.vehicle_automation_lights_enabled))
             click(label(R.string.vehicle_automation_lights_enabled))
@@ -206,8 +212,14 @@ class VehicleWorkflowsTest : InstrumentationTestCase() {
             click(label(R.string.cockpit_back))
             awaitRoute(activity, ControlsRoute.VEHICLE_AUTOMATION)
 
-            scrollTo(label(R.string.vehicle_automation_apollo), backwards = true)
-            click(label(R.string.vehicle_automation_apollo))
+            // The factory assistants are reached from Vehicle only.
+            click(label(R.string.cockpit_back))
+            awaitRoute(activity, ControlsRoute.SETTINGS)
+            scrollTo(label(R.string.settings_section_vehicle))
+            click(label(R.string.settings_section_vehicle))
+            awaitRoute(activity, ControlsRoute.VEHICLE)
+            scrollTo(label(R.string.factory_assistance_title))
+            click(label(R.string.factory_assistance_title))
             awaitRoute(activity, ControlsRoute.FACTORY_ASSISTANCE)
             awaitText(label(R.string.factory_assistance_setup))
             assertNoEnabledClick(label(R.string.vehicle_settings_open))

@@ -41,9 +41,12 @@ import org.openvoyah.controls.presentation.theme.CockpitDialogs
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitSection
 
-/** The last section of Settings: the build identity and the three restart actions. */
+/** What a Settings section shows of the build identity and the restarts. */
+internal enum class SystemMaintenancePart { ALL, ABOUT, MEDIA }
+
+/** Settings → System → About shows the build and the restarts; Settings → Sound and media the multimedia restart. */
 @Composable
-internal fun SystemMaintenanceSection() {
+internal fun SystemMaintenanceSection(part: SystemMaintenancePart = SystemMaintenancePart.ALL) {
     val activity = checkNotNull(LocalActivity.current as? ComponentActivity) { "System settings require a ComponentActivity host" }
     val model = remember(activity) {
         val app = activity.applicationContext
@@ -65,6 +68,7 @@ internal fun SystemMaintenanceSection() {
     }
 
     SystemMaintenance(
+        part = part,
         version = version.lines(text(R.string.system_version_build), text(R.string.system_version_commit),
             text(R.string.system_version_installed), Locale.forLanguageTag(UiText.language())),
         working = state.working,
@@ -104,23 +108,31 @@ internal fun SystemMaintenance(
     restartMedia: () -> Unit,
     reboot: () -> Unit,
     restore: () -> Unit = {},
+    part: SystemMaintenancePart = SystemMaintenancePart.ALL,
 ) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    CockpitSection(text(R.string.system_section_title), CockpitIcon.SYSTEM) {
-        SelectionContainer(Modifier.testTag("system_version")) {
-            Text(version.joinToString("\n"), style = MaterialTheme.typography.bodyMedium)
-        }
-        CockpitAction(text(if (copied) R.string.system_version_copied else R.string.system_version_copy), { copy(version) })
-
+    val about = part != SystemMaintenancePart.MEDIA
+    val media = part != SystemMaintenancePart.ABOUT
+    CockpitSection(text(if (about) R.string.system_section_title else R.string.settings_media_restart_title), CockpitIcon.SYSTEM) {
         val idle = working == null
-        CockpitAction(text(R.string.system_restart_app), restartApp, Modifier.fillMaxWidth(), enabled = idle)
-        Text(text(R.string.system_restart_app_hint), color = muted)
-        CockpitAction(text(R.string.system_restart_media), restartMedia, Modifier.fillMaxWidth(), enabled = idle)
-        Text(text(R.string.system_restart_media_hint), color = muted)
-        CockpitAction(text(R.string.system_reboot), reboot, Modifier.fillMaxWidth(), enabled = idle, destructive = true)
-        Text(text(R.string.system_reboot_hint), color = muted)
-        CockpitAction(text(R.string.activation_restore), restore, Modifier.fillMaxWidth(), enabled = idle)
-        Text(text(R.string.activation_restore_hint), color = muted)
+        if (about) {
+            SelectionContainer(Modifier.testTag("system_version")) {
+                Text(version.joinToString("\n"), style = MaterialTheme.typography.bodyMedium)
+            }
+            CockpitAction(text(if (copied) R.string.system_version_copied else R.string.system_version_copy), { copy(version) })
+            CockpitAction(text(R.string.system_restart_app), restartApp, Modifier.fillMaxWidth(), enabled = idle)
+            Text(text(R.string.system_restart_app_hint), color = muted)
+        }
+        if (media) {
+            CockpitAction(text(R.string.system_restart_media), restartMedia, Modifier.fillMaxWidth(), enabled = idle)
+            Text(text(R.string.system_restart_media_hint), color = muted)
+        }
+        if (about) {
+            CockpitAction(text(R.string.system_reboot), reboot, Modifier.fillMaxWidth(), enabled = idle, destructive = true)
+            Text(text(R.string.system_reboot_hint), color = muted)
+            CockpitAction(text(R.string.activation_restore), restore, Modifier.fillMaxWidth(), enabled = idle)
+            Text(text(R.string.activation_restore_hint), color = muted)
+        }
         if (working != null) {
             Text(text(when (working) {
                 SystemOperation.MEDIA -> R.string.system_restart_media_working

@@ -4,8 +4,6 @@ import android.content.Context
 import android.net.Uri
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
 import org.openvoyah.controls.data.voice.CloudVoiceSettings
-import org.openvoyah.controls.domain.audio.DuckSettings
-import org.openvoyah.controls.domain.audio.StartupVolume
 import org.openvoyah.controls.platform.voice.OfflineVoiceInput
 import org.openvoyah.controls.domain.voice.SpeechEngine
 import org.openvoyah.controls.platform.voice.SpeechModels
@@ -46,8 +44,9 @@ internal class VoiceSettingsRepository(context: Context) : VoiceSettingsSource {
             is VoiceSettingsChange.App -> settings.app(change.command, change.component)
             is VoiceSettingsChange.Level -> settings.level(change.command, change.level)
             is VoiceSettingsChange.Windows -> settings.windowOptions(change.smoke, change.ventilation)
-            is VoiceSettingsChange.Audio -> settings.audio(DuckSettings(change.duck, change.duckCalls, change.duckLevel),
-                StartupVolume(change.startupVolume, change.startupPercent), change.feedback, change.options, change.language, change.offlineVoiceName, change.readyPrompt)
+            // Ducking and the startup volume are edited in Settings → Sound and media; the voice audio dialog keeps them.
+            is VoiceSettingsChange.Audio -> settings.audio(settings.mediaDuck(), settings.startupVolume(), change.feedback,
+                change.options, change.language, change.offlineVoiceName, change.readyPrompt)
             is VoiceSettingsChange.Contact -> settings.contact(change.name, change.phone)
             VoiceSettingsChange.RestorePrevious -> settings.restore()
         }

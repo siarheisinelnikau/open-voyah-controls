@@ -1,7 +1,7 @@
 import { android9Tasks } from './window-task-android9.js';
 import { android11Tasks } from './window-task-android11.js';
 import {
-    CENTRAL_DISPLAY, CONTROLS, SECONDARY_DISPLAY, fitsReservedStrip, rectValues, sameBounds, windowBounds
+    CENTRAL_DISPLAY, SECONDARY_DISPLAY, drawsBesidePanel, fitsReservedStrip, rectValues, sameBounds, windowBounds
 } from './window-profiles.js';
 
 function error(code) {
@@ -61,24 +61,60 @@ export function systemTasks(Java, sdk, panelWidth) {
     }
 
     /**
-     * An activity of another app that Controls started into its own task on the central display: the document
-     * picker of an "open file" or "save as", the permission and installer screens. Controls keeps its own content
-     * clear of the launcher panel, but such an activity would fill the task, under the panel. It gets bounds of its
-     * own beside the panel, as a placed app has, while Controls' task keeps its size. Says whether the activity is
+     * An activity that would fill a fullscreen task of the central display, under the launcher panel: another app's
+     * screen that Controls or a factory app opened inside its own task (the document picker of an "open file" or
+     * "save as", a chooser, permission and installer screens), or any app started in a task of its own by something
+     * other than the panel, Controls or home (a gallery, a crop screen, a browser link, a chooser of its own). It gets
+     * bounds of its own beside the panel, as a placed app has; the task keeps its size, so the activities under it
+     * are not recreated. Apps that draw beside the panel themselves keep the whole task. Says whether the activity is
      * now placed. Android 11 only; needs a release that supports bounds per activity.
      */
     function placeGuest(record) {
-        if (!api.placeActivity) return false;
+        if (!api.placeActivity || !api.activityPlacement()) return false;
         return api.lock(() => {
             const task = record.getTask();
+            // Left to Android, as a whole-task placement leaves them: activities that cannot take another size or
+            // run in size compatibility, lock task mode, and tasks this agent manages or gave a density.
             if (task === null || record.getDisplayId() !== 0 || task.getWindowingMode() !== framework.fullscreen ||
-                !record.isActivityTypeStandardOrUndefined() || String(record.packageName.value) === CONTROLS ||
-                api.rootPackage(task) !== CONTROLS) return false;
+                !record.isActivityTypeStandardOrUndefined() || !record.isResizeable() || api.sizeCompat(record) ||
+                api.isLocked() || saved.has(key(task)) || api.getOverride(task).densityDpi.value !== 0 ||
+                drawsBesidePanel(String(record.packageName.value), api.preinstalled(record))) {
+                return false;
+            }
             const bounds = boundsFor({width:100, dpi:0, panelPx:0});
             if (bounds === null) return false;
-            if (!sameBounds(api.activityBounds(record), bounds)) api.placeActivity(record, bounds);
+            if (!sameBounds(api.activityBounds(record), bounds)) {
+                api.placeActivity(record, bounds);
+                // An activity that is already running (brought to the front) gets its new configuration now.
+                record.ensureActivityConfiguration(0, false);
+                rememberGuest(record);
+            }
             return true;
         });
+    }
+
+    /** Activities given bounds of their own, so that turning the service off gives their whole task back. */
+    const guests = new Map();
+    const alive = record => !record.finishing.value && record.getTask() !== null;
+
+    function rememberGuest(record) {
+        if (guests.size >= 32) for (const [id, held] of guests) if (!alive(held)) guests.delete(id);
+        guests.set(System.identityHashCode(record), Java.retain(record));
+    }
+
+    /** Lets [record] fill its task again; [deliver] sends the configuration when nothing else will. */
+    function clearGuest(record, deliver = false) {
+        guests.delete(System.identityHashCode(record));
+        if (!api.placeActivity || api.activityBounds(record) === null) return;
+        api.placeActivity(record, null);
+        if (deliver) record.ensureActivityConfiguration(0, false);
+    }
+
+    function releaseGuests() {
+        for (const held of Array.from(guests.values())) {
+            try { if (alive(held)) clearGuest(held, true); } catch (_) { }
+        }
+        guests.clear();
     }
 
     function boundsFor(profile, reportedPanel = 0, minWidth = 0, minHeight = 0) {
@@ -276,6 +312,8 @@ export function systemTasks(Java, sdk, panelWidth) {
                     notify(records);
                 };
                 const changeBounds = bounds !== null && (before.mode !== placed || !sameBounds(before.bounds, bounds));
+                // Activities placed one by one while the task was fullscreen now follow the task's bounds.
+                if (changeBounds) for (const r of records) clearGuest(r);
                 // Sizes first: the move to multi-window then changes only the windowing mode the app sees.
                 if (changeBounds && pinned !== null) resources();
                 if (changeBounds) api.place(task, toRect(bounds), placed);
@@ -345,6 +383,8 @@ export function systemTasks(Java, sdk, panelWidth) {
         const records = activities(task, pkg, user, 0);
         if (!records || !knownMode(task)) throw error('unsupported_task');
         const dpi = api.getOverride(task).densityDpi.value;
+        // Bounds an activity got beside the central display's panel do not belong on another display.
+        for (const r of records) clearGuest(r);
         if (task.getWindowingMode() !== framework.fullscreen) api.place(task, null);
         if (task.getWindowingMode() !== framework.fullscreen) throw error('placement_changed');
         const wanted = api.densityConfig(task, dpi);
@@ -392,6 +432,7 @@ export function systemTasks(Java, sdk, panelWidth) {
     function release(user) {
         return api.lock(() => {
             if (api.user() !== user || api.isLocked()) throw error('unsupported_task');
+            releaseGuests();
             let incomplete = false;
             for (const [id, entry] of saved) {
                 if (entry.user !== user) continue;

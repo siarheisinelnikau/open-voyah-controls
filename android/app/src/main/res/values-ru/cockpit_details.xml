@@ -13,7 +13,7 @@
     <string name="cluster_install_heading">Установка или восстановление</string>
     <string name="cluster_install_description">Перед заменой файлов сохраните копию и сведения о соответствующей прошивке.</string>
     <string name="cluster_status_heading">Состояние операции</string>
-    <string name="display_screen_description">Масштаб приложений, плотность предпросмотра и данные виртуального дисплея.</string>
+    <string name="display_screen_description">Плотность предпросмотра и данные для виртуального экрана и приборки.</string>
     <string name="display_scale_heading">Масштаб экранов</string>
     <string name="display_sources_heading">Медиа и навигация</string>
     <string name="display_preview_description">На виртуальном экране отображаются текущий трек и данные локального маршрута.</string>

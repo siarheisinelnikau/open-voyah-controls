@@ -135,6 +135,19 @@ public final class VoiceSettings {
         }
     }
 
+    /** Settings → Sound and media: media ducking and the volume after the head unit starts, nothing else. */
+    public void media(DuckSettings duck, StartupVolume startup) {
+        if (!DuckSettings.validLevel(duck.getLevelPercent())) throw new IllegalArgumentException("Invalid media duck level");
+        if (!StartupVolume.validPercent(startup.getPercent())) throw new IllegalArgumentException("Invalid startup volume");
+        synchronized (WRITE_LOCK) {
+            try {
+                JSONObject root = new JSONObject(exportJson());
+                writeStartup(writeDuck(root.getJSONObject("values"), duck), startup);
+                importJson(root.toString());
+            } catch (Exception ex) { throw new IllegalStateException(UiText.get(R.string.ui_219), ex); }
+        }
+    }
+
     public VoiceAudioOptions audioOptions() { return readAudioOptions(prefs.getAll()); }
 
     /** Both duck switches are on until the owner turns them off. */

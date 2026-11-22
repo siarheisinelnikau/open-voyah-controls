@@ -1,6 +1,6 @@
 # Dependency notices
 
-Open Voyah Controls is MIT-licensed. The following build and runtime dependencies retain their own licenses.
+Open Voyah Controls is licensed under the GNU General Public License v3.0 or later (see [LICENSE](../LICENSE)). The following build and runtime dependencies retain their own licenses.
 
 | Component | Version | License |
 | --- | --- | --- |
@@ -16,4 +16,4 @@ Open Voyah Controls is MIT-licensed. The following build and runtime dependencie
 
 The pinned Java bridge source package and integrity information are in [package-lock.json](package-lock.json). `npm ci` retrieves the source package used to build the hooks. The standalone injector is a separate runtime download pinned in [FRIDA_RUNTIME.json](dist/FRIDA_RUNTIME.json). The voice model download checksums are in [VOICE_MODEL.json](dist/VOICE_MODEL.json) and [VOICE_MODEL_EN.json](dist/VOICE_MODEL_EN.json).
 
-The APK packages the applicable [license texts](app/src/main/assets/licenses/). Local firmware packages remain separate from the APK and the MIT source license.
+The APK packages the applicable [license texts](app/src/main/assets/licenses/). Local firmware packages remain separate from the APK and the GPL-3.0 source license.

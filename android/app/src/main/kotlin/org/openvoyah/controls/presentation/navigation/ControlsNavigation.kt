@@ -17,8 +17,10 @@ import org.openvoyah.controls.presentation.seatmemory.SeatMemoryPrompt
 
 internal enum class ControlsRoute {
     APPS, SETTINGS, BUTTONS, VOICE, DISPLAY, VEHICLE, SEAT_MEMORY, SERVICE_REMINDER, QUICK_ACTIONS, ROUTINES,
-    FIRMWARE, CLUSTER, UPDATES, VEHICLE_AUTOMATION, SEASONAL_CLIMATE, CONDITIONAL_RULES, FACTORY_ASSISTANCE,
+    CLUSTER, UPDATES, VEHICLE_AUTOMATION, SEASONAL_CLIMATE, CONDITIONAL_RULES, FACTORY_ASSISTANCE,
     DIAGNOSTICS, KEYBOARD, ACTION_PERMISSIONS, TEXT_OVERLAYS,
+    // Sections of Settings that have no page of their own elsewhere.
+    HOME_SCREEN, WINDOWS, SOUND, APPEARANCE, LANGUAGE, SYSTEM,
 }
 
 internal enum class RouteDirection { FORWARD, BACK, REPLACE }
@@ -43,6 +45,8 @@ internal data class ControlsNavigationState(
     val driverMemoryGuide: SeatMemoryPrompt.Factory? = null,
     val seatMemoryVisit: Any? = null,
     val arrival: RouteArrival = RouteArrival(0),
+    // The part of a Settings section that a search result opened; kept in memory only.
+    val focus: String? = null,
 ) {
     val route: ControlsRoute get() = stack.last()
 }
@@ -149,22 +153,29 @@ internal class ControlsNavigationViewModel(private val saved: SavedStateHandle) 
 
     fun open(route: ControlsRoute) = openRoute(route, current.value.temporaryPalette)
 
-    private fun openRoute(route: ControlsRoute, palette: AppPalette?) {
+    /** Opens a Settings section at one of its parts, as a search result does. */
+    fun open(route: ControlsRoute, focus: String?) = openRoute(route, current.value.temporaryPalette, focus)
+
+    private fun openRoute(route: ControlsRoute, palette: AppPalette?, focus: String? = null) {
         val previous = current.value
         if (route == previous.route) {
-            if (palette != previous.temporaryPalette) publish(previous.copy(temporaryPalette = palette))
+            if (palette != previous.temporaryPalette || focus != null) {
+                publish(previous.copy(temporaryPalette = palette, focus = focus ?: previous.focus))
+            }
             return
         }
         val existing = previous.stack.indexOf(route)
         val stack = if (existing >= 0) previous.stack.take(existing + 1) else previous.stack + route
         val direction = if (existing >= 0) RouteDirection.BACK else RouteDirection.FORWARD
-        publish(previous.copy(stack = stack, direction = direction, temporaryPalette = palette, driverMemoryGuide = null))
+        publish(previous.copy(stack = stack, direction = direction, temporaryPalette = palette, driverMemoryGuide = null,
+            focus = focus))
     }
 
     fun back() {
         val previous = current.value
         if (previous.stack.size > 1) {
-            publish(previous.copy(stack = previous.stack.dropLast(1), direction = RouteDirection.BACK, driverMemoryGuide = null))
+            publish(previous.copy(stack = previous.stack.dropLast(1), direction = RouteDirection.BACK, driverMemoryGuide = null,
+                focus = null))
         }
     }
 

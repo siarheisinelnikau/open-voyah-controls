@@ -32,7 +32,7 @@
     <string name="apps_hide_reason_extra">Extra launcher entry</string>
     <string name="apps_grid_show_search_field">Always show search in All apps</string>
     <string name="apps_grid_clear_search">Clear search</string>
-    <string name="apps_grid_hidden_full">Too many apps have their own Hide choice. Use Back to defaults in App grid → Hidden apps first.</string>
+    <string name="apps_grid_hidden_full">Too many apps have their own Hide choice. Use Back to defaults in Home screen and apps → App grid → Hidden apps first.</string>
     <string name="apps_grid_columns">Grid columns</string>
     <string name="apps_grid_columns_auto">Automatic</string>
     <string name="apps_grid_columns_fit">The grid uses fewer columns when space is limited.</string>

@@ -976,7 +976,7 @@ class QuickActionsScreenTest : InstrumentationTestCase() {
             click(buttons)
             awaitRoute(ControlsRoute.BUTTONS)
             await("Buttons page and compact headlight status") {
-                hasText(R.string.cockpit_buttons) && indicatorState() == liveState
+                hasText(R.string.settings_section_buttons) && indicatorState() == liveState
             }
             assertReserved(wide, left = true, full)
             assertFullyVisibleDockTargets(dockTargets)

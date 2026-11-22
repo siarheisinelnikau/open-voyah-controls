@@ -1,6 +1,6 @@
 # App updates
 
-Open **Settings → Updates** to see the installed version, check official releases, or change the startup check preference. Startup checks are enabled by default and run in the background on an interactive launch. Disabling them makes no startup request; manual checks remain available. An available update appears on Quick access. Startup network failures do not open a dialog.
+Open **Settings → System → Updates** to see the installed version, check official releases, or change the startup check preference. Startup checks are enabled by default and run in the background on an interactive launch. Disabling them makes no startup request; manual checks remain available. An available update appears on Quick access. Startup network failures do not open a dialog.
 
 **Download and install** is an explicit action. Controls downloads a bounded APK from the canonical repository and verifies the release size, SHA-256, package, current signing certificate, version, Android compatibility, native ABI and bundled runtime metadata. Debug builds cannot install production updates. An update that needs a different device runtime must be prepared with the Windows installer.
 

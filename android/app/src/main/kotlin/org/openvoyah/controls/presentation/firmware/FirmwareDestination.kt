@@ -33,15 +33,19 @@ import org.openvoyah.controls.core.Firmware
 import org.openvoyah.controls.data.settings.FirmwareMaintenance
 import org.openvoyah.controls.domain.display.WindowConnection
 import org.openvoyah.controls.presentation.maintenance.FirmwareAction
+import org.openvoyah.controls.presentation.maintenance.FirmwarePart
 import org.openvoyah.controls.presentation.maintenance.FirmwareScreen
 import org.openvoyah.controls.presentation.maintenance.MaintenanceViewModel
 import org.openvoyah.controls.presentation.maintenance.MaintenanceWork
 import org.openvoyah.controls.presentation.maintenance.WindowStripRow
 import org.openvoyah.controls.presentation.theme.CockpitDialogs
 
-/** The destination observes maintenance work; leaving it closes only its confirmation dialogs. */
+/**
+ * One part of the firmware maintenance inside a Settings section. It observes the maintenance work; leaving the page
+ * closes only its confirmation dialogs.
+ */
 @Composable
-internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit, openOverlays: () -> Unit) {
+internal fun FirmwareSection(part: FirmwarePart) {
     val context = LocalContext.current
     val activity = remember(context) { context.componentActivity() }
     val app = context.applicationContext
@@ -68,7 +72,7 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit, open
     val lifecycle by lifecycleOwner.lifecycle.currentStateAsState()
     val active = lifecycle.isAtLeast(Lifecycle.State.STARTED)
     val windowRows by produceState<Pair<Int, WindowStripRow>?>(null, active, state) {
-        if (!windows.supported || !active || state.working) return@produceState
+        if (part != FirmwarePart.WINDOWS || !windows.supported || !active || state.working) return@produceState
         val connection = windows.connection()
         val status = when (connection) {
             WindowConnection.DISCONNECTED -> R.string.cockpit_setup_required
@@ -90,7 +94,7 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit, open
     // Reading the flag parses the stored dictionary (up to 48 KB of JSON), so it stays off the main thread and is read
     // again only when an operation changes the maintenance state or the route returns to the foreground.
     val translationEnabled by produceState<Boolean?>(null, active, state) {
-        value = withContext(Dispatchers.IO) { adapter.translationEnabled() }
+        if (part == FirmwarePart.TRANSLATION) value = withContext(Dispatchers.IO) { adapter.translationEnabled() }
     }
     val routeScope = rememberCoroutineScope()
     val importFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -114,8 +118,6 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit, open
         if (model.state.value.working || !lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return
         try {
             when (action) {
-                FirmwareAction.CLUSTER -> openCluster()
-                FirmwareAction.TEXT_OVERLAYS -> openOverlays()
                 FirmwareAction.WINDOW_SERVICE -> {
                     val enable = !adapter.windowEnabled()
                     confirm(R.string.window_hook_title, if (enable) R.string.window_hook_enable else R.string.window_hook_disable) {
@@ -143,7 +145,7 @@ internal fun FirmwareDestination(back: () -> Unit, openCluster: () -> Unit, open
     }
 
     val product = remember { "${Build.PRODUCT} · ${Firmware.identify(Build.PRODUCT)}" }
-    FirmwareScreen(product, translationEnabled, windowRows?.first, windowRows?.second, state, back, ::select)
+    FirmwareScreen(part, product, windows.supported, translationEnabled, windowRows?.first, windowRows?.second, state, ::select)
 }
 
 private const val STRIP_POLLS = 8

@@ -53,7 +53,7 @@ Use one explicitly selected authorized head unit and the existing evidence colle
 3. Copy the lighting-source report with the factory selector position and instrument indicators noted at the same time. Preserve earlier confirmations and their original times when the live source disappears. [Lighting evidence](HEADLIGHT_STATUS.md)
 4. Collect gear, speed, temperature, readiness, actual driving mode and each door only through reviewed read interfaces. Record a result of unavailable or unverified when admission, permissions, source identity, units or callback semantics are missing. Do not synthesize state from an app setting or command acknowledgment.
 5. Compare observations before and after changes made through the original controls. Record connection loss and a normal sleep/wake cycle. A reconnect or initial cache delivery must establish a baseline instead of replaying an action.
-6. Review the exact physical command separately. Preserve the per-command setting in **Settings → Allowed actions**, the confirmation and the Park/zero-speed checks. An ambiguous result remains unresolved; it is never retried automatically.
+6. Review the exact physical command separately. Preserve the per-command setting in **Settings → System → Allowed actions**, the confirmation and the Park/zero-speed checks. An ambiguous result remains unresolved; it is never retried automatically.
 
 If the stock service supplies no timestamp or sequence number, the Controls receipt time identifies arrival only. A fresh subscription cannot prove that an OEM-internal queue contains a new controller sample. Capture the behavior on the exact firmware before promoting it to actionable telemetry.
 

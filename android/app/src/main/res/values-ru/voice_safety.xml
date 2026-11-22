@@ -9,9 +9,9 @@
     <string name="voice_vehicle_blocked">Запрос к автомобилю заблокирован.</string>
     <string name="voice_requires_stationary">Для этой команды автомобиль должен стоять.</string>
     <string name="voice_vehicle_state_unavailable">Состояние автомобиля недоступно. Команда заблокирована.</string>
-    <string name="voice_vehicle_switched_off">Эта команда запрещена в «Настройки» → «Разрешённые действия».</string>
+    <string name="voice_vehicle_switched_off">Эта команда запрещена в «Настройки → Система → Разрешённые действия».</string>
     <string name="voice_vehicle_commands">Команды для машины</string>
-    <string name="voice_vehicle_commands_hint">По умолчанию разрешены все команды. Выключенная команда запрещается для голоса, сценариев и автоматики; в «Настройки» → «Разрешённые действия» её можно также пометить непроверенной.</string>
+    <string name="voice_vehicle_commands_hint">По умолчанию разрешены все команды. Выключенная команда запрещается для голоса, сценариев и автоматики; в «Настройки → Система → Разрешённые действия» её можно также пометить непроверенной.</string>
     <string name="voice_vehicle_commands_none">Эта магнитола не распознана как поддерживаемая модель Voyah, команды для машины недоступны.</string>
     <string name="voice_vehicle_commands_all_on">Включить все</string>
     <string name="voice_vehicle_commands_all_off">Выключить все</string>

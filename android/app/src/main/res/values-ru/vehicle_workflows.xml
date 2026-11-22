@@ -1,5 +1,5 @@
 <resources>
-    <string name="vehicle_automation_entry">Сценарии автомобиля</string>
+    <string name="vehicle_automation_entry">Автоматика</string>
     <string name="vehicle_automation_entry_summary">Фары, климат, режим движения и правила «Если — тогда»</string>
     <string name="vehicle_diagnostics_title">Отчёт о сигналах автомобиля</string>
     <string name="vehicle_diagnostics_description">Проверки чтения этой магнитолы. Сохранённая история не запускает действия.</string>

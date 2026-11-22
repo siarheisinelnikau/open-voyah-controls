@@ -11,8 +11,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.runtime.LaunchedEffect
 import android.content.ContextWrapper
-import android.content.Intent
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -194,7 +192,6 @@ internal fun VoiceDestination(back: () -> Unit, tryVoice: () -> Unit) {
         VoiceDestinationDialogs(dialogs, settings,
             save = { systemAction { saveVoice.launch("controls-voice.json") } },
             load = { systemAction { loadVoice.launch(arrayOf("*/*")) } },
-            mediaAccess = { systemAction { activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } },
             app = activity.applicationContext)
     }
     val downloads by SpeechModelDownloads.state.collectAsState()
@@ -261,7 +258,6 @@ private class VoiceDestinationDialogs(
     private val model: VoiceSettingsViewModel,
     private val save: () -> Unit,
     private val load: () -> Unit,
-    private val mediaAccess: () -> Unit,
     private val app: Context,
 ) {
     /**
@@ -381,15 +377,15 @@ private class VoiceDestinationDialogs(
     }
 
     fun showRecovery() {
-        val choices = intArrayOf(R.string.ui_179, R.string.ui_180, R.string.ui_181, R.string.ui_182, R.string.ui_183, R.string.ui_165)
+        // Media session access moved to Settings → Sound and media.
+        val choices = intArrayOf(R.string.ui_179, R.string.ui_181, R.string.ui_182, R.string.ui_183, R.string.ui_165)
         dialogs.choices(voiceText(R.string.ui_178), choices.map(::voiceText).toTypedArray(), { choice ->
             when (choice) {
                 0 -> model.repairModel()
-                1 -> mediaAccess()
-                2 -> addContact()
-                3 -> save()
-                4 -> load()
-                5 -> model.restorePrevious()
+                1 -> addContact()
+                2 -> save()
+                3 -> load()
+                4 -> model.restorePrevious()
             }
         })
     }

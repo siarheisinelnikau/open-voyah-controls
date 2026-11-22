@@ -16,8 +16,8 @@
     <string name="action_group_voice">Vehicle voice commands</string>
     <string name="action_group_voice_summary">Also used by routines, seat memory, seasonal climate and automation.</string>
     <string name="action_group_voice_empty">The voice command list is unavailable.</string>
-    <string name="action_forbidden">This action is forbidden in Settings → Allowed actions.</string>
-    <string name="action_unverified_note">This action is marked unverified in Settings → Allowed actions.</string>
+    <string name="action_forbidden">This action is forbidden in Settings → System → Allowed actions.</string>
+    <string name="action_unverified_note">This action is marked unverified in Settings → System → Allowed actions.</string>
 
     <string name="action_window_service">App windows</string>
     <string name="action_window_service_summary">Window agent in the system server: size, scale and position of app windows.</string>

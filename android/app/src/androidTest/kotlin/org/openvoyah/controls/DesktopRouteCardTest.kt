@@ -64,7 +64,7 @@ class DesktopRouteCardTest : InstrumentationTestCase() {
 
         tapRouteCard()
         awaitRoute(activity, ControlsRoute.DISPLAY)
-        awaitText(UiText.get(R.string.app_display_settings_title))
+        awaitText(UiText.get(R.string.virtual_display))
         publish("end")
         returnFromPreview(activity)
         awaitText(waiting, scrollTowardsStart = true)
@@ -90,7 +90,7 @@ class DesktopRouteCardTest : InstrumentationTestCase() {
             runBlocking { cards.setRouteOpenTarget(AppGridDesktop.MAIN, DesktopRouteOpenTarget.NAVIGATOR) }
             tapRouteCard()
             awaitRoute(activity, ControlsRoute.DISPLAY)
-            awaitText(UiText.get(R.string.app_display_settings_title))
+            awaitText(UiText.get(R.string.virtual_display))
             returnFromPreview(activity)
 
             voice.app("Navigator", target.flattenToString())

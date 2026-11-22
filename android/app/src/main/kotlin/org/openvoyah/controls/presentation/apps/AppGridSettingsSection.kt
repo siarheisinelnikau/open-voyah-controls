@@ -148,13 +148,16 @@ internal class AppGridSettingsViewModel(
     }
 }
 
+/** The parts of the app grid settings: the grid itself, the desktops and their cards. */
+internal enum class AppGridPart { GRID, DESKTOPS, CARDS }
+
 private enum class GridPicker {
     TILE_SIZE, COLUMNS, ICON_STYLE, SORT_ORDER, MANUAL_ORDER, SHORTCUTS, DEFAULT_DESKTOP, DESKTOP_NAMES, CARD_PLACEMENT,
     FAVORITES_BACK, HIDDEN_APPS
 }
 
 @Composable
-internal fun AppGridSettingsSection() {
+internal fun AppGridSettingsSection(part: AppGridPart) {
     val activity = checkNotNull(LocalActivity.current as? ComponentActivity) { "App grid settings require a ComponentActivity host" }
     val model = remember(activity) {
         val app = activity.applicationContext
@@ -171,78 +174,86 @@ internal fun AppGridSettingsSection() {
     var picker by remember { mutableStateOf<GridPicker?>(null) }
     fun active(): Boolean = owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
 
-    CockpitSection(text(R.string.apps_grid_settings), CockpitIcon.APPS) {
-        CockpitChoice(text(R.string.apps_grid_tile_size), current?.tileSize?.label(), enabled = editable) {
-            if (active()) picker = GridPicker.TILE_SIZE
-        }
-        CockpitChoice(text(R.string.apps_grid_columns), current?.columns?.label(), enabled = editable) {
-            if (active()) picker = GridPicker.COLUMNS
-        }
-        CockpitChoice(text(R.string.apps_grid_icon_style), current?.iconStyle?.label(), enabled = editable) {
-            if (active()) picker = GridPicker.ICON_STYLE
-        }
-        CockpitSwitch(text(R.string.apps_grid_show_labels), current?.showAppLabels ?: true, enabled = editable) { show ->
-            if (active()) model.setShowAppLabels(show)
-        }
-        CockpitChoice(text(R.string.apps_grid_sort_order), current?.sortOrder?.label(), enabled = editable) {
-            if (active()) picker = GridPicker.SORT_ORDER
-        }
-        CockpitReveal(current?.sortOrder == AppGridSortOrder.MANUAL) {
-            CockpitChoice(text(R.string.apps_grid_edit_manual_order), enabled = editable) {
-                if (active()) picker = GridPicker.MANUAL_ORDER
+    val desktops = current?.desktops
+    val desktopNames = current?.desktopNames ?: AppGridDesktopNames()
+    val desktopLabel: (AppGridDesktop) -> String = { it.desktopLabel(desktopNames, includeSlot = true) }
+    val failure = when {
+        state.settings?.isFailure == true -> R.string.apps_grid_settings_read_failed
+        picker != GridPicker.MANUAL_ORDER -> state.saveError?.takeUnless { it == R.string.apps_grid_manual_order_full }
+        else -> null
+    }
+    when (part) {
+        AppGridPart.GRID -> CockpitSection(text(R.string.apps_grid_settings), CockpitIcon.APPS) {
+            CockpitChoice(text(R.string.apps_grid_tile_size), current?.tileSize?.label(), enabled = editable) {
+                if (active()) picker = GridPicker.TILE_SIZE
             }
-        }
-        CockpitChoice(text(R.string.apps_grid_shortcuts), enabled = editable) {
-            if (active()) picker = GridPicker.SHORTCUTS
-        }
-        CockpitChoice(text(R.string.apps_grid_hidden_apps), enabled = editable) {
-            if (active()) picker = GridPicker.HIDDEN_APPS
-        }
-        CockpitSwitch(text(R.string.apps_grid_show_search_field), current?.showSearchField ?: false, enabled = editable) { show ->
-            if (active()) model.setShowSearchField(show)
-        }
-        CockpitSwitch(text(R.string.apps_grid_hide_by_default), current?.hideByDefault ?: true, enabled = editable) { hide ->
-            if (active()) model.setHideByDefault(hide)
-        }
-        val desktops = current?.desktops
-        val desktopNames = current?.desktopNames ?: AppGridDesktopNames()
-        val desktopLabel: (AppGridDesktop) -> String = { it.desktopLabel(desktopNames, includeSlot = true) }
-        CockpitSwitch(text(R.string.apps_desktop_enable), desktops?.enabled == true, enabled = editable) { enabled ->
-            if (active()) model.setDesktopsEnabled(enabled)
-        }
-        CockpitReveal(current != null && current.desktops.enabled) {
-            // The rows of one reveal need their own column; the gap is the one between the rows of a CockpitSection.
-            if (current != null) Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(layout.spacing(11.dp))) {
-                val defaultLabel = current.desktops.defaultDesktop.desktopLabel(current.desktopNames)
-                CockpitChoice(text(R.string.apps_desktop_default), defaultLabel, enabled = editable) {
-                    if (active()) picker = GridPicker.DEFAULT_DESKTOP
-                }
-                CockpitChoice(text(R.string.apps_grid_desktop_names), enabled = editable) {
-                    if (active()) picker = GridPicker.DESKTOP_NAMES
-                }
-                CockpitChoice(text(R.string.apps_grid_favorites_back), current.favoritesBackBehavior.label(), enabled = editable) {
-                    if (active()) picker = GridPicker.FAVORITES_BACK
-                }
-                CockpitSwitch(text(R.string.apps_grid_smooth_paging), current.smoothDesktopPaging, enabled = editable) { smooth ->
-                    if (active()) model.setSmoothDesktopPaging(smooth)
+            CockpitChoice(text(R.string.apps_grid_columns), current?.columns?.label(), enabled = editable) {
+                if (active()) picker = GridPicker.COLUMNS
+            }
+            CockpitChoice(text(R.string.apps_grid_icon_style), current?.iconStyle?.label(), enabled = editable) {
+                if (active()) picker = GridPicker.ICON_STYLE
+            }
+            CockpitSwitch(text(R.string.apps_grid_show_labels), current?.showAppLabels ?: true, enabled = editable) { show ->
+                if (active()) model.setShowAppLabels(show)
+            }
+            CockpitChoice(text(R.string.apps_grid_sort_order), current?.sortOrder?.label(), enabled = editable) {
+                if (active()) picker = GridPicker.SORT_ORDER
+            }
+            CockpitReveal(current?.sortOrder == AppGridSortOrder.MANUAL) {
+                CockpitChoice(text(R.string.apps_grid_edit_manual_order), enabled = editable) {
+                    if (active()) picker = GridPicker.MANUAL_ORDER
                 }
             }
+            CockpitChoice(text(R.string.apps_grid_shortcuts), enabled = editable) {
+                if (active()) picker = GridPicker.SHORTCUTS
+            }
+            CockpitChoice(text(R.string.apps_grid_hidden_apps), enabled = editable) {
+                if (active()) picker = GridPicker.HIDDEN_APPS
+            }
+            CockpitSwitch(text(R.string.apps_grid_show_search_field), current?.showSearchField ?: false, enabled = editable) { show ->
+                if (active()) model.setShowSearchField(show)
+            }
+            CockpitSwitch(text(R.string.apps_grid_hide_by_default), current?.hideByDefault ?: true, enabled = editable) { hide ->
+                if (active()) model.setHideByDefault(hide)
+            }
+            if (failure != null) CockpitFeedback(text(failure), error = true)
         }
-        DesktopWallpaperSettings(extraDesktops = desktops?.enabled == true, desktopName = desktopLabel)
-        DesktopInfoSettings(extraDesktops = desktops?.enabled == true, desktopName = desktopLabel, editable = current != null)
-        CockpitChoice(text(R.string.apps_grid_card_placement), current?.desktopCardPlacement?.label(), enabled = editable) {
-            if (active()) picker = GridPicker.CARD_PLACEMENT
+        AppGridPart.DESKTOPS -> CockpitSection(text(R.string.settings_part_desktops), CockpitIcon.HOME) {
+            CockpitSwitch(text(R.string.apps_desktop_enable), desktops?.enabled == true, enabled = editable) { enabled ->
+                if (active()) model.setDesktopsEnabled(enabled)
+            }
+            CockpitReveal(current != null && current.desktops.enabled) {
+                // The rows of one reveal need their own column; the gap is the one between the rows of a CockpitSection.
+                if (current != null) Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(layout.spacing(11.dp))) {
+                    val defaultLabel = current.desktops.defaultDesktop.desktopLabel(current.desktopNames)
+                    CockpitChoice(text(R.string.apps_desktop_default), defaultLabel, enabled = editable) {
+                        if (active()) picker = GridPicker.DEFAULT_DESKTOP
+                    }
+                    CockpitChoice(text(R.string.apps_grid_desktop_names), enabled = editable) {
+                        if (active()) picker = GridPicker.DESKTOP_NAMES
+                    }
+                    CockpitChoice(text(R.string.apps_grid_favorites_back), current.favoritesBackBehavior.label(), enabled = editable) {
+                        if (active()) picker = GridPicker.FAVORITES_BACK
+                    }
+                    CockpitSwitch(text(R.string.apps_grid_smooth_paging), current.smoothDesktopPaging, enabled = editable) { smooth ->
+                        if (active()) model.setSmoothDesktopPaging(smooth)
+                    }
+                }
+            }
+            DesktopWallpaperSettings(extraDesktops = desktops?.enabled == true, desktopName = desktopLabel)
+            DesktopLayoutsSettings(editable)
+            if (failure != null) CockpitFeedback(text(failure), error = true)
         }
-        CockpitSwitch(text(R.string.apps_grid_card_outlines), current?.showDesktopCardOutlines ?: true, enabled = editable) { show ->
-            if (active()) model.setDesktopCardOutlines(show)
+        AppGridPart.CARDS -> CockpitSection(text(R.string.settings_cards_heading), CockpitIcon.APPS) {
+            DesktopInfoSettings(extraDesktops = desktops?.enabled == true, desktopName = desktopLabel, editable = current != null)
+            CockpitChoice(text(R.string.apps_grid_card_placement), current?.desktopCardPlacement?.label(), enabled = editable) {
+                if (active()) picker = GridPicker.CARD_PLACEMENT
+            }
+            CockpitSwitch(text(R.string.apps_grid_card_outlines), current?.showDesktopCardOutlines ?: true, enabled = editable) { show ->
+                if (active()) model.setDesktopCardOutlines(show)
+            }
+            if (failure != null) CockpitFeedback(text(failure), error = true)
         }
-        DesktopLayoutsSettings(editable)
-        val failure = when {
-            state.settings?.isFailure == true -> R.string.apps_grid_settings_read_failed
-            picker != GridPicker.MANUAL_ORDER -> state.saveError?.takeUnless { it == R.string.apps_grid_manual_order_full }
-            else -> null
-        }
-        if (failure != null) CockpitFeedback(text(failure), error = true)
     }
 
     if (current != null && lifecycle.isAtLeast(Lifecycle.State.RESUMED)) {
