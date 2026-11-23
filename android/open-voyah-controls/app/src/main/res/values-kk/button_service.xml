@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="button_service_enable">"Батырмаларды қосу"</string>
+    <string name="button_service_title">"Батырмалар қызметі"</string>
+    <string name="button_service_failed">"Батырмалар қызметі қосылмаған"</string>
+    <string name="button_service_connected">"Батырмалар қызметі қосылған. Белгіленген батырмалар өз іс-әрекеттерін орындайды."</string>
+    <string name="button_service_pending">"Батырма қызметі қосылған, бірақ Android оны әлі қосып қойған жоқ."</string>
+    <string name="button_service_connect_first">"Бұл магнитолада арнайы мүмкіндіктер экраны жоқ. Бастапқыда \"Friday-ны қосу\" дегенді басыңыз, содан кейін Controls батырмалар қызметін өздігінен қосуға мүмкіндік береді."</string>
+</resources>

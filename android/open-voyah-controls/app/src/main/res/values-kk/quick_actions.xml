@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="panel_restore_unconfirmed">"Қосылым жабық. Егер панельде басқа таңбалар болса, лаунчерді қайта ашу."</string>
+    <string name="quick_voice_title">"Дауыс көмекшісі"</string>
+    <string name="quick_mic_denied">"Микрофонға қол жеткізу рұқсат етілмеген. Микрофонның баптауларында рұқсат етіңіз."</string>
+    <string name="weather_offline">"Ауа райының болжамы желісіз қол жетімді емес."</string>
+    <string name="installed_apps">"Белгіленген қосымшалар"</string>
+    <string name="open_app">"Ашу"</string>
+    <string name="app_window_options">"Экран мен терезе"</string>
+    <string name="choose_display">"Экранды таңдау"</string>
+    <string name="open_window">"Терезені ашу"</string>
+    <string name="app_display_failed">"Таңдалған экранда қолданба ашылмады."</string>
+    <string name="install_local_apk">"Файлдан APK орнату..."</string>
+    <string name="allow_apk_install">"Бұл қосымшаға Android параметрлерінде орнатуды сұрауға рұқсат етіңіз. Жүйе таңдалған файлды орнатуды растауды сұрайды."</string>
+    <string name="apk_install_unavailable">"Android-де APK орнатушы ашылмады."</string>
+    <string name="apk_installed">"Құрылыс аяқталды."</string>
+    <string name="apk_install_ended">"Құрылғы жойылған немесе аяқталмаған."</string>
+    <string name="window_hook_title">"Терезені басқару"</string>
+    <string name="window_hook_enable">"Навигатор панеліне енін, тығыздығын және ауытқуын өзгертуді қосу керек пе?"</string>
+    <string name="window_hook_disable">"Android терезе өңдеушісін өшіру керек пе?"</string>
+    <string name="window_hook_requirement">"Алдымен Frida- ды Android 9 немесе 11 құрылғысымен дайындалған магнитолда қосыңыз."</string>
+    <string name="window_hook_on">"Терезенің өңдеушісі қосылған. Қосылған күйін тексеріңіз."</string>
+    <string name="window_hook_off">"Терезе өңдеуші тоқтатылды."</string>
+    <string name="virtual_display">"Виртуалды экран"</string>
+    <string name="display_media_access">"Ойыншыға қол жеткізу"</string>
+    <string name="cluster_media_share">"Құрылғыдағы ағымдағы жолды көрсету"</string>
+    <string name="display_density">"Виртуалды экранның масштабы"</string>
+    <string name="display_auto_density">"Автоматты DPI таңдау"</string>
+    <string name="display_unavailable">"Қосымшада алдын ала қарау · Виртуалды экран жоқ"</string>
+    <string name="display_no_media">"Ойыншы белсенді емес"</string>
+    <string name="display_no_route">"Навигация деректері жоқ"</string>
+    <string name="display_navigation">"Навигация"</string>
+    <string name="navigation_feed_enable">"Виртуалдық экранда құрылғы қызметінің жергiлiктi маршрут деректерін көрсету керек пе?"</string>
+    <string name="navigation_feed_disable">"Құрылғы қызметінің навигациялық деректерін алуын тоқтату керек пе?"</string>
+    <string name="navigation_feed_on">"Навигациялық процессор қосылған. Қосылған жағдайда дайындықты тексеріңіз."</string>
+    <string name="navigation_feed_off">"Навигациялық процессор тоқтатылды."</string>
+    <string name="oem_steering">"Рульдің штаттық батырмалары"</string>
+    <string name="oem_voice">"Дауыс"</string>
+    <string name="oem_custom">"Қалыптастыру"</string>
+    <string name="oem_short">"Басу"</string>
+    <string name="oem_hold">"Қалпына келтіру"</string>
+    <string name="oem_restore_keys">"Ағымдағы әрекеттерді қайтару"</string>
+    <string name="oem_restore_keys_info">"Бұл тұрақты басқару батырмалары үшін тапсырмаларды тазалау?"</string>
+</resources>

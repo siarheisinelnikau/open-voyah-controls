@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vehicle_runtime_background_ready">"Controls арнайы мүмкіндіктері қосылған. сақталған сценарийлер Controls жабық болған кезде жұмыс істей алады; өзекті сигналдар және әрбір әрекеттің рұқсат етілуі қажет."</string>
+    <string name="vehicle_runtime_foreground_only">"Қосымшаны баптау арқылы Controls қызметін арнайы мүмкіндіктер арқылы қоңырау шалып жұмыс істеу үшін қосыңыз."</string>
+</resources>

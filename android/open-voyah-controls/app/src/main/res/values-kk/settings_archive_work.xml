@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_archive_exporting">"Барлық баптаулардың резервтік көшірмесін сақтау..."</string>
+    <string name="settings_archive_reading">"Оқу және баптау файлын тексеру..."</string>
+    <string name="settings_archive_applying">"Қалыптарды қалпына келтіру және белсенді функцияларды жаңарту."</string>
+    <string name="settings_archive_restored">"Параметрлер қалпына келтірілді."</string>
+    <string name="settings_archive_runtime_failed">"Параметрлері сақталған, бірақ белсенді функциялар жаңартылмады. \n Қайталап көріңіз"</string>
+</resources>

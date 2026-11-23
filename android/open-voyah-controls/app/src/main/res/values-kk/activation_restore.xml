@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="activation_paused">"Open Voyah Controls қауіпсіздігі үшін тоқтатылды. Ол келесі жүйе қайта жүктелгеннен кейін қалпына келеді."</string>
+    <string name="activation_restore">"Open Voyah Controls- ды қалпына келтіру"</string>
+    <string name="activation_restore_hint">"Қорғаныс тоқтағаннан кейін машинадағы агенттерді қайта іске қосу, егер орнатылған файлдар әлі де бекітілсе, компьютерсіз."</string>
+    <string name="activation_restore_title">"Open Voyah Controls-ті қалпына келтіру керек пе?"</string>
+    <string name="activation_restore_message">"Open Voyah Controls қолданбаның, агенттердің және орындалу ортасының орнату кезінде бекітілгенін тексеріп, агенттерді қайта қосуға болады. Еш нәрсе орнатылмайды және өзгермейді. Егер зауыт экранында тоқтатылған агенттердің өзгерістері болса, жүйеді қайта жүктеу қажет болады."</string>
+    <string name="activation_restore_confirm">"Қайта қалпына келтіру"</string>
+    <string name="activation_restore_working">"Құрылғыларды тексеру және қалпына келтіру..."</string>
+    <string name="activation_restore_done_title">"Open Voyah Controls қалпына келтірілді"</string>
+    <string name="activation_restore_done">"Агенттер қайта қосылды және жарты минут ішінде дайын болады."</string>
+    <string name="activation_restore_none">"Ешнәрсе бұғатталмаған, егер олар тоқтаса, олар қайтадан іске қосылады."</string>
+    <string name="activation_restore_reboot_title">"Жүйені қайта жүктеу"</string>
+    <string name="activation_restore_reboot">"Зауыт экранында тоқтатылған агенттердің өзгерістері болуы мүмкін. Жүйені P-ге қайта жүктеңіз: Open Voyah Controls жүктелгеннен кейін өздігінен қалпына келеді."</string>
+    <string name="activation_restore_waiting">"Басты құрылғы тағы да жүктеледі."</string>
+    <string name="activation_restore_pc_title">"Компьютер қажет"</string>
+    <string name="activation_restore_pc">"Келтірілген қосымшалар, агенттер немесе орындалу ортасы (%s) бекітілген орындалу ортасымен сәйкес келмейді."</string>
+</resources>

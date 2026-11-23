@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rules_title">"\"Егер болса, онда\" ережелері"</string>
+    <string name="rules_description">"Қалыпталған сценарийді қорап пен есіктің жағдайы бойынша іске қосу."</string>
+    <string name="rules_scope_hint">"Қосымшаның ашылуы мен қайта қосылуы өздігінен ережені іске қосымайды."</string>
+    <string name="rules_unavailable">"Бұл сапардағы бірінші сигнал күту."</string>
+    <string name="rules_create">"Қағиданы қосу"</string>
+    <string name="rules_edit">"Қағиданы өзгерту"</string>
+    <string name="rules_empty">"Біріншіден, сценарийді жасаңыз, содан кейін ол үшін қоршау немесе есіктің шартын таңдаңыз."</string>
+    <string name="rules_manage_routines">"Сценарийлерді ашу"</string>
+    <string name="rules_name">"Қағидат атауы"</string>
+    <string name="rules_if">"Егер"</string>
+    <string name="rules_and_hint">"Егер екеуі де таңдалса, екеуі де расталуы керек."</string>
+    <string name="rules_then">"Сонда"</string>
+    <string name="rules_gear">"Қорап"</string>
+    <string name="rules_doors">"Есік"</string>
+    <string name="rules_any_gear">"Қоспаның кез келген орналасуы"</string>
+    <string name="rules_any_doors">"Есіктердің кез келген күйі"</string>
+    <string name="rules_park">"Park"</string>
+    <string name="rules_drive">"Drive"</string>
+    <string name="rules_reverse">"Арқаға қарай"</string>
+    <string name="rules_neutral">"Нейтрал"</string>
+    <string name="rules_all_closed">"Төрт есіктің бәрі жабық"</string>
+    <string name="rules_any_open">"Жоқ дегенде бір есік ашық"</string>
+    <string name="rules_routine">"Сақталған сценарий"</string>
+    <string name="rules_enabled">"Қағиданы қосу"</string>
+    <string name="rules_paused">"Тоқталды"</string>
+    <string name="rules_waiting">"Қосылған · расталған ауысуды күту"</string>
+    <string name="rules_cooldown">"Минималды аралық"</string>
+    <string name="rules_seconds">"%1$d секунд"</string>
+    <string name="rules_save">"Қағиданы сақтау"</string>
+    <string name="rules_delete">"Қағиданы өшіру"</string>
+    <string name="rules_invalid_name">"1-40 көрінетін символдардың бірегей атауын келтіріңіз."</string>
+    <string name="rules_no_condition">"Қораптың орналасуын немесе есіктердің орналасуын таңдаңыз."</string>
+    <string name="rules_routine_changed">"Сценарий өзгертілген немесе өшірілген. Оны қайта таңдаңыз және ағымдағы әрекеттерді орындау үшін ережені сақтаңыз."</string>
+    <string name="rules_no_routine">"Сақталған сценарийді таңдаңыз."</string>
+    <string name="rules_load_failed">"Ережелерді оқу мүмкін болмады. Деректер сақталды; қалпына келтіру үшін дұрыс баптаулар көшірмесін импорттау керек."</string>
+    <string name="rules_routines_failed">"Сценарийлерді оқу мүмкін емес."</string>
+    <string name="rules_save_failed">"Қағиданы сақтау мүмкін емес. Басқа терезеде атау мен өзгермегенін тексеріңіз, содан кейін қайталаңыз."</string>
+    <string name="rules_limit">"12 ережеге дейін сақталады."</string>
+</resources>

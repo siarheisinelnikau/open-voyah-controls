@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vehicle_settings_title">"Автомобильдің баптаулары"</string>
+    <string name="vehicle_settings_tile_summary">"Жүргізу, салон және мультимедия"</string>
+    <string name="vehicle_settings_description">"Бағдаршам режимін тексеру және автокөліктің қалыпты баптауларына қол жеткізу."</string>
+    <string name="vehicle_assistance_title">"Жүргізу ассистенттері"</string>
+    <string name="vehicle_assistance_description">"Автомобильдің штаттық мәзірінен ассистенттер, интеллектуалдық басқару немесе Apollo бөлімін іздеңіз. Қол жетімділігі модельге және прошивкаға байланысты."</string>
+    <string name="vehicle_settings_open">"Автомобильдің штат баптауларын ашу"</string>
+    <string name="vehicle_settings_unavailable">"Автомобильдің менюін штаттық панельден ашыңыз. Бұл магнитофонға Android Controls тікелей кіруді қамтамасыз етпейді."</string>
+    <string name="vehicle_manual">"VOYAH нұсқаулықтары"</string>
+    <string name="vehicle_cabin_title">"Салон және мультимедия"</string>
+    <string name="vehicle_cabin_description">"Жүргізушінің күйін сақтаңыз немесе қалпына келтіріңіз немесе мультимедианың қалыпты баптауларын аша аласыз."</string>
+    <string name="vehicle_seat_memory">"Отырғыстар мен айналарды есте сақтау"</string>
+    <string name="vehicle_infotainment_open">"Мультимедияның қалыпты баптауларын ашу"</string>
+    <string name="vehicle_energy_title">"Жүргізу және энергия"</string>
+    <string name="vehicle_energy_description">"Жүргізу, қалпына келтіру және зарядтау режимдері, егер оларды көлік қолдаса, әдеттегі мәзірде қол жетімді."</string>
+    <string name="headlight_mode_title">"Пернетақта режимі"</string>
+    <string name="headlight_mode_unavailable">"Автомобильдің ағымдағы деректері жоқ."</string>
+    <string name="headlight_mode_open_factory">"Жарық күйін орнату"</string>
+    <string name="headlight_mode_waiting">"Автомобильдің деректерін күту..."</string>
+    <string name="headlight_mode_last_confirmed">"Соңғы растау · %1$s"</string>
+    <string name="headlight_mode_earlier_report">"Бұрын алынған · %1$s"</string>
+    <string name="headlight_mode_confirmed">"Автомобильмен расталған · %1$s"</string>
+    <string name="headlight_mode_automatic">"Авто"</string>
+    <string name="headlight_mode_low_beam">"Жақын жарық"</string>
+    <string name="headlight_mode_position">"Габарит шамдары"</string>
+    <string name="headlight_mode_off">"Өшірулі"</string>
+    <string name="headlight_mode_on">"Қосулы"</string>
+    <string name="headlight_mode_daytime_running">"Күнделікті жүріс шамдары"</string>
+    <string name="headlight_mode_save_failed">"Бұл байқауды сақтап қалу мүмкін емес."</string>
+    <string name="headlight_selector_label">"Жарық коммутаторы"</string>
+    <string name="headlight_selector_unavailable">"Ағымдағы коммутатордың жағдайы қолжетімді емес."</string>
+    <string name="headlight_selector_waiting">"Қалғыштың орналасуын күту..."</string>
+    <string name="headlight_activity_main">"Жарықтар"</string>
+    <string name="headlight_activity_high">"Алыс жарық"</string>
+    <string name="headlight_activity_unavailable">"Куәлік жоқ"</string>
+    <string name="headlight_activity_on">"Қос."</string>
+    <string name="headlight_activity_off">"Өшір."</string>
+    <string name="headlight_activity_summary">"%1$s · %2$s"</string>
+    <string name="headlight_monitoring_open">"Басқарушы ашылған кезде шамдарды бақылау"</string>
+    <string name="headlight_monitoring_save_failed">"Бақылау параметрлерін сақтап қалу мүмкін емес."</string>
+</resources>

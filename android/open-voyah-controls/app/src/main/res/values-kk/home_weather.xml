@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_weather_card">"Негізгі экрандағы ауа райы (Open-Meteo)"</string>
+    <string name="home_weather_city">"Егер машинаның орналасқан жері белгісіз болса, ауа райы үшін қала"</string>
+    <string name="home_weather_no_data">"Деректер жоқ"</string>
+    <string name="home_weather_clear">"Түсіндірілген"</string>
+    <string name="home_weather_cloudy">"Болытпен"</string>
+    <string name="home_weather_overcast">"Қалған жағасы"</string>
+    <string name="home_weather_fog">"Туман"</string>
+    <string name="home_weather_rain">"Жаңбыр жауады"</string>
+    <string name="home_weather_snow">"Қар"</string>
+    <string name="home_weather_thunderstorm">"Күн күркірейді"</string>
+    <string name="home_weather_hail">"Қала"</string>
+</resources>

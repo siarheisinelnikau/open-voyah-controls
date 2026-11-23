@@ -50,6 +50,7 @@ class HomeWeatherTest {
         assertEquals("https://geocoding-api.open-meteo.com/v1/search?name=%D0%A2%D0%B2%D0%B5%D1%80%D1%8C&count=1&format=json&language=ru",
             HomeWeather.geocodeUrl(" Тверь ", "ru"))
         assertTrue(HomeWeather.geocodeUrl("Paris", "de").endsWith("language=en"))
+        assertTrue(HomeWeather.geocodeUrl("Алматы", "kk").endsWith("language=kk"))
     }
 
     @Test fun cityIsTrimmedAndBounded() {

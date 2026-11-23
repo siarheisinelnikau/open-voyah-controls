@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_vehicle_approval_required">"Автокөлікті басқару қолжетімсіз: бас құрылғы Voyah-дың қолдау көрсетілетін үлгісі ретінде анықталмады немесе оның микробағдарламасына арналған профиль жоқ."</string>
+    <string name="voice_vehicle_reviewed">"Климат, жылыту, жарық, терезе және жүргізу режимдерінің расталған пәрмендері қозғалыс кезінде де жұмыс істейді. Есіктер, жүксалғыш, қақпақтар, орындық жады және жарықты сөндіру пәрмендері көлік тоқтап, беріліс P күйінде тұрғанда ғана орындалады."</string>
+    <string name="voice_vehicle_accepted">"Автокөлік сұрауды қабылдады."</string>
+    <string name="voice_vehicle_verified">"Автокөлік сұралған күйді растады."</string>
+    <string name="voice_vehicle_partial">"Сұрау жартылай орындалған болуы мүмкін. Автокөліктің күйін тексеріңіз."</string>
+    <string name="voice_vehicle_unknown">"Нәтиже белгісіз. Қайталау алдында автокөліктің күйін тексеріңіз."</string>
+    <string name="voice_vehicle_blocked">"Автокөлікке жіберілетін сұрау бұғатталды."</string>
+    <string name="voice_requires_stationary">"Бұл пәрменді орындау үшін автокөлік тоқтап тұруы керек."</string>
+    <string name="voice_vehicle_state_unavailable">"Автокөліктің күйі қолжетімсіз. Пәрмен бұғатталды."</string>
+    <string name="voice_vehicle_switched_off">"Бұл пәрменге «Баптаулар → Жүйе → Рұқсат етілген әрекеттер» бөлімінде тыйым салынған."</string>
+    <string name="voice_vehicle_commands">"Автокөлік пәрмендері"</string>
+    <string name="voice_vehicle_commands_hint">"Әдепкіде барлық пәрменге рұқсат берілген. Өшірілген пәрмен дауыс, сценарий және автоматика арқылы орындалмайды. «Баптаулар → Жүйе → Рұқсат етілген әрекеттер» бөлімінде оны тексерілмеген деп те белгілеуге болады."</string>
+    <string name="voice_vehicle_commands_none">"Бұл бас құрылғы Voyah-дың қолдау көрсетілетін үлгісі ретінде анықталмады. Автокөлік пәрмендері қолжетімсіз."</string>
+    <string name="voice_vehicle_commands_all_on">"Барлығын қосу"</string>
+    <string name="voice_vehicle_commands_all_off">"Барлығын өшіру"</string>
+</resources>

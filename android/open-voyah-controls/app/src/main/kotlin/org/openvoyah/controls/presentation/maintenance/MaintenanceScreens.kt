@@ -25,7 +25,7 @@ import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 
 internal enum class FirmwareAction {
-    WINDOW_SERVICE, WINDOW_STRIP, RUSSIAN, ENGLISH, DISABLE_TRANSLATION, IMPORT, EXPORT, RESTORE_TRANSLATION, RESTORE_PROFILE,
+    WINDOW_SERVICE, WINDOW_STRIP, RUSSIAN, ENGLISH, KAZAKH, DISABLE_TRANSLATION, IMPORT, EXPORT, RESTORE_TRANSLATION, RESTORE_PROFILE,
 }
 
 /**
@@ -77,6 +77,7 @@ internal fun FirmwareScreen(part: FirmwarePart, product: String, windowsSupporte
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     CockpitAction(label(R.string.cockpit_dictionary_russian), { select(FirmwareAction.RUSSIAN) }, enabled = enabled)
                     CockpitAction(label(R.string.cockpit_dictionary_english), { select(FirmwareAction.ENGLISH) }, enabled = enabled)
+                    CockpitAction(label(R.string.cockpit_dictionary_kazakh), { select(FirmwareAction.KAZAKH) }, enabled = enabled)
                     CockpitAction(label(R.string.translation_disable), { select(FirmwareAction.DISABLE_TRANSLATION) }, enabled = enabled)
                     CockpitAction(label(R.string.translation_restore), { select(FirmwareAction.RESTORE_TRANSLATION) }, enabled = enabled)
                 }

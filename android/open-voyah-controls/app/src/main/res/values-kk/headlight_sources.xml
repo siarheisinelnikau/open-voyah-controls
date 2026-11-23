@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="headlight_sources_title">"Фар деректер көздері"</string>
+    <string name="headlight_sources_factory_selector">"Зауыттық жарық коммутаторы"</string>
+    <string name="headlight_sources_android_selector">"Android- тегі жарық коммутаторы"</string>
+    <string name="headlight_sources_android_headlamps">"Android- те шамдар"</string>
+    <string name="headlight_sources_android_high_beam">"Android- тегі алыстан жарық"</string>
+    <string name="headlight_sources_model_unreviewed">"Үлгінің үйлесімділігі расталмаған"</string>
+    <string name="headlight_sources_service_absent">"Зауыттық қызмет қолжетімді емес"</string>
+    <string name="headlight_sources_service_unreviewed">"Штаттық қызметтің үйлесімділігі расталмаған"</string>
+    <string name="headlight_sources_platform_unavailable">"Android Automotive қолжетімді емес"</string>
+    <string name="headlight_sources_permission_denied">"Оқуға қолжетімділік жоқ"</string>
+    <string name="headlight_sources_disconnected">"Қызметке қосылым жоқ"</string>
+    <string name="headlight_sources_property_unavailable">"Жүйеде сигнал жоқ"</string>
+    <string name="headlight_sources_incompatible_property">"Сигналдың пішімі қолдан алынбайды"</string>
+    <string name="headlight_sources_subscription_rejected">"Қызмет жазылудан бас тартты"</string>
+    <string name="headlight_sources_subscribed">"Қолтаңба белсенді"</string>
+    <string name="headlight_sources_read_failed">"Оқу қатесі"</string>
+    <string name="headlight_sources_waiting">"Ресурстың мәртебесін күту"</string>
+    <string name="headlight_sources_last_confirmation">"Соңғы растау көздері"</string>
+    <string name="headlight_sources_factory">"Зауыттық қызмет"</string>
+    <string name="headlight_sources_android">"Android Automotive"</string>
+    <string name="headlight_sources_unknown">"Көні белгісіз"</string>
+    <string name="headlight_sources_copy">"Есепті көшіру"</string>
+    <string name="headlight_sources_copied">"Есеп көшірілді."</string>
+    <string name="headlight_sources_preparing">"Есепті дайындау..."</string>
+    <string name="headlight_sources_copy_failed">"Есепті көшірмелеу мүмкін емес."</string>
+    <string name="headlight_sources_done">"Дайын"</string>
+</resources>

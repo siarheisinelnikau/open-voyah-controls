@@ -3,7 +3,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=name=>fs.readFileSync(path.join(__dirname,'../hooks',name),'utf8').replace(/^import .*;$/gm,'').replace(/^export /gm,'');
 const preset=name=>fs.readFileSync(path.join(__dirname,'../hooks/localization',name),'utf8');
-const source='const ru='+preset('ru.json')+';\nconst en='+preset('en.json')+';\n'+read('report.js')+'\n'+read('localization.js');
+const source=['ru','en','kk'].map(name=>'const '+name+'='+preset(name+'.json')+';').join('\n')
+    +'\n'+read('report.js')+'\n'+read('localization.js');
 const env={};vm.createContext(env);vm.runInContext(source,env);
 const config={schema:1,enabled:true,products:['f0506h'],packages:{'com.qinggan.app.launcher':{'设置':'Settings'}}};
 test('translations are exact and scoped to package and product',()=>{
@@ -32,6 +33,7 @@ test('the bundled presets are used when the setting names one',()=>{
     const named={schema:1,enabled:true,preset:'ru',products:[],packages:{}};
     assert.equal(env.translated(named,'com.qinggan.app.launcher','f6802h','设置'),'Настройки');
     assert.equal(env.translated({...named,preset:'en'},'com.qinggan.app.launcher','f6802h','设置'),'Settings');
+    assert.equal(env.translated({...named,preset:'kk'},'com.qinggan.app.launcher','f6802h','设置'),'Баптаулар');
 });
 test('partial installation rolls back and retries independently',()=>{
     const text={overload(){return this;},call(){}};const retry=[];

@@ -3,10 +3,11 @@
 import { createReporter } from './report.js';
 import ru from './localization/ru.json';
 import en from './localization/en.json';
+import kk from './localization/kk.json';
 
 const KEY = 'org.openvoyah.controls.localization';
 // Built-in dictionaries travel inside the agent; the setting only names one, so it stays small.
-const PRESETS = { ru, en };
+const PRESETS = { ru, en, kk };
 
 function applies(config, product) {
     return !!config && config.schema === 1 && config.enabled === true

@@ -47,11 +47,25 @@ public final class UiText {
 
     public static String language() {
         String deviceLanguage = Locale.getDefault().getLanguage();
-        return preferences.getString(LANGUAGE, deviceLanguage.equals("ru") ? "ru" : "en");
+        String stored = preferences.getString(LANGUAGE, null);
+        if (supportsLanguage(stored)) return stored;
+        return supportsLanguage(deviceLanguage) ? deviceLanguage : "en";
+    }
+
+    public static boolean supportsLanguage(String value) {
+        return "en".equals(value) || "ru".equals(value) || "kk".equals(value);
+    }
+
+    public static int languageName(String value) {
+        return switch (value) {
+            case "ru" -> R.string.language_name_russian;
+            case "kk" -> R.string.language_name_kazakh;
+            default -> R.string.language_name_english;
+        };
     }
 
     public static void language(String value) {
-        if (!value.equals("ru") && !value.equals("en")) throw new IllegalArgumentException("Invalid UI language");
+        if (!supportsLanguage(value)) throw new IllegalArgumentException("Invalid UI language");
         if (!preferences.edit().putString(LANGUAGE, value).commit()) throw new IllegalStateException("Could not save language");
         localized = null;
     }

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="window_strip_title">"Android панелі жолағын резервациялау (тәжірибе)"</string>
+    <string name="window_strip_enable_title">"Android панеліне жолды сақтау керек пе?"</string>
+    <string name="window_strip_enable_message">"Басты құрылғыда эксперименттік функция әлі тексерілмеген.\n\nAndroid барлық орталық экранның барлық терезелерін сол жақ панельдің оң жағына орналастырады - Controls әрбір қолданбаны жылжытудың орнына. Ашылған қолданбалар бір рет қайта басталады.\n\nЕгер функция қосылған кезде жүйелік процесс қайта басталса, Controls оны өздігінен өшіреді. Оны кез келген уақытта өшіруге болады."</string>
+    <string name="window_strip_disable_title">"Панелдің жолағын резервациялаудан бас тарту?"</string>
+    <string name="window_strip_disable_message">"Android қайтадан өз қорына оралады, қолданбалар бір рет қайта басталады, содан кейін Controls қайтадан басқарушы қолданбаларды бұрынғыдай панельге жақын орналастырады."</string>
+    <string name="window_strip_requested">"Сұраныс жіберілді. Android оны бірнеше секундтан кейін қолданады."</string>
+    <string name="window_strip_released">"Android енді панельдің жолағын резервацияламайды."</string>
+    <string name="window_strip_saved">"Терезе қызметі іске қосылғаннан кейін күшіне енеді."</string>
+    <string name="window_strip_agent_required">"Бұл құрылғыдағы терезелер агенті функцияны әлі қолдамайды. Оны жаңарту үшін \"Беткілер\" бөлімінде қосылыңыз."</string>
+    <string name="window_strip_status_service_off">"Терезе қызметі қажет"</string>
+    <string name="window_strip_status_agent">"Терезе қызмет агенті күту"</string>
+    <string name="window_strip_status_off">"Өшірулі"</string>
+    <string name="window_strip_status_starting">"Қозғалыс..."</string>
+    <string name="window_strip_status_waiting_panel">"Лаучер панелін күту"</string>
+    <string name="window_strip_status_checking">"Қолданылған, тексеріліп жатыр · %1$d px"</string>
+    <string name="window_strip_status_active">"қосылған · %1$d px резервацияланған"</string>
+    <string name="window_strip_status_other_user">"Тіркелген: басқа Android пайдаланушы белсенді"</string>
+    <string name="window_strip_status_blocked">"Жүйе процесін қайта бастағаннан кейін сөндіріледі. Қайта қосу үшін қайта қосыңыз."</string>
+    <string name="window_strip_status_unsupported">"Бұл прошивкада қолжетімді емес (%1$s)"</string>
+    <string name="window_strip_status_failed">"Пайдалану мүмкін емес (%1$s)"</string>
+    <string name="window_strip_status_not_undone">"Негізгі құрылғыны қайта жүктеңіз."</string>
+    <string name="window_strip_status_unknown">"Жағдай белгісіз"</string>
+</resources>

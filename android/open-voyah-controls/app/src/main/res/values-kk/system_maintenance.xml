@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="system_section_title">"Қосымша және қайта іске қосу туралы"</string>
+    <string name="system_version_title">"Open Voyah Controls нұсқасы"</string>
+    <string name="system_version_build">"Жинақтау"</string>
+    <string name="system_version_commit">"коммит"</string>
+    <string name="system_version_installed">"Белгіленген"</string>
+    <string name="system_version_copy">"Версияны көшіру"</string>
+    <string name="system_version_copied">"Версия көшірілді"</string>
+    <string name="system_restart_confirm">"Қайта бастау"</string>
+    <string name="system_restart_app">"Open Voyah Controls- ды қайта қосу"</string>
+    <string name="system_restart_app_hint">"Қолданбаны жабу және қайта ашу. Машинадағы агенттер жұмыс істеуде."</string>
+    <string name="system_restart_app_title">"Open Voyah Controls-ті қайта қосу керек пе?"</string>
+    <string name="system_restart_app_message">"Қолданба жабылып, бірнеше секундтан кейін қайта ашылады, параметрлері сақталады, машинадағы агенттер жұмыс істейді, жүктеу кезінде белсенділік өзгермейді."</string>
+    <string name="system_restart_media">"Мультимедияны қайта бастау"</string>
+    <string name="system_restart_media_hint">"Зауыттық медиа орталығы мен музыка, радио және бейне ойнатушыларды қайта іске қосу."</string>
+    <string name="system_restart_media_title">"Мультимедияны қайта бастау керек пе?"</string>
+    <string name="system_restart_media_message">"Орындау тоқтатылады. Зауыттық медиа орталық және музыка, радио және бейне ойнатушылар жабылады; Android медиа орталығы бірнеше секундтан кейін қайта іске қосылады. Машинаның қызметі, лаунчер, құрылғы панелі және ескерту сигналдары қозғалмайды."</string>
+    <string name="system_restart_media_working">"Мультимедияны қайта бастау..."</string>
+    <string name="system_restart_media_done_title">"Мультимедия қайта басталды"</string>
+    <string name="system_restart_media_stopped">"Процесстер анықталды: %d."</string>
+    <string name="system_restart_media_center_back">"Медиа орталық қайтадан %d с жұмыс істейді."</string>
+    <string name="system_restart_media_center_missing">"Медиа орталығы әлі іске қосылмаған. Егер дауыс бір минут ішінде қайтып келмесе, жүйеді қайта жүктеңіз."</string>
+    <string name="system_restart_media_failed">"Тоқтауға болмайды: %s."</string>
+    <string name="system_reboot">"Жүйені қайта жүктеу"</string>
+    <string name="system_reboot_hint">"Бас құрылғыны толық қайта жүктейді. Тек тұрақта, беріліс P күйінде болғанда қолжетімді."</string>
+    <string name="system_reboot_title">"Жүйені қайта жүктеу керек пе?"</string>
+    <string name="system_reboot_message">"Бас құрылғы толық қайта жүктеледі. Барлық экрандар өшеді, музыка, навигация және қоңыраулар шамамен бір минутқа үзіледі. Open Voyah Controls агенттері құрылғы жүктелген соң қайта іске қосылады. Тек тұрақта, беріліс P күйінде болғанда қолжетімді."</string>
+    <string name="system_reboot_confirm">"Қайта жүктеу"</string>
+    <string name="system_reboot_working">"Паркингті тексеру және қайта жүктеу..."</string>
+    <string name="system_reboot_requested">"Бас құрылғы қайта жүктеліп жатыр. Open Voyah Controls және көліктегі агенттер жүктеу аяқталған соң қайта іске қосылады."</string>
+</resources>

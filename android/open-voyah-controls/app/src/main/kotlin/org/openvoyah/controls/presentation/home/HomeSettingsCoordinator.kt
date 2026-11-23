@@ -123,9 +123,10 @@ internal class HomeSettingsCoordinator(
 
     fun language() {
         if (!active) return
+        val languages = listOf("ru", "en", "kk")
         dialogs.choices(text(R.string.cockpit_language),
-            arrayOf(text(R.string.language_name_russian), text(R.string.language_name_english)), { index ->
-            if (active) { UiText.language(if (index == 0) "ru" else "en"); activity.recreate() }
+            languages.map { text(UiText.languageName(it)) }.toTypedArray(), { index ->
+            if (active) { UiText.language(languages[index]); activity.recreate() }
         })
     }
 

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="keyboard_title">"Клавиатура"</string>
+    <string name="keyboard_page_summary">"Орталық дисплейдің экрандық клавиатурасы"</string>
+    <string name="keyboard_current_section">"Қазір қолданылып жатыр"</string>
+    <string name="keyboard_choice_section">"Клавиатураны таңдау"</string>
+    <string name="keyboard_choice_info">"Егер Android таңдалған клавиатураны қосып қойған болса ғана таңдауы сақталады. Егер оны өшіріп, өшірсе немесе ол үнемі құлап қалса, ол қайтадан фабрикалық клавиатураға келеді."</string>
+    <string name="keyboard_factory">"Зауыт клавиатурасы"</string>
+    <string name="keyboard_factory_detail">"Жүйе тілінен таңдап алу"</string>
+    <string name="keyboard_active">"Орталық дисплей: %1$s"</string>
+    <string name="keyboard_passenger">"Жолаушы дисплейі: %1$s (әрқашанда зауыттық)"</string>
+    <string name="keyboard_none">"клавиатура қосылмаған"</string>
+    <string name="keyboard_reading">"Клавиатураның жай-күйі..."</string>
+    <string name="keyboard_read_failed">"Клавиатураның жай-күйін оқу мүмкін болмады."</string>
+    <string name="keyboard_working">"Клавиатураны ауыстырамыз..."</string>
+    <string name="keyboard_applied">"Орталық дисплейде %1$s пайдаланылады."</string>
+    <string name="keyboard_not_confirmed">"Android %1$s қосылмады, сондықтан зауыттық клавиатура қалды."</string>
+    <string name="keyboard_not_enabled">"Android %1$s қосылған деп санамайды, сондықтан ол таңдалмаған."</string>
+    <string name="keyboard_factory_restored">"Клавиатураны қайтадан прошивка таңдайды."</string>
+    <string name="keyboard_failed">"Клавиатураны ауыстыра алмадым."</string>
+    <string name="keyboard_fallback_crashed">"%1$s үнемі төмендеп барады, сондықтан зауыттық клавиатура қайта оралды."</string>
+    <string name="keyboard_fallback_unavailable">"%1$s өшірілді немесе өшірілді, сондықтан зауыттық клавиатура қайта оралды."</string>
+    <string name="keyboard_window_service_off">"Бұл прошивка әрдайым өзінің клавиатурасын таңдап алады. Басқа клавиатураны таңдау үшін терезелерді басқаруды \"Көшімдеу және OEM профильдер\" бөлімінде қосу және Басқаруды қосу."</string>
+    <string name="keyboard_setup_required">"Кепшіні таңдау үшін баптауды аяқтаңыз. Осы уақытқа дейін, оны прошивка таңдайды."</string>
+    <string name="keyboard_unsupported">"Клавиатураны таңдау Android 9 және 11 жүйелерінде жұмыс істейді."</string>
+    <string name="keyboard_empty">"Басқа клавиатуралар орнатылмаған. Клавиатураны қосымша ретінде орнатып, осы жерге оралыңыз."</string>
+</resources>

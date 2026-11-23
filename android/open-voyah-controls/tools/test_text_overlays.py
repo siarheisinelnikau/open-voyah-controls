@@ -166,6 +166,32 @@ class PlanTest(unittest.TestCase):
 
 
 class DictionaryTest(unittest.TestCase):
+    def test_kazakh_overlay_coverage_matches_russian(self):
+        russian, russian_targets, _ = overlays.load_tables('ru')
+        kazakh, kazakh_targets, _ = overlays.load_tables('kk')
+        self.assertEqual(set(russian_targets), set(kazakh_targets))
+        for package, table in russian.items():
+            self.assertEqual(table.keys(), kazakh[package].keys(), package)
+            for source, russian_text in table.items():
+                value = kazakh[package][source]
+                self.assertTrue(value.strip(), (package, source))
+                self.assertEqual(overlays.specifiers(russian_text), overlays.specifiers(value), (package, source))
+
+    def test_kazakh_ui_covers_every_russian_resource_and_format(self):
+        resources = Path(__file__).resolve().parents[1] / 'app/src/main/res'
+
+        def strings(language):
+            return {entry.attrib['name']: entry for path in (resources / ('values-' + language)).glob('*.xml')
+                    for entry in ET.parse(path).getroot() if entry.tag == 'string'}
+
+        russian, kazakh = strings('ru'), strings('kk')
+        self.assertEqual(russian.keys(), kazakh.keys())
+        for name, source in russian.items():
+            target = kazakh[name]
+            self.assertEqual(source.attrib, target.attrib, name)
+            self.assertTrue(target.text and target.text.strip(), name)
+            self.assertEqual(overlays.specifiers(source.text), overlays.specifiers(target.text), name)
+
     def test_default_targets_have_tables(self):
         packages, targets, digest = overlays.load_tables('ru')
         self.assertRegex(digest, '^[0-9a-f]{64}$')

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_navigator_widget_settings">"Навигатор виджеті параметрлері: тақырып, картаның масштабы"</string>
+    <string name="home_navigator_widget_opened">"Яндекс навигаторының виджеті баптаулары орталық экранда ашылады."</string>
+    <string name="home_navigator_widget_missing">"Негізгі экранға навигатордың виджеті жоқ. Яндекс навигатор картасын қосып, бас экранды ашу."</string>
+    <string name="home_navigator_widget_scale">"Навигатор виджеті өлшемі (ірі - үлкен)"</string>
+    <string name="home_navigator_widget_scale_default">"150 % (дефолттық түрде)"</string>
+</resources>

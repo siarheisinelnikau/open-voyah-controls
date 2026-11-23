@@ -79,7 +79,10 @@ object HomeWeather {
 
     fun geocodeUrl(city: String, language: String): String =
         "https://geocoding-api.open-meteo.com/v1/search?name=${URLEncoder.encode(city.trim(), "UTF-8")}" +
-            "&count=1&format=json&language=${if (language == "ru") "ru" else "en"}"
+            "&count=1&format=json&language=${when (language) {
+                "ru", "kk" -> language
+                else -> "en"
+            }}"
 
     /** A city name the settings accept: trimmed, 1 to 60 characters, no control characters. */
     fun cleanCity(value: String): String = value.trim().filterNot { it.isISOControl() }.take(60)

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="oem_steering_scope">"Дауыс, жұлдыздар және камера батырмалары автомобильдің бейінімен үйлесімді болуды талап етеді. Егер бейіні басылудың басталуы мен аяқталуын оқитын болса, қысқа батырманы және ұстап тұруды белгілеңіз; әйтпесе батырма мүлдем қалыпты болады. Қалғаннан кейін бұзылу қайталамауды тудырмайды."</string>
+    <string name="oem_camera">"Камералар"</string>
+    <string name="panel_main_home">"Мекенде · орталық экран"</string>
+    <string name="panel_main_apps">"Барлық қосымшалар · орталық экран"</string>
+    <string name="panel_passenger_home">"Үйге · жолаушы"</string>
+    <string name="panel_passenger_apps">"Барлық қосымшалар · жолаушы"</string>
+    <string name="panel_passenger_seat">"Отырғышы · жолаушы"</string>
+    <string name="home_navigator_card">"Баиду картасының орнына Yandex Navigator"</string>
+</resources>

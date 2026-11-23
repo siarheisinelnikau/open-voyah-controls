@@ -188,7 +188,7 @@ internal fun ControlsSettingsDestination(
             settingsPart(SettingsPartId.LANGUAGE_APP) {
                 CockpitSection(UiText.get(R.string.settings_part_app_language), CockpitIcon.LANGUAGE) {
                     CockpitChoice(UiText.get(R.string.cockpit_language),
-                        UiText.get(if (UiText.language() == "ru") R.string.language_name_russian else R.string.language_name_english),
+                        UiText.get(UiText.languageName(UiText.language())),
                         onClick = coordinator::language)
                 }
                 embed(ControlsRoute.KEYBOARD)

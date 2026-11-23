@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="controls_apps">"Тіркемелер Controls"</string>
+    <string name="app_name">"Open Voyah Controls"</string>
+    <string name="service_description">"Таңдалған аппараттық батырмаларды қайта белгілеу және тағайындалған қолданбаларды іске қосу. Экранның мазмұны оқылмайды. Қызметті кез келген уақытта өшіруге болады."</string>
+    <string name="voice_model_repair_failed">"Таңдау үлгісін тастау мүмкін емес"</string>
+    <string name="voice_audio_interrupted">"Таным тоқтады, өйткені дыбыс басқа қолданбаға ауысты"</string>
+    <string name="voice_audio_settings">"Дауыс командаларының дыбысы"</string>
+    <string name="voice_duck_media">"Медианы тану кезінде ауызшау"</string>
+    <string name="voice_spoken_feedback">"Дауыспен жауаптар"</string>
+    <string name="voice_volume_examples">"0-100 пайызын таңдаңыз, мысалы, \"%1$s\" деп айта аласыз."</string>
+    <string name="settings_archive_title">"Параметрлердің резервтік көшірмесі"</string>
+    <string name="settings_archive_description">"Батырмалардың орналасуын, дауыс параметрлерін, қосымшалардың орналасуын және басқа да жергілікті параметрлерді сақтау."</string>
+    <string name="settings_archive_export">"Қолданба параметрлерін экспорттау"</string>
+    <string name="settings_archive_import">"Қолданба параметрлерін импорттау"</string>
+    <string name="settings_archive_scope">"Көшіктес ауыз және байланыс параметрлері, тіл және аудармалар, дисплей мен жұмыс үстелінің параметрлері, безендіру, жылдам әрекет, сценарийлер, жаңарту параметрлері, таңдалған жүргізушінің нөмірі және келтірілген ТО деректері бар."</string>
+    <string name="settings_archive_invalid">"Қолданбаның баптаулары дұрыс емес"</string>
+    <string name="settings_archive_too_large">"Қолданбаның баптау файлының рұқсат етілген мөлшері - 3 МБ-ға дейін."</string>
+    <string name="settings_archive_save_failed">"Қолданба баптауларын сақтау мүмкін емес"</string>
+    <string name="voice_listening_action">"Мен тыңдап тұрмын..."</string>
+    <string name="voice_options_title">"Дауыс параметрлері"</string>
+    <string name="voice_no_commands">"Командалар табылмады."</string>
+    <string name="voice_catalog_loading">"Ауыстық командаларды жүктеу..."</string>
+    <string name="voice_button_hint">"Руль немесе панель батырмасында \"Голосный помощник\" дегенді қойыңыз. Батырманы басыңыз және бір команданы айтыңыз."</string>
+    <string name="voice_executing">"Мен команданы орындап жатырмын..."</string>
+    <string name="voice_no_speech">"Команданы естімедім"</string>
+    <string name="voice_vehicle_sent">"Команда автокөлікке жіберілді"</string>
+    <string name="voice_requires_park">"Бұл команда үшін автокөлікті P- ге аудару"</string>
+    <string name="voice_refresh_bridge">"Автомобильдің дауыс өңдеушісін жаңарту үшін \"Фриданы қосу\" батырмасын басыңыз"</string>
+</resources>

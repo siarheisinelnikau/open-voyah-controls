@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_language">"Тану тілі"</string>
+    <string name="firmware_settings">"OEM тігісу және профильдері"</string>
+    <string name="firmware_info">"Лоучердің аудармасы, автокөлік баптаулары және Bluetooth телефоны. Сіз өзіңіздің сөздікті таңдап алсаңыз немесе өзіңізді импорттасаңыз болады."</string>
+    <string name="translation_on">"Аударма қосылды"</string>
+    <string name="translation_off">"Аударма өшірілді"</string>
+    <string name="translate_ru">"Орыс тілінен аударма · базалық сөздік"</string>
+    <string name="translate_en">"Ағылшын тіліндегі аударма · базалық сөздік"</string>
+    <string name="translation_disable">"Аударманы өшіру"</string>
+    <string name="translation_import">"JSON сөздікін импорттау"</string>
+    <string name="translation_export">"JSON сөздіктерін экспорттау"</string>
+    <string name="translation_restore">"Бұрынғы сөздікті қайтару"</string>
+    <string name="profile_restore">"Тіркелгі жазбасын қалпына келтіру"</string>
+    <string name="profile_restore_info">"Мейман профилін бірінші рет ауыстырғаннан бұрын сақталған тіркелгі жазбасын қалпына келтіреді. Автомобильдің қалған баптаулары осы көшірмеге кірмейді. Зауыттық жүйе орындықтар мен айналардың орналасуын қолдануға болады."</string>
+    <string name="translation_saved">"Фриданы бас экранға қосыңыз."</string>
+    <string name="translation_applied">"Параметрлер көшірілді. Қалыпты экрандарды қайта ашу. Фрида диагностикасында қоңыраулардың жай-күйі бар."</string>
+    <string name="unknown_command">"Команданы тану мүмкін емес"</string>
+    <string name="voice_no_matching_command">"Жақсы команда жоқ"</string>
+    <string name="default_levels">"Әдетті команда деңгейлері"</string>
+    <string name="window_options">"Желдету параметрлері"</string>
+    <string name="double_smoke">"Жүргізушінің қосарланған желдетуі"</string>
+    <string name="double_ventilation">"Екі рет желдету"</string>
+</resources>

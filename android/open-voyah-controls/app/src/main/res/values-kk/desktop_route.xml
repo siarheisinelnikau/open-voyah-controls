@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_info_route">"Навигация"</string>
+    <string name="desktop_info_route_content">"Навигация картасында нені көрсету керек"</string>
+    <string name="desktop_info_route_next_turn">"Жақын айналым"</string>
+    <string name="desktop_info_route_current_and_next">"Ағымдағы жол және бұрылыс"</string>
+    <string name="desktop_info_route_waiting">"Маршрут деректерін күту"</string>
+    <string name="desktop_info_route_current_road">"Ағымдағы жол · %1$s"</string>
+    <string name="desktop_info_route_open_target">"Навигациялық картаны басу"</string>
+    <string name="desktop_info_route_open_navigator">"Таңдалған навигатор"</string>
+    <string name="desktop_info_route_open_navigator_hint">"Тауыс параметрлерін таңдау. Егер қолданба қол жетімді болмаса, виртуалды экран ашылады."</string>
+    <string name="desktop_info_route_open_navigator_action">"Таңдалған навигаторды ашу"</string>
+</resources>

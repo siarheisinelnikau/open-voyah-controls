@@ -133,6 +133,7 @@ internal fun FirmwareSection(part: FirmwarePart) {
                 }
                 FirmwareAction.RUSSIAN -> model.run { adapter.preset("ru") }
                 FirmwareAction.ENGLISH -> model.run { adapter.preset("en") }
+                FirmwareAction.KAZAKH -> model.run { adapter.preset("kk") }
                 FirmwareAction.DISABLE_TRANSLATION -> model.run(adapter::disable)
                 FirmwareAction.IMPORT -> importFile.launch(arrayOf("*/*"))
                 FirmwareAction.EXPORT -> exportFile.launch("controls-localization.json")

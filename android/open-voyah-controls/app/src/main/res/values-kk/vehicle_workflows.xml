@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vehicle_automation_entry">"Автоматтық"</string>
+    <string name="vehicle_automation_entry_summary">"Жарықтар, климат, қозғалыстың режимі және ережелері"</string>
+    <string name="vehicle_diagnostics_title">"Автомобильдің сигналдары туралы есеп"</string>
+    <string name="vehicle_diagnostics_description">"Бұл магнитолдың оқуын тексеру. Жасалған тарих әрекетін бастамайды."</string>
+    <string name="vehicle_diagnostics_copy">"Оқу есебін көшіру"</string>
+    <string name="vehicle_diagnostics_preparing">"Жергiлiктi есептi дайындау..."</string>
+    <string name="vehicle_diagnostics_copied">"Есеп көшірілді, оны тоқтатылған машинада сақтаңыз."</string>
+    <string name="vehicle_diagnostics_failed">"Есепті жасау мүмкін емес. Қайталап көріңіз."</string>
+    <string name="vehicle_diagnostics_waiting">"Оқушы бақылаушысын күту."</string>
+    <string name="vehicle_diagnostics_closed">"Физикалық іс-әрекеттер үшін нақты прошивка және әрбір сигнал тексерілуі қажет."</string>
+    <string name="vehicle_rules_unavailable">"Сізге H 97 D қапшығыңыздағы қапшықтың және есіктің көрсетілімдерін тексеру керек. Ереже сақталған және жаңа сигналдарды күтуде."</string>
+    <string name="vehicle_diagnostics_missing">"Тағы да қажет: %1$s"</string>
+    <string name="vehicle_signal_gear">"жәшік"</string>
+    <string name="vehicle_signal_speed">"жылдамдығы"</string>
+    <string name="vehicle_signal_doors">"есіктер"</string>
+    <string name="vehicle_signal_outside">"сыртқы температурасы"</string>
+    <string name="vehicle_signal_drive_mode">"қозғалыстың нақты режимі"</string>
+</resources>

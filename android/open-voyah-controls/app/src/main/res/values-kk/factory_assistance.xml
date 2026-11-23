@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="factory_assistance_title">"Apollo және жүргізу ассистенттері"</string>
+    <string name="factory_assistance_description">"Apollo Free 318 үйлесімді әдеттегі мәзірдегі баптау."</string>
+    <string name="factory_assistance_setup">"Автомобильде баптау"</string>
+    <string name="factory_assistance_sequence">"\"Автомобиль → Ассистенттер\" дегенді ашу."</string>
+    <string name="factory_assistance_guest">"Егер пункт қонақ режимімен қолжетімді болмаса, штаттық мәзірдің нұсқауын тексеріңіз."</string>
+    <string name="factory_assistance_qualification">"Бас құрылғыны тексеру"</string>
+    <string name="factory_assistance_unqualified">"Басты құрылғының бағдарламалық қамтамасыз етуін және сақталған сұраныстарды оқыңыз. Ассистенттердің қолжетімділігі мен жағдайын көлікте тексеріңіз."</string>
+    <string name="factory_assistance_manual">"FREE 318 нұсқаулығы"</string>
+    <string name="factory_assistance_answers">"Штаттық бетке жауап"</string>
+    <string name="factory_assistance_answers_summary">"Басқарушы күйге қосылғанда, Controls қалыпты баптаулардың ішінен жауап береді. Қалпына келтіру жауапты кері қайтарады."</string>
+    <string name="factory_assistance_part_subscription">"Apollo- ды қонақ режимінде көрсету"</string>
+    <string name="factory_assistance_part_subscription_message">"Зауыттық баптаулар өзінің жазылу провайдерінен Apollo қолтаңбаланған ма деп сұрайды. Controls бұл сұраққа жазылудың штаттық жауабымен жауап береді, сондықтан парақ Apollo функцияларын ұсына алады, ал профиль қонақ болып қала береді. Жауап тек естелікте өмір сүреді: ол штаттық баптауларды сөндіру немесе қайта іске қосу кезінде жоғалады, көлікке ештеңе жазбайды."</string>
+    <string name="factory_assistance_part_controller">"Ассистенттердің жай-күйін бақылаушыға жіберу (тәжірибелік)"</string>
+    <string name="factory_assistance_part_controller_message">"Егер машина тоқтап тұрған жағдайда және қозғалмайтын болса, штаттық қосымша бір рет өзінің көмекші деректер жиынтығын жүргізушіге көмек көрсету контроллерына жіберуді сұрайды. Басқа жөнелту пунктімен ауысу жөнелтуді қайталамайды. Бір жөнелту бірден он сегіз өріске тигізеді, магнитолдің бастапқы мәндерін кері есептей алмайды, тексерілген қайту жоқ. Қабылданған сұрау контроллердің жай-күйін растамайды. Өз қауіп-қатеріңізге және тәуекеліңізге пайдаланып көріңіз."</string>
+    <string name="factory_assistance_part_equipment">"Baidu жиынтығының тармағын таңдау (тәжірибелік)"</string>
+    <string name="factory_assistance_part_equipment_message">"Баидуның ішкі аймағын таңдап алу үшін зауыттық бетке нұсқау беріледі. Тек беттің көрсеткенін ғана өзгертеді; автокөліктің конфигурациясы сақталады. Екінші өнім берушімен көлікте бетке оның жоқ функцияларын ұсына алады. Өз қорқынышыңыз бен тәуекеліңіз үшін қолданыңыз."</string>
+    <string name="factory_assistance_answers_waiting">"Бұл туралы штаттық баптаулар хабарлауын күтеміз."</string>
+    <string name="factory_assistance_answers_unavailable">"Белгіленген ПҚ ұсынбады: %1$s."</string>
+    <string name="factory_assistance_answers_controller_request">"Бақылаушының сұранысы қабылданды. Бақылаушының жағдайы расталмаған."</string>
+    <string name="factory_assistance_park_required">"Көлікті басқарушыға көмекшілерді жібергенге дейін тоқтату."</string>
+    <string name="factory_assistance_answers_note">"Controls бірінші қосылған ауыстырғыштан бастап штаттық баптаулар жұмысын бастайды және оны соңғы сөндірілгенде тоқтатады. Өзгерістер штаттық бетте бір секунд ішінде кездеседі. \"Apollo диагностикасын санаңыз\" әлі күнге дейін сақталған сұрауларды ғана көрсетеді, бірақ бақылаушының жай-күйін көрсетпейді."</string>
+    <string name="factory_assistance_requested">"Автомобильдегі ассистенттердің жай-күйін тексеріңіз."</string>
+    <string name="factory_assistance_check">"Apollo диагностикасын есептеу"</string>
+    <string name="factory_assistance_reading">"Біз бағдарламалық қамтамасыз ету және сақталған сұрауларды оқимыз..."</string>
+    <string name="factory_assistance_sampled">"Штаттық қапшықтан мына өрістер алынды: %1$d қатарынан %2$dБақылаушының жай-күйін растау керек."</string>
+    <string name="factory_assistance_no_provider">"Зауыттық деректер көзі жоқ. Хабарламада көрінетін пакеттер мен мәзірлер көрсетілген."</string>
+    <string name="factory_assistance_no_access">"Тексерілген штаттық қапшыққа кіру жабық. Хабарламада қолжетімді пакеттер туралы мәліметтер сақталған."</string>
+    <string name="factory_assistance_incomplete">"Қапшықты оқу аяқталмаған. Неге екенін баяндауда келтірілген."</string>
+    <string name="factory_assistance_export">"Apollo есебі сақталсын"</string>
+    <string name="factory_assistance_note">"Қалыпты мәзірде не көрсетілген"</string>
+    <string name="factory_assistance_note_hint">"Бөлменің нақты атауын, штаттық мәзірдің хабарламасын және талап етілген тіркелгісін келтіріңіз. Жеке деректерді және QR кодтарын сақтамаңыз."</string>
+    <string name="factory_assistance_copy">"Мәліметтерді қолдау үшін көшіру"</string>
+    <string name="factory_assistance_copied">"Басты құрылғының деректері көшірілді."</string>
+    <string name="factory_assistance_copy_failed">"Мәліметтерді көшірмелеу сәтсіз болды. Оларды сақталған есептен алыңыз."</string>
+    <string name="factory_assistance_saving">"Есепті сақтаймыз..."</string>
+    <string name="factory_assistance_saved">"Apollo-ның есебі сақталған."</string>
+    <string name="factory_assistance_report_failed">"Есепті жасау немесе сақтау мүмкін емес. Қайталап көріңіз."</string>
+    <string name="factory_assistance_manual_unavailable">"Кітапшырманы ашу үшін браузер қажет."</string>
+    <string name="factory_assistance_open_assistance">"Тұрақты көмекшілерді ашу"</string>
+    <string name="factory_assistance_open_vehicle_menu">"Автомобильдің мәзірін ашу"</string>
+    <string name="factory_assistance_open_failed">"Таңдалған мәзірді ашу мүмкін емес. Автомобильдің мәзірін штаттық панельден ашуға тырысыңыз."</string>
+    <string name="factory_assistance_fallback">"Көлік мәзірінен \"Ассистенттер\" дегенді таңдаңыз."</string>
+    <string name="factory_assistance_answers_controller_uncertain">Зауыттық қолданба контроллерге жіберілген сұраудың нәтижесін жазып үлгермей тоқтады. Автокөліктегі ассистенттердің күйін тексеріңіз. Controls сұрауды қайта жібермейді.</string>
+    <string name="factory_assistance_answers_partial">Келесі жауаптарды толық қалпына келтіру мүмкін болмады: %1$s. Зауыттық беттегі жауаптардың бір бөлігі әлі де өзгертілген. Қалпына келтіру үшін зауыттық баптаулар қолданбасын қайта іске қосыңыз.</string>
+</resources>

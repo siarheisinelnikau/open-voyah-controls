@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="seat_memory_title">"Отырғышты есте сақтау"</string>
+    <string name="seat_memory_description">"Отырғыш пен айналар"</string>
+    <string name="seat_memory_driver_seat">"\" %1$s \" орындықтары"</string>
+    <string name="seat_memory_slot">"Жүргізуші \u00a0 %1$d"</string>
+    <string name="seat_memory_save_position">"Сақтау"</string>
+    <string name="seat_memory_save_driver">"\" %1$s \" сақтау"</string>
+    <string name="seat_memory_restore_driver">"\" %1$s \" қалпына келтірілсін"</string>
+    <string name="seat_memory_recall">"Қайта қалпына келтіру"</string>
+    <string name="seat_memory_recall_title">"\"%1$s\" дегенді қалпына келтіру керек пе?"</string>
+    <string name="seat_memory_confirm">"P режимін қосуға және жүргізуші орынды және айналарды қозғауға ешқандай кедергі болмайтынына көз жеткізіңіз."</string>
+    <string name="seat_memory_cancel">"Бас тарту"</string>
+    <string name="seat_memory_close">"Жабу"</string>
+    <string name="seat_memory_retry">"Қайталау"</string>
+    <string name="seat_memory_working">"Күте тұрыңыз..."</string>
+    <string name="seat_memory_load_failed">"Отырғышаның жадындағы параметрлерін оқи алмадым."</string>
+    <string name="seat_memory_save_failed">"Басқарушылар таңдаған жүргізушінің нөмірін есте ұстауға мүмкіндік бермеді."</string>
+    <string name="seat_memory_open_factory_on_tap">"Тез жұмыс орнын ашу"</string>
+    <string name="seat_memory_open_factory_on_tap_hint">"Егер тұрақты экран болса, онда жүргізушінің нөмірін таңдаңыз."</string>
+    <string name="seat_memory_open_factory_on_tap_save_failed">"Ашық экранның күйін сақтау мүмкін емес."</string>
+    <string name="seat_memory_factory_path">"Зауыттық экран → Барлық қосымшалар → Отырғыштар"</string>
+    <string name="seat_memory_factory_save">"\"Сиденьях\" парковкасында \"Жетіру және қалпына келтіру\" дегенді ашу немесе жүргізушінің таңбасын басыңыз. \u00a0 %1$d позициясы үшін Memory (记忆) дегенді басыңыз."</string>
+    <string name="seat_memory_factory_restore">"\"Сиденьях\" парковкасында \"Жетіңіз және қалпына келтіріңіз\" дегенді ашу немесе жүргізушінің таңбасын басыңыз. \u00a0 %1$d дегенді таңдаңыз. Қайта қалпына келтіруді басыңыз. Қайта қалпына келтіруді күтіңіз."</string>
+    <string name="seat_memory_seats_open">"Отырғышты ашу"</string>
+    <string name="seat_memory_factory_open">"Автомобильдің тұрақты мәзірін ашу"</string>
+    <string name="seat_memory_voice_opening">"\u00a0 %1$d позициясын қалпына келтіру жөніндегі нұсқаулықты ашып отырмын."</string>
+    <string name="seat_memory_voice_open_failed">"Жүргізушінің отыратын жерін ашу мүмкін емес."</string>
+    <string name="seat_memory_open_failed">"Тұрақты баптауларды ашу мүмкін емес."</string>
+</resources>

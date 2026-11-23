@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diagnostics_title">"Диагностика журналы"</string>
+    <string name="diagnostics_subtitle">"Бұл бас құрылғыда жазылған оқиғалар, сіз өзіңіз көшіріп алғанша немесе сақтағанша, машинада сақталады."</string>
+    <string name="diagnostics_link_summary">"Соңғы оқиғалар, ескертулер және қателер"</string>
+    <string name="diagnostics_refresh">"Жаңарту"</string>
+    <string name="diagnostics_copy">"Көшіру"</string>
+    <string name="diagnostics_save">"Файлға сақтау"</string>
+    <string name="diagnostics_clear">"Журналдарды тазалау"</string>
+    <string name="diagnostics_problems_only">"Тек ескертулер мен қателер (%d)"</string>
+    <string name="diagnostics_loading">"Журнал оқу..."</string>
+    <string name="diagnostics_empty">"Соңғысы жоқ."</string>
+    <string name="diagnostics_no_problems">"Ескертулер мен қателер жоқ."</string>
+    <string name="diagnostics_copied">"Журнал көшірілді."</string>
+    <string name="diagnostics_saved">"Журнал сақталған."</string>
+    <string name="diagnostics_save_failed">"Журналды сақтау мүмкін емес."</string>
+    <string name="diagnostics_cleared">"Журнал тазаланды."</string>
+    <string name="diagnostics_clear_failed">"Журналды тазалай алмадым."</string>
+    <string name="diagnostics_clear_title">"Диагностика журналын тазалау керек пе?"</string>
+    <string name="diagnostics_clear_message">"Жасалған оқиғалар осы бас құрылғыдан өшіріледі. Бұл әрекетті тоқтату мүмкін емес."</string>
+    <string name="diagnostics_level_error">"Қатесі"</string>
+    <string name="diagnostics_level_warning">"Ескерту"</string>
+    <string name="diagnostics_level_info">"Іс-шара"</string>
+</resources>

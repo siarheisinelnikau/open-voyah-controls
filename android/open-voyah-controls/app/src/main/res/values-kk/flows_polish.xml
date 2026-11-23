@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="flows_loading">"Жүктеп алу..."</string>
+    <string name="flows_rules_saved">"Сақталған ережелер"</string>
+    <string name="flows_rule_routine">"Сценарий: %1$s"</string>
+    <string name="flows_rule_delete_prompt">"\"%1$s\" дегенді алып тастау керек пе?"</string>
+    <string name="flows_rule_delete_detail">"Қағиданы орындау тоқтатылады және Controls-тен алынып тасталады. Сценарий сақталады."</string>
+</resources>

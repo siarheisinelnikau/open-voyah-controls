@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appearance_text_size">"Мәтін өлшемі"</string>
+    <string name="appearance_navigation_label_size">"Навигация қолтаңбаларының мөлшері"</string>
+    <string name="appearance_page_title_size">"Беттердің атауларының мөлшері"</string>
+    <string name="appearance_text_follow">"Жалпы мәтін өлшемі бойынша"</string>
+    <string name="appearance_spacing">"Қайтулар"</string>
+    <string name="appearance_corners">"Бұрыштарын айналдыру"</string>
+    <string name="appearance_option_standard">"Әдепкі"</string>
+    <string name="appearance_transition_speed">"Өткiру жылдамдығы"</string>
+    <string name="appearance_transition_short">"Жылдам"</string>
+    <string name="appearance_transition_smooth">"Жүгіртпелі"</string>
+    <string name="appearance_text_large">"Үлкен"</string>
+    <string name="appearance_text_extra_large">"Өте ірі"</string>
+    <string name="appearance_spacing_compact">"Компактты"</string>
+    <string name="appearance_spacing_spacious">"Кеңістіктер"</string>
+    <string name="appearance_corners_subtle">"Кішкентай"</string>
+    <string name="appearance_corners_rounded">"Көрініс"</string>
+    <string name="appearance_palette">"Түсті тақырып"</string>
+    <string name="appearance_palette_dark">"Қараңғы"</string>
+    <string name="appearance_palette_day">"Күнделікті"</string>
+    <string name="appearance_accent">"Акцент түсі"</string>
+    <string name="appearance_accent_default">"Әдетті көк түсті"</string>
+    <string name="appearance_accent_teal">"Бүйректі"</string>
+    <string name="appearance_accent_amber">"Янтарлық"</string>
+    <string name="appearance_wallpaper_dimming">"Қабырғаларды өшіру"</string>
+    <string name="appearance_wallpaper_dimming_description">"Жұмыс үстелінің барлық пайдаланушы қабырғаларына қолданылады."</string>
+    <string name="appearance_wallpaper_dimming_light">"Зыянсыз"</string>
+    <string name="appearance_wallpaper_dimming_strong">"Қуатты"</string>
+    <string name="appearance_background">"Экранның аясы"</string>
+    <string name="appearance_background_ambient">"Жүгірткелі жарқырақтарымен"</string>
+    <string name="appearance_background_solid">"Бір тонналы"</string>
+    <string name="appearance_font_family">"Қаріп"</string>
+    <string name="appearance_font_system">"Жүйелік қаріп"</string>
+    <string name="appearance_font_golos">"Golos Text"</string>
+    <string name="appearance_bold_text">"Майлы мәтін"</string>
+</resources>

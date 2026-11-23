@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_display_settings_title">"Экрандар"</string>
+    <string name="app_display_preview_density_value">"Виртуалды экран · %1$s"</string>
+    <string name="app_display_defaults_title">"Экран бойынша қолданбалардың масштабы"</string>
+    <string name="app_display_defaults_description">"Экран өлшемі қолданбаның DPI-сі келтірілмесе, оны ашу кезінде қолданылады.Жолаушы экранға прошивка тексеру қажет."</string>
+    <string name="app_display_defaults_central">"Орталық экранның қосымшалары"</string>
+    <string name="app_display_defaults_central_screen">"Орталық экран"</string>
+    <string name="app_display_defaults_secondary">"Екінші орнатылған экранның қосымшалары"</string>
+    <string name="app_display_defaults_off">"Өшірулі"</string>
+    <string name="app_display_defaults_close">"Жабу"</string>
+    <string name="app_display_defaults_unreadable">"Экранның баптауларын жүктеу мүмкін емес."</string>
+    <string name="app_display_defaults_failed">"Экранның баптауларын сақтау мүмкін емес."</string>
+    <string name="app_display_defaults_pending">"Параметрлері сақталған. Оларды қолдану үшін терезе өңдеушісін қосу."</string>
+    <string name="app_display_defaults_central_only">"Орталықтың масштабы келесі іске қосылуға дайын.Жолаушылар экранның параметрлері орнатылғанға дейін сақталған."</string>
+    <string name="app_display_defaults_synced">"Орнатулар сақталған. Бұл масштаб қосымшаның келесі іске қосылуында қолданылады."</string>
+    <string name="app_window_inherit_dpi">"Экран бойынша"</string>
+    <string name="app_display_no_choices">"Android бұл қолданба үшін экрандарды таба алмады."</string>
+    <string name="app_display_alongside">"Жақында ашу"</string>
+    <string name="app_display_alongside_hint">"Қазіргі көп терезе режимде Android қолданба үшін қол жетімді орынды өзі таңдайды."</string>
+</resources>

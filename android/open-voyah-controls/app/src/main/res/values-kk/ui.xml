@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_0" formatted="false">"Ашылмады"</string>
+    <string name="ui_1" formatted="false">"Қолданба орнатылғанын және қол жетімді екенін тексеріңіз."</string>
+    <string name="ui_2" formatted="false">"Құрылғы "</string>
+    <string name="ui_3" formatted="false">"Навигация · орталық экран"</string>
+    <string name="ui_4" formatted="false">"Музыка · орталық экран"</string>
+    <string name="ui_5" formatted="false">"1 батырмасы · жолаушы"</string>
+    <string name="ui_6" formatted="false">"2 батырмасы · жолаушы"</string>
+    <string name="ui_7" formatted="false">"3 батырмасы · жолаушы"</string>
+    <string name="ui_8" formatted="false">"4 · жолаушы батырмасы (қосалас панельдердегі радио)"</string>
+    <string name="ui_9" formatted="false">"5 батырмасы · жолаушы"</string>
+    <string name="ui_10" formatted="false">"Панельдің параметрлері: "</string>
+    <string name="ui_11" formatted="false">"Параметрлер қосымшада сақталған, бірақ панельге қолданылмаған: "</string>
+    <string name="ui_12" formatted="false">"Процессор іске қосылған. Қосылған күйдегі функцияларды тексеріңіз."</string>
+    <string name="ui_13" formatted="false">"Қайта қосылуды күту: "</string>
+    <string name="ui_14" formatted="false">"Орындаушы жүктелгеннен кейін іске қосылды"</string>
+    <string name="ui_15" formatted="false">"Автомен қосылу қайталанады: "</string>
+    <string name="ui_16" formatted="false">"Frida-ның дайындалған нұсқасы қосымшаға сәйкес келмейді, табылды: "</string>
+    <string name="ui_18" formatted="false">"Қосылым әлі орнатылмаған"</string>
+    <string name="ui_19" formatted="false">"Алдымен Frida- ды баптауларда қосу"</string>
+    <string name="ui_20" formatted="false">"Дауыс арнасының дұрыс емес жауабы"</string>
+    <string name="ui_21" formatted="false">"Жарақтау расталмаған, қайта тоқтату жоспарланған: "</string>
+    <string name="ui_22" formatted="false">"Алып тасталды; автоқосымы тоқтатылды"</string>
+    <string name="ui_23" formatted="false">"Жергілікті shell root жоқ. Telnet телефонынан 127.0. 0.1 : 23 дайындалған прошивка қажет."</string>
+    <string name="ui_24" formatted="false">"Операция тоқтатылды"</string>
+    <string name="ui_25" formatted="false">"Жергілікті шельдің аяқталмаған жауабы"</string>
+    <string name="ui_26" formatted="false">"Таңдалған қосымшаны тексеріңіз"</string>
+    <string name="ui_27" formatted="false">"Қосымша ашық"</string>
+    <string name="ui_28" formatted="false">"Параметрлері ашылды"</string>
+    <string name="ui_29" formatted="false">"Жардамшы ашылды"</string>
+    <string name="ui_30" formatted="false">"Батырмаларды қосу. Батырма экранды бөліп алуды қамтамасыз етуі керек"</string>
+    <string name="ui_31" formatted="false">"Жүйеге экранды бөлу командасы берілді"</string>
+    <string name="ui_32" formatted="false">"Бұл командаға арналған қосымшаны тізімнен таңдаңыз: музыка, навигация, радио және камера сіздің мақсаттарыңызды пайдаланады; музыка, навигация және радио сонымен қатар қосымшаны панель батырмасынан алады."</string>
+    <string name="ui_33" formatted="false">"Батырмаларыңыз, қосымшаларыңыз."</string>
+    <string name="ui_34" formatted="false">"Дауыстық пәрмендер"</string>
+    <string name="ui_35" formatted="false">"Параметрлерді экспорттау"</string>
+    <string name="ui_36" formatted="false">"Параметрлерді өшіру"</string>
+    <string name="ui_37" formatted="false">"Қосымша: аппараттық батырмалар"</string>
+    <string name="ui_38" formatted="false">"Қызмет қосылған"</string>
+    <string name="ui_39" formatted="false">"Батырмаларды қосу"</string>
+    <string name="ui_40" formatted="false">"Белгіленген батырмалар таңдалған әрекеттерді іске асырады."</string>
+    <string name="ui_41" formatted="false">"Controls орнатушымен қосылғаннан кейін немесе Android-тің арнайы мүмкіндіктерін ашу арқылы \"Қызметті қосу\" батырмасын басыңыз."</string>
+    <string name="ui_42" formatted="false">"Арнайы мүмкіндіктер"</string>
+    <string name="ui_43" formatted="false">"Аппараттық батырмаларды аралау"</string>
+    <string name="ui_44" formatted="false">"Тағдырлар"</string>
+    <string name="ui_45" formatted="false">"Бірінші батырманы қосу"</string>
+    <string name="ui_46" formatted="false">"Кодты басыңыз немесе қолмен келтіріңіз. Содан кейін қысқа және ұзақ басыңыз."</string>
+    <string name="ui_47" formatted="false">" · өшірілген"</string>
+    <string name="ui_48" formatted="false">"барлық құрылғылар"</string>
+    <string name="ui_49" formatted="false">"таңдалған құрылғы"</string>
+    <string name="ui_50" formatted="false">"Басу: "</string>
+    <string name="ui_51" formatted="false">"\n Ұстау: "</string>
+    <string name="ui_52" formatted="false">"Өзгерту"</string>
+    <string name="ui_53" formatted="false">"+ Батырманы басу арқылы белгілеу"</string>
+    <string name="ui_54" formatted="false">"Код бойынша қосу"</string>
+    <string name="ui_55" formatted="false">"Басу параметрлері"</string>
+    <string name="ui_56" formatted="false">"Ұзын басу: "</string>
+    <string name="ui_57" formatted="false">" Мс \n Қалғаннан қорғау: "</string>
+    <string name="ui_58" formatted="false">" мс"</string>
+    <string name="ui_59" formatted="false">"Араларды өзгерту"</string>
+    <string name="ui_60" formatted="false">"Параметрлерді импорттау"</string>
+    <string name="ui_61" formatted="false">"Жүйелік баптаулар"</string>
+    <string name="ui_62" formatted="false">"Жөнделуін жою"</string>
+    <string name="ui_63" formatted="false">"Автомобильге қосылу"</string>
+    <string name="ui_64" formatted="false">"Фрида арқылы Qinggan стартеріне қосылады. Қосымша аппараттық батырмалар режимі Android оқиғаларын пайдаланады."</string>
+    <string name="ui_65" formatted="false">"Ауыз жергілікті түрде таниды. Микрофон \"Сөзді\" басудан кейін ғана дауыс командасы экранында жұмыс істейді."</string>
+    <string name="ui_66" formatted="false">"тағайындалмаған"</string>
+    <string name="ui_67" formatted="false">"Штаттық панельдің батырмалары · Frida"</string>
+    <string name="ui_68" formatted="false">"Белгілі белгі мен басқан әрекетті ауыстыру үшін қосымшаны таңдаңыз. Батырманың қалыпты әрекеті ашылады."</string>
+    <string name="ui_69" formatted="false">"Панельдің параметрлері қосылған"</string>
+    <string name="ui_70" formatted="false">"Параметрлері сақталған. Алдымен \"Фриданы қосу\" батырмасын басыңыз."</string>
+    <string name="ui_71" formatted="false">"Штаттық іс-қимыл"</string>
+    <string name="ui_72" formatted="false">"Мақсаты сақталған. Оны панельге қолдану үшін Frida-ды қосыңыз."</string>
+    <string name="ui_73" formatted="false">"Frida- ды қосу"</string>
+    <string name="ui_74" formatted="false">"Авто қосылым қосылған. Жеке функциялардың жай-күйі: \n"</string>
+    <string name="ui_75" formatted="false">"Frida- ның жағдайын тексеру"</string>
+    <string name="ui_76" formatted="false">"Frida- ды өшіру"</string>
+    <string name="ui_77" formatted="false">"Біздің Frida Hook-ымыз тоқтады."</string>
+    <string name="ui_78" formatted="false">"Алдымен, Windows орнатушысыңызда Prepare and install орындаңыз. Ол Frida-ның жергілікті қолжетімділігі мен тиісті нұсқасын дайындап қояды. Қосылғаннан кейін, қолданатын процессорлар жүйе жүктелген кезде параметрлерін ашусыз іске қосылады."</string>
+    <string name="ui_79" formatted="false">"Панелге қосылу"</string>
+    <string name="ui_80" formatted="false">"Мен команданы орындап жатырмын..."</string>
+    <string name="ui_81" formatted="false">"Панелдің жай-күйі"</string>
+    <string name="ui_82" formatted="false">"Қосылым орындалмады"</string>
+    <string name="ui_83" formatted="false">"Түсінді"</string>
+    <string name="ui_84" formatted="false">"Әрекет орындалмады"</string>
+    <string name="ui_85" formatted="false">"Бұл экран құрылғыда жоқ."</string>
+    <string name="ui_86" formatted="false">"Алдымен арнайы мүмкіндіктерді қосу."</string>
+    <string name="ui_87" formatted="false">"Батырманы басып, босату"</string>
+    <string name="ui_88" formatted="false">"30 секунд күту. Бұл батырманы басу үшін ғана қолданылады. Үй және қоректендіру қалыпты әрекет етеді."</string>
+    <string name="ui_89" formatted="false">"Бас тарту"</string>
+    <string name="ui_90" formatted="false">"Android басылмады. Батырманы штаттық панельдің ішінде өңдеу мүмкін."</string>
+    <string name="ui_91" formatted="false">"Android keyCode, мысалы 85"</string>
+    <string name="ui_92" formatted="false">"Батырманың коды"</string>
+    <string name="ui_93" formatted="false">"Жалғастыру"</string>
+    <string name="ui_94" formatted="false">"Қолданбалы кодты келтіріңіз; Үй және қоректендіру резервацияланған"</string>
+    <string name="ui_95" formatted="false">"Батырманың атауы"</string>
+    <string name="ui_96" formatted="false">"Код "</string>
+    <string name="ui_97" formatted="false">"Қалпына келтіру: "</string>
+    <string name="ui_98" formatted="false">"Бұл код барлық құрылғыларда"</string>
+    <string name="ui_99" formatted="false">"Белсенді тағайындау"</string>
+    <string name="ui_100" formatted="false">"Батырманы қойып тұрған кезде ол тұтас ұсталады. Егер қысқа әрекет келтірілмесе, қысқа басу ештеңе істемейді."</string>
+    <string name="ui_101" formatted="false">"Қысқа әрекетті тексеру"</string>
+    <string name="ui_102" formatted="false">"Жаңа тағайындалу"</string>
+    <string name="ui_103" formatted="false">"Батырманы баптау"</string>
+    <string name="ui_104" formatted="false">"Сақтау"</string>
+    <string name="ui_105" formatted="false">"Жою"</string>
+    <string name="ui_106" formatted="false">"Атауы: 1 -ден 120 символына дейін"</string>
+    <string name="ui_107" formatted="false">"Бұл батырманың мақсаты бар"</string>
+    <string name="ui_108" formatted="false">"Іс-әрекет"</string>
+    <string name="ui_109" formatted="false">"Белгіленбеген"</string>
+    <string name="ui_110" formatted="false">"Қолданбаны іске қосу"</string>
+    <string name="ui_111" formatted="false">"Controls баптаулары"</string>
+    <string name="ui_112" formatted="false">"Қозғалтқыш экранды қолданбалар табылмады."</string>
+    <string name="ui_113" formatted="false">"Қосымшаны іздеу"</string>
+    <string name="ui_114" formatted="false">"Қосымша"</string>
+    <string name="ui_115" formatted="false">"Ұстауы: 250 - 2000 мс"</string>
+    <string name="ui_116" formatted="false">"Шағын массасы: 0 - 500 мс"</string>
+    <string name="ui_117" formatted="false">"Интервалдар, мс"</string>
+    <string name="ui_118" formatted="false">"Тұтану: 250 - 2000; кішірейту: 0 - 500 мс"</string>
+    <string name="ui_119" formatted="false">"Тапсырманы тастау?"</string>
+    <string name="ui_120" formatted="false">"Барлық мақсаттар мен аралықтар алынып тасталады."</string>
+    <string name="ui_121" formatted="false">"Алып тастау"</string>
+    <string name="ui_122" formatted="false">"Құрылғыда құжатты таңдау үшін файл менеджері жоқ."</string>
+    <string name="ui_123" formatted="false">"Файл қолжетімді емес"</string>
+    <string name="ui_124" formatted="false">"Параметрлер экспортталды"</string>
+    <string name="ui_125" formatted="false">"Максимум 1 МБ"</string>
+    <string name="ui_126" formatted="false">"Орнатуды өзгерту керек пе?"</string>
+    <string name="ui_127" formatted="false">"Таңдалған файл: "</string>
+    <string name="ui_128" formatted="false">"Қазіргі баптаулар өзгертіледі."</string>
+    <string name="ui_129" formatted="false">"Импорттау"</string>
+    <string name="ui_130" formatted="false">"Файл қатесі: "</string>
+    <string name="ui_131" formatted="false">"Белсенді ойыншы дислайктерді қолдамайды"</string>
+    <string name="ui_132" formatted="false">"Активтi ойыншы мұндай бағаны қолдамайды"</string>
+    <string name="ui_133" formatted="false">"Бағалау ойыншыға берілді"</string>
+    <string name="ui_134" formatted="false">"Ауыс параметрлері арқылы медиасессияларына қол жеткізуге рұқсат етілсін"</string>
+    <string name="ui_135" formatted="false">"Активті медиасессия жоқ"</string>
+    <string name="ui_136" formatted="false">"Команда медиаплеерге берілді"</string>
+    <string name="ui_137" formatted="false">"Дауыс өзгертілді"</string>
+    <string name="ui_138" formatted="false">"Қолданба параметрлерінде микрофонға қатынауды рұқсат етіңіз"</string>
+    <string name="ui_139" formatted="false">"Жергiлiктi модель жасау..."</string>
+    <string name="ui_140" formatted="false">"Микрофон PCM 16 кГц қолдамайды"</string>
+    <string name="ui_141" formatted="false">"Микрофон қол жетімді емес немесе бос"</string>
+    <string name="ui_142" formatted="false">"Жазуды бастау мүмкін емес"</string>
+    <string name="ui_143" formatted="false">"Командаға хабарласыңыз."</string>
+    <string name="ui_144" formatted="false">"Микрофон қатесі: "</string>
+    <string name="ui_145" formatted="false">"Сөйлеу естілмеген. Микрофонды тексеріп, қайталаңыз."</string>
+    <string name="ui_146" formatted="false">"Дауыс уақытша қолжетімді емес: "</string>
+    <string name="ui_147" formatted="false">"Текст арқылы команданы қайталай аласыз немесе келтіре аласыз."</string>
+    <string name="ui_148" formatted="false">"Алып тасталды"</string>
+    <string name="ui_149" formatted="false">"APK- те модуль қосылмаған. құрастырудан бұрын tools/prepare_voice_model.py- ні жегуіңіз керек"</string>
+    <string name="ui_150" formatted="false">"Үлгіге орын жоқ"</string>
+    <string name="ui_151" formatted="false">"Параметрлерді оқу мүмкін емес. Оларды құюдан бұрын экспорттау керек."</string>
+    <string name="ui_152" formatted="false">"Параметрлерді сақтау мүмкін емес"</string>
+    <string name="ui_153" formatted="false">"Параметрлердің дұрыс емес пішімі"</string>
+    <string name="ui_154" formatted="false">"Файл тым үлкен"</string>
+    <string name="ui_155" formatted="false">"Параметрлердің қолдалмаған нұсқасы"</string>
+    <string name="ui_156" formatted="false">"Белгісіз панель батырмасы"</string>
+    <string name="ui_157" formatted="false">"Басудың дұрыс емес аралықтары"</string>
+    <string name="ui_158" formatted="false">"Максимум 128 тағайындалған"</string>
+    <string name="ui_159" formatted="false">"Үй және тамақтану қайта тағайындалмайды"</string>
+    <string name="ui_160" formatted="false">"Батырманың немесе құрылғының атауы дұрыс емес"</string>
+    <string name="ui_161" formatted="false">"Бұл батырма таңдалған құрылғыға келтірілген"</string>
+    <string name="ui_162" formatted="false">"Іс-әрекетті тым ұзақ сипаттау"</string>
+    <string name="ui_163" formatted="false">"Қолданбаның дұрыс емес компоненті"</string>
+    <string name="ui_164" formatted="false">"Сөздікті оқу мүмкін болмады: "</string>
+    <string name="ui_165" formatted="false">"Бұрынғы параметрлерді қалпына келтіру"</string>
+    <string name="ui_167" formatted="false">"Дауыстық басқару"</string>
+    <string name="ui_168" formatted="false">"Құрылғыда тану · "</string>
+    <string name="ui_169" formatted="false">" командасы"</string>
+    <string name="ui_170" formatted="false">"Сөйлеуді басу немесе команданы келтіріңіз"</string>
+    <string name="ui_171" formatted="false">"Команданың жай-күйі"</string>
+    <string name="ui_172" formatted="false">"Жабу"</string>
+    <string name="ui_173" formatted="false">"Сөйлеу"</string>
+    <string name="ui_174" formatted="false">"Мысалы: жүргізушінің жылыту деңгейі екі"</string>
+    <string name="ui_175" formatted="false">"Мәтін командасын орындау"</string>
+    <string name="ui_176" formatted="false">"Автомобиль: "</string>
+    <string name="ui_177" formatted="false">"Дауыс баптаулары және қалпына келтіру"</string>
+    <string name="ui_178" formatted="false">"Дауыс параметрлері"</string>
+    <string name="ui_179" formatted="false">"APK үлгісін қалпына келтіру"</string>
+    <string name="ui_180" formatted="false">"Медиасессияларға қол жеткізу (музыка бағасы)"</string>
+    <string name="ui_181" formatted="false">"Дауыс байланысын қосу"</string>
+    <string name="ui_182" formatted="false">"Дауыс баптауларын экспорттау"</string>
+    <string name="ui_183" formatted="false">"Дауыс баптауларын импорттау"</string>
+    <string name="ui_184" formatted="false">"Модель келесі басу арқылы қалпына келтіріледі"</string>
+    <string name="ui_185" formatted="false">"Команданы немесе сөз тіркесін іздеу"</string>
+    <string name="ui_186" formatted="false">"қосымшасы"</string>
+    <string name="ui_187" formatted="false">"Орындалсын"</string>
+    <string name="ui_188" formatted="false">"Қосымша..."</string>
+    <string name="ui_189" formatted="false">"Автомобильдің үлгісі"</string>
+    <string name="ui_190" formatted="false">"Байланыс телефонымен жазылады"</string>
+    <string name="ui_191" formatted="false">"Команданың зауыттық өңдеушісі"</string>
+    <string name="ui_193" formatted="false">"Ауыстық аты, мысалы, ана"</string>
+    <string name="ui_194" formatted="false">"Телефон нөмірі"</string>
+    <string name="ui_195" formatted="false">"Дауыс байланысы"</string>
+    <string name="ui_196" formatted="false">"Дауыс параметрлері экспортталды"</string>
+    <string name="ui_197" formatted="false">"Файлды өңдеу мүмкін емес: "</string>
+    <string name="ui_198" formatted="false">"Микрофон рұқсат етілмеген. Мәтіндік жазу қолжетімді."</string>
+    <string name="ui_199" formatted="false">"Алдыңғы команда әлі орындалуда"</string>
+    <string name="ui_200" formatted="false">"&amp;amp; amp; Қапшықтарды ашу"</string>
+    <string name="ui_201" formatted="false">"Номер телефон қосымшасында ашылған"</string>
+    <string name="ui_202" formatted="false">"Телефон қосымшасы жоқ: "</string>
+    <string name="ui_203" formatted="false">"Автомобильге команданы хабарлаңыз? Паркингте тексеріңіз. Қате болған жағдайда команда автоматты түрде қайталанбайды."</string>
+    <string name="ui_204" formatted="false">"Ойыншыны бағалау үшін дауыстық параметрлердегі \"Медиа сессияларына қол жеткізу\" дегенді басыңыз."</string>
+    <string name="ui_205" formatted="false">"Тапсырма орындалмаған: "</string>
+    <string name="ui_206" formatted="false">"Тапсырма орындалмаған немесе жауап жоғалған: "</string>
+    <string name="ui_207" formatted="false">"- Бастысын тексеріңіз. Автоматты қайталау жоқ."</string>
+    <string name="ui_210" formatted="false">"Байланыс жазуы дұрыс емес. Дауыс параметрлерін қалпына келтіріңіз"</string>
+    <string name="ui_211" formatted="false">"Атауы мен нөмірін келтіріңіз: 3 -ден 15 санға дейін, +"</string>
+    <string name="ui_212" formatted="false">"Мұндай дауыстық атау бар ғой"</string>
+    <string name="ui_213" formatted="false">"Тауыс баптауларының қолдауы жоқ"</string>
+    <string name="ui_214" formatted="false">"Мағынасы тым ұзын"</string>
+    <string name="ui_215" formatted="false">"Беймәлім профиль"</string>
+    <string name="ui_216" formatted="false">"Қосымшаның дұрыс емес мақсаты"</string>
+    <string name="ui_217" formatted="false">"Дұрыс емес немесе қайталанатын байланыс"</string>
+    <string name="ui_218" formatted="false">"Дауыс параметрлері белгісіз"</string>
+    <string name="ui_219" formatted="false">"Дауыс параметрлерін сақтау мүмкін емес"</string>
+    <string name="ui_220" formatted="false">"Әзірге қосалқы көшірме жоқ"</string>
+    <string name="ui_221" formatted="false">"Free · дорестайлинг"</string>
+    <string name="ui_222" formatted="false">"Free · рестайлинг"</string>
+</resources>

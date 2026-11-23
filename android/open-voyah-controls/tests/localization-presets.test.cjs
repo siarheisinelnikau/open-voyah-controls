@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
 
 // The built-in dictionaries are bundled into the localization agent; the app only names one in the setting.
-const presets=Object.fromEntries(['ru','en'].map(name=>[name,
+const presets=Object.fromEntries(['ru','en','kk'].map(name=>[name,
     JSON.parse(fs.readFileSync(path.join(__dirname,'../hooks/localization',name+'.json'),'utf8'))]));
 const settings=fs.readFileSync(path.join(__dirname,
     '../app/src/main/java/org/openvoyah/controls/data/settings/LocalizationSettings.java'),'utf8');
@@ -52,6 +52,21 @@ test('Russian covers every Chinese text the English preset translates',()=>{
     for(const [pkg,table] of Object.entries(presets.en.packages))
         for(const source of Object.keys(table))
             assert.ok(Object.hasOwn(presets.ru.packages[pkg] ?? {},source),`${pkg} ${source}`);
+});
+
+test('Kazakh covers the same runtime and resource overlay keys as Russian',()=>{
+    const overlays = language => JSON.parse(fs.readFileSync(
+        path.join(__dirname, '../hooks/localization/overlays', language + '.json'), 'utf8')).packages;
+    for (const [russian, kazakh] of [[presets.ru.packages, presets.kk.packages], [overlays('ru'), overlays('kk')]]) {
+        assert.deepEqual(Object.keys(kazakh).sort(), Object.keys(russian).sort());
+        for (const [pkg, table] of Object.entries(russian)) {
+            assert.deepEqual(Object.keys(kazakh[pkg]).sort(), Object.keys(table).sort(), pkg);
+            for (const [key, value] of Object.entries(kazakh[pkg])) {
+                assert.ok(value.trim(), pkg + ': ' + key);
+                assert.deepEqual(specs(value), specs(table[key]), pkg + ': ' + key);
+            }
+        }
+    }
 });
 
 test('presets cover the OEM apps of the current firmware and stay within the agent budget',()=>{

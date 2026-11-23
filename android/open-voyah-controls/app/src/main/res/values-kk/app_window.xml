@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_window_title">"Терезенің орналасуы"</string>
+    <string name="app_window_width">"Қосымшаның ені"</string>
+    <string name="app_window_dpi">"Масштаб (DPI)"</string>
+    <string name="app_window_default_dpi">"Жүйелік"</string>
+    <string name="app_window_panel_width">"Сол жақтан ең аз ауысу"</string>
+    <string name="app_window_panel_auto">"Автоматты түрде"</string>
+    <string name="app_window_pixels">"%1$d пикс."</string>
+    <string name="app_window_restore">"Параметрлерді өшіру"</string>
+    <string name="app_window_retry">"Қайталау"</string>
+    <string name="app_window_enable">"Терезені басқаруды қосу"</string>
+    <string name="app_window_enabled">"Терезелерді басқару қосылған. Ашылғаннан кейін сәл күтіңіз."</string>
+    <string name="app_window_apply">"Қолдану"</string>
+    <string name="app_window_saved">"Профиль сақталған. Ол терезе өңдеуші қосылғаннан кейін күшіне енеді."</string>
+    <string name="app_window_saved_next">"Профиль келесі қолданбаны іске қосу үшін сақталған."</string>
+    <string name="app_window_applied">"Қолданылған · ені %1$d пикс. · %2$d DPI · сол жағында %3$d пикс."</string>
+    <string name="app_window_density_only">"%1$d DPI қолданылды. Android терезедің ағымдағы өлшемін сақтады."</string>
+    <string name="app_window_unsupported">"Терезелерді баптау үшін қосымшаның өлшемін өзгертуді және терезелерді теңізге жылжытуды қолдау керек."</string>
+    <string name="app_window_task_unsupported">"Қолданбаны қайта ашу арқылы оның терезесіне параметрлерді қолдануға тырысыңыз."</string>
+    <string name="app_window_no_space">"Қолданба үшін орын босату үшін сол жаққа қарай ұшатын жерді азайтыңыз."</string>
+    <string name="app_window_failed">"Android терезенің сұралған параметрлерін бас тартты."</string>
+    <string name="app_window_unconfirmed">"Терезенің басқару қызметі өзгерісті растамады."</string>
+    <string name="app_window_read_failed">"Терезенің баптауларын жүктеу мүмкін емес."</string>
+    <string name="app_window_save_failed">"Терезенің баптауларын сақтау мүмкін емес."</string>
+    <string name="app_window_offline">"Орнатуларды қазір сақтап, терезелерді басқару қызметі қосылғаннан кейін пайдалануға болады."</string>
+    <string name="window_service_unavailable">"Терезе өңдеуші жауап бермеді. Фрида қосылымын тексеріңіз."</string>
+    <string name="window_restore_unconfirmed">"Ашық терезелердің кейбіреулері бұрғылауды талап етеді."</string>
+    <string name="app_window_explainer">"Орталық экрандағы терезе навигация батырмаларының қасында орналасады. Егер панельдерге көбірек орын қажет болса, сол жақтан ең аз қашықтықты ұлғайтыңыз."</string>
+</resources>

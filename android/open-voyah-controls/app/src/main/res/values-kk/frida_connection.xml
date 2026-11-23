@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="frida_local_unavailable">"Құрылғыға жергiлiктi түрде қол жеткiзу жоқ. Қосылымның жай-күйiн тексеріңіз. Егер проблема сақталса, Windows орнатушысында \"Қайтастыру және орнату\" дегенді қолданыңыз."</string>
+    <string name="frida_local_timeout">"Жергілікті қосылуды күту уақыты өтіп кетті. Қайта қосылу алдында қосылудың жай-күйін тексеріңіз."</string>
+    <string name="frida_local_interrupted">"Жергiлiктi қосылым операция аяқталғанға дейiн үзiлдi. Қайта қосылғанға дейiн оның жағдайын тексеріңіз."</string>
+    <string name="frida_operation_failed">"Операция аяқталмады. Қосылымды тексеріңіз."</string>
+</resources>

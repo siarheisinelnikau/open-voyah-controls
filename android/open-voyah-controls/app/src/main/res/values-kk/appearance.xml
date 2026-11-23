@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appearance_title">"Интерфейс"</string>
+    <string name="appearance_animate_routes">"Экран арасындағы өтпелерді анимациялау"</string>
+    <string name="appearance_high_contrast">"Жоғары контрасттық"</string>
+    <string name="appearance_start_screen">"Басталатын экран"</string>
+    <string name="appearance_start_screen_description">"\"Контрольдерді ашу\" дегенді таңдағаннан кейін, байрақты ұзақ басудан кейін ашылады."</string>
+    <string name="appearance_limit_media_on_launch">"Басталған кезде медиа дыбысын шектеу"</string>
+    <string name="appearance_launch_media_limit">"Алу кезінде қаттылық шегі"</string>
+    <string name="appearance_launch_media_limit_description">"Белгілерді ұзақ басып, \"Ашыңыз бақылауларды\" таңдаған кезде бұқаралық ақпарат құралдарының қаттылығын төмендетеді."</string>
+    <string name="appearance_media_volume_percent">"%1$d %%"</string>
+    <string name="appearance_app_grid">"Қосымшалар желісі"</string>
+    <string name="appearance_save_failed">"Интерфейс баптауларын сақтау мүмкін емес."</string>
+</resources>

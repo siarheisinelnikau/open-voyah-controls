@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_online_title">"Командаларды мағына бойынша тану"</string>
+    <string name="voice_online_switch">"OpenRouter каталогынан тыс сөйлемдер үшін қолданылсын"</string>
+    <string name="voice_online_explain">"OpenRouter сенімді түрде танылатын сөз тіркесінің мәтінін алады. Ақылы модель бір қадаммен дауыс деңгейін өзгерте алады немесе тағайындалған музыка немесе навигация қолданбасын қайта іске қосуы мүмкін."</string>
+    <string name="voice_online_key">"OpenRouter API кілті"</string>
+    <string name="voice_online_key_saved">"Ағымдағы кілтті сақтау үшін бос қалдырыңыз"</string>
+    <string name="voice_online_key_invalid">"OpenRouter API кілтін келтіріңіз."</string>
+    <string name="voice_online_save_failed">"OpenRouter баптауларын сақтау мүмкін емес."</string>
+    <string name="voice_online_checking">"Команданы нақтылаймын..."</string>
+    <string name="voice_online_unavailable">"Желідегі командаларды тану мүмкін емес."</string>
+    <string name="voice_restart_assignment">"Алдымен музыка немесе навигация қолданбасын дауыс параметрлері мен панель батырмасына қойыңыз."</string>
+    <string name="voice_restarted">"Қолданба қайта басталды."</string>
+</resources>

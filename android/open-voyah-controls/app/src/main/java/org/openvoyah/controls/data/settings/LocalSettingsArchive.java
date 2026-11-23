@@ -281,7 +281,7 @@ public final class LocalSettingsArchive {
         JSONObject displayData = root.getJSONObject("display");
         Object density = displayData.get("density");
         Object clusterMedia = displayData.get("clusterMedia");
-        if (!("en".equals(language) || "ru".equals(language)) || !(density instanceof Integer)
+        if (!UiText.supportsLanguage(language) || !(density instanceof Integer)
                 || !DisplayPreferences.validDensity((int) density) || !(clusterMedia instanceof Boolean))
             throw new IOException(UiText.get(R.string.settings_archive_invalid));
         JSONArray windowProfiles = root.has("appWindows")

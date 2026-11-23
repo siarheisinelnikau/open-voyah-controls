@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cockpit_overview">"Тез қолжетімділік"</string>
+    <string name="cockpit_buttons">"Батырмалар"</string>
+    <string name="cockpit_settings">"Баптаулар"</string>
+    <string name="cockpit_apps_description">"Қолданбаларды іске қосу және APK орнату"</string>
+    <string name="cockpit_voice_description">"Командалар, тіл және дыбыс"</string>
+    <string name="cockpit_display_description">"Жеке экрандағы медиа және навигация"</string>
+    <string name="cockpit_headline">"Мультимедианы басқару"</string>
+    <string name="cockpit_subtitle">"Батырмалар мен рульдің батырмаларын ашуды орнату."</string>
+    <string name="cockpit_firmware_description">"Зауыттық баптаулар және қалпына келтіру"</string>
+    <string name="cockpit_system_description">"Android параметрлерін ашу"</string>
+    <string name="cockpit_language">"Интерфейс тілі"</string>
+    <string name="cockpit_back">"Артқа"</string>
+    <string name="cockpit_panel">"Панел батырмалары"</string>
+    <string name="cockpit_panel_description">"Жүйелік панельдің таңбаларын орнату"</string>
+</resources>

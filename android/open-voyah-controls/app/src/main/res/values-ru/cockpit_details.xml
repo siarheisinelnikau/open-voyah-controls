@@ -8,6 +8,7 @@
     <string name="cockpit_setup_required">Нужна настройка</string>
     <string name="cockpit_dictionary_russian">Русский словарь</string>
     <string name="cockpit_dictionary_english">Английский словарь</string>
+    <string name="cockpit_dictionary_kazakh">Казахский словарь</string>
     <string name="cluster_package_heading">Проверка и выбор пакета</string>
     <string name="cluster_backup_heading">Резервная копия и восстановление</string>
     <string name="cluster_install_heading">Установка или восстановление</string>

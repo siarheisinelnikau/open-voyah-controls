@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_microphone_ready">"Микрофонға қол жеткізу рұқсат етілді."</string>
+    <string name="voice_microphone_needed">"Ауыстық командалар үшін микрофонға рұқсат етіңіз."</string>
+    <string name="voice_microphone_settings_needed">"Микрофонға қол жеткізу бұғатталған. Android қолданбасының параметрлерінде рұқсат етіңіз."</string>
+    <string name="voice_microphone_allow">"Микрофонды рұқсат ету"</string>
+    <string name="voice_microphone_open_settings">"Қолданба баптаулары"</string>
+    <string name="voice_microphone_waiting">"Android рұқсатын күту..."</string>
+    <string name="voice_microphone_unavailable">"Android-де микрофонға рұқсат сұрауы ашылмады."</string>
+    <string name="quick_voice_microphone_settings">"Микрофонның баптаулары"</string>
+</resources>

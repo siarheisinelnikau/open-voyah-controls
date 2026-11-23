@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_layouts_settings">"Жұмыс үстелдерінің орналасуы"</string>
+    <string name="desktop_layouts_empty">"Ағымдағы торды, карточкаларды және қоршауларды сақтаңыз, содан кейін осы кестеге оралу үшін."</string>
+    <string name="desktop_layouts_save_current">"Ағымдағы кестесін сақтау"</string>
+    <string name="desktop_layouts_apply">"Қатарлауды қолдану"</string>
+    <string name="desktop_layouts_rename">"Қалыпты өзгерту"</string>
+    <string name="desktop_layouts_duplicate">"Көшірмесін жасау"</string>
+    <string name="desktop_layouts_delete">"Қалыпты өшіру"</string>
+    <string name="desktop_layouts_name">"Қалыптаманың атауы"</string>
+    <string name="desktop_layouts_apply_confirm">"Ағымдағы торды, карточкаларды және қоршауларды \"%1$s\" қапшығында сақталғандарымен алмастыру керек пе?"</string>
+    <string name="desktop_layouts_apply_confirm_action">"Қолдану"</string>
+    <string name="desktop_layouts_delete_confirm">"\" %1$s \" сақталған қапшығын өшіру керек пе?"</string>
+    <string name="desktop_layouts_delete_confirm_action">"Жою"</string>
+    <string name="desktop_layouts_loading">"Қалыптарды жүктеу..."</string>
+    <string name="desktop_layouts_load_failed">"Сақталған қаптамаларды жүктеу мүмкін емес."</string>
+    <string name="desktop_layouts_full">"%1$d қапшықты сақтап қалуы мүмкін."</string>
+    <string name="desktop_layouts_too_large">"Бұл қабырғалар қапшықтарының сақталу шегінен асып түседі."</string>
+    <string name="desktop_layouts_invalid_name">"%1$d таңба ұзындығына дейінгі атауларды келтіріңіз."</string>
+    <string name="desktop_layouts_duplicate_name">"Осы атаумен орналасу қазірдің өзінде сақталған."</string>
+    <string name="desktop_layouts_changed">"Бұл қаптама сақталған қаптамалардан өшірілді."</string>
+    <string name="desktop_layouts_update_failed">"Түйендерді өзгерту мүмкін емес."</string>
+    <string name="desktop_layouts_working">"Қалыпты жаңарту..."</string>
+    <string name="desktop_layouts_saved">"Жасауы сақталған."</string>
+    <string name="desktop_layouts_applied">"Жасақтау қолданылды."</string>
+    <string name="desktop_layouts_renamed">"Жасауының атауы өзгертілді."</string>
+    <string name="desktop_layouts_duplicated">"Тәртіптің көшірмесі сақталған."</string>
+    <string name="desktop_layouts_deleted">"Қалыптастыру өшірілді."</string>
+</resources>

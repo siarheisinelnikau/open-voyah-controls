@@ -100,6 +100,9 @@ public final class OemParityTest extends AndroidTestCase {
             try { voice.level("EnableHeatDriverLevelDefault",4);fail(); } catch(IllegalStateException expected) { }
             assertEquals(snapshot,voice.exportJson());
             UiText.language("en"); assertEquals("Voice commands",UiText.get(R.string.ui_34));
+            UiText.language("kk");
+            assertEquals("Дауыстық пәрмендер", UiText.get(R.string.ui_34));
+            assertEquals("en", voice.language());
         } finally { voice.importJson(old);UiText.language(ui); }
     }
 }

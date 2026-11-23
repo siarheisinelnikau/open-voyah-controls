@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="voice_recognition">"Тану"</string>
+    <string name="voice_recognition_engine">"Тану жүйесі"</string>
+    <string name="voice_recognition_engines_hint">"Zipformer тек орысша таниды. Ағылшын және қазақ тілдеріне Vosk қолданылады."</string>
+    <string name="speech_engine_vosk">"Vosk"</string>
+    <string name="speech_engine_vosk_detail">"Интернетсіз, бас құрылғыда жұмыс істейді. Тізімдегі пәрмендерді таниды."</string>
+    <string name="speech_engine_zipformer">"Zipformer"</string>
+    <string name="speech_engine_zipformer_detail">"Интернетсіз, бас құрылғыда жұмыс істейді. Ұқсас сөз тіркестеріне сирек жауап береді. Тек орыс тілін таниды."</string>
+    <string name="voice_recognition_online_detail">"Интернет арқылы жұмыс істейді. Тізімде жоқ пәрменнің мәтіні ғана жіберіледі. Дыбыс жіберілмейді."</string>
+    <string name="voice_recognition_on">"Қосулы"</string>
+    <string name="voice_recognition_off">"Өшірулі"</string>
+    <string name="voice_model_not_downloaded">"Осы тілдің немесе тану жүйесінің моделі жүктелмеген. Оны «Дауыс → Тану» бөлімінен жүктеп алыңыз."</string>
+    <string name="voice_model_download">"Жүктеп алу · %1$s"</string>
+    <string name="voice_model_downloading">"Жүктелуде: %1$d%%"</string>
+    <string name="voice_model_cancel">"Болдырмау"</string>
+    <string name="voice_model_delete">"Модельді жою"</string>
+    <string name="voice_model_needed">"Модельді жүктеп алу қажет (%1$s)."</string>
+    <string name="voice_model_failed_network">"Жүктеу сәтсіз аяқталды. Интернет байланысын тексеріп, қайта көріңіз."</string>
+    <string name="voice_model_failed_storage">"Модельге бос орын жетпейді."</string>
+    <string name="voice_model_failed_verification">"Жүктелген файл күтілген файлға сәйкес келмеді. Ештеңе орнатылмады."</string>
+    <string name="voice_model_megabytes">"%1$d МБ"</string>
+    <string name="voice_listening_fallback">"Vosk тыңдап тұр: Zipformer іске қосылмады"</string>
+    <string name="voice_engine_failed">"Бұл бас құрылғыда іске қосылмады (%1$s). Vosk жұмыс істеп тұр. Қайталап көру үшін Zipformer-ді қайта таңдаңыз."</string>
+</resources>

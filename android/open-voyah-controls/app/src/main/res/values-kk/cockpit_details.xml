@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="firmware_screen_description">"Лаунерлестік, Android аудармасы және қалыпты баптауларды қалпына келтіру."</string>
+    <string name="firmware_device_heading">"Басты құрылғысы"</string>
+    <string name="firmware_translation_heading">"Android интерфейсін аудару"</string>
+    <string name="firmware_recovery_heading">"Зауыттық қалпына келтіру"</string>
+    <string name="cockpit_enabled">"Қосулы"</string>
+    <string name="cockpit_disabled">"Өшірулі"</string>
+    <string name="cockpit_setup_required">"Қалыптау қажет"</string>
+    <string name="cockpit_dictionary_russian">"Орысша сөздік"</string>
+    <string name="cockpit_dictionary_english">"Ағылшынша сөздік"</string>
+    <string name="cockpit_dictionary_kazakh">"Қазақша сөздік"</string>
+    <string name="cluster_package_heading">"Пакеттерді тексеру және таңдау"</string>
+    <string name="cluster_backup_heading">"Қосалқы көшірме және қалпына келтіру"</string>
+    <string name="cluster_install_heading">"Орналастыру немесе қалпына келтіру"</string>
+    <string name="cluster_install_description">"Файлдарды алмастырудан бұрын тиісті прошивканың көшірмесін және мәліметтерін сақтаңыз."</string>
+    <string name="cluster_status_heading">"Операцияның жай-күйі"</string>
+    <string name="display_screen_description">"Виртуалды экран мен аспаптар үшін алдын ала қарау тығыздығы және деректер."</string>
+    <string name="display_scale_heading">"Экран масштабы"</string>
+    <string name="display_sources_heading">"Медиа және навигация"</string>
+    <string name="display_preview_description">"Виртуалды экранға ағымдағы тракт пен жергілікті маршрут деректері көрсетіледі."</string>
+    <string name="display_preview_waiting">"Алдын ала қарауды дайындау..."</string>
+    <string name="display_preview_track">"Ағымдағы трек"</string>
+    <string name="binding_apps_loading">"Қолданбаларды іздеу..."</string>
+    <string name="binding_apps_no_match">"Бұл сұраныс бойынша қосымшалар жоқ."</string>
+    <string name="binding_delete_confirm">"Батырманың осы белгісін алып тастау керек пе?"</string>
+    <string name="binding_changed">"Мақсаты өзгерді. Оны қайта ашу және қайталау."</string>
+</resources>

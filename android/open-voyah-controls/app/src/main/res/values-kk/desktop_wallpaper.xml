@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="apps_wallpaper_title">"Жұмыс үстелдерінің қаптамалары"</string>
+    <string name="apps_wallpaper_custom">"Өз суреті"</string>
+    <string name="apps_wallpaper_default">"Стандартты фон"</string>
+    <string name="apps_wallpaper_reset">"Алып тастау"</string>
+    <string name="apps_wallpaper_reset_desktop">"\" %1$s \" үшін қоршауларды тастау"</string>
+    <string name="apps_wallpaper_failed">"Қисықтарды сақтау мүмкін емес. 8 МБ-ға дейінгі қолданатын суретті таңдаңыз."</string>
+</resources>

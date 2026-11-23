@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="production_unreviewed_firmware">"Бұл магнитоланың профилі әлі тексерілмеген."</string>
+    <string name="production_release_required">"Алу үшін Android пайдаланушысының профиліне қол қойылған релиз қажет."</string>
+    <string name="production_evidence_changed">"Бас құрылғы, орнатылған қолданбалар немесе қорғалған өңдегіш тексеруден өтпеді. Компьютердегі орнатқыш арқылы күйін тексеріңіз."</string>
+    <string name="production_broker_unavailable">"Құрылғы дайындық аяқталмаған. Жүктеп тұрған кезде жергілікті қолжетімділікті орнату үшін Windows орнатушысында \"Қайдастыру және орнату\" дегенді қолданыңыз."</string>
+    <string name="production_connect_required">"ПК-мен тексеруден кейін қолмен қосылыңыз. Бұрынғы орнату үшін ПК-мен қалпына келтіруді қолданыңыз."</string>
+    <string name="production_broker_timeout">"Жергілікті root менеджерінің жауапын күту уақыты өтіп кетті."</string>
+    <string name="production_recovery_blocked">"Қалпына келтіру белсенділікті тоқтатады. Компьютердегі орнатушы арқылы тексеріңіз."</string>
+    <string name="production_operation_unreviewed">"Бұл әрекет үшін орнатылған прошивкада APK басылымдары жоқ."</string>
+    <string name="production_voice_outcome_unknown">"Қайталаудан бұрын машинаның жай-күйін тексеріңіз."</string>
+</resources>

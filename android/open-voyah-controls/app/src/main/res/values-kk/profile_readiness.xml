@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="profile_oversea_account_unavailable">"Жүргізуші интерфейсі қол жетімді, бірақ аккаунттың ағымдағы жай-күйін растау мүмкін емес. Қайта қосу және қалпына келтіру әлі қол жетімді емес. Аккаунт өзгертілмеген."</string>
+    <string name="profile_oversea_recovery_missing">"Oversea-да A/B/C жүргізушілері жеке интерфейсті пайдаланады. Акаунттың толық резервтік көшірмесі тексеріліп, қалпына келтірілмейінше ауысу және қалпына келтіру мүмкін емес."</string>
+    <string name="profile_oversea_api_unsupported">"Oversea кіреберіс қызметі A/B/C жүргізушілерінің интерфейсін қамтамасыз етпейді."</string>
+    <string name="profile_oversea_probe_unavailable">"Oversea жүргізушілерінің интерфейсін тексеру мүмкін емес."</string>
+</resources>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_reminder_title">"ТО туралы ескерту"</string>
+    <string name="service_reminder_summary">"Ойынды жүгіру бойынша, күн бойынша немесе екеуіне де сәйкес жоспарлаңыз."</string>
+    <string name="service_reminder_next">"Келесі ТО"</string>
+    <string name="service_reminder_distance">"%1$s км"</string>
+    <string name="service_reminder_remaining">"ТО дейін %1$s км"</string>
+    <string name="service_reminder_due">"Одан өту уақыты келді"</string>
+    <string name="service_reminder_overdue">"ТО %1$s км мерзімі өткен"</string>
+    <string name="service_reminder_missing_readings">"Одометрдің жүрісі мен көрсеткіштерінің аралығын немесе соңғы ТО-ның айлар мен күні аралығын келтіріңіз."</string>
+    <string name="service_reminder_show_on_vehicle">"\"Автомобиль\" экранында осы туралы ескерту"</string>
+    <string name="service_reminder_lead_title">"ТО-ны қай кезде еске салу керек"</string>
+    <string name="service_reminder_lead_auto">"Автоматты түрде"</string>
+    <string name="service_reminder_lead_auto_distance">"Автоматты түрде · %1$s км"</string>
+    <string name="service_reminder_lead_limited">"Таңдалды %1$s · әрекет етеді %2$s"</string>
+    <string name="service_reminder_readings_title">"ТО аралығы мен өтуі"</string>
+    <string name="service_reminder_interval">"ТО (км) аралығы"</string>
+    <string name="service_reminder_current">"Ағымдағы аралық (км)"</string>
+    <string name="service_reminder_last">"Соңғы ТО-дағы жүгіру (км)"</string>
+    <string name="service_reminder_invalid">"0-дан үлкен аралықты және соңғы ТО-дағы аралықтан кем емес ағымдағы аралықты келтіріңіз."</string>
+    <string name="service_reminder_save">"Ұсынысы мен аралығын сақтау"</string>
+    <string name="service_reminder_save_failed">"ТО деректері сақталмады. Тағы да сынап көріңіз."</string>
+    <string name="service_reminder_calendar_title">"Күн бойынша ТО"</string>
+    <string name="service_reminder_calendar_summary">"Міне, соны өткізудің уақыты жетті."</string>
+    <string name="service_reminder_calendar_interval">"ТО интервалы (айлық, міндетті емес)"</string>
+    <string name="service_reminder_calendar_last_date">"Соңғы ТО күні"</string>
+    <string name="service_reminder_calendar_date_format">"ГГГГ-ММ-ДД"</string>
+    <string name="service_reminder_calendar_invalid">"1 айдан 120 айға дейінгі аралықты келтіріңіз және дәл күні бүгіннен кешіктірмей келтіріңіз."</string>
+    <string name="service_reminder_calendar_save">"Күнтізбелік жоспарды сақтау"</string>
+    <string name="service_reminder_calendar_lead_title">"ТО-ны еске түсіру үшін қанша күн"</string>
+    <string name="service_reminder_calendar_lead_due">"ТО күні"</string>
+    <string name="service_reminder_calendar_lead_days">"%1$d күн"</string>
+    <string name="service_reminder_calendar_due_date">"ТО %1$s дейін өту"</string>
+    <string name="service_reminder_calendar_due_today">"ТО бүгін"</string>
+    <string name="service_reminder_calendar_overdue">"ТО %1$s бастап мерзімі өткен"</string>
+</resources>

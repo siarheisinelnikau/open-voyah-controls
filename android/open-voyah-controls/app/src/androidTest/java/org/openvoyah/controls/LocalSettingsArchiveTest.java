@@ -78,7 +78,7 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
             voice.audio(true, true);
             display.restore(240, true);
             appWindows.saveDefaults(new AppDisplayDefaults(200, 220));
-            UiText.language("ru");
+            UiText.language("kk");
             locale.preset("en");
             updates.checkOnStartup(false);
             grid.restoreSettings(pins);
@@ -110,7 +110,7 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
             assertEquals("en", voice.language());
             assertTrue(voice.option("duckMedia"));
             assertTrue(voice.option("spokenFeedback"));
-            assertEquals("ru", UiText.language());
+            assertEquals("kk", UiText.language());
             assertEquals(240, display.density());
             assertTrue(display.clusterMedia());
             assertEquals(new AppDisplayDefaults(200, 220), appWindows.loadDefaults());

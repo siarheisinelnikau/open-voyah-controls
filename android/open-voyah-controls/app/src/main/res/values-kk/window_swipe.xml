@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="window_swipe_title">"Терезелерді ыммен жылжыту"</string>
+    <string name="window_swipe_description">"Ашық қосымшаны екі немесе үш саусағыңызбен бұрыңыз. Сол жағы - терезе құрылғы панеліне қарай шығып, навигациялық режимде көрсетіледі. Оң жағы - жолаушы экранға. Терезелерді қайтару үшін жолаушы экранның сол жағына немесе бас экранның оң жағына жүгіріңіз. Терезелерді серверлеу және осы операцияны бекіту үшін тексеру қажет."</string>
+    <string name="window_swipe_fingers">"Жест"</string>
+    <string name="window_swipe_off">"Алып тасталды"</string>
+    <string name="window_swipe_two">"Екі саусағымен"</string>
+    <string name="window_swipe_three">"Үш саусағымен"</string>
+    <string name="window_swipe_after">"Терезенің орталық экраннан кеткеннен кейін,"</string>
+    <string name="window_swipe_after_home">"Үй экрансы"</string>
+    <string name="window_swipe_after_apps">"OVC қосымшалары"</string>
+    <string name="window_swipe_recall">"Терезені қайтару"</string>
+    <string name="window_swipe_unreadable">"Сақталған баптауды жүктеу мүмкін емес."</string>
+    <string name="window_swipe_failed">"Қалыпты сақтау мүмкін емес."</string>
+    <string name="window_swipe_pending">"Бас құрылғыға сақталды. Ымды қолдану үшін терезелер қызметіне қосылыңыз."</string>
+    <string name="window_swipe_ready">"Жасалған. Жест қазір жұмыс істейді."</string>
+    <string name="window_swipe_turned_off">"Жасалған. Жест сөндірілді, жылжытылған терезелер орталық экранға оралды."</string>
+    <string name="window_swipe_unavailable">"Бұл магнитолдағы терезе қызметі жесті ұсынбайды: операция осы прошивка немесе Android нұсқасы үшін тексерілмеген."</string>
+    <string name="window_swipe_recalled">"Терезелер орталық экранға оралды."</string>
+    <string name="window_swipe_recall_failed">"Терезе қызметі терезелерді қайтаруды растамады."</string>
+</resources>
