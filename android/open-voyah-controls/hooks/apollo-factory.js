@@ -227,15 +227,18 @@ export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_E
             } catch (error) { if (written) report('state', error); }
         };
         // The state document and the claim survive the process. A claimed request whose outcome was never recorded
-        // is uncertain, never silently sent a second time. A failed read is not an empty record: until both reads
-        // succeed, no new send may go out, because the previous one cannot be ruled out.
+        // is uncertain, never silently sent a second time. Android can return null when the provider is unavailable.
+        // Require a value for both records before treating the history as readable.
         const readRecords = seed => {
-            let stateRaw, claimRaw;
-            try { stateRaw = String(Global.getString(resolver, APOLLO_STATE_KEY) || ''); }
+            let stateValue, claimValue;
+            try { stateValue = Global.getString(resolver, APOLLO_STATE_KEY); }
             catch (error) { recordsReadable = false; report('state_read', error); return; }
-            try { claimRaw = String(Global.getString(resolver, APOLLO_CLAIM_KEY) || ''); }
+            try { claimValue = Global.getString(resolver, APOLLO_CLAIM_KEY); }
             catch (error) { recordsReadable = false; report('claim_read', error); return; }
-            recordsReadable = true;
+            recordsReadable = stateValue != null && claimValue != null;
+            if (!recordsReadable) return;
+            const stateRaw = String(stateValue);
+            const claimRaw = String(claimValue);
             if (seed) {
                 let prior = null;
                 try { prior = JSON.parse(stateRaw); } catch (_) { /* An unreadable document seeds nothing. */ }

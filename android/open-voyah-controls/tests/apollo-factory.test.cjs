@@ -54,7 +54,7 @@ function member(options = {}) {
  * offer; `failImplement` names parts whose second hook assignment throws after the first one was installed.
  */
 function headUnit({ config = '', missing = [], sendFails = false, failImplement = [], failRestore = [],
-    putFails = [], readFails = [], claim = '', boot = BOOT_ID } = {}) {
+    putFails = [], readFails = [], nullReads = [], claim = '', boot = BOOT_ID } = {}) {
     const published = [];
     const sends = [];
     const failures = { implement: new Set(failImplement), restore: new Set(failRestore) };
@@ -69,6 +69,7 @@ function headUnit({ config = '', missing = [], sendFails = false, failImplement 
         'android.provider.Settings$Global': {
             getString: (resolver, key) => {
                 if (readFails.includes(key)) throw new Error('record unreadable');
+                if (nullReads.includes(key)) return null;
                 return key === CONFIG_KEY ? config
                     : key === STATE_KEY ? stateDoc : key === CLAIM_KEY ? claimValue : null;
             },
@@ -136,11 +137,7 @@ function headUnit({ config = '', missing = [], sendFails = false, failImplement 
         install: () => api.installApolloFactory(Java),
         config: value => {
             published.length = 0;
-            classes['android.provider.Settings$Global'].getString = (resolver, key) => {
-                if (readFails.includes(key)) throw new Error('record unreadable');
-                return key === CONFIG_KEY ? value
-                    : key === STATE_KEY ? stateDoc : key === CLAIM_KEY ? claimValue : null;
-            };
+            config = value;
         },
     };
 }
@@ -299,6 +296,17 @@ test('an unreadable previous record blocks a send instead of treating it as an e
     }
 });
 
+test('a null read of either replay record blocks the controller request', () => {
+    for (const [key, claim] of [[STATE_KEY, ''], [CLAIM_KEY, REQUEST_A]]) {
+        const unit = headUnit({ nullReads: [key], claim });
+        unit.config(configDoc({ controller: true }, REQUEST_A, true));
+        unit.tick();
+        assert.equal(unit.sends.length, 0, key);
+        assert.equal(unit.claim(), claim, key);
+        assert.equal(unit.state().controller, 'uncertain', key);
+    }
+});
+
 test('a rejected send is reported as unavailable, never as a request the controller accepted', () => {
     const unit = headUnit({ sendFails: true });
     unit.config(configDoc({ controller: true }, REQUEST_A, true));
@@ -414,6 +422,11 @@ test('a failed reinstall cannot erase an earlier hook that is still pending remo
     unit.tick();
     assert.equal(unit.state().equipment, 'partial', 'the pending hook must stay on record');
     assert.notEqual(utils.is97Y.implementation, null);
+
+    unit.healRestore();
+    unit.tick();
+    assert.equal(utils.is97Y.implementation, null, 'the first hook must still be tracked for removal');
+    assert.equal(utils.is97C.implementation, null);
 });
 
 test('a factory settings process without the subscription class is reported, not guessed at', () => {

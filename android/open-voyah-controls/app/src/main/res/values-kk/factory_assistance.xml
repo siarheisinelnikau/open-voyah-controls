@@ -42,6 +42,6 @@
     <string name="factory_assistance_open_vehicle_menu">"Автомобильдің мәзірін ашу"</string>
     <string name="factory_assistance_open_failed">"Таңдалған мәзірді ашу мүмкін емес. Автомобильдің мәзірін штаттық панельден ашуға тырысыңыз."</string>
     <string name="factory_assistance_fallback">"Көлік мәзірінен \"Ассистенттер\" дегенді таңдаңыз."</string>
-    <string name="factory_assistance_answers_controller_uncertain">Зауыттық қолданба контроллерге жіберілген сұраудың нәтижесін жазып үлгермей тоқтады. Автокөліктегі ассистенттердің күйін тексеріңіз. Controls сұрауды қайта жібермейді.</string>
+    <string name="factory_assistance_answers_controller_uncertain">Контроллерге сұрау жіберілгені расталмады. Автокөліктегі ассистенттердің күйін тексеріңіз.</string>
     <string name="factory_assistance_answers_partial">Келесі жауаптарды толық қалпына келтіру мүмкін болмады: %1$s. Зауыттық беттегі жауаптардың бір бөлігі әлі де өзгертілген. Қалпына келтіру үшін зауыттық баптаулар қолданбасын қайта іске қосыңыз.</string>
 </resources>

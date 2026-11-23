@@ -107,6 +107,8 @@ Only one reviewed OEM steering route is selected. The launcher adapter delegates
 
 ## Factory assistance answers
 
+An Android settings read can return `null` when the provider cannot confirm a value. Controls reports an uncertain result and blocks the controller request when either replay record is missing, including on a fresh installation.
+
 The factory Driving assistance page decides what to offer from answers the factory settings process gives itself. **Settings → Vehicle → Apollo and driving assistance → Answer for the factory page** lets the agent give those answers while the driver's own switches are on, and takes them away again when a switch goes off. The channel is staged with the first switch and stopped with the last one; the document the agent reads is a Settings.Global value, so a change reaches the page within a second without a restart, and an unreadable document means every part is off. Each document carries a request id, and the agent echoes it in its report: the screen shows a report only when it answers the most recent request. A switch position is written only after the command to the agent succeeds, and a later failure puts the position back.
 
 | Switch | What the agent answers | Reversibility |

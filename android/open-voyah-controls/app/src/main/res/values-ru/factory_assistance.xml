@@ -18,7 +18,7 @@
     <string name="factory_assistance_answers_waiting">Ждём, пока штатные настройки сообщат, что из этого принято.</string>
     <string name="factory_assistance_answers_unavailable">Установленное ПО не предоставило: %1$s.</string>
     <string name="factory_assistance_answers_controller_request">Запрос контроллеру принят. Состояние контроллера не подтверждено.</string>
-    <string name="factory_assistance_answers_controller_uncertain">Штатное приложение остановилось до записи результата запроса контроллеру. Проверьте состояние ассистентов в автомобиле; Controls не будет повторять отправку.</string>
+    <string name="factory_assistance_answers_controller_uncertain">Результат запроса к контроллеру неизвестен. Проверьте состояние ассистентов в штатном меню.</string>
     <string name="factory_assistance_answers_partial">Не удалось полностью отменить подмену для: %1$s. Часть ответов штатной страницы всё ещё подменена. Перезапустите штатные настройки для восстановления.</string>
     <string name="factory_assistance_park_required">Остановите автомобиль в парковочном положении перед отправкой состояния ассистентов в контроллер.</string>
     <string name="factory_assistance_answers_note">Controls запускает рабочий процесс штатных настроек с первого включённого переключателя и останавливает его с последним выключенным. Изменение попадает на штатную страницу в течение секунды. «Считать диагностику Apollo» по-прежнему показывает только сохранённые запросы, но не состояние контроллера.</string>
