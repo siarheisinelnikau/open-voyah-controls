@@ -1,8 +1,9 @@
 <resources>
-    <string name="factory_assistance_title">Штатные ассистенты</string>
+    <string name="factory_assistance_title">Apollo и ассистенты</string>
     <string name="factory_assistance_description">Apollo на совместимом FREE 318 · настройка в штатном меню.</string>
     <string name="factory_assistance_setup">Настроить в автомобиле</string>
     <string name="factory_assistance_sequence">В разделе «Автомобиль → Ассистенты» пройдите настройку для вашей комплектации. Включите TLC перед NOA и выберите поддерживаемый маршрут. Серый индикатор означает ожидание, синий — активную помощь.</string>
+    <string name="factory_assistance_guest">Если штатное приложение ограничивает функции в гостевом режиме, войдите в аккаунт автомобиля и выполните его требования к обучению и доступу к сервису.</string>
     <string name="factory_assistance_qualification">Проверить магнитолу</string>
     <string name="factory_assistance_unqualified">Считайте сведения об установленном ПО и сохранённых запросах штатной системы. Для активации нужны подтверждённая комплектация, обратная связь от контроллера и проверенное независимое восстановление.</string>
     <string name="factory_assistance_manual">Руководство FREE 318</string>
@@ -18,6 +19,8 @@
     <string name="factory_assistance_saved">Отчёт Apollo сохранён.</string>
     <string name="factory_assistance_report_failed">Не удалось подготовить или сохранить отчёт. Повторите попытку.</string>
     <string name="factory_assistance_manual_unavailable">Для открытия руководства нужен браузер.</string>
+    <string name="factory_assistance_open_assistance">Открыть штатные ассистенты</string>
     <string name="factory_assistance_open_vehicle_menu">Открыть меню автомобиля</string>
+    <string name="factory_assistance_open_failed">Не удалось открыть выбранное меню. Попробуйте открыть меню автомобиля со штатной панели.</string>
     <string name="factory_assistance_fallback">В общем меню автомобиля выберите «Ассистенты».</string>
 </resources>

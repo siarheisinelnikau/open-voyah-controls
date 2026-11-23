@@ -7,6 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -43,8 +45,8 @@ import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitSection
 
 internal data class FactoryAssistanceState(
-    val available: Boolean = false,
-    val fallback: Boolean = false,
+    val assistanceMenuAvailable: Boolean = false,
+    val vehicleMenuAvailable: Boolean = false,
     val handoff: Int? = null,
     val evidence: FactoryAssistanceEvidence? = null,
     val working: Boolean = false,
@@ -64,9 +66,9 @@ internal class FactoryAssistanceViewModel(
     val state = mutable.asStateFlow()
 
     fun refresh() {
-        val exact = runCatching(canOpenAssistance).getOrDefault(false)
-        val fallback = !exact && runCatching(canOpenVehicleMenu).getOrDefault(false)
-        mutable.value = mutable.value.copy(available = exact || fallback, fallback = fallback)
+        val assistance = runCatching(canOpenAssistance).getOrDefault(false)
+        val vehicle = runCatching(canOpenVehicleMenu).getOrDefault(false)
+        mutable.update { it.copy(assistanceMenuAvailable = assistance, vehicleMenuAvailable = vehicle) }
     }
 
     fun handoff(outcome: String, message: Int) {
@@ -122,8 +124,8 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
         val probe = ApolloCandidateEvidenceProbe(app)
         ViewModelProvider(activity, viewModelFactory { initializer {
             FactoryAssistanceViewModel(
-                canOpenAssistance = { launcher.assistanceMenuIntent() != null },
-                canOpenVehicleMenu = { launcher.vehicleMenuIntent() != null },
+                canOpenAssistance = { launcher.intent(FactoryDestination.ASSISTANCE) != null },
+                canOpenVehicleMenu = { launcher.intent(FactoryDestination.VEHICLE) != null },
                 capture = { probe.capture(includeFactoryCache = true) },
                 export = { destination, snapshot -> probe.export(Uri.parse(destination), snapshot) },
                 log = { ControlsLog.line(LogLevel.INFO, "$it elapsed_ms=${SystemClock.elapsedRealtime()}") },
@@ -140,27 +142,45 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
         model.refresh()
         onPauseOrDispose { }
     }
-    fun openFactory() {
-        val exact = runCatching { launcher.assistanceMenuIntent() }.getOrNull()
-        val intent = exact ?: runCatching { launcher.vehicleMenuIntent() }.getOrNull()
-        if (intent == null) model.handoff("unavailable", R.string.vehicle_settings_unavailable) else try {
+    fun openFactory(destination: FactoryDestination) {
+        val intent = runCatching { launcher.intent(destination) }.getOrNull()
+        if (intent == null) {
+            model.refresh()
+            model.handoff("unavailable", R.string.factory_assistance_open_failed)
+            return
+        }
+        try {
             activity.startActivity(intent)
-            if (exact != null) model.handoff("requested", R.string.factory_assistance_requested)
-            else model.handoff("vehicle_menu_requested", R.string.factory_assistance_requested)
-        } catch (_: RuntimeException) { model.handoff("failed", R.string.vehicle_settings_unavailable) }
+            if (destination == FactoryDestination.ASSISTANCE) {
+                model.handoff("requested", R.string.factory_assistance_requested)
+            } else {
+                model.handoff("vehicle_menu_requested", R.string.factory_assistance_fallback)
+            }
+        } catch (_: RuntimeException) {
+            model.refresh()
+            model.handoff("failed", R.string.factory_assistance_open_failed)
+        }
     }
     CockpitDetail(UiText.get(R.string.factory_assistance_title), UiText.get(R.string.factory_assistance_description), back) {
         CockpitColumns(first = {
             CockpitSection(UiText.get(R.string.factory_assistance_setup), CockpitIcon.CAR,
                 UiText.get(R.string.factory_assistance_sequence)) {
-                CockpitAction(UiText.get(if (state.fallback) R.string.factory_assistance_open_vehicle_menu
-                    else R.string.vehicle_settings_open), ::openFactory, primary = true, enabled = state.available)
+                if (state.assistanceMenuAvailable || !state.vehicleMenuAvailable) {
+                    CockpitAction(UiText.get(R.string.factory_assistance_open_assistance),
+                        { openFactory(FactoryDestination.ASSISTANCE) }, primary = true, enabled = state.assistanceMenuAvailable)
+                }
+                if (state.vehicleMenuAvailable) {
+                    CockpitAction(UiText.get(R.string.factory_assistance_open_vehicle_menu),
+                        { openFactory(FactoryDestination.VEHICLE) }, primary = !state.assistanceMenuAvailable)
+                }
                 val feedback = state.handoff ?: when {
-                    !state.available -> R.string.vehicle_settings_unavailable
-                    state.fallback -> R.string.factory_assistance_fallback
+                    !state.assistanceMenuAvailable && !state.vehicleMenuAvailable -> R.string.vehicle_settings_unavailable
+                    !state.assistanceMenuAvailable -> R.string.factory_assistance_fallback
                     else -> null
                 }
-                feedback?.let { CockpitFeedback(UiText.get(it)) }
+                feedback?.let { CockpitFeedback(UiText.get(it), error = it == R.string.factory_assistance_open_failed) }
+                Text(UiText.get(R.string.factory_assistance_guest), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 CockpitAction(UiText.get(R.string.factory_assistance_manual), {
                     try { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(H97D_ASSISTANCE_MANUAL))) }
                     catch (_: RuntimeException) { model.handoff("manual_unavailable", R.string.factory_assistance_manual_unavailable) }
@@ -192,7 +212,3 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
 }
 
 internal const val H97D_ASSISTANCE_MANUAL = "https://m.dsmp.voyah.com.cn/userguide/h97d/h97D-40.html"
-
-private fun VehicleSettingsLauncher.assistanceMenuIntent(): Intent? = intent(FactoryDestination.ASSISTANCE)
-
-private fun VehicleSettingsLauncher.vehicleMenuIntent(): Intent? = intent(FactoryDestination.VEHICLE)

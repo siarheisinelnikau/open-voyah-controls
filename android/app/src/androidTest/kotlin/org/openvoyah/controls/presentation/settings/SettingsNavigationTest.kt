@@ -1,5 +1,6 @@
 package org.openvoyah.controls.presentation.settings
 
+import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
@@ -17,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
+import java.util.Locale
 import org.openvoyah.controls.BuildConfig
 import org.openvoyah.controls.MainActivity
 import org.openvoyah.controls.R
@@ -213,6 +215,16 @@ class SettingsNavigationTest : InstrumentationTestCase() {
         instrumentation.runOnMainSync { navigation.back() }
         await("back to Sound and media") { navigation.state.value.route == ControlsRoute.SOUND }
         assertNull(navigation.state.value.focus)
+    }
+
+    fun testApolloSearchFindsTheVehicleAssistanceGroupInBothLanguages() {
+        for (language in listOf("en", "ru")) {
+            val configuration = Configuration(app.resources.configuration).apply { setLocale(Locale.forLanguageTag(language)) }
+            val resources = app.createConfigurationContext(configuration).resources
+            val result = searchSettings("Apollo", resources::getString).single()
+            assertEquals(ControlsRoute.VEHICLE, result.route)
+            assertEquals(SettingsPartId.VEHICLE_ASSISTANCE, result.part)
+        }
     }
 
     fun testSoundAndMediaLinksToTheMultimediaRestartBesideTheSystemReboot() {

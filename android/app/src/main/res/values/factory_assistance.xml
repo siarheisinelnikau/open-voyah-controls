@@ -1,8 +1,9 @@
 <resources>
-    <string name="factory_assistance_title">Factory driving assistance</string>
+    <string name="factory_assistance_title">Apollo and driving assistance</string>
     <string name="factory_assistance_description">Apollo on a compatible FREE 318 · setup stays in the factory controls.</string>
     <string name="factory_assistance_setup">Set up in the vehicle</string>
     <string name="factory_assistance_sequence">In Vehicle → Driving assistance, complete the setup shown for your equipment. Enable TLC before NOA and select a supported navigation route. Gray means standby. Blue means active.</string>
+    <string name="factory_assistance_guest">If the factory app limits features in Guest, sign in with the vehicle account and follow its training and service requirements.</string>
     <string name="factory_assistance_qualification">Check this head unit</string>
     <string name="factory_assistance_unqualified">Read the installed software identities and the factory request cache. Vehicle activation still needs verified equipment, controller feedback and independent recovery.</string>
     <string name="factory_assistance_manual">FREE 318 owner manual</string>
@@ -18,6 +19,8 @@
     <string name="factory_assistance_saved">Apollo report saved.</string>
     <string name="factory_assistance_report_failed">The report could not be prepared or saved. Try again.</string>
     <string name="factory_assistance_manual_unavailable">A browser is needed to open the owner manual.</string>
+    <string name="factory_assistance_open_assistance">Open factory assistance</string>
     <string name="factory_assistance_open_vehicle_menu">Open vehicle menu</string>
+    <string name="factory_assistance_open_failed">Could not open the selected menu. Try opening the vehicle menu from the factory panel.</string>
     <string name="factory_assistance_fallback">Choose Driving assistance in the general vehicle menu.</string>
 </resources>

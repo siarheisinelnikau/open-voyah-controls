@@ -229,7 +229,7 @@ class VehicleWorkflowsTest : InstrumentationTestCase() {
             // Driver assistance is a group of the Vehicle page.
             scrollTo(label(R.string.factory_assistance_setup))
             awaitText(label(R.string.factory_assistance_setup))
-            assertNoEnabledClick(label(R.string.vehicle_settings_open))
+            assertNoEnabledClick(label(R.string.factory_assistance_open_assistance))
             click(label(R.string.factory_assistance_check))
             awaitText(label(R.string.factory_assistance_no_provider), timeout = 10_000)
             scrollTo(label(R.string.factory_assistance_export))
