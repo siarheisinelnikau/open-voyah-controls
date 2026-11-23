@@ -1,8 +1,11 @@
 package app.voyahradio.domain;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -41,7 +44,27 @@ public final class CatalogOptions {
 
     public List<Station> ordered(List<Station> stations) {
         List<Station> sorted = new ArrayList<>(stations);
-        sorted.sort(Comparator.comparingInt(station -> ranks.getOrDefault(station.id, Integer.MAX_VALUE)));
+        // Older builds saved every group even when only one group was reordered.
+        // Only groups with a change in the relative order of saved stations need an override.
+        Map<RadioTab, Integer> lastRank = new EnumMap<>(RadioTab.class);
+        Set<RadioTab> changedGroups = EnumSet.noneOf(RadioTab.class);
+        for (Station station : stations) {
+            Integer rank = ranks.get(station.id);
+            if (rank == null) continue;
+            Integer previous = lastRank.put(station.group, rank);
+            if (previous != null && rank < previous) changedGroups.add(station.group);
+        }
+        for (RadioTab group : changedGroups) {
+            List<Station> orderedGroup = new ArrayList<>();
+            for (Station station : stations) {
+                if (station.group == group) orderedGroup.add(station);
+            }
+            orderedGroup.sort(Comparator.comparingInt(station -> ranks.getOrDefault(station.id, Integer.MAX_VALUE)));
+            ArrayDeque<Station> remaining = new ArrayDeque<>(orderedGroup);
+            for (int index = 0; index < stations.size(); index++) {
+                if (stations.get(index).group == group) sorted.set(index, remaining.removeFirst());
+            }
+        }
         return sorted;
     }
 

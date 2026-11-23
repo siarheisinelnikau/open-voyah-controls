@@ -220,6 +220,7 @@ public final class RadioService extends Service {
         if (notificationStrings.getResources().getConfiguration().getLocales().get(0)
                 .getLanguage().equals(preferences.language())) return;
         updateNotificationLanguage();
+        updateMetadata();
         if (foreground) startForeground(NOTIFICATION_ID, notification());
     }
 
@@ -471,7 +472,9 @@ public final class RadioService extends Service {
                 .putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
                 .putString(MediaMetadata.METADATA_KEY_ALBUM, station.name)
                 .putString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE, title)
-                .putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, track == null ? station.label : artist)
+                .putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, track == null
+                        ? station.displayLabel(notificationStrings.getResources().getConfiguration().getLocales().get(0))
+                        : artist)
                 .putString(MediaMetadata.METADATA_KEY_DISPLAY_DESCRIPTION, station.name)
                 .putLong(MediaMetadata.METADATA_KEY_DURATION, -1);
         if (mediaArt != null) metadata.putBitmap(MediaMetadata.METADATA_KEY_ART, mediaArt);

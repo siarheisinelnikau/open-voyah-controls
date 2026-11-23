@@ -8,11 +8,13 @@ Internet radio for the Voyah Free center display. The app uses large touch contr
 
 ![Settings with station visibility and ordering controls](docs/screenshots/settings.png)
 
+![International stations with localized country and genre labels](docs/screenshots/international.png)
+
 ## Install and listen
 
-Open the signed `VoyahRadio-v0.2.0.apk` from `dist/` with the head unit's Android package installer. The head unit needs internet access to play stations.
+Open the signed `VoyahRadio-v0.3.0.apk` from `dist/` with the head unit's Android package installer. The head unit needs internet access to play stations.
 
-The built-in catalog has 59 stations with separate Belarus, Russia, International and Favorites tabs. Tap a station to listen or tap its star to save it. Search accepts station names, aliases and frequencies. The app remembers the last station and starts playback when you press Play. Android's media session carries playback controls and the current track while you switch apps.
+The built-in catalog has 246 stations with separate Belarus, Russia, International and Favorites tabs. Russia has 34 channels, including Radio Maximum, Avtoradio Moscow and Rock FM. International has 169 stations from 34 countries, including RMF FM, BBC Radio 2, SWR3 and Radio Paradise. Tap a station to listen or tap its star to save it. Search accepts station names, aliases, frequencies and Russian or English country names. The app remembers the last station and starts playback when you press Play. Android's media session carries playback controls and the current track while you switch apps.
 
 Track titles and artists come from stream metadata. Selected Belarusian stations, including Radius FM, also use the public [RadioPlayer Belarus feed](https://radioplayer.by/). The player displays a status when track details are unavailable and a progress indicator while connecting, buffering or reconnecting. The spectrum and waveform use decoded playback audio and stop drawing when the player leaves the screen.
 
@@ -32,8 +34,10 @@ Use JDK 17 and Android SDK Platform 35. Set `ANDROID_HOME` or set `sdk.dir` in a
 
 For a signed release build, set `VOYAH_RADIO_KEYSTORE` to the absolute path of a PKCS#12 keystore with the alias `voyah-radio` and set `VOYAH_RADIO_STORE_PASSWORD`. Run `.\gradlew.bat :app:assembleRelease`. Subsequent APKs installed over an existing copy must use the same signing key.
 
-The player reads `app/src/main/assets/stations.json` and connects directly to the public stream URLs listed there. The catalog is supplemented by the [Radio Browser directory](https://docs.radio-browser.info/).
+The player reads `app/src/main/assets/stations.json` and connects directly to the public stream URLs listed there. Catalog sources include the [Radio Browser directory](https://docs.radio-browser.info/) and the [official MAXIMUM player](https://maximum.ru/online/).
 
 ## Verification
 
 The signed APK was installed on an Android 13 emulator with a 1280 × 720 landscape display. Checks covered live metadata for Radius FM, Radio 4YOU and Nashe Radio, regional visibility, manual order, language changes, both visualizations, background playback and loss of connectivity. The Voyah Free head unit remains untested.
+
+The expanded catalog was checked against the live public endpoints before packaging. The Android 13 emulator played Radio Maximum and RMF FM, displayed RMF FM track metadata, and retained the existing manual order after upgrading from v0.2.0.

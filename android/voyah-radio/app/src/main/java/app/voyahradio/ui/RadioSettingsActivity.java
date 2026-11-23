@@ -254,8 +254,10 @@ public final class RadioSettingsActivity extends Activity {
             }
             for (StationControl item : rows.values()) {
                 item.visible.setChecked(!state.options.hiddenStations.contains(item.station.id));
-                item.details.setText(state.options.unavailableStations.contains(item.station.id)
-                        ? getString(R.string.station_unavailable) : item.station.label);
+                String detail = state.options.unavailableStations.contains(item.station.id)
+                        ? getString(R.string.station_unavailable)
+                        : item.station.displayLabel(getResources().getConfiguration().getLocales().get(0));
+                if (!TextUtils.equals(item.details.getText(), detail)) item.details.setText(detail);
             }
         } finally {
             updating = false;

@@ -10,15 +10,17 @@ import java.util.Locale;
 public final class Station {
     public final String id;
     public final String name;
-    public final String label;
-    public final String aliases;
     public final RadioTab group;
     public final int trackSourceId;
     public final List<String> streams;
+    private final String label;
+    private final String russianLabel;
+    private final Locale country;
     private final String searchText;
 
     public Station(String id, String name, String label, String aliases,
-                   RadioTab group, List<String> streams, int trackSourceId) {
+                   RadioTab group, List<String> streams, int trackSourceId,
+                   String countryCode, String russianLabel) {
         if (id.trim().isEmpty() || name.trim().isEmpty() || streams.isEmpty()) {
             throw new IllegalArgumentException("Incomplete station");
         }
@@ -32,11 +34,20 @@ public final class Station {
         this.id = id;
         this.name = name;
         this.label = label;
-        this.aliases = aliases;
+        this.russianLabel = russianLabel.isEmpty() ? label : russianLabel;
+        this.country = countryCode.isEmpty() ? null : new Locale("", countryCode);
         this.group = group;
         this.trackSourceId = trackSourceId;
         this.streams = Collections.unmodifiableList(new ArrayList<>(streams));
-        this.searchText = normalize(name + " " + label + " " + aliases);
+        this.searchText = normalize(name + " " + aliases + " " + displayLabel(Locale.ENGLISH)
+                + " " + displayLabel(new Locale("ru")));
+    }
+
+    public String displayLabel(Locale locale) {
+        String detail = locale.getLanguage().equals("ru") ? russianLabel : label;
+        if (country == null) return detail;
+        String region = country.getDisplayCountry(locale);
+        return detail.isEmpty() ? region : region + " · " + detail;
     }
 
     public boolean matches(String[] words) {

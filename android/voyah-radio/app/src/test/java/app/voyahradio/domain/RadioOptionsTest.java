@@ -3,6 +3,7 @@ package app.voyahradio.domain;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import static org.junit.Assert.*;
@@ -53,6 +54,31 @@ public final class RadioOptionsTest {
     }
 
     private static Station station(String id, RadioTab group) {
-        return new Station(id, id, "", "", group, List.of("https://example.com/radio"), 0);
+        return new Station(id, id, "", "", group, List.of("https://example.com/radio"), 0, "", "");
+    }
+
+    @Test public void internationalStationIsSearchableByCountryInBothLanguages() {
+        Station station = new Station("zet", "Radio ZET", "Pop", "",
+                RadioTab.INTERNATIONAL, List.of("https://example.com/radio"), 0, "PL", "Поп");
+
+        assertEquals("Poland · Pop", station.displayLabel(Locale.ENGLISH));
+        assertEquals("Польша · Поп", station.displayLabel(new Locale("ru")));
+        assertTrue(station.matches(Station.searchWords("польша поп")));
+        assertTrue(station.matches(Station.searchWords("Poland Radio")));
+        assertFalse(station.matches(Station.searchWords("Germany")));
+    }
+
+    @Test public void catalogUpgradePreservesReorderedGroupsAndShowsNewDefaultsElsewhere() {
+        Station firstInternational = station("international-one", RadioTab.INTERNATIONAL);
+        Station secondInternational = station("international-two", RadioTab.INTERNATIONAL);
+        Station newInternational = station("international-new", RadioTab.INTERNATIONAL);
+        Station newRussian = station("maximum", RadioTab.RUSSIA);
+        CatalogOptions previous = new CatalogOptions(Set.of(), Set.of(), Set.of(), false,
+                List.of(fourYou.id, radius.id, europa.id, firstInternational.id, secondInternational.id));
+
+        List<Station> upgraded = List.of(radius, fourYou, newRussian, europa,
+                newInternational, firstInternational, secondInternational);
+        assertEquals(List.of(fourYou, radius, newRussian, europa,
+                newInternational, firstInternational, secondInternational), previous.ordered(upgraded));
     }
 }

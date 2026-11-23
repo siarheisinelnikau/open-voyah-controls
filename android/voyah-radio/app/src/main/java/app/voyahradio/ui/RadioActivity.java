@@ -8,6 +8,7 @@ import android.content.ServiceConnection;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.media.AudioManager;
@@ -19,15 +20,18 @@ import android.text.TextWatcher;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.AbsListView;
+import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.ProgressBar;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -41,7 +45,6 @@ import app.voyahradio.domain.Track;
 import app.voyahradio.playback.PlaybackText;
 import app.voyahradio.playback.RadioService;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -55,7 +58,6 @@ import static app.voyahradio.ui.RadioGlyph.Kind.*;
 public final class RadioActivity extends Activity {
 
     private final EnumMap<RadioTab, TextView> tabs = new EnumMap<>(RadioTab.class);
-    private final ArrayList<StationRow> rows = new ArrayList<>();
 
     private RadioViewModel model;
     private final Consumer<Playback> playbackListener = state -> model.onPlayback(state);
@@ -81,13 +83,12 @@ public final class RadioActivity extends Activity {
     private View next;
     private EditText search;
     private View clear;
-    private ScrollView catalogScroll;
-    private LinearLayout stationList;
+    private ListView stationList;
+    private StationAdapter stationAdapter;
     private TextView emptyMessage;
     private RadioTab displayedTab;
     private Set<RadioTab> displayedHiddenTabs = Collections.emptySet();
     private String displayedQuery;
-    private List<Station> displayedStations = Collections.emptyList();
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder binder) {
@@ -413,15 +414,15 @@ public final class RadioActivity extends Activity {
         LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f);
         listParams.topMargin = dp(12);
         catalog.addView(listFrame, listParams);
-        catalogScroll = new ScrollView(this);
-        catalogScroll.setFillViewport(false);
-        catalogScroll.setClipToPadding(false);
-        catalogScroll.setVerticalScrollBarEnabled(false);
-        listFrame.addView(catalogScroll, new FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT));
-
-        stationList = vertical();
+        stationList = new ListView(this);
+        stationList.setItemsCanFocus(true);
+        stationList.setDivider(null);
+        stationList.setSelector(new ColorDrawable(Color.TRANSPARENT));
+        stationList.setClipToPadding(false);
         stationList.setPadding(0, 0, 0, dp(6));
-        catalogScroll.addView(stationList, new ScrollView.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+        stationAdapter = new StationAdapter();
+        stationList.setAdapter(stationAdapter);
+        listFrame.addView(stationList, new FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT));
         emptyMessage = text(18, getColor(R.color.radio_muted), false);
         emptyMessage.setGravity(Gravity.CENTER);
         emptyMessage.setPadding(dp(20), 0, dp(20), 0);
@@ -444,11 +445,8 @@ public final class RadioActivity extends Activity {
         }
 
         boolean newFilter = displayedTab != state.tab || !state.query.equals(displayedQuery);
-        if (newFilter || !displayedStations.equals(state.stations)) {
-            displayedStations = state.stations;
-            rebuildRows(state.stations);
-            if (newFilter) catalogScroll.scrollTo(0, 0);
-        }
+        stationAdapter.update(state);
+        if (newFilter) stationList.setSelection(0);
         displayedTab = state.tab;
         displayedQuery = state.query;
 
@@ -462,7 +460,7 @@ public final class RadioActivity extends Activity {
 
         boolean hasStation = state.selected != null;
         setText(stationTitle, hasStation ? state.selected.name : getString(R.string.no_visible_stations));
-        setText(stationLabel, hasStation ? state.selected.label : "");
+        setText(stationLabel, hasStation ? stationDetail(state.selected) : "");
         renderTrack(state.playback);
         renderStage(state.playback);
         setText(playbackStatus, getString(PlaybackText.label(state.playback.status)));
@@ -489,10 +487,10 @@ public final class RadioActivity extends Activity {
         previous.setAlpha(canStep ? 1f : 0.42f);
         next.setAlpha(canStep ? 1f : 0.42f);
 
-        for (StationRow row : rows) {
-            row.render(row.station == state.selected, state.favorites.contains(row.station.id),
-                    state.unavailable.contains(row.station.id));
-        }
+    }
+
+    private String stationDetail(Station station) {
+        return station.displayLabel(getResources().getConfiguration().getLocales().get(0));
     }
 
     private void renderTrack(Playback playback) {
@@ -521,30 +519,65 @@ public final class RadioActivity extends Activity {
         visualizer.update(service == null ? null : service.meter(), mode, drawingSound);
     }
 
-    private void rebuildRows(List<Station> stations) {
-        stationList.removeAllViews();
-        rows.clear();
-        for (int index = 0; index < stations.size(); index += listColumns) {
-            LinearLayout line = horizontal();
-            LinearLayout.LayoutParams lineParams = wrap(MATCH_PARENT);
-            lineParams.bottomMargin = dp(8);
-            stationList.addView(line, lineParams);
+    private final class StationAdapter extends BaseAdapter {
+        private List<Station> stations = Collections.emptyList();
+        private Set<String> favorites = Collections.emptySet();
+        private Set<String> unavailable = Collections.emptySet();
+        private Station selected;
+
+        void update(RadioViewModel.State state) {
+            if (selected == state.selected && stations.equals(state.stations)
+                    && favorites.equals(state.favorites) && unavailable.equals(state.unavailable)) return;
+            stations = state.stations;
+            favorites = state.favorites;
+            unavailable = state.unavailable;
+            selected = state.selected;
+            notifyDataSetChanged();
+        }
+
+        @Override public int getCount() {
+            return (stations.size() + listColumns - 1) / listColumns;
+        }
+
+        @Override public Station getItem(int position) {
+            return stations.get(position * listColumns);
+        }
+
+        @Override public long getItemId(int position) {
+            return position;
+        }
+
+        @Override public View getView(int position, View recycled, ViewGroup parent) {
+            StationLine line = recycled == null ? new StationLine() : (StationLine) recycled.getTag();
+            int first = position * listColumns;
+            for (int column = 0; column < listColumns; column++) {
+                int index = first + column;
+                Station station = index < stations.size() ? stations.get(index) : null;
+                line.columns[column].bind(station, selected, favorites, unavailable);
+            }
+            return line.view;
+        }
+    }
+
+    private final class StationLine {
+        final LinearLayout view = horizontal();
+        final StationRow[] columns = new StationRow[listColumns];
+
+        StationLine() {
+            view.setTag(this);
+            view.setPadding(0, 0, 0, dp(8));
+            view.setLayoutParams(new AbsListView.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
             for (int col = 0; col < listColumns; col++) {
                 LinearLayout.LayoutParams tileParams = new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f);
                 if (col > 0) tileParams.leftMargin = dp(9);
-                if (index + col >= stations.size()) {
-                    line.addView(new View(this), tileParams);
-                    continue;
-                }
-                StationRow row = new StationRow(stations.get(index + col));
-                rows.add(row);
-                line.addView(row.tile, tileParams);
+                columns[col] = new StationRow();
+                view.addView(columns[col].tile, tileParams);
             }
         }
     }
 
     private final class StationRow {
-        final Station station;
+        Station station;
         final LinearLayout tile;
         final LinearLayout listen;
         final TextView name;
@@ -554,8 +587,7 @@ public final class RadioActivity extends Activity {
         Boolean selected;
         Boolean saved;
 
-        StationRow(Station station) {
-            this.station = station;
+        StationRow() {
             tile = horizontal();
             tile.setGravity(Gravity.CENTER_VERTICAL);
 
@@ -564,17 +596,15 @@ public final class RadioActivity extends Activity {
             listen.setMinimumHeight(dp(68));
             listen.setPadding(dp(14), dp(7), dp(4), dp(7));
             listen.setBackground(actionBackground(Color.TRANSPARENT, 14, Color.TRANSPARENT));
-            buttonLike(listen, station.name, () -> model.select(station));
+            buttonLike(listen, null, () -> model.select(station));
             tile.addView(listen, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
 
             name = text(18, getColor(R.color.radio_text), true);
-            name.setText(station.name);
             name.setMaxLines(1);
             name.setEllipsize(TextUtils.TruncateAt.END);
             name.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             listen.addView(name, wrap(MATCH_PARENT));
             label = text(14, getColor(R.color.radio_muted), false);
-            label.setText(station.label);
             label.setMaxLines(1);
             label.setEllipsize(TextUtils.TruncateAt.END);
             label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
@@ -582,7 +612,9 @@ public final class RadioActivity extends Activity {
 
             favorite = new FrameLayout(RadioActivity.this);
             favorite.setBackground(actionBackground(Color.TRANSPARENT, 14, Color.TRANSPARENT));
-            buttonLike(favorite, null, () -> model.toggleFavorite(station));
+            buttonLike(favorite, null, () -> {
+                if (station != null) model.toggleFavorite(station);
+            });
             star = new RadioGlyph(RadioActivity.this, STAR, getColor(R.color.radio_muted), 24);
             favorite.addView(star, new FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT));
             LinearLayout.LayoutParams favoriteParams = size(54, 54);
@@ -590,8 +622,19 @@ public final class RadioActivity extends Activity {
             tile.addView(favorite, favoriteParams);
         }
 
-        void render(boolean active, boolean isFavorite, boolean unavailable) {
-            setText(label, unavailable ? getString(R.string.station_unavailable) : station.label);
+        void bind(Station station, Station activeStation, Set<String> favorites, Set<String> unavailable) {
+            tile.setVisibility(station == null ? View.INVISIBLE : View.VISIBLE);
+            if (station == null) return;
+            if (this.station != station) {
+                this.station = station;
+                listen.setContentDescription(station.name);
+                setText(name, station.name);
+                saved = null;
+            }
+            boolean active = station == activeStation;
+            boolean isFavorite = favorites.contains(station.id);
+            setText(label, unavailable.contains(station.id)
+                    ? getString(R.string.station_unavailable) : stationDetail(station));
             if (selected == null || selected != active) {
                 selected = active;
                 int fill = active ? themeColor(R.attr.radio_selected_role) : getColor(R.color.radio_surface);
