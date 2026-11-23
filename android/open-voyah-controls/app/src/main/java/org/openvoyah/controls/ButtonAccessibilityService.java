@@ -8,6 +8,7 @@ import java.util.Collections;
 import org.openvoyah.controls.data.settings.SettingsStore;
 import org.openvoyah.controls.diagnostics.ControlsLog;
 import org.openvoyah.controls.platform.input.ButtonInputAdapter;
+import org.openvoyah.controls.platform.media.FocusedMediaKeys;
 import org.openvoyah.controls.platform.ui.ActionExecutor;
 import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime;
 
@@ -15,6 +16,8 @@ import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime
 public final class ButtonAccessibilityService extends AccessibilityService {
     private static volatile ButtonAccessibilityService connected;
     private ButtonInputAdapter input;
+    private FocusedMediaKeys mediaKeys;
+    private boolean buttonsEnabled;
     private SettingsStore store;
     private final SharedPreferences.OnSharedPreferenceChangeListener listener = (prefs, key) -> {
         if ("state".equals(key)) reload();
@@ -27,6 +30,7 @@ public final class ButtonAccessibilityService extends AccessibilityService {
         if (input != null) return;
         store = new SettingsStore(this);
         input = new ButtonInputAdapter(new ActionExecutor(this));
+        mediaKeys = new FocusedMediaKeys(this);
         store.preferences().registerOnSharedPreferenceChangeListener(listener);
         reload();
         connected = this;
@@ -36,10 +40,12 @@ public final class ButtonAccessibilityService extends AccessibilityService {
     private void reload() {
         try {
             SettingsStore.State state = store.load();
+            buttonsEnabled = state.enabled;
             input.configure(state.bindings, state.enabled, state.holdMs, state.debounceMs);
         } catch (IllegalStateException ex) {
             // Every binding stops working here; the stored record stays untouched for export and recovery.
             ControlsLog.error("button_bindings", ex, "outcome", "invalid_stored_settings");
+            buttonsEnabled = false;
             input.configure(Collections.emptyList(), false, 650, 100);
         }
     }
@@ -47,9 +53,16 @@ public final class ButtonAccessibilityService extends AccessibilityService {
     void beginCapture(ButtonInputAdapter.Capture capture) { input.beginCapture(capture); }
     void cancelCapture() { if (input != null) input.cancelCapture(); }
 
-    @Override protected boolean onKeyEvent(KeyEvent event) { return input != null && input.handle(event); }
+    @Override protected boolean onKeyEvent(KeyEvent event) {
+        if (input == null) return false;
+        return mediaKeys.finishOwnedEvent(event, buttonsEnabled) || input.handle(event)
+                || (buttonsEnabled && mediaKeys.claim(event));
+    }
     @Override public void onAccessibilityEvent(AccessibilityEvent event) { }
-    @Override public void onInterrupt() { if (input != null) input.interrupt(); }
+    @Override public void onInterrupt() {
+        if (input != null) input.interrupt();
+        if (mediaKeys != null) mediaKeys.cancelPending();
+    }
 
     @Override public void onDestroy() {
         VehicleWorkflowRuntime.serviceDisconnected(this, this);
