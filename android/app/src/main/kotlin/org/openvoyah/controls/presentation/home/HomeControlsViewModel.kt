@@ -20,7 +20,7 @@ interface HomeActions {
     fun buttonsEnabled(enabled: Boolean)
     fun panelEnabled(enabled: Boolean)
     fun navigatorHomeCard(enabled: Boolean)
-    fun navigatorWidgetDpi(dpi: Int)
+    fun navigatorWidgetScale(percent: Int)
     fun weatherCard(enabled: Boolean)
     fun weatherCity(city: String)
     fun choosePanel(slot: String)
@@ -36,7 +36,7 @@ internal data class HomeControlsState(
     val available: Boolean = false, val error: String? = null, val health: String = "",
     val buttonsEnabled: Boolean = false, val panelEnabled: Boolean = false,
     val navigatorHomeCard: Boolean = false, val navigatorHomeCardSupported: Boolean = false,
-    val navigatorWidgetDpi: Int = SettingsStore.NAVIGATOR_WIDGET_DPI,
+    val navigatorWidgetScale: Int = SettingsStore.NAVIGATOR_WIDGET_SCALE,
     val weatherCard: Boolean = false, val weatherCity: String = "",
     val connected: Boolean = false,
     val holdMs: Int = 650, val debounceMs: Int = 100, val steeringSupported: Boolean = false,
@@ -85,7 +85,7 @@ internal class HomeControlsViewModel(
         if (change { it.panelEnabled = enabled } && !panel.configured()) error(UiText.get(R.string.ui_70))
     }
     fun navigatorHomeCard(enabled: Boolean) = change { it.navigatorHomeCard = enabled }
-    fun navigatorWidgetDpi(dpi: Int) = change { it.navigatorWidgetDpi = SettingsStore.navigatorWidgetDpi(dpi) }
+    fun navigatorWidgetScale(percent: Int) = change { it.navigatorWidgetScale = SettingsStore.navigatorWidgetScale(percent) }
     fun weatherCard(enabled: Boolean) = change { it.weatherCard = enabled }
     fun weatherCity(city: String) { current.value = current.value.copy(weatherCity = city) }
     fun choosePanel(slot: String, action: Action) {
@@ -166,7 +166,7 @@ internal class HomeControlsViewModel(
             it.debounceMs = source.debounceMs
             it.panelEnabled = source.panelEnabled
             it.navigatorHomeCard = source.navigatorHomeCard
-            it.navigatorWidgetDpi = source.navigatorWidgetDpi
+            it.navigatorWidgetScale = source.navigatorWidgetScale
             it.weatherCard = source.weatherCard
             it.bindings.clear()
             it.bindings.addAll(source.bindings)
@@ -218,7 +218,7 @@ internal class HomeControlsViewModel(
         }
         current.value = current.value.copy(available = true, error = null, health = panel.health(),
             buttonsEnabled = settings.enabled, panelEnabled = settings.panelEnabled,
-            navigatorHomeCard = settings.navigatorHomeCard, navigatorWidgetDpi = settings.navigatorWidgetDpi,
+            navigatorHomeCard = settings.navigatorHomeCard, navigatorWidgetScale = settings.navigatorWidgetScale,
             weatherCard = settings.weatherCard,
             // The overseas launcher has no Baidu navigation card to replace.
             navigatorHomeCardSupported = product != "f6811", connected = connected(),

@@ -99,7 +99,7 @@ internal val SETTINGS_INDEX: List<SettingsEntry> = buildList {
         R.string.apps_wallpaper_title, R.string.appearance_wallpaper_dimming, R.string.desktop_layouts_settings))
     addAll(entries(SettingsPartId.HOME_CARDS, R.string.desktop_info_settings, R.string.apps_grid_card_placement,
         R.string.apps_grid_card_outlines))
-    addAll(entries(SettingsPartId.HOME_FACTORY, R.string.home_navigator_card, R.string.home_navigator_widget_dpi,
+    addAll(entries(SettingsPartId.HOME_FACTORY, R.string.home_navigator_card, R.string.home_navigator_widget_scale,
         R.string.home_navigator_widget_settings, R.string.home_weather_card, R.string.home_weather_city))
     addAll(entries(SettingsPartId.WINDOWS_APPS, R.string.window_hook_title, R.string.app_display_defaults_title,
         R.string.window_swipe_title, R.string.window_strip_title, R.string.settings_app_scale_hint_title))

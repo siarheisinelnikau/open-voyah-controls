@@ -28,8 +28,9 @@ public final class SettingsStore {
     }
     /** Yandex Navigator. Its launcher icon is a yellow arrow on a white plate. */
     public static final String YANDEX_NAVIGATOR = "ru.yandex.yandexnavi";
-    public static final int NAVIGATOR_WIDGET_DPI = 160;
-    public static int navigatorWidgetDpi(int value) { return value >= 120 && value <= 240 ? value : NAVIGATOR_WIDGET_DPI; }
+    public static final int NAVIGATOR_WIDGET_SCALE = 100;
+    /** Percent, 70 to 150; anything else is the default. */
+    public static int navigatorWidgetScale(int value) { return value >= 70 && value <= 150 ? value : NAVIGATOR_WIDGET_SCALE; }
     public static final class State {
         public boolean enabled = true;
         public int holdMs = 650;
@@ -38,8 +39,8 @@ public final class SettingsStore {
         public boolean panelEnabled = false;
         /** Show Yandex Navigator instead of the Baidu map in the factory home screen's navigation card. Off unless turned on. */
         public boolean navigatorHomeCard = false;
-        /** Density of the Navigator widget in that card, 120 to 240; 160 is the display's own. */
-        public int navigatorWidgetDpi = NAVIGATOR_WIDGET_DPI;
+        /** Scale of the Navigator widget in that card in percent; more is larger content. */
+        public int navigatorWidgetScale = NAVIGATOR_WIDGET_SCALE;
         /** Feed the factory home screen's weather card with Open-Meteo weather. Off unless turned on. */
         public boolean weatherCard = false;
         public final java.util.Map<String, Action> panelActions = new java.util.LinkedHashMap<>();
@@ -76,7 +77,10 @@ public final class SettingsStore {
         state.debounceMs = root.getInt("debounceMs");
         state.panelEnabled = root.optBoolean("panelEnabled", false);
         state.navigatorHomeCard = root.optBoolean("navigatorHomeCard", false);
-        state.navigatorWidgetDpi = navigatorWidgetDpi(root.optInt("navigatorWidgetDpi", NAVIGATOR_WIDGET_DPI));
+        // A density saved by the first version (160 = 100 %) becomes the nearest 10 %.
+        int legacyDpi = root.optInt("navigatorWidgetDpi", 0);
+        int legacyScale = legacyDpi > 0 ? Math.round(legacyDpi * 10f / 160f) * 10 : NAVIGATOR_WIDGET_SCALE;
+        state.navigatorWidgetScale = navigatorWidgetScale(root.optInt("navigatorWidgetScale", legacyScale));
         state.weatherCard = root.optBoolean("weatherCard", false);
         JSONObject panel = root.optJSONObject("panelActions");
         if (panel != null) {
@@ -132,7 +136,7 @@ public final class SettingsStore {
         return new JSONObject().put("schema", SCHEMA).put("enabled", state.enabled).put("holdMs", state.holdMs)
             .put("debounceMs", state.debounceMs).put("bindings", rows).put("panelEnabled", state.panelEnabled)
             .put("navigatorHomeCard", state.navigatorHomeCard)
-            .put("navigatorWidgetDpi", state.navigatorWidgetDpi)
+            .put("navigatorWidgetScale", state.navigatorWidgetScale)
             .put("weatherCard", state.weatherCard)
             .put("panelActions", panel).put("steeringActions", steering).toString(2);
     }

@@ -139,7 +139,7 @@ public final class FridaBridge {
             JSONObject root = new JSONObject().put("schema", 1).put("enabled", state.panelEnabled).put("actions", hookActions(state.panelActions));
             // The launcher agent covers the factory navigation card with this app's card; absent keeps the Baidu map.
             if (state.navigatorHomeCard) root.put("homeCard", new JSONObject().put("package", SettingsStore.YANDEX_NAVIGATOR)
-                .put("dpi", SettingsStore.navigatorWidgetDpi(state.navigatorWidgetDpi)));
+                .put("scale", SettingsStore.navigatorWidgetScale(state.navigatorWidgetScale)));
             // The launcher agent shows Controls' weather (HOME_WEATHER) in the factory weather card, or this text without it.
             if (state.weatherCard) root.put("weatherCard", new JSONObject().put("noData", UiText.get(R.string.home_weather_no_data)));
             return root

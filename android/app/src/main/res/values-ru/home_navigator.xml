@@ -3,6 +3,6 @@
     <string name="home_navigator_widget_settings">Настройки виджета Навигатора: тема, масштаб карты</string>
     <string name="home_navigator_widget_opened">Настройки виджета Яндекс Навигатора открыты на центральном экране.</string>
     <string name="home_navigator_widget_missing">На главном экране пока нет виджета Навигатора. Включите карточку Яндекс Навигатора и откройте главный экран.</string>
-    <string name="home_navigator_widget_dpi">Плотность виджета Навигатора</string>
-    <string name="home_navigator_widget_dpi_default">Как у экрана (160 DPI)</string>
+    <string name="home_navigator_widget_scale">Масштаб виджета Навигатора (больше — крупнее)</string>
+    <string name="home_navigator_widget_scale_default">100 % (как было)</string>
 </resources>

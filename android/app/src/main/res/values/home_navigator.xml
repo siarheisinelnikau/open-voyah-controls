@@ -3,6 +3,6 @@
     <string name="home_navigator_widget_settings">Navigator widget settings: theme, map scale</string>
     <string name="home_navigator_widget_opened">Yandex Navigator\'s widget settings are open on the central display.</string>
     <string name="home_navigator_widget_missing">The home screen has no Navigator widget yet. Turn on the Yandex Navigator card and open the home screen once.</string>
-    <string name="home_navigator_widget_dpi">Navigator widget density</string>
-    <string name="home_navigator_widget_dpi_default">Default (160 DPI)</string>
+    <string name="home_navigator_widget_scale">Navigator widget scale (more is larger)</string>
+    <string name="home_navigator_widget_scale_default">100 % (default)</string>
 </resources>

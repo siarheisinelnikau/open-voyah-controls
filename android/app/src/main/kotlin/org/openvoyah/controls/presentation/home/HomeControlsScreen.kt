@@ -48,7 +48,7 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
         }
         CockpitSwitch(UiText.get(R.string.home_navigator_card), state.navigatorHomeCard, change = actions::navigatorHomeCard)
         if (state.navigatorHomeCard) {
-            NavigatorWidgetDpi(state.navigatorWidgetDpi, actions::navigatorWidgetDpi)
+            NavigatorWidgetScale(state.navigatorWidgetScale, actions::navigatorWidgetScale)
             CockpitAction(UiText.get(R.string.home_navigator_widget_settings), { actions.command(HomeCommand.NAVIGATOR_WIDGET) })
         }
         CockpitSwitch(UiText.get(R.string.home_weather_card), state.weatherCard, change = actions::weatherCard)
@@ -152,21 +152,26 @@ internal fun HomeBackup(actions: HomeActions) {
     }
 }
 
-private val NAVIGATOR_WIDGET_DPI = (120..240 step 20).toList()
+private val NAVIGATOR_WIDGET_SCALE = (70..150 step 10).toList()
 
-/** Steps of 20 dpi; saved when the slider is let go, so the card is not redrawn on every step of a drag. */
+/**
+ * Percent, steps of 10; more is larger content. Saved when the slider is let go, so the card is not redrawn on
+ * every step of a drag.
+ */
 @Composable
-private fun NavigatorWidgetDpi(dpi: Int, change: (Int) -> Unit) {
-    var step by remember(dpi) { mutableIntStateOf(NAVIGATOR_WIDGET_DPI.indexOf(dpi).coerceAtLeast(0)) }
-    val shown = NAVIGATOR_WIDGET_DPI[step]
-    val value = if (shown == 160) UiText.get(R.string.home_navigator_widget_dpi_default) else "$shown DPI"
+private fun NavigatorWidgetScale(percent: Int, change: (Int) -> Unit) {
+    var step by remember(percent) {
+        mutableIntStateOf(NAVIGATOR_WIDGET_SCALE.indexOf(percent).takeIf { it >= 0 } ?: NAVIGATOR_WIDGET_SCALE.indexOf(100))
+    }
+    val shown = NAVIGATOR_WIDGET_SCALE[step]
+    val value = if (shown == 100) UiText.get(R.string.home_navigator_widget_scale_default) else "$shown %"
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(UiText.get(R.string.home_navigator_widget_dpi), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            Text(UiText.get(R.string.home_navigator_widget_scale), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             Text(value, color = MaterialTheme.colorScheme.primary)
         }
         Slider(step.toFloat(), { step = it.roundToInt() }, Modifier.fillMaxWidth().semantics { stateDescription = value },
-            valueRange = 0f..NAVIGATOR_WIDGET_DPI.lastIndex.toFloat(), steps = NAVIGATOR_WIDGET_DPI.lastIndex - 1,
-            onValueChangeFinished = { change(NAVIGATOR_WIDGET_DPI[step]) })
+            valueRange = 0f..NAVIGATOR_WIDGET_SCALE.lastIndex.toFloat(), steps = NAVIGATOR_WIDGET_SCALE.lastIndex - 1,
+            onValueChangeFinished = { change(NAVIGATOR_WIDGET_SCALE[step]) })
     }
 }

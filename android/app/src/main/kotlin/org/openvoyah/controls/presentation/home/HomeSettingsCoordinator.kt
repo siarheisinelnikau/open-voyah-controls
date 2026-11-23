@@ -132,7 +132,7 @@ internal class HomeSettingsCoordinator(
     override fun buttonsEnabled(enabled: Boolean) { if (active) model.buttonsEnabled(enabled) }
     override fun panelEnabled(enabled: Boolean) { if (active) model.panelEnabled(enabled) }
     override fun navigatorHomeCard(enabled: Boolean) { if (active) model.navigatorHomeCard(enabled) }
-    override fun navigatorWidgetDpi(dpi: Int) { if (active) model.navigatorWidgetDpi(dpi) }
+    override fun navigatorWidgetScale(percent: Int) { if (active) model.navigatorWidgetScale(percent) }
     override fun weatherCard(enabled: Boolean) {
         if (!active || !model.weatherCard(enabled)) return
         if (enabled) {

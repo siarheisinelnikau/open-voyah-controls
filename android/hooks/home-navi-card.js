@@ -24,12 +24,12 @@ export function cardPackage(config) {
 }
 
 /**
- * The widget's density in the card: 160 (the display's own) unless the configuration asks for 120 to 240. Lower
- * values fit more map and smaller text, higher ones less map and larger text.
+ * The widget's scale in the card in percent: 100 unless the configuration asks for 50 to 200. More is larger
+ * content (text, buttons, map features) with less of the map in view; less is smaller content with more map.
  */
-export function widgetDpi(config) {
-    const dpi = cardPackage(config) === null ? undefined : config.homeCard.dpi;
-    return Number.isInteger(dpi) && dpi >= 120 && dpi <= 240 ? dpi : 160;
+export function widgetScale(config) {
+    const scale = cardPackage(config) === null ? undefined : config.homeCard.scale;
+    return Number.isInteger(scale) && scale >= 50 && scale <= 200 ? scale : 100;
 }
 
 function clean(value) {
@@ -585,18 +585,18 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
             };
         }
 
-        /** The configured app and widget density, as one key the timer compares. */
+        /** The configured app and widget scale, as one key the timer compares. */
         function configured() {
             const app = ActivityThread.currentApplication();
             if (app === null) return null;
             const config = readConfig(app);
             const name = cardPackage(config);
-            return name === null ? null : name + '@' + widgetDpi(config);
+            return name === null ? null : name + '@' + widgetScale(config);
         }
 
         function configure(key) {
             const name = key === null ? null : key.slice(0, key.lastIndexOf('@'));
-            const nextScale = key === null ? 1 : Number(key.slice(key.lastIndexOf('@') + 1)) / 160;
+            const nextScale = key === null ? 1 : Number(key.slice(key.lastIndexOf('@') + 1)) / 100;
             if (nextScale !== scale) {
                 scale = nextScale;
                 // Live: the widget keeps its id and the settings chosen in Navigator.

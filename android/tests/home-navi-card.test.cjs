@@ -11,7 +11,7 @@ function load(extra = {}) {
     const logs = [];
     const context = {console: {log: line => logs.push(line)}, setInterval: () => 0, clearInterval() {}, ...extra};
     const api = vm.runInNewContext(source + '\n({cardPackage, pickNotification, guidanceLines, createHomeCardController,' +
-        ' installHomeNavigationCard, createReporter, CARD_MARK, pickWidget, widgetDpi})', context);
+        ' installHomeNavigationCard, createReporter, CARD_MARK, pickWidget, widgetScale})', context);
     return {api, logs};
 }
 
@@ -491,14 +491,16 @@ test('the detach handshake keeps the widget bound; only turning the setting off 
     assert.equal(h.widget.listening, true);
 });
 
-test('the widget density follows the setting live, without rebinding the widget', () => {
-    const h = adapterHarness({widgets: TRAFFIC, config: {schema: 1, homeCard: {package: NAVI, dpi: 120}}});
+test('the widget scale follows the setting live, larger meaning larger content, without rebinding', () => {
+    // 75 %: laid out a third larger, then scaled down, so more map fits and the content is smaller.
+    const h = adapterHarness({widgets: TRAFFIC, config: {schema: 1, homeCard: {package: NAVI, scale: 75}}});
     const hosted = h.overlay().children[1];
     assert.deepEqual(hosted.params, {w: 768, h: 869});
     assert.deepEqual(hosted.scale, [0.75, 0.75]);
     assert.deepEqual(hosted.pivot, [0, 0]);
     assert.deepEqual(h.widget.sizes.at(-1), [768, 869, 768, 869]);
-    h.config.value = {schema: 1, homeCard: {package: NAVI, dpi: 240}};
+    // 150 %: laid out smaller, then scaled up, so the content is larger.
+    h.config.value = {schema: 1, homeCard: {package: NAVI, scale: 150}};
     h.timers.find(timer => timer.ms === 1000).fn();
     assert.equal(h.overlay().children[1], hosted);
     assert.equal(h.widget.created, 1);
@@ -507,14 +509,14 @@ test('the widget density follows the setting live, without rebinding the widget'
     assert.deepEqual(h.widget.sizes.at(-1), [384, 435, 384, 435]);
 });
 
-test('the widget density is 160 unless the configuration names 120 to 240', () => {
-    const {widgetDpi} = load().api;
-    const card = dpi => ({schema: 1, homeCard: {package: NAVI, dpi}});
-    assert.equal(widgetDpi(card(120)), 120);
-    assert.equal(widgetDpi(card(240)), 240);
-    for (const dpi of [undefined, 119, 241, 150.5, '200', null]) assert.equal(widgetDpi(card(dpi)), 160, String(dpi));
-    assert.equal(widgetDpi({schema: 1, homeCard: {package: NAVI, dpi: 200}, restoreIcons: 'x'}), 160);
-    assert.equal(widgetDpi(null), 160);
+test('the widget scale is 100 % unless the configuration names 50 to 200', () => {
+    const {widgetScale} = load().api;
+    const card = scale => ({schema: 1, homeCard: {package: NAVI, scale}});
+    assert.equal(widgetScale(card(50)), 50);
+    assert.equal(widgetScale(card(200)), 200);
+    for (const scale of [undefined, 49, 201, 90.5, '120', null]) assert.equal(widgetScale(card(scale)), 100, String(scale));
+    assert.equal(widgetScale({schema: 1, homeCard: {package: NAVI, scale: 120}, restoreIcons: 'x'}), 100);
+    assert.equal(widgetScale(null), 100);
 });
 
 test('a refused widget binding falls back to the icon card and is reported', () => {
