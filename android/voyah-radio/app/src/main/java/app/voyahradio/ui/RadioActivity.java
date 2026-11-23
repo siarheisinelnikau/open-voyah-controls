@@ -29,7 +29,6 @@ import android.widget.EditText;
 import android.widget.AbsListView;
 import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
@@ -207,21 +206,15 @@ public final class RadioActivity extends Activity {
         LinearLayout header = wide ? horizontal() : vertical();
         header.setGravity(Gravity.CENTER_VERTICAL);
         page.addView(header, wrap(MATCH_PARENT));
-        LinearLayout brand = horizontal();
-        brand.setGravity(Gravity.CENTER_VERTICAL);
-        ImageView logo = new ImageView(this);
-        logo.setImageResource(R.drawable.radio_icon);
-        logo.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        brand.addView(logo, size(40, 40));
+        LinearLayout titleRow = header;
+        if (!wide) {
+            titleRow = horizontal();
+            titleRow.setGravity(Gravity.CENTER_VERTICAL);
+            header.addView(titleRow, wrap(MATCH_PARENT));
+        }
         TextView title = text(24, getColor(R.color.radio_text), true);
         title.setText(R.string.app_name);
-        LinearLayout.LayoutParams titleParams = wrap(WRAP_CONTENT);
-        titleParams.leftMargin = dp(10);
-        brand.addView(title, titleParams);
-        LinearLayout brandRow = horizontal();
-        brandRow.setGravity(Gravity.CENTER_VERTICAL);
-        brandRow.addView(brand, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
-        header.addView(brandRow, wide ? new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f) : wrap(MATCH_PARENT));
+        titleRow.addView(title, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
 
         View settings = iconButton(SETTINGS, getColor(R.color.radio_text), R.string.settings, () -> {
             hideKeyboard();
@@ -230,7 +223,7 @@ public final class RadioActivity extends Activity {
         settings.setBackground(actionBackground(getColor(R.color.radio_surface), 15, themeColor(R.attr.radio_edge_role)));
         LinearLayout.LayoutParams settingsParams = size(52, 52);
         settingsParams.leftMargin = dp(8);
-        if (!wide) brandRow.addView(settings, settingsParams);
+        if (!wide) titleRow.addView(settings, settingsParams);
 
         LinearLayout tabGroup = horizontal();
         tabGroup.setPadding(dp(4), dp(4), dp(4), dp(4));
