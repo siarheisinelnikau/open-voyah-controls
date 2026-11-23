@@ -16,9 +16,11 @@ const REQUEST_B = 'b'.repeat(32);
 const REQUEST_C = 'c'.repeat(32);
 const ISSUED = 1000;
 const EXPIRES = 6000;
+const BOOT_ID = 'a1b2c3d4-e5f6-1111-2222-333344445555';
 
-function configDoc(parts, request = REQUEST_A, send = false, issued = ISSUED, expires = EXPIRES) {
-    return JSON.stringify({schema: 1, request, ...(send ? {send: true, issued, expires} : {}), ...parts});
+function configDoc(parts, request = REQUEST_A, send = false, issued = ISSUED, expires = EXPIRES, boot = BOOT_ID) {
+    return JSON.stringify({schema: 1, request,
+        ...(send ? {send: true, boot, issued, expires} : {}), ...parts});
 }
 
 /** One Java member: overload selection, an implementation slot and a record of what the agent asked for. */
@@ -30,7 +32,8 @@ function member(options = {}) {
     Object.defineProperty(target, 'implementation', {
         get: () => implementation,
         set: value => {
-            if (options.throwOnImplement && value !== null) throw new Error('hook refused');
+            const fail = value === null ? options.throwOnRestore?.() : options.throwOnImplement?.();
+            if (fail) throw new Error(value === null ? 'hook restore refused' : 'hook refused');
             implementation = value;
         },
     });
@@ -50,21 +53,28 @@ function member(options = {}) {
  * A head unit with the factory settings classes present. `missing` names classes the installed software does not
  * offer; `failImplement` names parts whose second hook assignment throws after the first one was installed.
  */
-function headUnit({ config = '', missing = [], sendFails = false, failImplement = [], claim = '' } = {}) {
+function headUnit({ config = '', missing = [], sendFails = false, failImplement = [], failRestore = [],
+    putFails = [], claim = '', boot = BOOT_ID } = {}) {
     const published = [];
     const sends = [];
+    const failures = { implement: new Set(failImplement), restore: new Set(failRestore) };
     let stateDoc = '';
     let claimValue = claim;
     let now = ISSUED;
     const classes = {
         'android.os.Build': { PRODUCT: { value: 'H97D' } },
+        'java.io.FileReader': { $new: path => ({ path }) },
+        'java.io.BufferedReader': { $new: reader => ({ readLine: () => reader.path === '/proc/sys/kernel/random/boot_id'
+            ? boot : null, close: () => {} }) },
         'android.provider.Settings$Global': {
             getString: (resolver, key) => key === CONFIG_KEY ? config
                 : key === STATE_KEY ? stateDoc : key === CLAIM_KEY ? claimValue : null,
             putString: (resolver, key, value) => {
                 published.push({ key, value });
+                if (putFails.includes(key)) return false;
                 if (key === STATE_KEY) stateDoc = value;
                 if (key === CLAIM_KEY) claimValue = value;
+                return true;
             },
         },
         'android.app.ActivityThread': {
@@ -76,7 +86,8 @@ function headUnit({ config = '', missing = [], sendFails = false, failImplement 
         },
         'com.qinggan.app.vehiclesetting.fragments.driveassistance.adas.BaiduProviderUtil': {
             doQuerySubscribeInfo: member({ overloads: [['android.content.Context']],
-                throwOnImplement: failImplement.includes('subscription') }),
+                throwOnImplement: () => failures.implement.has('subscription'),
+                throwOnRestore: () => failures.restore.has('subscription') }),
         },
         'com.qinggan.app.vehiclesetting.fragments.driveassistance.adas.DriveAssistanceAdasStatusManager': {
             instance: member({
@@ -91,12 +102,17 @@ function headUnit({ config = '', missing = [], sendFails = false, failImplement 
             }),
         },
         'com.qinggan.app.vehiclesetting.fragments.driveassistance.utils.Utils': {
-            is97Y: member({ overloads: [[]], returns: false, throwOnImplement: failImplement.includes('equipment') }),
-            is97C: member({ overloads: [[]], returns: false, throwOnImplement: failImplement.includes('equipment') }),
+            is97Y: member({ overloads: [[]], returns: false,
+                throwOnImplement: () => failures.implement.has('equipment'),
+                throwOnRestore: () => failures.restore.has('equipment') }),
+            is97C: member({ overloads: [[]], returns: false,
+                throwOnImplement: () => failures.implement.has('equipment'),
+                throwOnRestore: () => failures.restore.has('equipment') }),
         },
         'com.qinggan.utils.AppCommonUtils': {
             isOverSeaVehicle: member({ overloads: [[]], returns: true,
-                throwOnImplement: failImplement.includes('region') }),
+                throwOnImplement: () => failures.implement.has('region'),
+                throwOnRestore: () => failures.restore.has('region') }),
         },
     };
     for (const name of missing) delete classes[name];
@@ -110,6 +126,7 @@ function headUnit({ config = '', missing = [], sendFails = false, failImplement 
     return {
         api, classes, logs, published, sends, Java, tick,
         setNow: value => { now = value; },
+        healRestore: () => failures.restore.clear(),
         claim: () => claimValue,
         state: () => JSON.parse(published.at(-1).value),
         install: () => api.installApolloFactory(Java),
@@ -126,7 +143,8 @@ test('only the document Controls writes asks for anything, and an unreadable one
     assert.deepEqual({ ...apolloConfig(configDoc({ subscription: true })) },
         { subscription: true, request: REQUEST_A, send: false });
     assert.deepEqual({ ...apolloConfig(configDoc({ controller: true, equipment: true }, REQUEST_B, true)) },
-        { controller: true, equipment: true, request: REQUEST_B, send: true, issued: ISSUED, expires: EXPIRES });
+        { controller: true, equipment: true, request: REQUEST_B, send: true, boot: BOOT_ID,
+          issued: ISSUED, expires: EXPIRES });
     for (const raw of ['', null, 'not json', '{"schema":2,"subscription":true}', '{"schema":1}',
         '{"schema":1,"subscription":false}', '{"schema":1,"subscription":"yes"}', '{"schema":1,"other":true}',
         '{"schema":1,"subscription":true}', configDoc({ subscription: true }, 'not-a-request'),
@@ -137,7 +155,8 @@ test('only the document Controls writes asks for anything, and an unreadable one
     // A permit without a controller switch, a deadline or a wall-clock issue time is not a send request.
     assert.equal(apolloConfig(JSON.stringify({schema: 1, request: REQUEST_A, send: true, subscription: true})).send, false);
     for (const bad of [{issued: ISSUED}, {expires: EXPIRES}, {issued: 0, expires: EXPIRES},
-        {issued: EXPIRES, expires: ISSUED}, {issued: '1000', expires: EXPIRES}]) {
+        {issued: EXPIRES, expires: ISSUED}, {issued: '1000', expires: EXPIRES},
+        {issued: ISSUED, expires: EXPIRES, boot: 'not-a-boot-id'}, {issued: ISSUED, expires: EXPIRES}]) {
         assert.equal(apolloConfig(JSON.stringify({schema: 1, request: REQUEST_A, send: true, controller: true,
             ...bad})).send, false, JSON.stringify(bad));
     }
@@ -145,13 +164,15 @@ test('only the document Controls writes asks for anything, and an unreadable one
 
 test('the published state ties each part to the request and never claims a verified controller state', () => {
     const { apolloState } = headUnit().api;
-    assert.deepEqual(JSON.parse(apolloState(['subscription'], null, null, new Set(['controller']), REQUEST_A, 2)),
+    assert.deepEqual(JSON.parse(apolloState(['subscription'], null, null, new Set(['controller']), new Set(), REQUEST_A, 2)),
         { schema: 1, request: REQUEST_A, sent: 2, subscription: 'applied', controller: 'unavailable', equipment: 'off' });
-    assert.deepEqual(JSON.parse(apolloState([], REQUEST_B, null, new Set(), REQUEST_B, 1)),
+    assert.deepEqual(JSON.parse(apolloState([], REQUEST_B, null, new Set(), new Set(), REQUEST_B, 1)),
         { schema: 1, request: REQUEST_B, sent: 1, subscription: 'off', controller: 'requested', equipment: 'off' });
-    assert.deepEqual(JSON.parse(apolloState([], null, REQUEST_C, new Set(), REQUEST_C, 1)),
+    assert.deepEqual(JSON.parse(apolloState([], null, REQUEST_C, new Set(), new Set(), REQUEST_C, 1)),
         { schema: 1, request: REQUEST_C, sent: 1, subscription: 'off', controller: 'uncertain', equipment: 'off' });
-    assert.deepEqual(JSON.parse(apolloState([], null, null, new Set(), null, 0)),
+    assert.deepEqual(JSON.parse(apolloState([], null, null, new Set(), new Set(['equipment']), REQUEST_A, 0)),
+        { schema: 1, request: REQUEST_A, sent: 0, subscription: 'off', controller: 'off', equipment: 'partial' });
+    assert.deepEqual(JSON.parse(apolloState([], null, null, new Set(), new Set(), null, 0)),
         { schema: 1, sent: 0, subscription: 'off', controller: 'off', equipment: 'off' });
 });
 
@@ -214,6 +235,25 @@ test('a controller switch without a Park-checked permit sends nothing', () => {
     assert.equal(unit.sends.length, 0);
     assert.equal(unit.claim(), '');
     assert.equal(unit.state().controller, 'off');
+});
+
+test('a permit from another boot is refused even when the clock is back inside its window', () => {
+    const otherBoot = 'b1b2c3d4-e5f6-2222-3333-444455556666';
+    const unit = headUnit({ boot: otherBoot });
+    unit.config(configDoc({ controller: true }, REQUEST_A, true, ISSUED, EXPIRES, BOOT_ID));
+    unit.tick();
+    assert.equal(unit.sends.length, 0);
+    assert.equal(unit.claim(), '');
+    assert.equal(unit.state().controller, 'off');
+});
+
+test('no send happens unless the replay claim was stored successfully', () => {
+    const unit = headUnit({ putFails: [CLAIM_KEY] });
+    unit.config(configDoc({ controller: true }, REQUEST_A, true));
+    unit.tick();
+    assert.equal(unit.sends.length, 0);
+    assert.equal(unit.claim(), '');
+    assert.equal(unit.state().controller, 'unavailable');
 });
 
 test('a permit issued before a reboot or with a reset clock cannot send for the boot agent', () => {
@@ -317,6 +357,30 @@ test('a hook installation that throws mid-part rolls back the hooks installed be
     }
 });
 
+test('a hook that cannot be removed stays on record as a partial substitution until it is restored', () => {
+    const unit = headUnit({ failImplement: ['region'], failRestore: ['equipment'] });
+    const utils = unit.classes['com.qinggan.app.vehiclesetting.fragments.driveassistance.utils.Utils'];
+    const region = unit.classes['com.qinggan.utils.AppCommonUtils'];
+
+    unit.config(configDoc({ subscription: true, equipment: true }, REQUEST_A));
+    unit.tick();
+    assert.equal(unit.state().equipment, 'partial');
+    assert.notEqual(utils.is97C.implementation, null, 'a failed removal is not silently forgotten');
+    assert.notEqual(utils.is97Y.implementation, null);
+    assert.equal(region.isOverSeaVehicle.implementation, null);
+    assert.equal(unit.state().subscription, 'applied');
+
+    unit.config('');
+    unit.tick();
+    assert.equal(unit.state().equipment, 'partial', 'retry still failing keeps the honest status');
+
+    unit.healRestore();
+    unit.tick();
+    assert.equal(utils.is97C.implementation, null);
+    assert.equal(utils.is97Y.implementation, null);
+    assert.equal(unit.state().equipment, 'off');
+});
+
 test('a factory settings process without the subscription class is reported, not guessed at', () => {
     const unit = headUnit({
         missing: ['com.qinggan.app.vehiclesetting.fragments.driveassistance.adas.BaiduProviderUtil'],
@@ -333,6 +397,8 @@ test('Controls gates the send on live Park, bounds it across reboot and rolls ba
     assert.match(bridge, /boolean send = enabled && "controller"\.equals\(part\)/);
     assert.match(bridge, /sendRecognizedVoice\("ParkingPreflight", new JSONObject\(\)\)/);
     assert.match(bridge, /"OVC_PARKING_READY"\.equals\(parking\.message\(\)\)/);
+    assert.match(bridge, /String boot = send \? currentBootId\(\) : ""/);
+    assert.match(bridge, /currentBootId\(\)|kernel\/random\/boot_id/);
     assert.match(bridge, /long issued = send \? System\.currentTimeMillis\(\) : 0L/);
     assert.match(bridge, /if \(saved\) restoreApolloPart\(part, previous\)/);
     assert.match(bridge, /publishApolloConfig\(send\)/);

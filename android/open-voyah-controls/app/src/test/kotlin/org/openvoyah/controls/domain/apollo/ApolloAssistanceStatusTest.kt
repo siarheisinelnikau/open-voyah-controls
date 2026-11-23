@@ -42,6 +42,14 @@ class ApolloAssistanceStatusTest {
         assertTrue(status.applied.isEmpty())
     }
 
+    @Test fun aSubstitutionThatCannotBeTakenBackIsNamedAsPartial() {
+        val status = ApolloAssistanceStatus.parse(
+            "{\"schema\":1,\"request\":\"${"e".repeat(32)}\",\"equipment\":\"partial\",\"sent\":0}")
+        assertEquals(setOf("equipment"), status.partial)
+        assertTrue(status.unavailable.isEmpty())
+        assertTrue(status.applied.isEmpty())
+    }
+
     @Test fun onlyTheReportForTheCurrentRequestIsShown() {
         val request = "c".repeat(32)
         val current = ApolloAssistanceStatus.parse(

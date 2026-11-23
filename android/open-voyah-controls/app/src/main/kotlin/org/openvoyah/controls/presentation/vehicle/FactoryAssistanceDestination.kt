@@ -307,6 +307,9 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
                     state.status.uncertain.takeIf { it.isNotEmpty() }?.let {
                         CockpitFeedback(UiText.get(R.string.factory_assistance_answers_controller_uncertain))
                     }
+                    state.status.partial.takeIf { it.isNotEmpty() }?.let {
+                        CockpitFeedback(UiText.get(R.string.factory_assistance_answers_partial).format(it.joinToString(", ")))
+                    }
                 }
                 state.applyError?.let { CockpitFeedback(it, error = true) }
                 Text(UiText.get(R.string.factory_assistance_answers_note), style = MaterialTheme.typography.bodyMedium,

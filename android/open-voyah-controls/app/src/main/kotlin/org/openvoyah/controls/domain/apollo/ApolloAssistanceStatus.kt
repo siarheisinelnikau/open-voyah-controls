@@ -12,6 +12,7 @@ internal data class ApolloAssistanceStatus(
     val unavailable: Set<String>,
     val requested: Set<String> = emptySet(),
     val uncertain: Set<String> = emptySet(),
+    val partial: Set<String> = emptySet(),
     val request: String? = null,
 ) {
     /** Whether this report answers the config Controls most recently published. A stale report answers nothing. */
@@ -34,7 +35,8 @@ internal data class ApolloAssistanceStatus(
             val unavailable = PARTS.filter { raw.contains("\"$it\":\"unavailable\"") }.toSet()
             val requested = PARTS.filter { raw.contains("\"$it\":\"requested\"") }.toSet()
             val uncertain = PARTS.filter { raw.contains("\"$it\":\"uncertain\"") }.toSet()
-            return ApolloAssistanceStatus(true, applied, unavailable, requested, uncertain, request)
+            val partial = PARTS.filter { raw.contains("\"$it\":\"partial\"") }.toSet()
+            return ApolloAssistanceStatus(true, applied, unavailable, requested, uncertain, partial, request)
         }
     }
 }
