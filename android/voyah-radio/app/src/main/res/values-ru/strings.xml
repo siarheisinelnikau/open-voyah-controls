@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Voyah Radio</string>
+    <string name="belarus">Беларусь</string>
+    <string name="international">Другие страны</string>
+    <string name="favorites">Избранное</string>
+    <string name="station_search">Найти станцию</string>
+    <string name="clear_search">Очистить поиск</string>
+    <string name="no_results">Ничего не найдено</string>
+    <string name="empty_favorites">Нажмите звезду рядом со станцией, чтобы сохранить её</string>
+    <string name="ready">Готово к эфиру</string>
+    <string name="connecting">Подключение…</string>
+    <string name="buffering">Буферизация…</string>
+    <string name="reconnecting">Повторное подключение…</string>
+    <string name="live">В эфире</string>
+    <string name="paused">На паузе</string>
+    <string name="stream_error">Эфир недоступен. Повторите попытку или выберите другую станцию.</string>
+    <string name="focus_error">Звук занят другим приложением. Попробуйте ещё раз.</string>
+    <string name="play">Включить</string>
+    <string name="pause">Пауза</string>
+    <string name="retry">Повторить</string>
+    <string name="previous">Предыдущая станция</string>
+    <string name="next">Следующая станция</string>
+    <string name="add_favorite">Добавить «%1$s» в избранное</string>
+    <string name="remove_favorite">Убрать «%1$s» из избранного</string>
+    <string name="on_air_channel">Воспроизведение радио</string>
+</resources>

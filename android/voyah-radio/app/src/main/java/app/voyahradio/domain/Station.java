@@ -1,0 +1,57 @@
+package app.voyahradio.domain;
+
+import java.net.URI;
+import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+
+public final class Station {
+    public final String id;
+    public final String name;
+    public final String label;
+    public final String aliases;
+    public final boolean local;
+    public final List<String> streams;
+    private final String searchText;
+
+    public Station(String id, String name, String label, String aliases,
+                   boolean local, List<String> streams) {
+        if (id.trim().isEmpty() || name.trim().isEmpty() || streams.isEmpty()) {
+            throw new IllegalArgumentException("Incomplete station");
+        }
+        for (String url : streams) {
+            URI uri = URI.create(url);
+            if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
+                    || uri.getHost() == null || uri.getUserInfo() != null) {
+                throw new IllegalArgumentException("Invalid stream URL: " + url);
+            }
+        }
+        this.id = id;
+        this.name = name;
+        this.label = label;
+        this.aliases = aliases;
+        this.local = local;
+        this.streams = Collections.unmodifiableList(new ArrayList<>(streams));
+        this.searchText = normalize(name + " " + label + " " + aliases);
+    }
+
+    public boolean matches(String[] words) {
+        for (String word : words) {
+            if (!searchText.contains(word)) return false;
+        }
+        return true;
+    }
+
+    public static String[] searchWords(String text) {
+        return normalize(text).split(" ");
+    }
+
+    private static String normalize(String text) {
+        return Normalizer.normalize(text.toLowerCase(Locale.ROOT).replace('ё', 'е'), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .replaceAll("[^\\p{L}\\p{N}]+", " ")
+                .trim();
+    }
+}

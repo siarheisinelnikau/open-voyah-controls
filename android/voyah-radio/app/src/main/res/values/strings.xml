@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Voyah Radio</string>
+    <string name="belarus">Belarus</string>
+    <string name="international">International</string>
+    <string name="favorites">Favorites</string>
+    <string name="station_search">Find a station</string>
+    <string name="clear_search">Clear search</string>
+    <string name="no_results">No stations found</string>
+    <string name="empty_favorites">Tap the star next to a station to save it here</string>
+    <string name="ready">Ready to play</string>
+    <string name="connecting">Connecting…</string>
+    <string name="buffering">Buffering…</string>
+    <string name="reconnecting">Trying another connection…</string>
+    <string name="live">On air</string>
+    <string name="paused">Paused</string>
+    <string name="stream_error">Stream unavailable. Try again or choose another station.</string>
+    <string name="focus_error">Audio is in use. Try again when it is available.</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="retry">Retry</string>
+    <string name="previous">Previous station</string>
+    <string name="next">Next station</string>
+    <string name="add_favorite">Add %1$s to favorites</string>
+    <string name="remove_favorite">Remove %1$s from favorites</string>
+    <string name="on_air_channel">Radio playback</string>
+</resources>
