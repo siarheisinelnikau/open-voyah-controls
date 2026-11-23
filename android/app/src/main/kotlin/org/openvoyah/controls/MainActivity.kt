@@ -188,7 +188,8 @@ class MainActivity : ComponentActivity() {
         routinePreferences.runStartup(request) { plan -> dispatchRoutine(plan, app, shownRoute) }
 
     private suspend fun runManualRoutine(routine: NamedRoutine, entry: ControlsNavigationState): Int? {
-        if (entry.route != ControlsRoute.ROUTINES) throw CancellationException()
+        // The routine list has its own page and is drawn in Settings → Routines and automation.
+        if (entry.route != ControlsRoute.ROUTINES && entry.route != ControlsRoute.VEHICLE_AUTOMATION) throw CancellationException()
         return runRoutineFromEntry(routine, entry)
     }
 

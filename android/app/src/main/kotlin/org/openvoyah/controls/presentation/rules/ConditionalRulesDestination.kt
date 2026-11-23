@@ -141,7 +141,7 @@ private fun ConditionalRuleEditor(draft: ConditionalRuleDraft, state: Conditiona
         else -> null
     }
     fun choose(value: RulePicker) { focus.clearFocus(); picker = value }
-    CockpitDetail(text(if (draft.original == null) R.string.rules_create else R.string.rules_edit), null, model::closeEditor) {
+    CockpitDetail(text(if (draft.original == null) R.string.rules_create else R.string.rules_edit), null, model::closeEditor, nested = true) {
         CockpitTextField(draft.name, model::name, text(R.string.rules_name), Modifier.fillMaxWidth(), enabled = enabled,
             error = draft.name.isNotEmpty() && (!draft.validName || duplicateName),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }))

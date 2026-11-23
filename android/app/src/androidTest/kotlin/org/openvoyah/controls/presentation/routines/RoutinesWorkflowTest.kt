@@ -85,8 +85,11 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             // Settings → Routines and automation → My routines.
             click(UiText.get(R.string.settings_section_automation))
             awaitRoute(ControlsRoute.VEHICLE_AUTOMATION)
+            // The chip moves the page to the routines group of the same section.
             click(UiText.get(R.string.settings_my_routines))
-            awaitRoute(ControlsRoute.ROUTINES)
+            await("My routines on the same page") {
+                nodes().any { it.isVisibleToUser && it.text?.toString() == UiText.get(R.string.routines_create) }
+            }
             click(UiText.get(R.string.routines_create))
             enterText(commute)
             choose(UiText.get(R.string.routines_page), favoriteSlot)
@@ -437,8 +440,11 @@ class RoutinesWorkflowTest : InstrumentationTestCase() {
             // Settings → Routines and automation → My routines.
             click(UiText.get(R.string.settings_section_automation))
             awaitRoute(ControlsRoute.VEHICLE_AUTOMATION)
+            // The chip moves the page to the routines group of the same section.
             click(UiText.get(R.string.settings_my_routines))
-            awaitRoute(ControlsRoute.ROUTINES)
+            await("My routines on the same page") {
+                nodes().any { it.isVisibleToUser && it.text?.toString() == UiText.get(R.string.routines_create) }
+            }
             click(UiText.get(R.string.routines_edit_named).format(name))
             click(UiText.get(R.string.routines_app))
             click(UiText.get(R.string.routines_app_none))

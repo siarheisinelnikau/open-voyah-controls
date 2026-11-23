@@ -150,8 +150,8 @@ class VehicleWorkflowsTest : InstrumentationTestCase() {
             capture("vehicle-automation")
 
             scrollTo(label(R.string.vehicle_automation_climate), backwards = true)
+            // The chip moves the page to the seasonal climate group of the same section.
             click(label(R.string.vehicle_automation_climate))
-            awaitRoute(activity, ControlsRoute.SEASONAL_CLIMATE)
             awaitText(label(R.string.seasonal_climate_summer))
             assertNoEnabledClick(label(R.string.seasonal_climate_apply))
             instrumentation.runOnMainSync { assertTrue(activity.seasonalClimateModel().state.value.approved.isEmpty()) }
@@ -168,27 +168,32 @@ class VehicleWorkflowsTest : InstrumentationTestCase() {
                     it.getInt("outsideThresholdCelsius") == 27 && it.getInt("driverCelsius") == 20 && it.getInt("fanLevel") == 5
                 }
             }
-            click(label(R.string.cockpit_back))
+            // Inside the section the editor closes with its own button; Back belongs to the section.
+            scrollTo(label(R.string.ui_172), backwards = true)
+            click(label(R.string.ui_172))
             awaitText(label(R.string.seasonal_climate_summer))
+            scrollTo(label(R.string.seasonal_climate_enabled))
             click(label(R.string.seasonal_climate_enabled))
             await("The summer scenario toggle did not persist") {
                 LocalSeasonalClimatePreferences(app).exportSettings().getJSONObject("summer").getBoolean("enabled")
             }
             assertNoEnabledClick(label(R.string.seasonal_climate_apply))
             capture("seasonal-climate")
-            click(label(R.string.cockpit_back))
-            awaitRoute(activity, ControlsRoute.VEHICLE_AUTOMATION)
+            assertEquals(ControlsRoute.VEHICLE_AUTOMATION, ViewModelProvider(activity)[ControlsNavigationViewModel::class.java].state.value.route)
 
-            scrollTo(label(R.string.vehicle_automation_rules), backwards = true)
-            click(label(R.string.vehicle_automation_rules))
-            awaitRoute(activity, ControlsRoute.CONDITIONAL_RULES)
+            // The rules are a group further down the same page.
+            scrollTo(label(R.string.rules_create))
+            awaitText(label(R.string.rules_create))
             click(label(R.string.rules_create))
             awaitText(label(R.string.rules_name))
             setField(label(R.string.rules_name), RULE_NAME)
+            scrollTo(label(R.string.rules_doors))
             click(label(R.string.rules_doors))
             click(label(R.string.rules_all_closed))
+            scrollTo(label(R.string.rules_routine))
             click(label(R.string.rules_routine))
             click(ROUTINE_NAME)
+            scrollTo(label(R.string.rules_enabled))
             click(label(R.string.rules_enabled))
             scrollTo(label(R.string.rules_save))
             click(label(R.string.rules_save))
@@ -199,18 +204,21 @@ class VehicleWorkflowsTest : InstrumentationTestCase() {
             assertEquals(DoorRequirement.ALL_CLOSED, created.doors)
             assertEquals(ROUTINE_NAME, created.routine.name)
             assertTrue(created.enabled)
+            scrollTo(RULE_NAME)
             awaitText(RULE_NAME)
             click(RULE_NAME)
+            scrollTo(label(R.string.rules_edit), backwards = true)
             awaitText(label(R.string.rules_edit))
+            scrollTo(label(R.string.rules_cooldown))
             click(label(R.string.rules_cooldown))
             click(label(R.string.rules_seconds).format(60))
             capture("rule-editor")
+            scrollTo(label(R.string.rules_save))
             click(label(R.string.rules_save))
             await("The edited rule did not persist") { ConditionalRulesPreferences(app).current().entries.single().cooldownSeconds == 60 }
+            scrollTo(RULE_NAME)
             awaitText(RULE_NAME)
             capture("conditional-rules")
-            click(label(R.string.cockpit_back))
-            awaitRoute(activity, ControlsRoute.VEHICLE_AUTOMATION)
 
             // The factory assistants are reached from Vehicle only.
             click(label(R.string.cockpit_back))
@@ -218,9 +226,8 @@ class VehicleWorkflowsTest : InstrumentationTestCase() {
             scrollTo(label(R.string.settings_section_vehicle))
             click(label(R.string.settings_section_vehicle))
             awaitRoute(activity, ControlsRoute.VEHICLE)
-            scrollTo(label(R.string.factory_assistance_title))
-            click(label(R.string.factory_assistance_title))
-            awaitRoute(activity, ControlsRoute.FACTORY_ASSISTANCE)
+            // Driver assistance is a group of the Vehicle page.
+            scrollTo(label(R.string.factory_assistance_setup))
             awaitText(label(R.string.factory_assistance_setup))
             assertNoEnabledClick(label(R.string.vehicle_settings_open))
             click(label(R.string.factory_assistance_check))

@@ -66,10 +66,13 @@
     <string name="settings_media_access_on">Доступ разрешён.</string>
     <string name="settings_media_access_off">Доступ не разрешён.</string>
     <string name="settings_media_access_open">Открыть настройки доступа Android</string>
-    <string name="settings_media_restart_title">Мультимедиа</string>
     <string name="settings_cluster_summary">Установка или восстановление русификации приборки из локального ZIP</string>
     <string name="settings_cards_heading">Что показывать на столах</string>
     <string name="settings_wallpaper_heading">Вид обоев</string>
     <string name="settings_start_heading">Запуск Controls</string>
     <string name="settings_part_service">Обслуживание</string>
+    <string name="settings_media_restart_link">Рядом с перезагрузкой системы, в разделе «Система → О приложении и перезапуск»</string>
+    <string name="settings_part_vehicle_main">Фары, салон и штатные меню</string>
+    <string name="settings_part_automation_vehicle">Фары и режим вождения</string>
+    <string name="settings_android_title">Android</string>
 </resources>

@@ -45,8 +45,10 @@ internal data class ControlsNavigationState(
     val driverMemoryGuide: SeatMemoryPrompt.Factory? = null,
     val seatMemoryVisit: Any? = null,
     val arrival: RouteArrival = RouteArrival(0),
-    // The part of a Settings section that a search result opened; kept in memory only.
+    // The part of a Settings section that a search result or a jump row opened; kept in memory only. Every request
+    // counts up, so asking for the same group again scrolls to it again.
     val focus: String? = null,
+    val focusRequest: Long = 0,
 ) {
     val route: ControlsRoute get() = stack.last()
 }
@@ -160,7 +162,8 @@ internal class ControlsNavigationViewModel(private val saved: SavedStateHandle) 
         val previous = current.value
         if (route == previous.route) {
             if (palette != previous.temporaryPalette || focus != null) {
-                publish(previous.copy(temporaryPalette = palette, focus = focus ?: previous.focus))
+                publish(previous.copy(temporaryPalette = palette, focus = focus ?: previous.focus,
+                    focusRequest = previous.focusRequest + if (focus != null) 1 else 0))
             }
             return
         }
@@ -168,7 +171,7 @@ internal class ControlsNavigationViewModel(private val saved: SavedStateHandle) 
         val stack = if (existing >= 0) previous.stack.take(existing + 1) else previous.stack + route
         val direction = if (existing >= 0) RouteDirection.BACK else RouteDirection.FORWARD
         publish(previous.copy(stack = stack, direction = direction, temporaryPalette = palette, driverMemoryGuide = null,
-            focus = focus))
+            focus = focus, focusRequest = previous.focusRequest + if (focus != null) 1 else 0))
     }
 
     fun back() {

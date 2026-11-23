@@ -155,7 +155,7 @@ internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier, tint
 }
 
 @Composable
-internal fun CockpitHeading(title: String, subtitle: String? = null, back: (() -> Unit)? = null) {
+internal fun CockpitHeading(title: String, subtitle: String? = null, back: (() -> Unit)? = null, closes: Boolean = false) {
     val layout = LocalCockpitLayout.current
     Row(
         Modifier.fillMaxWidth(),
@@ -170,8 +170,9 @@ internal fun CockpitHeading(title: String, subtitle: String? = null, back: (() -
                 ),
                 shape = MaterialTheme.shapes.medium,
             ) {
-                CockpitGlyph(CockpitIcon.BACK, Modifier.size(20.dp))
-                Text(UiText.get(R.string.cockpit_back), Modifier.padding(start = layout.spacing(6.dp)))
+                // An editor inside a section closes; Back stays the section's own button at the top of the page.
+                CockpitGlyph(if (closes) CockpitIcon.CLOSE else CockpitIcon.BACK, Modifier.size(20.dp))
+                Text(UiText.get(if (closes) R.string.ui_172 else R.string.cockpit_back), Modifier.padding(start = layout.spacing(6.dp)))
             }
         }
         Column(Modifier.weight(1f)) {

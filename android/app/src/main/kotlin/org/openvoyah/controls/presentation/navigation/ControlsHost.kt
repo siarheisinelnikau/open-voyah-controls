@@ -60,10 +60,12 @@ import org.openvoyah.controls.presentation.permissions.ActionPermissionsDestinat
 import org.openvoyah.controls.presentation.keyboard.KeyboardDestination
 import org.openvoyah.controls.presentation.routines.RoutinesDestination
 import org.openvoyah.controls.presentation.settings.RecentSettingsWatcher
+import org.openvoyah.controls.presentation.settings.SettingsPartId
 import org.openvoyah.controls.presentation.settings.VisibleSettingsPart
 import org.openvoyah.controls.presentation.rules.ConditionalRulesDestination
 import org.openvoyah.controls.presentation.seatmemory.SeatMemoryDestination
 import org.openvoyah.controls.presentation.theme.CockpitMotion
+import org.openvoyah.controls.presentation.theme.LocalCockpitEmbedded
 import org.openvoyah.controls.presentation.theme.LocalCockpitEntrance
 import org.openvoyah.controls.presentation.updates.UpdatesDestination
 import org.openvoyah.controls.presentation.vehicle.KeepHeadlightsObserved
@@ -124,6 +126,71 @@ internal fun ControlsHost(
         try { activity.startActivity(intent) }
         catch (_: RuntimeException) { lamps.endFactoryLightingVisit(); lamps.openFailed() }
     }
+
+    /**
+     * The page of [route]. A Settings section embeds the pages that belong to it by calling this with [raw] set and
+     * LocalCockpitEmbedded on; [raw] also keeps the Vehicle and Routines and automation pages themselves, which are
+     * otherwise drawn as sections around them.
+     */
+    @Composable
+    fun Page(route: ControlsRoute, destination: ControlsNavigationState, raw: Boolean) {
+        val embed: @Composable (ControlsRoute) -> Unit = { inner ->
+            CompositionLocalProvider(LocalCockpitEmbedded provides true) { Page(inner, destination, raw = true) }
+        }
+        when (route) {
+            ControlsRoute.APPS -> AppsDestination(destination.entry, destination.entryDesktop, navigation::open,
+                listen, animateDesktopPaging = look.settings?.animateRoutes == true)
+            ControlsRoute.SETTINGS, ControlsRoute.BUTTONS, ControlsRoute.HOME_SCREEN, ControlsRoute.WINDOWS,
+            ControlsRoute.SOUND, ControlsRoute.APPEARANCE, ControlsRoute.LANGUAGE, ControlsRoute.SYSTEM ->
+                ControlsSettingsDestination(route, destination.focus, destination.focusRequest, navigation::back, navigation::open,
+                    navigation::open, appearance, navigation::clearTemporaryPalette,
+                    vehicleReport = { showVehicleDiagnostics = true }, embed = embed)
+            ControlsRoute.VOICE -> VoiceDestination(navigation::back, listen)
+            ControlsRoute.DISPLAY -> DisplayDestination(navigation::back)
+            ControlsRoute.VEHICLE -> if (!raw) {
+                ControlsSettingsDestination(route, destination.focus, destination.focusRequest, navigation::back, navigation::open,
+                    navigation::open, appearance, navigation::clearTemporaryPalette,
+                    vehicleReport = { showVehicleDiagnostics = true }, embed = embed)
+            } else VehicleSettingsDestination(navigation::back,
+                seatMemory = { navigation.open(ControlsRoute.SEAT_MEMORY) },
+                // Drawn inside Settings → Vehicle, these rows move the page to the group instead of opening a page.
+                serviceReminder = { navigation.open(ControlsRoute.VEHICLE, SettingsPartId.VEHICLE_SERVICE.name) },
+                assistance = { navigation.open(ControlsRoute.VEHICLE, SettingsPartId.VEHICLE_ASSISTANCE.name) },
+            )
+            ControlsRoute.VEHICLE_AUTOMATION -> if (!raw) {
+                ControlsSettingsDestination(route, destination.focus, destination.focusRequest, navigation::back, navigation::open,
+                    navigation::open, appearance, navigation::clearTemporaryPalette,
+                    vehicleReport = { showVehicleDiagnostics = true }, embed = embed)
+            } else VehicleAutomationDestination(activity.vehicleAutomationModel(), navigation::back,
+                climate = { navigation.open(ControlsRoute.VEHICLE_AUTOMATION, SettingsPartId.AUTOMATION_CLIMATE.name) },
+                rules = { navigation.open(ControlsRoute.VEHICLE_AUTOMATION, SettingsPartId.AUTOMATION_RULES.name) },
+                routines = { navigation.open(ControlsRoute.VEHICLE_AUTOMATION, SettingsPartId.AUTOMATION_ROUTINES.name) },
+                factoryLighting = factory.intent(FactoryVehicleDestination.LIGHTING)?.let { { openFactory(FactoryVehicleDestination.LIGHTING) } },
+                factoryDriving = factory.intent(FactoryVehicleDestination.VEHICLE)?.let { { openFactory(FactoryVehicleDestination.VEHICLE) } },
+            )
+            ControlsRoute.SEASONAL_CLIMATE -> SeasonalClimateDestination(activity.seasonalClimateModel(), navigation::back)
+            ControlsRoute.CONDITIONAL_RULES -> ConditionalRulesDestination(navigation::back, editRoutines = {
+                if (raw) navigation.open(ControlsRoute.VEHICLE_AUTOMATION, SettingsPartId.AUTOMATION_ROUTINES.name)
+                else navigation.open(ControlsRoute.ROUTINES)
+            })
+            ControlsRoute.FACTORY_ASSISTANCE -> FactoryAssistanceDestination(navigation::back) { showVehicleDiagnostics = true }
+            ControlsRoute.SEAT_MEMORY -> SeatMemoryDestination(destination, navigation, active = destination === state)
+            ControlsRoute.SERVICE_REMINDER -> ServiceReminderDestination(navigation::back)
+            ControlsRoute.QUICK_ACTIONS -> QuickActionsDestination(dock, dockState, navigation::back)
+            ControlsRoute.ROUTINES -> RoutinesDestination(navigation::back) { routine ->
+                // Inside a section a jump to a group replaces the state of the same page; the page is still current.
+                val current = navigation.state.value
+                runRoutine(routine, if (current.route == destination.route && current.entry == destination.entry) current else destination)
+            }
+            ControlsRoute.CLUSTER -> ClusterDestination(navigation::back)
+            ControlsRoute.UPDATES -> UpdatesDestination(navigation::back)
+            ControlsRoute.DIAGNOSTICS -> DiagnosticsDestination(navigation::back)
+            ControlsRoute.KEYBOARD -> KeyboardDestination(navigation::back)
+            ControlsRoute.ACTION_PERMISSIONS -> ActionPermissionsDestination(navigation::back)
+            ControlsRoute.TEXT_OVERLAYS -> TextOverlaysDestination(navigation::back)
+        }
+    }
+
     val dockEntry = state
     QuickActionsHost(dockState.settings ?: QuickActionSettings(), dockEntry.route, navigation::open, navigation::enterApps, dock,
         dockState.routineShortcut, runRoutineShortcut = { routine ->
@@ -142,52 +209,19 @@ internal fun ControlsHost(
             val route = destination.route
             // The virtual display hosts a SurfaceView, which a draw-layer fade cannot move on Android 9 and 11.
             val arrives = destination.direction != RouteDirection.BACK && destination.arrival.number > shownBefore &&
-                route != ControlsRoute.DISPLAY
+                route !in SURFACE_ROUTES
             DestinationFrame(active = route == state.route, arrives = arrives) {
                 screens.SaveableStateProvider(route.name) {
-                    when (route) {
-                        ControlsRoute.APPS -> AppsDestination(destination.entry, destination.entryDesktop, navigation::open,
-                            listen, animateDesktopPaging = look.settings?.animateRoutes == true)
-                        ControlsRoute.SETTINGS, ControlsRoute.BUTTONS, ControlsRoute.HOME_SCREEN, ControlsRoute.WINDOWS,
-                        ControlsRoute.SOUND, ControlsRoute.APPEARANCE, ControlsRoute.LANGUAGE, ControlsRoute.SYSTEM ->
-                            ControlsSettingsDestination(route, destination.focus, navigation::back, navigation::open,
-                                navigation::open, appearance, navigation::clearTemporaryPalette,
-                                vehicleReport = { showVehicleDiagnostics = true })
-                        ControlsRoute.VOICE -> VoiceDestination(navigation::back, listen)
-                        ControlsRoute.DISPLAY -> DisplayDestination(navigation::back)
-                        ControlsRoute.VEHICLE -> VehicleSettingsDestination(navigation::back,
-                            seatMemory = { navigation.open(ControlsRoute.SEAT_MEMORY) },
-                            serviceReminder = { navigation.open(ControlsRoute.SERVICE_REMINDER) },
-                            assistance = { navigation.open(ControlsRoute.FACTORY_ASSISTANCE) },
-                        )
-                        ControlsRoute.VEHICLE_AUTOMATION -> VehicleAutomationDestination(activity.vehicleAutomationModel(), navigation::back,
-                            climate = { navigation.open(ControlsRoute.SEASONAL_CLIMATE) },
-                            rules = { navigation.open(ControlsRoute.CONDITIONAL_RULES) },
-                            routines = { navigation.open(ControlsRoute.ROUTINES) },
-                            factoryLighting = factory.intent(FactoryVehicleDestination.LIGHTING)?.let { { openFactory(FactoryVehicleDestination.LIGHTING) } },
-                            factoryDriving = factory.intent(FactoryVehicleDestination.VEHICLE)?.let { { openFactory(FactoryVehicleDestination.VEHICLE) } },
-                        )
-                        ControlsRoute.SEASONAL_CLIMATE -> SeasonalClimateDestination(activity.seasonalClimateModel(), navigation::back)
-                        ControlsRoute.CONDITIONAL_RULES -> ConditionalRulesDestination(navigation::back,
-                            editRoutines = { navigation.open(ControlsRoute.ROUTINES) })
-                        ControlsRoute.FACTORY_ASSISTANCE -> FactoryAssistanceDestination(navigation::back) { showVehicleDiagnostics = true }
-                        ControlsRoute.SEAT_MEMORY -> SeatMemoryDestination(destination, navigation, active = destination === state)
-                        ControlsRoute.SERVICE_REMINDER -> ServiceReminderDestination(navigation::back)
-                        ControlsRoute.QUICK_ACTIONS -> QuickActionsDestination(dock, dockState, navigation::back)
-                        ControlsRoute.ROUTINES -> RoutinesDestination(navigation::back) { routine -> runRoutine(routine, destination) }
-                        ControlsRoute.CLUSTER -> ClusterDestination(navigation::back)
-                        ControlsRoute.UPDATES -> UpdatesDestination(navigation::back)
-                        ControlsRoute.DIAGNOSTICS -> DiagnosticsDestination(navigation::back)
-                        ControlsRoute.KEYBOARD -> KeyboardDestination(navigation::back)
-                        ControlsRoute.ACTION_PERMISSIONS -> ActionPermissionsDestination(navigation::back)
-                        ControlsRoute.TEXT_OVERLAYS -> TextOverlaysDestination(navigation::back)
-                    }
+                    Page(route, destination, raw = false)
                 }
             }
         }
     }
     if (showVehicleDiagnostics) VehicleDiagnosticsPopup(activity) { showVehicleDiagnostics = false }
 }
+
+/** Pages that show the virtual display's SurfaceView: the preview itself and Windows and screens, which embeds it. */
+private val SURFACE_ROUTES = setOf(ControlsRoute.DISPLAY, ControlsRoute.WINDOWS)
 
 private fun routeTransition(
     from: ControlsRoute,
@@ -199,7 +233,7 @@ private fun routeTransition(
 ): ContentTransform {
     // Android handles task entry. SurfaceView also needs an immediate Compose transition.
     if (!animate || to.direction == RouteDirection.REPLACE || from == to.route ||
-        from == ControlsRoute.DISPLAY || to.route == ControlsRoute.DISPLAY
+        from in SURFACE_ROUTES || to.route in SURFACE_ROUTES
     ) {
         return ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
     }

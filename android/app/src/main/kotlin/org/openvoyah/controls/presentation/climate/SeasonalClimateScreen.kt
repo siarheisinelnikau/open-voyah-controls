@@ -84,7 +84,7 @@ internal fun SeasonalClimateScreen(
         label = "climate views") { season ->
         CockpitDetail(season?.let { text(R.string.seasonal_climate_edit_title).format(it.label()) }
             ?: text(R.string.seasonal_climate_title), text(R.string.seasonal_climate_summary),
-            back = { if (season != null) edit(null) else back() }) {
+            back = { if (season != null) edit(null) else back() }, nested = season != null) {
             if (state.loadFailed) CockpitFeedback(text(R.string.seasonal_climate_load_failed), error = true)
             if (settings != null) {
                 if (season == null) {

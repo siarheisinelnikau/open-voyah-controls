@@ -11,6 +11,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -28,6 +30,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import org.openvoyah.controls.presentation.theme.CockpitEmbeddedHeading
+import org.openvoyah.controls.presentation.theme.LocalCockpitEmbedded
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -161,10 +165,21 @@ internal fun DiagnosticsScreen(
     val layout = LocalCockpitLayout.current
     val colors = MaterialTheme.colorScheme
     val spacing = Arrangement.spacedBy(layout.spacing(12.dp))
-    CockpitBackdrop {
-        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(horizontal = layout.spacing(22.dp), vertical = layout.spacing(14.dp)), verticalArrangement = spacing) {
-            CockpitHeading(UiText.get(R.string.diagnostics_title), UiText.get(R.string.diagnostics_subtitle), back)
+    val embedded = LocalCockpitEmbedded.current
+    // Inside Settings → System the log keeps a bounded height, so the page around it can scroll.
+    val page: @Composable (@Composable ColumnScope.() -> Unit) -> Unit = { body ->
+        if (embedded) Column(Modifier.fillMaxWidth(), verticalArrangement = spacing) {
+            CockpitEmbeddedHeading(UiText.get(R.string.diagnostics_title), UiText.get(R.string.diagnostics_subtitle))
+            body()
+        } else CockpitBackdrop {
+            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(horizontal = layout.spacing(22.dp), vertical = layout.spacing(14.dp)), verticalArrangement = spacing) {
+                CockpitHeading(UiText.get(R.string.diagnostics_title), UiText.get(R.string.diagnostics_subtitle), back)
+                body()
+            }
+        }
+    }
+    page {
             FlowRow(Modifier.fillMaxWidth().cockpitEntrance(0), horizontalArrangement = Arrangement.spacedBy(layout.spacing(8.dp)),
                 verticalArrangement = Arrangement.spacedBy(layout.spacing(6.dp))) {
                 CockpitAction(UiText.get(R.string.diagnostics_refresh), refresh)
@@ -178,7 +193,8 @@ internal fun DiagnosticsScreen(
             }
             CockpitFeedback(state.notice?.let { UiText.get(it.message) },
                 error = state.notice == DiagnosticNotice.SAVE_FAILED || state.notice == DiagnosticNotice.CLEAR_FAILED)
-            Surface(Modifier.fillMaxWidth().weight(1f).cockpitEntrance(2), shape = MaterialTheme.shapes.large, color = colors.surface,
+            Surface(Modifier.fillMaxWidth().then(if (embedded) Modifier.height(layout.spacing(380.dp)) else Modifier.weight(1f))
+                .cockpitEntrance(2), shape = MaterialTheme.shapes.large, color = colors.surface,
                 border = BorderStroke(1.dp, colors.outlineVariant)) {
                 val visible = state.visible
                 when {
@@ -195,7 +211,6 @@ internal fun DiagnosticsScreen(
                 }
             }
         }
-    }
 }
 
 @Composable

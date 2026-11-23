@@ -25,6 +25,8 @@ import org.openvoyah.controls.presentation.navigation.ControlsNavigation
 import org.openvoyah.controls.presentation.navigation.ControlsNavigationViewModel
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitDetail
+import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.ControlsTheme
@@ -63,11 +65,11 @@ class SettingsNavigationTest : InstrumentationTestCase() {
         } finally { super.tearDown() }
     }
 
-    fun testASectionShowsItsGroupsSideBySideAndASearchFocusScrollsToOne() {
+    fun testASectionIsOnePageAndASearchFocusScrollsToAGroup() {
         var focus by mutableStateOf<String?>(null)
         val touched = mutableListOf<String>()
         val parts = listOf("A", "B", "C", "D", "E").map { key ->
-            SettingsPart(key, "Part $key", CockpitIcon.SETTINGS, weight = 3) {
+            SettingsPart(key, "Part $key", CockpitIcon.SETTINGS) {
                 CockpitSection("Part $key", CockpitIcon.SETTINGS) {
                     Text("Content of $key")
                     Spacer(Modifier.height(240.dp))
@@ -79,11 +81,8 @@ class SettingsNavigationTest : InstrumentationTestCase() {
                 SettingsSectionPage("Section", "Fixture", {}, parts, focus) { synchronized(touched) { touched += it } }
             }
         }
-        // Groups fill two columns in their order: A, C, E on the left and B, D on the right.
-        await("two groups side by side") { text("Content of A") != null && text("Content of B") != null }
-        val left = bounds(checkNotNull(text("Content of A")))
-        val right = bounds(checkNotNull(text("Content of B")))
-        assertTrue("The second group sits in the right column", right.left > left.right)
+        // No tabs: the groups follow one another on the same page.
+        await("the first group") { text("Content of A") != null }
         assertNull("The last group starts below the fold", text("Content of E"))
 
         instrumentation.runOnMainSync { focus = "E" }
@@ -92,6 +91,53 @@ class SettingsNavigationTest : InstrumentationTestCase() {
         val target = bounds(checkNotNull(text("Content of E")))
         tap(target.centerX().toFloat(), target.centerY().toFloat())
         await("the touched group is reported") { synchronized(touched) { touched.lastOrNull() == "E" } }
+    }
+
+    fun testShortSettingsShareARowAndLongContentTakesTheWidth() {
+        var checked by mutableStateOf(false)
+        val note = "A hint long enough to need the whole width of the card, ".repeat(4).trim()
+        show {
+            ControlsTheme {
+                CockpitDetail("Grid", null, {}) {
+                    CockpitSection("Fixture", CockpitIcon.SETTINGS) {
+                        CockpitSwitch("One", checked) { checked = it }
+                        CockpitSwitch("Two", checked) { checked = it }
+                        CockpitChoice("Three", "Short") {}
+                        Text(note)
+                        CockpitSwitch("Four", checked) { checked = it }
+                    }
+                }
+            }
+        }
+        await("the grid") { text("One") != null && text("Four") != null }
+        val one = bounds(checkNotNull(text("One")))
+        val two = bounds(checkNotNull(text("Two")))
+        val three = bounds(checkNotNull(text("Three")))
+        val hint = bounds(checkNotNull(text(note)))
+        val four = bounds(checkNotNull(text("Four")))
+        assertTrue("Short settings share the first row", kotlin.math.abs(one.centerY() - two.centerY()) < 8 &&
+            kotlin.math.abs(one.centerY() - three.centerY()) < 30)
+        assertTrue("They stand side by side", one.left < two.left && two.left < three.left)
+        assertTrue("The long hint starts a row of its own", hint.top > one.bottom)
+        assertTrue("A setting after the hint goes below it", four.top > hint.top)
+    }
+
+    /** Scrolls the page a step at a time until [value] is on screen. */
+    private fun scrollUntil(value: String) {
+        repeat(12) {
+            if (text(value) != null) return
+            // A short drag, so what was on screen above the target stays in view.
+            val start = SystemClock.uptimeMillis()
+            instrumentation.sendPointerSync(MotionEvent.obtain(start, start, MotionEvent.ACTION_DOWN, 960f, 520f, 0))
+            for (step in 1..10) {
+                instrumentation.sendPointerSync(MotionEvent.obtain(start, start + step * 16L, MotionEvent.ACTION_MOVE, 960f,
+                    520f - step * 16f, 0))
+            }
+            instrumentation.sendPointerSync(MotionEvent.obtain(start, start + 400, MotionEvent.ACTION_UP, 960f, 360f, 0))
+            instrumentation.waitForIdleSync()
+            SystemClock.sleep(250)
+        }
+        await("$value on screen") { text(value) != null }
     }
 
     private fun bounds(node: AccessibilityNodeInfo): Rect = Rect().also(node::getBoundsInScreen)
@@ -157,7 +203,7 @@ class SettingsNavigationTest : InstrumentationTestCase() {
         await("Settings") { navigation.state.value.route == ControlsRoute.SETTINGS && text(UiText.get(R.string.settings_section_sound)) != null }
         click(UiText.get(R.string.settings_section_sound))
         await("Sound and media") { navigation.state.value.route == ControlsRoute.SOUND }
-        await("its groups") { text(UiText.get(R.string.settings_part_ducking)) != null }
+        await("its first group") { text(UiText.get(R.string.settings_startup_volume_title)) != null }
         assertEquals(listOf(ControlsRoute.APPS, ControlsRoute.SETTINGS, ControlsRoute.SOUND), navigation.state.value.stack)
 
         instrumentation.runOnMainSync { navigation.open(ControlsRoute.APPEARANCE, SettingsPartId.APPEARANCE_TEXT.name) }
@@ -167,6 +213,30 @@ class SettingsNavigationTest : InstrumentationTestCase() {
         instrumentation.runOnMainSync { navigation.back() }
         await("back to Sound and media") { navigation.state.value.route == ControlsRoute.SOUND }
         assertNull(navigation.state.value.focus)
+    }
+
+    fun testSoundAndMediaLinksToTheMultimediaRestartBesideTheSystemReboot() {
+        val launched = instrumentation.startActivitySync(ControlsNavigation.intent(app, ControlsRoute.SOUND)) as MainActivity
+        activity = launched
+        val navigation = ViewModelProvider(launched)[ControlsNavigationViewModel::class.java]
+        val restartMedia = UiText.get(R.string.system_restart_media)
+        await("Sound and media") { navigation.state.value.route == ControlsRoute.SOUND }
+        // The search focus scrolls the page to the group with the link.
+        instrumentation.runOnMainSync { navigation.open(ControlsRoute.SOUND, SettingsPartId.SOUND_MEDIA.name) }
+        await("the link in Sound and media") { text(restartMedia) != null }
+        assertNull("Sound and media holds no copy of the action", text(UiText.get(R.string.system_restart_media_hint)))
+        click(restartMedia)
+        await("System at About and restart") {
+            navigation.state.value.route == ControlsRoute.SYSTEM &&
+                navigation.state.value.focus == SettingsPartId.SYSTEM_ABOUT.name && text(restartMedia) != null
+        }
+        scrollUntil(UiText.get(R.string.system_reboot))
+        // Both root restarts sit in one group, the multimedia one right above the system reboot.
+        val media = bounds(checkNotNull(text(restartMedia)))
+        val reboot = bounds(checkNotNull(text(UiText.get(R.string.system_reboot))))
+        assertTrue("Restart multimedia comes right before Restart the system", media.top < reboot.top)
+        assertTrue("Both actions share a column", kotlin.math.abs(media.centerX() - reboot.centerX()) < 4)
+        assertNotNull(text(UiText.get(R.string.system_restart_media_hint)))
     }
 
     private fun show(content: @androidx.compose.runtime.Composable () -> Unit) {

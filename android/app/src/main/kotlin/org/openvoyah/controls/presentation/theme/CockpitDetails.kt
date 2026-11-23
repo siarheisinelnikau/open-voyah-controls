@@ -36,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,16 +54,42 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+/**
+ * True while a page is drawn inside a Settings section instead of on its own: [CockpitDetail] then draws a section
+ * heading and its content in the section's own scrolling column, without a backdrop, a Back button or a scroll.
+ */
+internal val LocalCockpitEmbedded = compositionLocalOf { false }
+
+/** The heading of a page drawn inside a Settings section. */
+@Composable
+internal fun CockpitEmbeddedHeading(title: String, subtitle: String?) {
+    val colors = MaterialTheme.colorScheme
+    val layout = LocalCockpitLayout.current
+    Column(Modifier.fillMaxWidth().padding(top = layout.spacing(10.dp), start = layout.spacing(4.dp))) {
+        Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall, color = colors.primary)
+        if (!subtitle.isNullOrBlank()) Text(subtitle, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
 @Composable
 internal fun CockpitDetail(
     title: String,
     subtitle: String?,
     back: () -> Unit,
     horizontalPadding: Dp = 22.dp,
+    /** An editor opened from a page, such as a routine's: drawn inside a section it keeps its Back button. */
+    nested: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val layout = LocalCockpitLayout.current
     val spacing = Arrangement.spacedBy(layout.spacing(14.dp))
+    if (LocalCockpitEmbedded.current) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = spacing) {
+            if (nested) CockpitHeading(title, subtitle, back, closes = true) else CockpitEmbeddedHeading(title, subtitle)
+            content()
+        }
+        return
+    }
     val cascade = rememberEntranceCascade()
     CockpitBackdrop {
         CompositionLocalProvider(LocalEntranceCascade provides cascade) {
@@ -133,7 +160,7 @@ internal fun CockpitSection(
                     }
                 }
             }
-            content()
+            CockpitGrid(Modifier.fillMaxWidth(), spacing = layout.spacing(11.dp), content = content)
         }
     }
 }

@@ -220,7 +220,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         scrollTo(UiText.get(R.string.settings_section_system))
         clickText(UiText.get(R.string.settings_section_system))
         awaitRoute(activity, ControlsRoute.SYSTEM)
-        openSettingsPart(activity, SettingsPartId.SYSTEM_ABOUT)
+        openSettingsPart(activity, SettingsPartId.SYSTEM_UPDATES)
         scrollTo(systemSettings)
         clickText(systemSettings)
         val systemSettingsPackage = checkNotNull(Intent(Settings.ACTION_SETTINGS).resolveActivity(app.packageManager)).packageName
@@ -3208,6 +3208,8 @@ class ComposeScreensTest : InstrumentationTestCase() {
             awaitRoute(activity, ControlsRoute.VEHICLE)
             scrollTo(unavailable, towardsStart = true)
             awaitText(unavailable)
+            // The Vehicle page now opens with its section heading, so the reading can sit just below the fold.
+            scrollTo(UiText.get(R.string.headlight_mode_position))
             awaitText(UiText.get(R.string.headlight_mode_position))
             val historicalLabel = UiText.get(R.string.headlight_mode_last_confirmed).substringBefore('%')
             assertTrue(nodes().any { it.isVisibleToUser && it.text?.toString()?.startsWith(historicalLabel) == true })
@@ -3370,10 +3372,8 @@ class ComposeScreensTest : InstrumentationTestCase() {
             store.restoreSettings(JSONObject("""{"enabled":false,"intervalKm":null,"currentKm":null,"lastServiceKm":null,
                 "leadDistanceKm":null,"calendarIntervalMonths":null,"lastServiceDate":null}"""))
             val activity = launch(ControlsNavigation.intent(app, ControlsRoute.VEHICLE)) as MainActivity
-            val reminder = UiText.get(R.string.service_reminder_title)
-            scrollTo(reminder)
-            clickText(reminder)
-            awaitRoute(activity, ControlsRoute.SERVICE_REMINDER)
+            awaitRoute(activity, ControlsRoute.VEHICLE)
+            openServiceReminder(activity)
             awaitText(UiText.get(R.string.service_reminder_missing_readings))
 
             enterServiceField(R.string.service_reminder_interval, "10000")
@@ -3415,11 +3415,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             val reminder = UiText.get(R.string.service_reminder_title)
             val leadChoice = UiText.get(R.string.service_reminder_lead_title)
             val dueSoon = UiText.get(R.string.service_reminder_remaining).format("375")
-            fun openReminder() {
-                scrollTo(reminder)
-                clickText(reminder)
-                awaitRoute(activity, ControlsRoute.SERVICE_REMINDER)
-            }
+            fun openReminder() = openServiceReminder(activity)
             fun returnToVehicle() {
                 clickText(UiText.get(R.string.cockpit_back))
                 awaitRoute(activity, ControlsRoute.VEHICLE)
@@ -3437,8 +3433,9 @@ class ComposeScreensTest : InstrumentationTestCase() {
                 failWithEvidence("service-reminder-lead-save", "The selected reminder distance $km km did not persist")
             }
 
+            awaitRoute(activity, ControlsRoute.VEHICLE)
             scrollTo(reminder)
-            assertNull("The automatic 45 km threshold should leave the badge hidden at 375 km", textNode(dueSoon))
+            assertFalse("The automatic 45 km threshold should leave the badge hidden at 375 km", dueSoon in vehicleBadge(reminder))
             openReminder()
             scrollTo(UiText.get(R.string.service_reminder_lead_auto_distance).format("45"))
             choose(500)
@@ -3447,14 +3444,15 @@ class ComposeScreensTest : InstrumentationTestCase() {
             capture("service-reminder-lead")
 
             returnToVehicle()
-            scrollTo(dueSoon)
+            scrollTo(reminder)
+            assertTrue("The 500 km threshold shows the badge at 375 km", dueSoon in vehicleBadge(reminder))
             openReminder()
             scrollTo(limited)
             choose(250)
             scrollTo(choice(250))
             returnToVehicle()
             scrollTo(reminder)
-            assertNull("The 250 km threshold should leave the badge hidden at 375 km", textNode(dueSoon))
+            assertFalse("The 250 km threshold should leave the badge hidden at 375 km", dueSoon in vehicleBadge(reminder))
             val saved = store.exportSettings()
             assertTrue(saved.getBoolean("enabled"))
             assertEquals(450, saved.getInt("intervalKm"))
@@ -3479,11 +3477,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             val notice = UiText.get(R.string.service_reminder_calendar_due_date).format(due)
             val reminder = UiText.get(R.string.service_reminder_title)
             val activity = launch(ControlsNavigation.intent(app, ControlsRoute.VEHICLE)) as MainActivity
-            fun openReminder() {
-                scrollTo(reminder)
-                clickText(reminder)
-                awaitRoute(activity, ControlsRoute.SERVICE_REMINDER)
-            }
+            fun openReminder() = openServiceReminder(activity)
             fun returnToVehicle() {
                 clickText(UiText.get(R.string.cockpit_back))
                 awaitRoute(activity, ControlsRoute.VEHICLE)
@@ -3502,7 +3496,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
 
             returnToVehicle()
             scrollTo(reminder)
-            assertNull("A due-date-only reminder should stay hidden before the due date", textNode(notice))
+            assertFalse("A due-date-only reminder should stay hidden before the due date", notice in vehicleBadge(reminder))
             openReminder()
             val lead = UiText.get(R.string.service_reminder_calendar_lead_title)
             scrollTo(lead)
@@ -3514,12 +3508,35 @@ class ComposeScreensTest : InstrumentationTestCase() {
             }
             assertEquals(7, store.exportSettings().getInt("calendarLeadDays"))
             returnToVehicle()
-            scrollTo(notice)
+            scrollTo(reminder)
+            assertTrue("The 7-day lead shows the due date on Vehicle", notice in vehicleBadge(reminder))
             capture("vehicle-service-calendar-reminder")
         } finally {
             UiText.language(previousLanguage)
             store.restoreSettings(previous)
         }
+    }
+
+    /**
+     * The service reminder form keeps its own page for the desktop card; Settings → Vehicle draws it as a group too,
+     * so the tests open the page directly and check the badge on the Vehicle row.
+     */
+    private fun openServiceReminder(activity: MainActivity) {
+        instrumentation.runOnMainSync {
+            ViewModelProvider(activity)[ControlsNavigationViewModel::class.java].open(ControlsRoute.SERVICE_REMINDER)
+        }
+        awaitRoute(activity, ControlsRoute.SERVICE_REMINDER)
+        instrumentation.waitForIdleSync()
+    }
+
+    /** The texts of the Vehicle row titled [title]: its title and the badge under it, if any. */
+    private fun vehicleBadge(title: String): String {
+        val row = nodes().filter { it.isVisibleToUser && it.text?.toString() == title }
+            .mapNotNull { node -> generateSequence(node) { it.parent }.take(4).firstOrNull { it.isClickable } }.firstOrNull()
+            ?: return ""
+        fun texts(node: AccessibilityNodeInfo): List<String> = listOfNotNull(node.text?.toString()) +
+            (0 until node.childCount).mapNotNull { node.getChild(it) }.flatMap { texts(it) }
+        return texts(row).joinToString("\n")
     }
 
     private fun enterServiceField(resource: Int, value: String) {

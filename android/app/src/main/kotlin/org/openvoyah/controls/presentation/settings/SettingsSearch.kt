@@ -48,6 +48,13 @@ internal enum class SettingsPartId(val section: SettingsSection, val title: Int,
     SOUND_STARTUP(SettingsSection.SOUND, R.string.settings_part_startup_volume, CockpitIcon.PLAY),
     SOUND_DUCKING(SettingsSection.SOUND, R.string.settings_part_ducking, CockpitIcon.VOICE),
     SOUND_MEDIA(SettingsSection.SOUND, R.string.settings_part_media, CockpitIcon.PLAY),
+    VEHICLE_MAIN(SettingsSection.VEHICLE, R.string.settings_part_vehicle_main, CockpitIcon.CAR),
+    VEHICLE_SERVICE(SettingsSection.VEHICLE, R.string.service_reminder_title, CockpitIcon.CAR),
+    VEHICLE_ASSISTANCE(SettingsSection.VEHICLE, R.string.factory_assistance_title, CockpitIcon.CAR),
+    AUTOMATION_VEHICLE(SettingsSection.AUTOMATION, R.string.settings_part_automation_vehicle, CockpitIcon.LIGHT),
+    AUTOMATION_ROUTINES(SettingsSection.AUTOMATION, R.string.settings_my_routines, CockpitIcon.ROUTINE),
+    AUTOMATION_RULES(SettingsSection.AUTOMATION, R.string.vehicle_automation_rules, CockpitIcon.ROUTINE),
+    AUTOMATION_CLIMATE(SettingsSection.AUTOMATION, R.string.seasonal_climate_title, CockpitIcon.CLIMATE),
     APPEARANCE_THEME(SettingsSection.APPEARANCE, R.string.settings_part_theme, CockpitIcon.LIGHT),
     APPEARANCE_TEXT(SettingsSection.APPEARANCE, R.string.settings_part_text, CockpitIcon.LANGUAGE),
     APPEARANCE_SHAPE(SettingsSection.APPEARANCE, R.string.settings_part_shape, CockpitIcon.APPS),
@@ -60,6 +67,7 @@ internal enum class SettingsPartId(val section: SettingsSection, val title: Int,
     SYSTEM_CONNECTION(SettingsSection.SYSTEM, R.string.settings_part_connection, CockpitIcon.CAR),
     SYSTEM_FACTORY(SettingsSection.SYSTEM, R.string.settings_part_factory_profiles, CockpitIcon.LOCK),
     SYSTEM_DIAGNOSTICS(SettingsSection.SYSTEM, R.string.settings_part_diagnostics, CockpitIcon.SEARCH),
+    SYSTEM_PERMISSIONS(SettingsSection.SYSTEM, R.string.action_permissions_title, CockpitIcon.LOCK),
     SYSTEM_ABOUT(SettingsSection.SYSTEM, R.string.settings_part_about, CockpitIcon.SYSTEM);
 
     companion object {
@@ -68,9 +76,8 @@ internal enum class SettingsPartId(val section: SettingsSection, val title: Int,
 }
 
 /** Builds the row of [id] for a section page. */
-internal fun settingsPart(id: SettingsPartId, weight: Int = 1,
-                          content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) =
-    SettingsPart(id.name, UiText.get(id.title), id.icon, weight, content)
+internal fun settingsPart(id: SettingsPartId, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) =
+    SettingsPart(id.name, UiText.get(id.title), id.icon, content)
 
 /**
  * One searchable setting. [route] is a page of its own (for example Quick actions) or the section page; [part] selects
@@ -96,15 +103,13 @@ internal val SETTINGS_INDEX: List<SettingsEntry> = buildList {
         R.string.home_navigator_widget_settings, R.string.home_weather_card, R.string.home_weather_city))
     addAll(entries(SettingsPartId.WINDOWS_APPS, R.string.window_hook_title, R.string.app_display_defaults_title,
         R.string.window_swipe_title, R.string.window_strip_title, R.string.settings_app_scale_hint_title))
-    addAll(entries(SettingsPartId.WINDOWS_DISPLAYS, R.string.virtual_display, R.string.display_density, R.string.cluster_media_share))
-    addAll(page(SettingsSection.WINDOWS, ControlsRoute.DISPLAY, R.string.display_preview_details,
-        R.string.display_preview_arrangement, R.string.display_navigation))
+    addAll(entries(SettingsPartId.WINDOWS_DISPLAYS, R.string.virtual_display, R.string.display_density, R.string.cluster_media_share,
+        R.string.display_preview_details, R.string.display_preview_arrangement, R.string.display_navigation))
     addAll(entries(SettingsPartId.BUTTONS_PANEL, R.string.ui_69, R.string.ui_67))
     addAll(entries(SettingsPartId.BUTTONS_STEERING, R.string.oem_steering))
     addAll(entries(SettingsPartId.BUTTONS_HARDWARE, R.string.ui_43, R.string.ui_44, R.string.ui_53, R.string.ui_54, R.string.ui_55,
         R.string.ui_62, R.string.button_service_enable))
-    addAll(entries(SettingsPartId.BUTTONS_DOCK, R.string.quick_actions_title))
-    addAll(page(SettingsSection.BUTTONS, ControlsRoute.QUICK_ACTIONS, R.string.quick_actions_enabled,
+    addAll(entries(SettingsPartId.BUTTONS_DOCK, R.string.quick_actions_title, R.string.quick_actions_enabled,
         R.string.quick_actions_collapse_after_use, R.string.quick_actions_headlight_indicator, R.string.quick_actions_hide_on_virtual_display,
         R.string.quick_actions_idle_collapse))
     addAll(page(SettingsSection.VOICE, ControlsRoute.VOICE, R.string.voice_options_title, R.string.quick_voice_try,
@@ -115,16 +120,17 @@ internal val SETTINGS_INDEX: List<SettingsEntry> = buildList {
     addAll(entries(SettingsPartId.SOUND_STARTUP, R.string.voice_startup_volume, R.string.voice_startup_volume_level,
         R.string.appearance_limit_media_on_launch))
     addAll(entries(SettingsPartId.SOUND_DUCKING, R.string.voice_duck_media, R.string.voice_duck_calls, R.string.voice_duck_level))
-    addAll(entries(SettingsPartId.SOUND_MEDIA, R.string.display_media_access, R.string.system_restart_media))
-    addAll(page(SettingsSection.VEHICLE, ControlsRoute.VEHICLE, R.string.vehicle_settings_title, R.string.headlight_mode_title,
-        R.string.factory_assistance_title, R.string.vehicle_settings_open, R.string.vehicle_infotainment_open, R.string.vehicle_manual))
+    addAll(entries(SettingsPartId.SOUND_MEDIA, R.string.display_media_access))
+    addAll(entries(SettingsPartId.VEHICLE_MAIN, R.string.vehicle_settings_title, R.string.headlight_mode_title,
+        R.string.vehicle_settings_open, R.string.vehicle_infotainment_open, R.string.vehicle_manual))
+    // Seat memory keeps its page: the steering wheel keys and the factory Seats app open it with a driver selected.
     addAll(page(SettingsSection.VEHICLE, ControlsRoute.SEAT_MEMORY, R.string.vehicle_seat_memory))
-    addAll(page(SettingsSection.VEHICLE, ControlsRoute.SERVICE_REMINDER, R.string.service_reminder_title))
-    addAll(page(SettingsSection.AUTOMATION, ControlsRoute.VEHICLE_AUTOMATION, R.string.vehicle_automation_lights,
-        R.string.vehicle_automation_drive_memory))
-    addAll(page(SettingsSection.AUTOMATION, ControlsRoute.ROUTINES, R.string.routines_title))
-    addAll(page(SettingsSection.AUTOMATION, ControlsRoute.SEASONAL_CLIMATE, R.string.seasonal_climate_title))
-    addAll(page(SettingsSection.AUTOMATION, ControlsRoute.CONDITIONAL_RULES, R.string.vehicle_automation_rules))
+    addAll(entries(SettingsPartId.VEHICLE_SERVICE, R.string.service_reminder_title))
+    addAll(entries(SettingsPartId.VEHICLE_ASSISTANCE, R.string.factory_assistance_title))
+    addAll(entries(SettingsPartId.AUTOMATION_VEHICLE, R.string.vehicle_automation_lights, R.string.vehicle_automation_drive_memory))
+    addAll(entries(SettingsPartId.AUTOMATION_ROUTINES, R.string.routines_title, R.string.settings_my_routines))
+    addAll(entries(SettingsPartId.AUTOMATION_RULES, R.string.vehicle_automation_rules))
+    addAll(entries(SettingsPartId.AUTOMATION_CLIMATE, R.string.seasonal_climate_title))
     addAll(entries(SettingsPartId.APPEARANCE_THEME, R.string.appearance_palette, R.string.appearance_accent,
         R.string.appearance_high_contrast, R.string.appearance_background))
     addAll(entries(SettingsPartId.APPEARANCE_TEXT, R.string.appearance_text_size, R.string.appearance_navigation_label_size,
@@ -134,13 +140,15 @@ internal val SETTINGS_INDEX: List<SettingsEntry> = buildList {
     addAll(entries(SettingsPartId.LANGUAGE_APP, R.string.cockpit_language, R.string.keyboard_title))
     addAll(entries(SettingsPartId.LANGUAGE_FACTORY, R.string.text_overlays_title, R.string.firmware_translation_heading,
         R.string.cockpit_dictionary_russian, R.string.translation_import, R.string.cluster_title))
-    addAll(entries(SettingsPartId.SYSTEM_UPDATES, R.string.updates_title, R.string.action_permissions_title, R.string.ui_61))
+    addAll(entries(SettingsPartId.SYSTEM_UPDATES, R.string.updates_title, R.string.ui_61))
+    addAll(entries(SettingsPartId.SYSTEM_PERMISSIONS, R.string.action_permissions_title))
     addAll(entries(SettingsPartId.SYSTEM_BACKUP, R.string.settings_archive_export, R.string.settings_archive_import))
     addAll(entries(SettingsPartId.SYSTEM_START, R.string.appearance_start_screen))
     addAll(entries(SettingsPartId.SYSTEM_CONNECTION, R.string.ui_73, R.string.ui_75, R.string.ui_63))
     addAll(entries(SettingsPartId.SYSTEM_FACTORY, R.string.profile_restore))
     addAll(entries(SettingsPartId.SYSTEM_DIAGNOSTICS, R.string.diagnostics_title, R.string.vehicle_automation_diagnostics))
-    addAll(entries(SettingsPartId.SYSTEM_ABOUT, R.string.system_version_copy, R.string.system_restart_app, R.string.system_reboot,
+    addAll(entries(SettingsPartId.SYSTEM_ABOUT, R.string.system_version_copy, R.string.system_restart_app, R.string.system_restart_media,
+        R.string.system_reboot,
         R.string.activation_restore))
 }
 

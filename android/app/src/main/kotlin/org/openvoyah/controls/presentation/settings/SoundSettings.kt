@@ -43,6 +43,8 @@ import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitReveal
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.cockpitCell
+import androidx.compose.ui.Modifier
 import org.openvoyah.controls.presentation.voice.DUCK_LEVELS
 import org.openvoyah.controls.presentation.voice.STARTUP_VOLUME
 import org.openvoyah.controls.presentation.voice.VoiceAudioChoice
@@ -129,14 +131,15 @@ internal fun StartupVolumeSettings() {
         CockpitSwitch(UiText.get(R.string.voice_startup_volume), startup?.enabled == true, enabled = startup != null) { on ->
             model.startup { it.copy(enabled = on) }
         }
-        CockpitReveal(startup?.enabled == true) {
-            Column {
-                VoiceAudioLevel(R.string.voice_startup_volume_level, startup?.percent ?: StartupVolume.DEFAULT_PERCENT, STARTUP_VOLUME) { percent ->
-                    model.startup { it.copy(percent = percent) }
-                }
-                Text(UiText.get(R.string.voice_startup_volume_hint), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // The level takes the columns its title needs and shares the row with the switch; the hint has a row of its own.
+        CockpitReveal(startup?.enabled == true, Modifier.cockpitCell()) {
+            VoiceAudioLevel(R.string.voice_startup_volume_level, startup?.percent ?: StartupVolume.DEFAULT_PERCENT, STARTUP_VOLUME) { percent ->
+                model.startup { it.copy(percent = percent) }
             }
+        }
+        CockpitReveal(startup?.enabled == true) {
+            Text(UiText.get(R.string.voice_startup_volume_hint), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (state.failed) CockpitFeedback(UiText.get(R.string.ui_219), error = true)
     }
@@ -156,13 +159,13 @@ internal fun DuckingSettings() {
         CockpitSwitch(UiText.get(R.string.voice_duck_calls), duck?.calls == true, enabled = duck != null) { on ->
             model.duck { it.copy(calls = on) }
         }
+        CockpitReveal(duck != null && (duck.listening || duck.calls), Modifier.cockpitCell()) {
+            VoiceAudioChoice(R.string.voice_duck_level, DUCK_LEVELS, duck?.levelPercent ?: DuckSettings.DEFAULT_LEVEL,
+                announceGroup = true) { level -> model.duck { it.copy(levelPercent = level) } }
+        }
         CockpitReveal(duck != null && (duck.listening || duck.calls)) {
-            Column {
-                VoiceAudioChoice(R.string.voice_duck_level, DUCK_LEVELS, duck?.levelPercent ?: DuckSettings.DEFAULT_LEVEL,
-                    announceGroup = true) { level -> model.duck { it.copy(levelPercent = level) } }
-                Text(UiText.get(R.string.voice_duck_hint), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Text(UiText.get(R.string.voice_duck_hint), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (state.failed) CockpitFeedback(UiText.get(R.string.ui_219), error = true)
     }
@@ -173,7 +176,7 @@ internal fun DuckingSettings() {
  * the virtual display, the cluster and the desktop media card.
  */
 @Composable
-internal fun MediaAccessSettings() {
+internal fun MediaAccessSettings(extra: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {}) {
     val context = LocalContext.current
     var granted by remember { mutableStateOf<Boolean?>(null) }
     var failed by remember { mutableStateOf(false) }
@@ -190,6 +193,7 @@ internal fun MediaAccessSettings() {
             } catch (_: RuntimeException) { true }
         })
         if (failed) CockpitFeedback(UiText.get(R.string.ui_134), error = true)
+        extra()
     }
 }
 

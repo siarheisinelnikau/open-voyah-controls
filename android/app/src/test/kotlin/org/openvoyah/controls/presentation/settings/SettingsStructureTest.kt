@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.openvoyah.controls.R
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
+import org.openvoyah.controls.presentation.theme.CockpitGridMath
 
 class SettingsStructureTest {
     private val labels = mapOf(
@@ -60,12 +61,16 @@ class SettingsStructureTest {
     }
 
     @Test
-    fun groupsFillTheShorterColumnInTheirOrder() {
-        val (left, right) = balancedColumns(listOf("grid" to 11, "desktops" to 9, "cards" to 4, "factory" to 4)) { it.second }
-        assertEquals(listOf("grid", "factory"), left.map { it.first })
-        assertEquals(listOf("desktops", "cards"), right.map { it.first })
-        val (one, none) = balancedColumns(listOf("only" to 3)) { it.second }
-        assertEquals(1, one.size)
-        assertTrue(none.isEmpty())
+    fun theGridGivesEachControlTheColumnsItsContentNeeds() {
+        // 1100 px with 240 px cells and 16 px gaps: four columns of 263 px.
+        val columns = CockpitGridMath.columns(1100, 240, 16)
+        assertEquals(4, columns)
+        val column = (1100 - 16 * 3) / 4
+        assertEquals(1, CockpitGridMath.span(200, column, 16, columns))
+        assertEquals(2, CockpitGridMath.span(400, column, 16, columns))
+        assertEquals(4, CockpitGridMath.span(5000, column, 16, columns))
+        // Short items share a row; one that does not fit the rest of a row starts the next.
+        assertEquals(listOf(listOf(0, 1, 2), listOf(3), listOf(4, 5)), CockpitGridMath.rows(listOf(1, 2, 1, 4, 2, 1), 4))
+        assertEquals(1, CockpitGridMath.columns(300, 240, 16))
     }
 }

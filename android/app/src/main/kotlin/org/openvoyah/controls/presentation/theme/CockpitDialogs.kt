@@ -145,7 +145,7 @@ internal fun CockpitChoice(title: String, subtitle: String? = null, enabled: Boo
     val showFocus = enabled && focused
     // A row that cannot be used while work is running must not look like one that can.
     val strength by animateFloatAsState(if (enabled) 1f else DISABLED_CONTENT, CockpitMotion.change(), label = "choice enabled")
-    val target = modifier.fillMaxWidth().then(press.modifier).heightIn(min = CockpitTouch)
+    val target = modifier.cockpitCell().fillMaxWidth().then(press.modifier).heightIn(min = CockpitTouch)
         .onFocusChanged { focused = it.isFocused }
     Surface(onClick, target, enabled = enabled,
         interactionSource = press.source, shape = MaterialTheme.shapes.medium, color = press.color,
@@ -177,7 +177,7 @@ internal fun CockpitTextAction(title: String, action: () -> Unit) {
 @Composable
 internal fun CockpitSwitch(title: String, checked: Boolean, enabled: Boolean = true, change: (Boolean) -> Unit) {
     val layout = LocalCockpitLayout.current
-    Row(Modifier.fillMaxWidth().heightIn(min = CockpitTouch).toggleable(checked, enabled = enabled, role = Role.Switch,
+    Row(Modifier.cockpitCell().fillMaxWidth().heightIn(min = CockpitTouch).toggleable(checked, enabled = enabled, role = Role.Switch,
         onValueChange = change), horizontalArrangement = Arrangement.spacedBy(layout.spacing(10.dp)),
         verticalAlignment = Alignment.CenterVertically) {
         Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)

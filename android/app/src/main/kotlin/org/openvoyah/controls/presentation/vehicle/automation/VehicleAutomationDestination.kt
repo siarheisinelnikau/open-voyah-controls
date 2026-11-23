@@ -23,6 +23,7 @@ import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.vehicle.automation.DrivingMode
 import org.openvoyah.controls.domain.vehicle.automation.HeadlightGearAction
 import org.openvoyah.controls.domain.vehicle.automation.VehicleAutomationOutcome
+import org.openvoyah.controls.presentation.theme.LocalCockpitEmbedded
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitChoice
@@ -88,7 +89,10 @@ internal fun VehicleAutomationScreen(
 ) {
     val enabled = state.settings != null && !state.saving && !state.working
     // Settings → Routines and automation: the routines of Controls and everything the car does on its own.
-    CockpitDetail(text(R.string.settings_section_automation), text(R.string.vehicle_automation_description), back) {
+    // Inside Settings → Routines and automation the chips move the page to the routines, rules and climate below.
+    val embedded = LocalCockpitEmbedded.current
+    CockpitDetail(text(if (embedded) R.string.settings_part_automation_vehicle else R.string.settings_section_automation),
+        text(R.string.vehicle_automation_description), back) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             CockpitChoice(text(R.string.settings_my_routines), modifier = Modifier.weight(1f), onClick = routines)
             CockpitChoice(text(R.string.vehicle_automation_rules), modifier = Modifier.weight(1f), onClick = rules)

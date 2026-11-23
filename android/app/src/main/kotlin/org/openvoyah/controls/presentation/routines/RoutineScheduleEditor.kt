@@ -97,7 +97,8 @@ internal fun RoutineScheduleEditor(draft: RoutineScheduleDraft, state: RoutinesU
     var editingStart by rememberSaveable(draft.routine.id) { mutableStateOf<Boolean?>(null) }
     var choosingFrequency by rememberSaveable(draft.routine.id) { mutableStateOf(false) }
     var choosingDelay by rememberSaveable(draft.routine.id) { mutableStateOf(false) }
-    CockpitDetail(UiText.get(R.string.routines_schedule), UiText.get(R.string.routines_schedule_for).format(draft.routine.name), model::closeEditor) {
+    CockpitDetail(UiText.get(R.string.routines_schedule), UiText.get(R.string.routines_schedule_for).format(draft.routine.name), model::closeEditor,
+        nested = true) {
         CockpitColumns(first = {
             Text(UiText.get(R.string.routines_days), style = MaterialTheme.typography.titleMedium)
             FlowRow(horizontalArrangement = spacing, verticalArrangement = spacing) {

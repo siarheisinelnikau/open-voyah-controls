@@ -28,20 +28,20 @@ The inventory counts independently adjustable choices across supported firmware 
 
 ## Where the settings are
 
-**Settings** opens with a search field, the places where something was changed last (**Recently changed**, up to four, kept only on this head unit and never exported) and ten sections. A section page shows all its groups at once as cards, in two columns on a wide window and one below the other on a narrow one; each card holds the related settings. A search result opens its section scrolled to the right group. The structure moves only the screens: preference keys, the archive sections and the inventory above are unchanged.
+**Settings** opens with a search field, the places where something was changed last (**Recently changed**, up to four, kept only on this head unit and never exported) and ten sections. A section is one scrolling page with no tabs or pages below it: its groups follow one another under their headings, and pages that used to open from a section (the virtual display, Quick actions, Updates, Allowed actions, the diagnostic log, the keyboard, factory app languages, the cluster translation, the service reminder, driver assistance, routines, if–then rules and seasonal climate) are drawn inside it. Dialogs remain only for pickers and confirmations; the seat memory page stays separate because the steering wheel keys and the factory Seats app open it for a chosen driver. Inside a card the settings share rows: each takes as many columns as its content needs (CockpitGrid), so two, three or more short switches, choices or compact sliders stand side by side on the 1920 × 720 display and a long one spans the card. A narrower window, a larger text size or the lowered screen simply gets fewer columns. A search result opens its section scrolled to the right group. The structure moves only the screens: preference keys, the archive sections and the inventory above are unchanged.
 
 | Section | Parts |
 | --- | --- |
 | Home screen and apps | App grid; Desktops (desktops, wallpapers, wallpaper dimming, desktop layouts); Desktop cards; Factory home screen (Yandex Navigator card, widget scale, weather) |
-| Windows and screens | App windows (window service, Android panel strip, App DPI defaults, Move windows with a swipe; one app's scale stays in its **App settings**); Virtual display and cluster (the virtual display page) |
-| Buttons and quick access | Launcher panel; Steering wheel; Hardware buttons (service, assignments, press timings, reset); Quick action bar (its own page) |
+| Windows and screens | App windows (window service, Android panel strip, App DPI defaults, Move windows with a swipe; one app's scale stays in its **App settings**); Virtual display and cluster (the virtual display page, drawn in the section) |
+| Buttons and quick access | Launcher panel; Steering wheel; Hardware buttons (service, assignments, press timings, reset); Quick action bar (drawn in the section) |
 | Voice | The voice settings page |
-| Sound and media | Volume at startup (after the head unit starts, and **Limit media volume on launch**); Media ducking; Media access and the multimedia restart |
-| Vehicle | Headlights, seat and mirror memory, service reminder, driver assistance and the factory menus |
-| Routines and automation | My routines, if–then rules, seasonal climate, lights in Drive and Park, driving-mode memory |
+| Sound and media | Volume at startup (after the head unit starts, and **Limit media volume on launch**); Media ducking; Media access (with a link to **Restart multimedia**) |
+| Vehicle | Headlights, cabin and factory menus; Service reminder; Driver assistance (seat and mirror memory opens its own page) |
+| Routines and automation | My routines; Lights and driving mode; If–then rules; Seasonal climate |
 | Appearance | Theme; Text; Spacing and corners; Transitions |
-| Language and input | Interface and input (Controls language, keyboard); Factory apps and Android (text overlays, cluster translation, Android translation dictionary) |
-| System | Maintenance (updates, allowed actions, Android settings); About and restart; Backup; Start screen; Connection (Frida agent); Diagnostics (log, vehicle report); Factory profiles |
+| Language and input | Interface and input (Controls language, keyboard); Factory apps and Android (factory app languages, Android translation dictionary, cluster translation) |
+| System | Maintenance (updates, Android settings); About and restart; Backup; Start screen; Connection (Frida agent); Diagnostics (log, vehicle report); Factory profiles; Allowed actions (the long list, last). **About and restart** holds the build, **Restart Open Voyah Controls**, **Restart multimedia** and **Restart the system** together |
 
 The settings inventory test exports two profiles with different values for each portable setting family and restores them in both directions. It reads each result through a fresh archive instance. The test also checks that restoring either profile preserves the four device-bound settings and the confirmed headlight observations on the receiving device. [Settings inventory test](../app/src/androidTest/kotlin/org/openvoyah/controls/SettingsInventoryAuditTest.kt)
 
@@ -133,7 +133,7 @@ Seasonal presets keep their threshold, Park/Drive condition, closed-door require
 
 ## About and restart
 
-**Settings → System → About and restart** names the build and offers the restarts; **Restart multimedia** is in **Settings → Sound and media**. None of them is a saved setting.
+**Settings → System → About and restart** names the build and offers the restarts, the multimedia restart beside the system reboot; **Settings → Sound and media** only links there. None of them is a saved setting.
 
 - **Version**: the version name and code, the build (`release`, `debug`, `local-vehicle` for the owner's car build, or `debug · emulator`), the short commit the APK was built from (`+` when tracked files had uncommitted changes; `BuildConfig.GIT_COMMIT`, empty without git) and when this APK was installed or updated. The text is selectable, and **Copy version** puts all lines on the clipboard for a bug report.
 - **Restart Open Voyah Controls** opens a short-lived `:restart` process (`AppRestartActivity`) that covers the window, so Android stops the old activity and writes its pending preferences. It then ends the old app process and opens Controls again. The car agents, the root channel and the boot activation live outside the app process and keep running. Android rebinds the button accessibility service and the media listener by itself. The journal records `app_restart` as `requested` and `relaunched`.

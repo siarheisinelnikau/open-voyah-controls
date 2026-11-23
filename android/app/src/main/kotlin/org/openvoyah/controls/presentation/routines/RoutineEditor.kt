@@ -53,7 +53,7 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
         else -> null
     }
     val title = if (draft.original == null) R.string.routines_create else R.string.routines_edit_title
-    CockpitDetail(UiText.get(title), null, model::closeEditor) {
+    CockpitDetail(UiText.get(title), null, model::closeEditor, nested = true) {
         CockpitTextField(draft.name, model::name, UiText.get(R.string.routines_name), Modifier.fillMaxWidth(), enabled = enabled,
             error = draft.name.isNotEmpty() && !draft.validName || state.form.error == R.string.routines_duplicate_name,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),

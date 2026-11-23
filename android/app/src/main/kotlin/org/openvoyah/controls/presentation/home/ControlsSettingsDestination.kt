@@ -60,12 +60,15 @@ import org.openvoyah.controls.presentation.theme.CockpitReveal
 internal fun ControlsSettingsDestination(
     route: ControlsRoute,
     focus: String?,
+    focusRequest: Long,
     back: () -> Unit,
     open: (ControlsRoute) -> Unit,
     openPart: (ControlsRoute, String?) -> Unit,
     appearance: AppearanceViewModel,
     onPaletteSelected: () -> Unit,
     vehicleReport: () -> Unit,
+    /** Draws a page of its own inside this section (see ControlsHost); a section has no pages below it. */
+    embed: @Composable (ControlsRoute) -> Unit = {},
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.controlsSettingsActivity() }
@@ -136,117 +139,105 @@ internal fun ControlsSettingsDestination(
     }
     val parts = when (section) {
         SettingsSection.HOME_SCREEN -> listOf(
-            settingsPart(SettingsPartId.HOME_GRID, 11) { AppGridSettingsSection(AppGridPart.GRID) },
-            settingsPart(SettingsPartId.HOME_DESKTOPS, 9) {
+            settingsPart(SettingsPartId.HOME_GRID) { AppGridSettingsSection(AppGridPart.GRID) },
+            settingsPart(SettingsPartId.HOME_DESKTOPS) {
                 AppGridSettingsSection(AppGridPart.DESKTOPS)
                 AppearanceSettings(look, AppearancePart.WALLPAPER, changeLook)
             },
-            settingsPart(SettingsPartId.HOME_CARDS, 4) { AppGridSettingsSection(AppGridPart.CARDS) },
-            settingsPart(SettingsPartId.HOME_FACTORY, 4) { HomeFactoryScreen(state, coordinator) },
+            settingsPart(SettingsPartId.HOME_CARDS) { AppGridSettingsSection(AppGridPart.CARDS) },
+            settingsPart(SettingsPartId.HOME_FACTORY) { HomeFactoryScreen(state, coordinator) },
         )
         SettingsSection.WINDOWS -> listOf(
-            settingsPart(SettingsPartId.WINDOWS_APPS, 6) {
+            settingsPart(SettingsPartId.WINDOWS_APPS) {
                 FirmwareSection(FirmwarePart.WINDOWS)
                 CockpitSection(UiText.get(R.string.settings_app_scale_title), CockpitIcon.DISPLAY) {
                     WindowSettingsControls()
                     Text(UiText.get(R.string.settings_app_scale_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
-            settingsPart(SettingsPartId.WINDOWS_DISPLAYS, 2) {
-                CockpitSection(UiText.get(R.string.settings_part_displays), CockpitIcon.DISPLAY) {
-                    CockpitChoice(UiText.get(R.string.virtual_display), UiText.get(R.string.settings_virtual_display_summary)) {
-                        go(ControlsRoute.DISPLAY)
-                    }
-                }
-            },
+            settingsPart(SettingsPartId.WINDOWS_DISPLAYS) { embed(ControlsRoute.DISPLAY) },
         )
         SettingsSection.BUTTONS -> listOf(
-            settingsPart(SettingsPartId.BUTTONS_PANEL, 6) { HomePanel(state, coordinator) },
-            settingsPart(SettingsPartId.BUTTONS_HARDWARE, 10) { HomeHardwareButtons(state, coordinator) },
-            settingsPart(SettingsPartId.BUTTONS_STEERING, 2) { HomeSteering(state, coordinator) },
-            settingsPart(SettingsPartId.BUTTONS_DOCK, 2) {
-                CockpitSection(UiText.get(R.string.settings_part_dock), CockpitIcon.APPS) {
-                    CockpitChoice(UiText.get(R.string.quick_actions_title), UiText.get(R.string.quick_actions_summary)) {
-                        go(ControlsRoute.QUICK_ACTIONS)
-                    }
-                }
-            },
+            settingsPart(SettingsPartId.BUTTONS_PANEL) { HomePanel(state, coordinator) },
+            settingsPart(SettingsPartId.BUTTONS_HARDWARE) { HomeHardwareButtons(state, coordinator) },
+            settingsPart(SettingsPartId.BUTTONS_STEERING) { HomeSteering(state, coordinator) },
+            settingsPart(SettingsPartId.BUTTONS_DOCK) { embed(ControlsRoute.QUICK_ACTIONS) },
         )
         SettingsSection.SOUND -> listOf(
-            settingsPart(SettingsPartId.SOUND_STARTUP, 5) {
+            settingsPart(SettingsPartId.SOUND_STARTUP) {
                 StartupVolumeSettings()
                 AppearanceSettings(look, AppearancePart.LAUNCH_VOLUME, changeLook)
             },
-            settingsPart(SettingsPartId.SOUND_DUCKING, 4) { DuckingSettings() },
-            settingsPart(SettingsPartId.SOUND_MEDIA, 4) {
-                MediaAccessSettings()
-                SystemMaintenanceSection(SystemMaintenancePart.MEDIA)
+            settingsPart(SettingsPartId.SOUND_DUCKING) { DuckingSettings() },
+            settingsPart(SettingsPartId.SOUND_MEDIA) {
+                // The multimedia restart lives beside the system reboot; this is only a way there.
+                MediaAccessSettings {
+                    CockpitChoice(UiText.get(R.string.system_restart_media), UiText.get(R.string.settings_media_restart_link)) {
+                        coordinator.open(ControlsRoute.SYSTEM) { openPart(it, SettingsPartId.SYSTEM_ABOUT.name) }
+                    }
+                }
             },
         )
         SettingsSection.APPEARANCE -> listOf(
-            settingsPart(SettingsPartId.APPEARANCE_THEME, 4) { AppearanceSettings(look, AppearancePart.THEME, changeLook) },
-            settingsPart(SettingsPartId.APPEARANCE_TEXT, 5) { AppearanceSettings(look, AppearancePart.TEXT, changeLook) },
-            settingsPart(SettingsPartId.APPEARANCE_SHAPE, 2) { AppearanceSettings(look, AppearancePart.SHAPE, changeLook) },
-            settingsPart(SettingsPartId.APPEARANCE_MOTION, 2) { AppearanceSettings(look, AppearancePart.MOTION, changeLook) },
+            settingsPart(SettingsPartId.APPEARANCE_THEME) { AppearanceSettings(look, AppearancePart.THEME, changeLook) },
+            settingsPart(SettingsPartId.APPEARANCE_TEXT) { AppearanceSettings(look, AppearancePart.TEXT, changeLook) },
+            settingsPart(SettingsPartId.APPEARANCE_SHAPE) { AppearanceSettings(look, AppearancePart.SHAPE, changeLook) },
+            settingsPart(SettingsPartId.APPEARANCE_MOTION) { AppearanceSettings(look, AppearancePart.MOTION, changeLook) },
         )
         SettingsSection.LANGUAGE -> listOf(
-            settingsPart(SettingsPartId.LANGUAGE_APP, 3) {
+            settingsPart(SettingsPartId.LANGUAGE_APP) {
                 CockpitSection(UiText.get(R.string.settings_part_app_language), CockpitIcon.LANGUAGE) {
                     CockpitChoice(UiText.get(R.string.cockpit_language),
                         UiText.get(if (UiText.language() == "ru") R.string.language_name_russian else R.string.language_name_english),
                         onClick = coordinator::language)
-                    CockpitChoice(UiText.get(R.string.keyboard_title), UiText.get(R.string.keyboard_page_summary)) {
-                        go(ControlsRoute.KEYBOARD)
-                    }
                 }
+                embed(ControlsRoute.KEYBOARD)
             },
-            settingsPart(SettingsPartId.LANGUAGE_FACTORY, 9) {
-                CockpitSection(UiText.get(R.string.settings_part_factory_language), CockpitIcon.FIRMWARE) {
-                    CockpitChoice(UiText.get(R.string.text_overlays_title), UiText.get(R.string.text_overlays_row)) {
-                        go(ControlsRoute.TEXT_OVERLAYS)
-                    }
-                    CockpitChoice(UiText.get(R.string.cluster_title), UiText.get(R.string.settings_cluster_summary)) {
-                        go(ControlsRoute.CLUSTER)
-                    }
-                }
+            settingsPart(SettingsPartId.LANGUAGE_FACTORY) {
+                embed(ControlsRoute.TEXT_OVERLAYS)
                 FirmwareSection(FirmwarePart.TRANSLATION)
+                embed(ControlsRoute.CLUSTER)
             },
         )
         SettingsSection.SYSTEM -> listOf(
-            settingsPart(SettingsPartId.SYSTEM_UPDATES, 4) {
-                updateRow()
-                CockpitSection(UiText.get(R.string.settings_part_service), CockpitIcon.DOWNLOAD) {
-                    CockpitChoice(UiText.get(R.string.updates_title), UiText.get(R.string.updates_settings_summary)) {
-                        go(ControlsRoute.UPDATES)
-                    }
-                    CockpitChoice(UiText.get(R.string.action_permissions_title), UiText.get(R.string.action_permissions_summary)) {
-                        go(ControlsRoute.ACTION_PERMISSIONS)
-                    }
+            settingsPart(SettingsPartId.SYSTEM_UPDATES) {
+                embed(ControlsRoute.UPDATES)
+                CockpitSection(UiText.get(R.string.settings_android_title), CockpitIcon.SYSTEM) {
                     CockpitChoice(UiText.get(R.string.ui_61), UiText.get(R.string.cockpit_system_description),
                         onClick = coordinator::systemSettings)
                 }
             },
-            settingsPart(SettingsPartId.SYSTEM_ABOUT, 9) { SystemMaintenanceSection(SystemMaintenancePart.ABOUT) },
-            settingsPart(SettingsPartId.SYSTEM_BACKUP, 2) { HomeBackup(coordinator) },
-            settingsPart(SettingsPartId.SYSTEM_START, 2) { AppearanceSettings(look, AppearancePart.START, changeLook) },
-            settingsPart(SettingsPartId.SYSTEM_CONNECTION, 6) { HomeConnection(state, coordinator) },
-            settingsPart(SettingsPartId.SYSTEM_DIAGNOSTICS, 3) {
-                CockpitSection(UiText.get(R.string.settings_part_diagnostics), CockpitIcon.SEARCH) {
-                    CockpitChoice(UiText.get(R.string.diagnostics_title), UiText.get(R.string.diagnostics_link_summary)) {
-                        go(ControlsRoute.DIAGNOSTICS)
-                    }
+            settingsPart(SettingsPartId.SYSTEM_ABOUT) { SystemMaintenanceSection() },
+            settingsPart(SettingsPartId.SYSTEM_BACKUP) { HomeBackup(coordinator) },
+            settingsPart(SettingsPartId.SYSTEM_START) { AppearanceSettings(look, AppearancePart.START, changeLook) },
+            settingsPart(SettingsPartId.SYSTEM_CONNECTION) { HomeConnection(state, coordinator) },
+            settingsPart(SettingsPartId.SYSTEM_DIAGNOSTICS) {
+                embed(ControlsRoute.DIAGNOSTICS)
+                CockpitSection(UiText.get(R.string.vehicle_automation_diagnostics), CockpitIcon.CAR) {
                     CockpitChoice(UiText.get(R.string.vehicle_automation_diagnostics),
                         UiText.get(R.string.vehicle_automation_diagnostics_hint)) {
                         if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) vehicleReport()
                     }
                 }
             },
-            settingsPart(SettingsPartId.SYSTEM_FACTORY, 2) { FirmwareSection(FirmwarePart.PROFILE) },
+            settingsPart(SettingsPartId.SYSTEM_FACTORY) { FirmwareSection(FirmwarePart.PROFILE) },
+            settingsPart(SettingsPartId.SYSTEM_PERMISSIONS) { embed(ControlsRoute.ACTION_PERMISSIONS) },
         )
-        // These sections are pages of their own and never reach this destination.
-        SettingsSection.VOICE, SettingsSection.VEHICLE, SettingsSection.AUTOMATION -> emptyList()
+        SettingsSection.VEHICLE -> listOf(
+            settingsPart(SettingsPartId.VEHICLE_MAIN) { embed(ControlsRoute.VEHICLE) },
+            settingsPart(SettingsPartId.VEHICLE_SERVICE) { embed(ControlsRoute.SERVICE_REMINDER) },
+            settingsPart(SettingsPartId.VEHICLE_ASSISTANCE) { embed(ControlsRoute.FACTORY_ASSISTANCE) },
+        )
+        SettingsSection.AUTOMATION -> listOf(
+            settingsPart(SettingsPartId.AUTOMATION_VEHICLE) { embed(ControlsRoute.VEHICLE_AUTOMATION) },
+            settingsPart(SettingsPartId.AUTOMATION_ROUTINES) { embed(ControlsRoute.ROUTINES) },
+            settingsPart(SettingsPartId.AUTOMATION_RULES) { embed(ControlsRoute.CONDITIONAL_RULES) },
+            settingsPart(SettingsPartId.AUTOMATION_CLIMATE) { embed(ControlsRoute.SEASONAL_CLIMATE) },
+        )
+        // Voice is a page of its own and never reaches this destination.
+        SettingsSection.VOICE -> emptyList()
     }
-    SettingsSectionPage(UiText.get(section.title), UiText.get(section.summary), back, parts, focus) { key ->
+    SettingsSectionPage(UiText.get(section.title), UiText.get(section.summary), back, parts, focus, focusRequest) { key ->
         VisibleSettingsPart.show(route, key)
     }
 }

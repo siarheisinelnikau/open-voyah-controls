@@ -66,10 +66,13 @@
     <string name="settings_media_access_on">Access is allowed.</string>
     <string name="settings_media_access_off">Access is not allowed.</string>
     <string name="settings_media_access_open">Open Android access settings</string>
-    <string name="settings_media_restart_title">Multimedia</string>
     <string name="settings_cluster_summary">Install or restore the Russian cluster translation from a local ZIP</string>
     <string name="settings_cards_heading">What the desktops show</string>
     <string name="settings_wallpaper_heading">Wallpaper look</string>
     <string name="settings_start_heading">Starting Controls</string>
     <string name="settings_part_service">Maintenance</string>
+    <string name="settings_media_restart_link">Next to the system reboot, in System → About and restart</string>
+    <string name="settings_part_vehicle_main">Headlights, cabin and factory menus</string>
+    <string name="settings_part_automation_vehicle">Lights and driving mode</string>
+    <string name="settings_android_title">Android</string>
 </resources>
