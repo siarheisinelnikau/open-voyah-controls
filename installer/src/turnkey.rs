@@ -565,9 +565,10 @@ impl Live<'_> {
 
 impl Unit for Live<'_> {
     fn checks(&mut self) -> Result<Plan> {
-        let metadata: serde_json::Value =
-            serde_json::from_str(include_str!("../../android/dist/FRIDA_RUNTIME.json"))
-                .map_err(device::message)?;
+        let metadata: serde_json::Value = serde_json::from_str(include_str!(
+            "../../android/open-voyah-controls/dist/FRIDA_RUNTIME.json"
+        ))
+        .map_err(device::message)?;
         if !self.runtime.is_file()
             || Some(device::digest(self.runtime, self.stop)?.as_str())
                 != metadata.get("binary_sha256").and_then(|v| v.as_str())

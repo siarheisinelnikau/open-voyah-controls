@@ -5,3 +5,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = 'OpenVoyahControls'
 include ':app', ':core', ':youtube-web'
+project(':youtube-web').projectDir = file('../youtube-web')

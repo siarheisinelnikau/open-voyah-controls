@@ -252,7 +252,7 @@ def verifySherpaRuntime = tasks.register('verifySherpaRuntime') {
     inputs.file(sherpaAar).optional()
     doLast {
         if (!sherpaAar.isFile()) {
-            throw new GradleException('Put sherpa-onnx-2.0.2.aar from https://github.com/k2-fsa/sherpa-onnx/releases/tag/v2.0.2 into android/dist.')
+            throw new GradleException('Put sherpa-onnx-2.0.2.aar from https://github.com/k2-fsa/sherpa-onnx/releases/tag/v2.0.2 into android/open-voyah-controls/dist.')
         }
         def actual = java.security.MessageDigest.getInstance('SHA-256').digest(sherpaAar.bytes).encodeHex().toString()
         if (actual != sherpaAarSha256) throw new GradleException('dist/sherpa-onnx-2.0.2.aar does not match its pinned SHA-256.')

@@ -13,10 +13,12 @@ use std::{
     sync::atomic::Ordering,
 };
 
-const CATALOG: &str =
-    include_str!("../../android/app/src/main/assets/production/verified-firmware.tsv");
-const OPERATIONS: &str =
-    include_str!("../../android/app/src/main/assets/production/verified-operations.tsv");
+const CATALOG: &str = include_str!(
+    "../../android/open-voyah-controls/app/src/main/assets/production/verified-firmware.tsv"
+);
+const OPERATIONS: &str = include_str!(
+    "../../android/open-voyah-controls/app/src/main/assets/production/verified-operations.tsv"
+);
 const MAX_APK: u64 = 512 * 1024 * 1024;
 const OEM_PACKAGES: &[&str] = &[
     "android",

@@ -11,8 +11,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-const START: &str = include_str!("../../android/tools/access-start.sh");
-const LOGIN: &str = include_str!("../../android/tools/access-login.sh");
+const START: &str = include_str!("../../android/open-voyah-controls/tools/access-start.sh");
+const LOGIN: &str = include_str!("../../android/open-voyah-controls/tools/access-login.sh");
 const BASE: &str = "/data/adb/open-voyah-controls-access";
 pub const FIND_TELNET: &str = r#"
 busybox=
@@ -177,15 +177,19 @@ pub fn remount(
 }
 
 pub fn portable_runtime() -> Option<PathBuf> {
-    let metadata: serde_json::Value =
-        serde_json::from_str(include_str!("../../android/dist/FRIDA_RUNTIME.json")).ok()?;
+    let metadata: serde_json::Value = serde_json::from_str(include_str!(
+        "../../android/open-voyah-controls/dist/FRIDA_RUNTIME.json"
+    ))
+    .ok()?;
     let file = metadata.get("file")?.as_str()?;
     let exe = std::env::current_exe().ok()?;
     let folder = exe.parent()?;
     // The portable kit keeps it in support\; a development build finds the one prepare_runtime.py wrote.
     [
         folder.join("support").join(file),
-        folder.join("../../../android/dist/runtime").join(file),
+        folder
+            .join("../../../android/open-voyah-controls/dist/runtime")
+            .join(file),
     ]
     .into_iter()
     .find(|candidate| candidate.is_file())

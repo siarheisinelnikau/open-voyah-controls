@@ -13,8 +13,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const BOOT_TOOL: &str = include_str!("../../android/tools/configure-boot.sh");
-const RUNTIME: &str = include_str!("../../android/dist/FRIDA_RUNTIME.json");
+const BOOT_TOOL: &str = include_str!("../../android/open-voyah-controls/tools/configure-boot.sh");
+const RUNTIME: &str = include_str!("../../android/open-voyah-controls/dist/FRIDA_RUNTIME.json");
 const MAX_BOOT: usize = 262_144;
 const MAX_SETTINGS_EXPORT: usize = 2_097_152;
 

@@ -39,18 +39,18 @@ $build = Join-Path $sdk "build-tools/$BuildToolsVersion"
 $platformFiles = @('adb.exe', 'AdbWinApi.dll', 'AdbWinUsbApi.dll', 'source.properties', 'NOTICE.txt')
 $buildFiles = @('aapt2.exe', 'lib/apksigner.jar', 'source.properties', 'NOTICE.txt')
 $supportFiles = @(
-    'android/tools/configure-boot.sh',
-    'android/tools/configure-boot.ps1',
-    'android/tools/access-start.sh',
-    'android/tools/access-login.sh',
-    'android/tools/read-firmware-evidence.ps1',
-    'android/app/src/main/assets/production/verified-firmware.tsv',
-    'android/app/src/main/assets/production/verified-operations.tsv',
-    'android/dist/FRIDA_RUNTIME.json'
+    'android/open-voyah-controls/tools/configure-boot.sh',
+    'android/open-voyah-controls/tools/configure-boot.ps1',
+    'android/open-voyah-controls/tools/access-start.sh',
+    'android/open-voyah-controls/tools/access-login.sh',
+    'android/open-voyah-controls/tools/read-firmware-evidence.ps1',
+    'android/open-voyah-controls/app/src/main/assets/production/verified-firmware.tsv',
+    'android/open-voyah-controls/app/src/main/assets/production/verified-operations.tsv',
+    'android/open-voyah-controls/dist/FRIDA_RUNTIME.json'
     'installer/tools/verify-local-signature.ps1'
 )
-$runtimeMetadata = Get-Content -LiteralPath (Join-Path $repo 'android/dist/FRIDA_RUNTIME.json') -Raw | ConvertFrom-Json
-$runtime = Join-Path $repo ("android/dist/runtime/" + $runtimeMetadata.file)
+$runtimeMetadata = Get-Content -LiteralPath (Join-Path $repo 'android/open-voyah-controls/dist/FRIDA_RUNTIME.json') -Raw | ConvertFrom-Json
+$runtime = Join-Path $repo ("android/open-voyah-controls/dist/runtime/" + $runtimeMetadata.file)
 if (-not (Test-Path -LiteralPath $runtime -PathType Leaf) -or
     (Get-FileHash -LiteralPath $runtime -Algorithm SHA256).Hash.ToLowerInvariant() -ne $runtimeMetadata.binary_sha256) {
     throw 'Prepare the pinned Android runtime before packaging the installer.'

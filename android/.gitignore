@@ -10,12 +10,3 @@ local.properties
 *.idsig
 captures/
 node_modules/
-dist/runtime/
-dist/CLUSTER_PACKS.json
-app/src/main/assets/hooks/*.bundle.js
-app/src/main/assets/speech-model-ru/
-dist/*.zip
-dist/*.part
-dist/*.aar
-
-app/src/main/assets/speech-model-en/

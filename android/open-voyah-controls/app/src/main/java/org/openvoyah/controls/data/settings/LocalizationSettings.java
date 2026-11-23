@@ -18,7 +18,7 @@ public final class LocalizationSettings {
     public static final Set<String> PACKAGES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
         "com.qinggan.app.launcher", "com.qinggan.app.setting", "com.qinggan.app.vehicle", "com.qinggan.bluetoothphone",
         "com.qinggan.app.hiboard")));
-    /** Built-in dictionaries bundled with the localization agent (android/hooks/localization). */
+    /** Built-in dictionaries bundled with the localization agent (android/open-voyah-controls/hooks/localization). */
     public static final Set<String> PRESETS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList("ru", "en")));
     private static volatile boolean unreadableReported;
     private final android.content.SharedPreferences prefs;

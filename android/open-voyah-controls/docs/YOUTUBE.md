@@ -33,16 +33,16 @@ The head unit has no Google Play and no Google services, so the official YouTube
 
 ## Build and install
 
-From `android`, with the same environment as the Controls build:
+From `android/youtube-web`, with the same JDK and Android SDK as the Controls build:
 
 ```powershell
-.\gradlew.bat :youtube-web:assembleDebug :youtube-web:testDebugUnitTest :youtube-web:lintDebug
+.\gradlew.bat assembleDebug testDebugUnitTest lintDebug
 ```
 
-The APK is written to `youtube-web/build/outputs/apk/debug/youtube-web-debug.apk` and is signed with the local debug key. Install it with **Install local APK** in Controls or over ADB:
+The APK is written to `build/outputs/apk/debug/youtube-web-debug.apk` and is signed with the local debug key. Install it with **Install local APK** in Controls or over ADB:
 
 ```powershell
-adb install -r youtube-web\build\outputs\apk\debug\youtube-web-debug.apk
+adb install -r build\outputs\apk\debug\youtube-web-debug.apk
 ```
 
 Installing or updating this package does not touch the Controls APK, its runtime or its deployment files, so boot activation stays in place. Later updates must be signed with the same key; otherwise Android requires an uninstall, which also removes the sign-in and watch history.
