@@ -15,6 +15,7 @@ This describes the implemented adapters, not qualified head units. The productio
 | `com.qinggan.cluster` | `navigation.bundle.js`: observe cluster navigation callbacks and forward bounded route data to Controls | Optional navigation feed and cluster package review. No cluster screen or button replacement. |
 | `com.qinggan.canbus.service` | `can.bundle.js`: intercept the observed service-side key callback for voice/custom/camera | Exact CAN package review plus one selected terminal-event or down/up protocol. It does not create a second CAN subscriber. |
 | `com.qinggan.app.login` | `oversea-profiles.bundle.js`: bounded one-shot inspection of driver API signatures and account-state availability | Oversea only, explicit profile request, reviewed login package. No account selection or restoration. |
+| `com.qinggan.app.vehiclesetting` | `apollo.bundle.js`: answers the factory Driving assistance page while the driver's own switches are on | Optional factory assistance channel: the factory settings package pinned for this firmware and the agent allowed in Settings → Allowed actions. |
 
 `FridaBridge.connectLocked`, `stageLocalizationWorkers`, `stageOptionalHook` and `app/src/main/assets/hooks/supervise.sh` choose the persistent targets. `OverseaProfiles.probeCommand` owns the separate login probe. The main bundle entry is `hooks/entry.js`.
 
@@ -103,6 +104,18 @@ The OEM assignment keys are `voiceShort`/`voiceLong`, `customShort`/`customLong`
 | Android-delivered hardware keys | `ButtonAccessibilityService` + `core/ButtonEngine` | No Frida injection. Only keys delivered to Accessibility can be assigned. Home/Power are excluded. Missing tap target or hold-only mapping leaves the whole gesture native; a tap-only assignment also runs on release after a hold. |
 
 Only one reviewed OEM steering route is selected. The launcher adapter delegates when direct CAN is selected. Hardware/vehicle delivery still needs testing to establish that no independent OEM consumer duplicates an action. The camera key can be assigned to an app; this does not alter the camera application itself.
+
+## Factory assistance answers
+
+The factory Driving assistance page decides what to offer from answers the factory settings process gives itself. **Settings → Vehicle → Apollo and driving assistance → Answer for the factory page** lets the agent give those answers while the driver's own switches are on, and takes them away again when a switch goes off. The channel is staged with the first switch and stopped with the last one; the document the agent reads is a Settings.Global value, so a change reaches the page within a second without a restart, and an unreadable document means every part is off.
+
+| Switch | What the agent answers | Reversibility |
+| --- | --- | --- |
+| Show Apollo controls in Guest | The stock subscribed answer to the page's own subscription question, so the page can offer the Apollo controls with the profile still Guest. | In memory only. Off, or a restart of the factory app, ends it. Nothing is written to the vehicle. |
+| Send the assistance state to the controller (experimental) | The factory software is asked to send its assistance bundle to the driving-assistance controller, and asks again when the vehicle reaches READY or the battery state the factory code uses. | A request, not a state. One send covers eighteen named fields at once, the original values cannot be read back, and there is no verified way back. |
+| Use the Baidu equipment branch (experimental) | The page selects the Baidu equipment branch and the domestic region instead of reading them from its own predicates. | Only what the page shows changes; the configuration readings behind it stay as the vehicle reported them. On another supplier the page can offer controls the vehicle does not have. |
+
+The two experimental switches ask before they are turned on, because they cannot be undone from the head unit. The agent publishes what the installed software accepted, and the screen shows the parts it does not offer instead of assuming them. An accepted answer or send is never displayed as a vehicle state, and **Read Apollo diagnostics** still reports cached factory requests only. [What the observation established and what is still missing](APOLLO_GUEST_DIAGNOSTICS.md)
 
 ## Other screens and actions
 

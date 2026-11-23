@@ -17,6 +17,8 @@ internal object ReviewedFirmware {
     const val CLUSTER = "com.qinggan.cluster"
     const val CAN_SERVICE = "com.qinggan.canbus.service"
     const val LOGIN = "com.qinggan.app.login"
+    /** The factory settings app whose Driving assistance page the Apollo agent answers for. */
+    const val VEHICLE_SETTINGS = "com.qinggan.app.vehiclesetting"
     // Operation ids are shared with Settings → Allowed actions; a review row only marks one as verified here.
     const val CAN_STEERING = ActionCatalog.CAN_STEERING
     const val CAN_STEERING_EDGES = ActionCatalog.CAN_STEERING_EDGES
@@ -38,7 +40,7 @@ internal object ReviewedFirmware {
         "bluetooth" to "com.qinggan.bluetoothphone",
         "hiboard" to "com.qinggan.app.hiboard",
     )
-    private val packages = setOf(LAUNCHER, FRAMEWORK, CLUSTER, CAN_SERVICE, LOGIN) + localizationTargets.values
+    private val packages = setOf(LAUNCHER, FRAMEWORK, CLUSTER, CAN_SERVICE, LOGIN, VEHICLE_SETTINGS) + localizationTargets.values
     private val fingerprint = Regex("[A-Za-z0-9][A-Za-z0-9._:/+,\\-]{0,255}")
     private val product = Regex("[A-Za-z0-9][A-Za-z0-9_.\\-]{0,63}")
     val sha256 = Regex("[0-9a-f]{64}")

@@ -13,7 +13,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -27,7 +30,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
@@ -35,20 +40,26 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.apollo.ApolloCandidateEvidenceProbe
 import org.openvoyah.controls.data.apollo.ApolloReportNote
+import org.openvoyah.controls.data.frida.FridaBridge
 import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.diagnostics.LogLevel
+import org.openvoyah.controls.domain.apollo.ApolloAssistanceStatus
 import org.openvoyah.controls.domain.apollo.ApolloCacheStatus
 import org.openvoyah.controls.domain.apollo.ApolloCandidatePlan
 import org.openvoyah.controls.domain.apollo.FactoryAssistanceEvidence
+import org.openvoyah.controls.platform.ui.FactoryAssistanceHandoff
 import org.openvoyah.controls.platform.ui.copyReportToClipboard
 import org.openvoyah.controls.platform.ui.VehicleSettingsLauncher
 import org.openvoyah.controls.platform.ui.VehicleSettingsDestination as FactoryDestination
 import org.openvoyah.controls.presentation.theme.CockpitAction
+import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitColumns
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitSection
+import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.theme.CockpitTextField
 
 internal data class FactoryAssistanceState(
@@ -60,6 +71,10 @@ internal data class FactoryAssistanceState(
     val reportStatus: Int? = null,
     val note: String = "",
     val copyStatus: Int? = null,
+    val parts: Map<String, Boolean> = emptyMap(),
+    val status: ApolloAssistanceStatus = ApolloAssistanceStatus.Unreported,
+    val applying: Boolean = false,
+    val applyError: String? = null,
 )
 
 /** A factory-menu handoff is never evidence that a driving assistant was activated. */
@@ -69,6 +84,9 @@ internal class FactoryAssistanceViewModel(
     private val capture: suspend () -> FactoryAssistanceEvidence,
     private val export: suspend (String, FactoryAssistanceEvidence, String) -> Unit,
     private val copy: (String) -> Boolean,
+    private val parts: () -> Map<String, Boolean>,
+    private val status: () -> ApolloAssistanceStatus,
+    private val apply: suspend (String, Boolean) -> Unit,
     private val log: (String) -> Unit,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(FactoryAssistanceState())
@@ -78,7 +96,29 @@ internal class FactoryAssistanceViewModel(
     fun refresh() {
         val assistance = runCatching(canOpenAssistance).getOrDefault(false)
         val vehicle = runCatching(canOpenVehicleMenu).getOrDefault(false)
-        mutable.update { it.copy(assistanceMenuAvailable = assistance, vehicleMenuAvailable = vehicle) }
+        val chosen = runCatching(parts).getOrDefault(emptyMap())
+        val reported = runCatching(status).getOrDefault(ApolloAssistanceStatus.Unreported)
+        mutable.update { it.copy(assistanceMenuAvailable = assistance, vehicleMenuAvailable = vehicle,
+            parts = chosen, status = reported) }
+    }
+
+    /**
+     * Hands one part of the factory assistance path to the agent. The request is what is recorded: an accepted
+     * answer to the factory page, and for the controller part an accepted send, is never a confirmed vehicle state.
+     */
+    fun change(part: String, enable: Boolean) {
+        if (mutable.value.applying) return
+        mutable.update { it.copy(applying = true, applyError = null) }
+        viewModelScope.launch {
+            val failure = try {
+                apply(part, enable)
+                null
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { error.message.orEmpty().take(160).ifBlank { "unavailable" } }
+            mutable.update { it.copy(applying = false, applyError = failure) }
+            refresh()
+            log("event=apollo_assistance part=$part enable=$enable outcome=${if (failure == null) "applied" else "refused"}")
+        }
     }
 
     fun handoff(outcome: String, message: Int) {
@@ -88,7 +128,7 @@ internal class FactoryAssistanceViewModel(
 
     fun check() {
         if (mutable.value.working) return
-        mutable.update { it.copy(evidence = null, working = true, reportStatus = R.string.factory_assistance_reading) }
+        mutable.update { it.copy(evidence = null, working = true, reportStatus = R.string.factory_assistance_reading, copyStatus = null) }
         reportJob = viewModelScope.launch {
             try {
                 val snapshot = capture()
@@ -138,6 +178,13 @@ internal class FactoryAssistanceViewModel(
         reportJob = null
         mutable.value = FactoryAssistanceState()
     }
+
+    companion object {
+        /** The parts of the factory assistance path, named as the agent's own document names them. */
+        const val APOLLO_SUBSCRIPTION = "subscription"
+        const val APOLLO_CONTROLLER = "controller"
+        const val APOLLO_EQUIPMENT = "equipment"
+    }
 }
 
 @Composable
@@ -150,15 +197,20 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
         ViewModelProvider(activity, viewModelFactory { initializer {
             FactoryAssistanceViewModel(
                 canOpenAssistance = { launcher.intent(FactoryDestination.ASSISTANCE) != null },
-                canOpenVehicleMenu = { launcher.intent(FactoryDestination.VEHICLE) != null },
+                canOpenVehicleMenu = { launcher.intent(FactoryDestination.ASSISTANCE_VEHICLE_MENU) != null },
                 capture = { probe.capture(includeFactoryCache = true) },
                 export = { destination, snapshot, note -> probe.export(Uri.parse(destination), snapshot, note) },
                 copy = { summary -> copyReportToClipboard(app, UiText.get(R.string.factory_assistance_title), summary) },
+                parts = { FridaBridge.APOLLO_PARTS.associateWith { FridaBridge.apolloPartEnabled(app, it) } },
+                status = { ApolloAssistanceStatus.parse(FridaBridge.apolloState(app)) },
+                apply = { part, enable -> withContext(Dispatchers.IO) { FridaBridge(app).setApolloPart(part, enable) } },
                 log = { ControlsLog.line(LogLevel.INFO, "$it elapsed_ms=${SystemClock.elapsedRealtime()}") },
             )
         } })[FactoryAssistanceViewModel::class.java]
     }
     val state by model.state.collectAsStateWithLifecycle()
+    // A part is switched on through a dialog, because the two experimental ones cannot be undone from the head unit.
+    var pending by rememberSaveable { mutableStateOf<String?>(null) }
     val saveReport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let { model.save(it.toString()) }
     }
@@ -168,24 +220,17 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
         model.refresh()
         onPauseOrDispose { }
     }
-    fun openFactory(destination: FactoryDestination) {
-        val intent = runCatching { launcher.intent(destination) }.getOrNull()
-        if (intent == null) {
-            model.refresh()
-            model.handoff("unavailable", R.string.factory_assistance_open_failed)
-            return
-        }
-        try {
-            activity.startActivity(intent)
-            if (destination == FactoryDestination.ASSISTANCE) {
-                model.handoff("requested", R.string.factory_assistance_requested)
-            } else {
-                model.handoff("vehicle_menu_requested", R.string.factory_assistance_fallback)
+    fun openFactory(preferAssistance: Boolean) {
+        val outcome = launcher.requestFactoryAssistance(preferAssistance, activity::startActivity)
+        val message = when (outcome) {
+            FactoryAssistanceHandoff.ASSISTANCE_REQUESTED -> R.string.factory_assistance_requested
+            FactoryAssistanceHandoff.VEHICLE_MENU_REQUESTED -> R.string.factory_assistance_fallback
+            FactoryAssistanceHandoff.UNAVAILABLE, FactoryAssistanceHandoff.FAILED -> {
+                model.refresh()
+                R.string.factory_assistance_open_failed
             }
-        } catch (_: RuntimeException) {
-            model.refresh()
-            model.handoff("failed", R.string.factory_assistance_open_failed)
         }
+        model.handoff(outcome.name.lowercase(), message)
     }
     CockpitDetail(UiText.get(R.string.factory_assistance_title), UiText.get(R.string.factory_assistance_description), back) {
         CockpitColumns(first = {
@@ -193,11 +238,11 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
                 UiText.get(R.string.factory_assistance_sequence)) {
                 if (state.assistanceMenuAvailable || !state.vehicleMenuAvailable) {
                     CockpitAction(UiText.get(R.string.factory_assistance_open_assistance),
-                        { openFactory(FactoryDestination.ASSISTANCE) }, primary = true, enabled = state.assistanceMenuAvailable)
+                        { openFactory(preferAssistance = true) }, primary = true, enabled = state.assistanceMenuAvailable)
                 }
                 if (state.vehicleMenuAvailable) {
                     CockpitAction(UiText.get(R.string.factory_assistance_open_vehicle_menu),
-                        { openFactory(FactoryDestination.VEHICLE) }, primary = !state.assistanceMenuAvailable)
+                        { openFactory(preferAssistance = false) }, primary = !state.assistanceMenuAvailable)
                 }
                 val feedback = state.handoff ?: when {
                     !state.assistanceMenuAvailable && !state.vehicleMenuAvailable -> R.string.vehicle_settings_unavailable
@@ -211,6 +256,24 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
                     try { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(H97D_ASSISTANCE_MANUAL))) }
                     catch (_: RuntimeException) { model.handoff("manual_unavailable", R.string.factory_assistance_manual_unavailable) }
                 })
+            }
+            CockpitSection(UiText.get(R.string.factory_assistance_answers), CockpitIcon.SETTINGS,
+                UiText.get(R.string.factory_assistance_answers_summary)) {
+                apolloPartRows.forEach { part ->
+                    CockpitSwitch(UiText.get(part.title), state.parts[part.id] == true, enabled = !state.applying) { enable ->
+                        // Turning a part off is always safe, so it needs no question.
+                        if (enable) pending = part.id else model.change(part.id, false)
+                    }
+                }
+                if (state.status.waitingFor(state.parts)) {
+                    CockpitFeedback(UiText.get(R.string.factory_assistance_answers_waiting))
+                }
+                state.status.unavailable.takeIf { it.isNotEmpty() }?.let {
+                    CockpitFeedback(UiText.get(R.string.factory_assistance_answers_unavailable).format(it.joinToString(", ")))
+                }
+                state.applyError?.let { CockpitFeedback(it, error = true) }
+                Text(UiText.get(R.string.factory_assistance_answers_note), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }, second = {
             CockpitSection(UiText.get(R.string.factory_assistance_qualification), CockpitIcon.LOCK,
@@ -242,6 +305,35 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
             }
         })
     }
+    pending?.let { part ->
+        CockpitAlertDialog({ pending = null },
+            confirmButton = {
+                CockpitTextAction(UiText.get(R.string.ui_187)) {
+                    pending = null
+                    model.change(part, true)
+                }
+            },
+            dismissButton = { CockpitTextAction(UiText.get(R.string.ui_89)) { pending = null } },
+            title = { Text(UiText.get(apolloPartTitle(part))) },
+            text = { Text(UiText.get(apolloPartMessage(part))) })
+    }
+}
+
+/** The three answers Controls can give the factory settings app, in the order the driver meets them. */
+private data class ApolloPartRow(val id: String, val title: Int)
+
+private val apolloPartRows = listOf(
+    ApolloPartRow(FactoryAssistanceViewModel.APOLLO_SUBSCRIPTION, R.string.factory_assistance_part_subscription),
+    ApolloPartRow(FactoryAssistanceViewModel.APOLLO_CONTROLLER, R.string.factory_assistance_part_controller),
+    ApolloPartRow(FactoryAssistanceViewModel.APOLLO_EQUIPMENT, R.string.factory_assistance_part_equipment),
+)
+
+private fun apolloPartTitle(part: String) = apolloPartRows.first { it.id == part }.title
+
+private fun apolloPartMessage(part: String) = when (part) {
+    FactoryAssistanceViewModel.APOLLO_CONTROLLER -> R.string.factory_assistance_part_controller_message
+    FactoryAssistanceViewModel.APOLLO_EQUIPMENT -> R.string.factory_assistance_part_equipment_message
+    else -> R.string.factory_assistance_part_subscription_message
 }
 
 internal const val H97D_ASSISTANCE_MANUAL = "https://m.dsmp.voyah.com.cn/userguide/h97d/h97D-40.html"

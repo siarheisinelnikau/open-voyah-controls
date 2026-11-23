@@ -26,6 +26,7 @@ case "$channel" in
     window) package=android; relative=window/launcher-buttons.js; pattern='^OVC_WINDOW_READY protocol=3 ' ;;
     navigation) package=com.qinggan.cluster; relative=navigation/launcher-buttons.js; pattern='^OVC_NAVIGATION_READY' ;;
     can) package=com.qinggan.canbus.service; relative=can/launcher-buttons.js; pattern='^OVC_CAN_READY protocol=2 terminal edges ' ;;
+    apollo) package=com.qinggan.app.vehiclesetting; relative=apollo/launcher-buttons.js; pattern='^OVC_APOLLO_READY' ;;
     --verify-boot|--recover|--visual-session-state|--visual-session-clear-restored|--visual-session-clear-changed) ;;
     *) exit 2 ;;
 esac
@@ -393,13 +394,13 @@ recovery_recorded=0
 channel_suffix() {
     case "$1" in
         main) echo '';;
-        locale-setting|locale-vehicle|locale-bluetooth|locale-hiboard|window|navigation|can) echo "/$1";;
+        locale-setting|locale-vehicle|locale-bluetooth|locale-hiboard|window|navigation|can|apollo) echo "/$1";;
         *) return 1;;
     esac
 }
 enabled_channels() {
     ec_list=
-    for ec_name in main locale-setting locale-vehicle locale-bluetooth locale-hiboard window navigation can; do
+    for ec_name in main locale-setting locale-vehicle locale-bluetooth locale-hiboard window navigation can apollo; do
         ec_suffix=$(channel_suffix "$ec_name")
         if [ -f "$root$ec_suffix/enabled" ] && [ ! -L "$root$ec_suffix/enabled" ]; then ec_list="${ec_list:+$ec_list,}$ec_name"; fi
     done

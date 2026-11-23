@@ -97,8 +97,11 @@ class ApolloCandidateEvidenceProbeTest : AndroidTestCase() {
         check(Build.HARDWARE in setOf("goldfish", "ranchu"))
         val summary = ApolloCandidateEvidenceProbe(context).capture(includeFactoryCache = false).supportSummary
         assertTrue(summary.contains("Apollo diagnostics"))
+        assertTrue(summary.contains("Head unit ${Build.MODEL}"))
+        assertTrue(summary.contains("Android build ${Build.DISPLAY}"))
         assertTrue(summary.contains(Build.PRODUCT))
         assertTrue(summary.contains(Build.FINGERPRINT))
+        assertTrue(summary.lineSequence().any { it == "Factory settings not_visible" })
         assertTrue(summary.contains("Factory request cache"))
     }
 

@@ -1,10 +1,12 @@
 package org.openvoyah.controls
 
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.test.AndroidTestCase
+import org.openvoyah.controls.platform.ui.FactoryAssistanceHandoff
 import org.openvoyah.controls.platform.ui.VehicleSettingsDestination
 import org.openvoyah.controls.platform.ui.VehicleSettingsLauncher
 
@@ -61,9 +63,46 @@ class FactoryAssistanceShortcutTest : AndroidTestCase() {
         assertEquals(listOf(ACTION), queries)
     }
 
-    private fun activity() = ActivityInfo().apply {
-        packageName = PACKAGE
-        name = "$PACKAGE.FactoryAssistanceFixtureActivity"
+    fun testHandoffFallsBackToTheFactorySettingsLauncherWhenTheDirectShortcutDisappears() {
+        val actions = mutableListOf<String?>()
+        val launcher = VehicleSettingsLauncher({ listOf(activity()) }, { true })
+        val outcome = launcher.requestFactoryAssistance(preferAssistance = true) { intent ->
+            actions += intent.action
+            if (intent.action == ACTION) throw ActivityNotFoundException()
+            assertEquals(PACKAGE, intent.component?.packageName)
+            assertEquals(setOf(Intent.CATEGORY_LAUNCHER), intent.categories)
+            assertNull(intent.extras)
+            assertNull(intent.data)
+        }
+        assertEquals(FactoryAssistanceHandoff.VEHICLE_MENU_REQUESTED, outcome)
+        assertEquals(listOf(ACTION, Intent.ACTION_MAIN), actions)
+    }
+
+    fun testHandoffUsesTheExistingVehicleLauncherWhenFactorySettingsHasNoEntry() {
+        val launcher = VehicleSettingsLauncher({ query ->
+            if (query.`package` == VEHICLE_PACKAGE) listOf(activity(VEHICLE_PACKAGE)) else emptyList()
+        }, { true })
+        val outcome = launcher.requestFactoryAssistance(preferAssistance = true) { intent ->
+            assertEquals(Intent.ACTION_MAIN, intent.action)
+            assertEquals(VEHICLE_PACKAGE, intent.component?.packageName)
+        }
+        assertEquals(FactoryAssistanceHandoff.VEHICLE_MENU_REQUESTED, outcome)
+    }
+
+    fun testHandoffStopsWhenTheDirectLaunchResultIsUnclear() {
+        val launcher = VehicleSettingsLauncher({ listOf(activity()) }, { true })
+        val actions = mutableListOf<String?>()
+        val outcome = launcher.requestFactoryAssistance(preferAssistance = true) { intent ->
+            actions += intent.action
+            error("Dispatch result is unknown")
+        }
+        assertEquals(FactoryAssistanceHandoff.FAILED, outcome)
+        assertEquals(listOf(ACTION), actions)
+    }
+
+    private fun activity(owner: String = PACKAGE) = ActivityInfo().apply {
+        packageName = owner
+        name = "$owner.FactoryAssistanceFixtureActivity"
         exported = true
         enabled = true
         applicationInfo = ApplicationInfo().apply {
@@ -74,6 +113,7 @@ class FactoryAssistanceShortcutTest : AndroidTestCase() {
 
     private companion object {
         const val PACKAGE = "com.qinggan.app.vehiclesetting"
+        const val VEHICLE_PACKAGE = "com.qinggan.app.vehicle"
         // This typo is the exact action exported by the inspected factory package.
         const val ACTION = "$PACKAGE.dirveassistance"
     }

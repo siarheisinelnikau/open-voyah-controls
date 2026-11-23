@@ -48,7 +48,7 @@ internal class ApolloCandidateEvidenceProbe(context: Context) {
 
         val launcher = VehicleSettingsLauncher(app)
         val dedicated = runCatching { launcher.intent(VehicleSettingsDestination.ASSISTANCE)?.component }.getOrNull()
-        val general = runCatching { launcher.intent(VehicleSettingsDestination.VEHICLE)?.component }.getOrNull()
+        val general = runCatching { launcher.intent(VehicleSettingsDestination.ASSISTANCE_VEHICLE_MENU)?.component }.getOrNull()
         val cache = if (includeFactoryCache) cacheReader.read(cacheProvider) else ApolloFactoryCache(ApolloCacheStatus.NOT_REQUESTED)
         val cachedFields = cache.fields.values.count { it.value != null }
         val fields = JSONObject()
@@ -104,9 +104,7 @@ internal class ApolloCandidateEvidenceProbe(context: Context) {
     }
 
     /**
-     * The short text a driver copies into a support request. It repeats only what the report already holds, so the
-     * vehicle model and installed firmware can be quoted without opening the file. The head-unit wall clock is
-     * reported as read, with its plausibility, because an unset clock cannot order captures.
+     * Copies the head unit's Android build and the observed factory package identity for support.
      */
     private fun supportSummary(report: JSONObject, captured: OffsetDateTime): String {
         val identity = report.getJSONObject("identity")
@@ -114,18 +112,28 @@ internal class ApolloCandidateEvidenceProbe(context: Context) {
         val settings = (0 until packages.length()).map(packages::getJSONObject)
             .firstOrNull { it.getString("package") == FACTORY_VEHICLE_SETTINGS_PACKAGE }
         val cache = report.getJSONObject("factory_request_cache")
-        val firmware = listOf(identity.optString("display_version"), identity.optString("build_id"),
+        val build = listOf(identity.optString("display_version"), identity.optString("build_id"),
             identity.optString("incremental")).filter { it.isNotBlank() }.distinct().joinToString(" ")
+        val settingsSummary = settings?.let {
+            val state = it.getString("state")
+            if (state == "observed") {
+                val version = if (it.isNull("version")) "version unavailable" else it.getString("version")
+                val apk = if (it.isNull("base_apk_sha256")) it.getString("base_apk_hash_state")
+                    else "SHA-256 ${it.getString("base_apk_sha256")}"
+                "Factory settings $version (code ${it.getLong("version_code")}) · base APK $apk"
+            } else {
+                "Factory settings $state"
+            }
+        }
         return listOfNotNull(
             "Apollo diagnostics",
             "Captured ${captured.format(SUMMARY_TIME)} on the head-unit clock" +
                 if (report.optBoolean("capture_clock_plausible")) "" else " (clock not set; cannot order captures)",
-            "Model ${identity.optString("model")} · product ${identity.optString("product")}" +
+            "Head unit ${identity.optString("model")} · product ${identity.optString("product")}" +
                 " · Android ${identity.optString("android_version")} (SDK ${identity.optInt("sdk")})",
-            ("Firmware " + firmware).trim(),
+            "Android build $build".trim(),
             "Fingerprint ${identity.optString("fingerprint")}",
-            settings?.let { "Factory settings ${it.optString("version")} (code ${it.optLong("version_code")})" +
-                " · base APK ${it.optString("base_apk_sha256")} (${it.optString("base_apk_hash_state")})" },
+            settingsSummary,
             "Factory request cache ${cache.getString("state")} · ${cache.optInt("observed_fields")} of"
                 + " ${cache.optInt("expected_fields")} fields",
         ).joinToString("\n")

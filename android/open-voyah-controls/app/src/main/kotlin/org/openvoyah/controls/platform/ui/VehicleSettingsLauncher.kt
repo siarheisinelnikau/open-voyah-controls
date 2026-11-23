@@ -1,5 +1,6 @@
 package org.openvoyah.controls.platform.ui
 
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -20,11 +21,14 @@ internal enum class VehicleSettingsDestination(vararg val packageNames: String) 
     INFOTAINMENT("com.qinggan.app.setting"),
     LIGHTING(FACTORY_VEHICLE_SETTINGS_PACKAGE),
     ASSISTANCE(FACTORY_VEHICLE_SETTINGS_PACKAGE),
+    ASSISTANCE_VEHICLE_MENU(FACTORY_VEHICLE_SETTINGS_PACKAGE, FACTORY_VEHICLE_PACKAGE),
 }
 
 internal enum class FactorySeatShortcut { SEATS, VEHICLE }
 
 internal enum class FactorySeatHandoffOutcome { REQUESTED, UNAVAILABLE, FAILED }
+
+internal enum class FactoryAssistanceHandoff { ASSISTANCE_REQUESTED, VEHICLE_MENU_REQUESTED, UNAVAILABLE, FAILED }
 
 /** Uses activities publicly offered by the built-in OEM app. */
 internal class VehicleSettingsLauncher(
@@ -49,6 +53,35 @@ internal class VehicleSettingsLauncher(
     }
 
     fun seatsIntent(): Intent? = resolveShortcut(FACTORY_VEHICLE_PACKAGE, "SHOW_SEAT")
+
+    fun requestFactoryAssistance(
+        preferAssistance: Boolean,
+        startActivity: (Intent) -> Unit,
+    ): FactoryAssistanceHandoff {
+        fun request(destination: VehicleSettingsDestination): Boolean {
+            val target = intent(destination) ?: return false
+            return try {
+                startActivity(target)
+                true
+            } catch (_: ActivityNotFoundException) {
+                false
+            } catch (_: SecurityException) {
+                false
+            }
+        }
+
+        return try {
+            when {
+                preferAssistance && request(VehicleSettingsDestination.ASSISTANCE) ->
+                    FactoryAssistanceHandoff.ASSISTANCE_REQUESTED
+                request(VehicleSettingsDestination.ASSISTANCE_VEHICLE_MENU) ->
+                    FactoryAssistanceHandoff.VEHICLE_MENU_REQUESTED
+                else -> FactoryAssistanceHandoff.UNAVAILABLE
+            }
+        } catch (_: RuntimeException) {
+            FactoryAssistanceHandoff.FAILED
+        }
+    }
 
     fun seatMemoryShortcut(): FactorySeatShortcut? = FactorySeatShortcut.entries.firstOrNull { seatMemoryIntent(it) != null }
 

@@ -59,6 +59,8 @@ object ActionCatalog {
     const val SYSTEM_REBOOT = "system-reboot"
 
     const val NAVIGATION = "navigation"
+    /** The factory assistance agent: answers the factory settings page, and sends only what the driver chose. */
+    const val APOLLO = "apollo"
     /** Agent channel ids for the translated OEM apps; the suffix is the key of ReviewedFirmware.localizationTargets. */
     const val LOCALE_PREFIX = "locale-"
 
@@ -66,7 +68,7 @@ object ActionCatalog {
         WINDOW_SERVICE, PASSENGER_WINDOW_DPI, WINDOW_DISPLAY_MOVE, CAN_STEERING, CAN_STEERING_EDGES,
         OEM_PROFILES, CLUSTER_WRITE, TEXT_OVERLAYS, TBOX_REBOOT, MEDIA_RESTART, SYSTEM_REBOOT,
     )
-    val agents: List<String> = listOf(NAVIGATION) + listOf("setting", "vehicle", "bluetooth", "hiboard").map { LOCALE_PREFIX + it }
+    val agents: List<String> = listOf(NAVIGATION, APOLLO) + listOf("setting", "vehicle", "bluetooth", "hiboard").map { LOCALE_PREFIX + it }
 
     /**
      * Voice catalog commands that run on the phone screen or in apps rather than in the vehicle. Everything else in

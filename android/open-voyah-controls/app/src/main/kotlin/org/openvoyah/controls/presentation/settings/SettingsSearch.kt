@@ -126,7 +126,9 @@ internal val SETTINGS_INDEX: List<SettingsEntry> = buildList {
     // Seat memory keeps its page: the steering wheel keys and the factory Seats app open it with a driver selected.
     addAll(page(SettingsSection.VEHICLE, ControlsRoute.SEAT_MEMORY, R.string.vehicle_seat_memory))
     addAll(entries(SettingsPartId.VEHICLE_SERVICE, R.string.service_reminder_title))
-    addAll(entries(SettingsPartId.VEHICLE_ASSISTANCE, R.string.factory_assistance_title))
+    addAll(entries(SettingsPartId.VEHICLE_ASSISTANCE, R.string.factory_assistance_title,
+        R.string.factory_assistance_part_subscription, R.string.factory_assistance_part_controller,
+        R.string.factory_assistance_part_equipment))
     addAll(entries(SettingsPartId.AUTOMATION_VEHICLE, R.string.vehicle_automation_lights, R.string.vehicle_automation_drive_memory))
     addAll(entries(SettingsPartId.AUTOMATION_ROUTINES, R.string.routines_title, R.string.settings_my_routines))
     addAll(entries(SettingsPartId.AUTOMATION_RULES, R.string.vehicle_automation_rules))

@@ -64,7 +64,10 @@ public final class FridaBridge {
     private static final String DISPLAY_MOVE_READY = "^OVC_WINDOW_READY protocol=3 .*displayMove=1( |$)";
     private static final String KEYBOARD_READY = "^OVC_KEYBOARD_READY protocol=1( |$)";
     private static final String FIXTURE_BASE = "/data/local/tmp/open-voyah-controls";
-    private static final String[] CHANNELS = {"", "/locale-setting", "/locale-vehicle", "/locale-bluetooth", "/locale-hiboard", "/window", "/navigation", "/can"};
+    /** The document the factory assistance agent reads, and the one it reports what it could apply into. */
+    private static final String APOLLO_CONFIG = "org.openvoyah.controls.apolloFactory";
+    private static final String APOLLO_STATE = "org.openvoyah.controls.apolloFactoryState";
+    private static final String[] CHANNELS = {"", "/locale-setting", "/locale-vehicle", "/locale-bluetooth", "/locale-hiboard", "/window", "/navigation", "/can", "/apollo"};
     private static final String FIXTURE_INJECTOR = "/data/local/tmp/open-voyah-controls-frida-17.26.2";
     private static final Object IO_LOCK = new Object();
     private static final java.util.concurrent.ExecutorService UPDATES = java.util.concurrent.Executors.newSingleThreadExecutor();
@@ -463,8 +466,10 @@ public final class FridaBridge {
         boolean window = windowHookEnabled(context) && windowHookSupported() && windowReviewed();
         boolean navigation = navigationHookEnabled(context) && navigationReviewed();
         boolean can = canReviewed();
+        boolean apollo = apolloHookEnabled(context) && apolloReviewed();
         java.util.List<String> locales = localizationChannels();
-        Uploads uploads = new Uploads(progress, 3 + locales.size() + (window ? 1 : 0) + (navigation ? 1 : 0) + (can ? 1 : 0));
+        Uploads uploads = new Uploads(progress, 3 + locales.size() + (window ? 1 : 0) + (navigation ? 1 : 0) + (can ? 1 : 0)
+            + (apollo ? 1 : 0));
         progress.report(DeploymentProgress.Stage.STOPPING, null, 0, 0);
         // Stop only this project's prior worker. Never kill another Frida instance.
         boolean panelRestored = restorePanelIcons();
@@ -511,6 +516,13 @@ public final class FridaBridge {
         if (can) {
             stageOptionalHook("can", uploads);
             channels.add("can");
+        }
+        if (apollo) {
+            publishApolloConfig();
+            stageOptionalHook("apollo", uploads);
+            channels.add("apollo");
+        } else {
+            command("settings delete global " + APOLLO_CONFIG);
         }
         progress.report(DeploymentProgress.Stage.SEALING, null, 0, 0);
         sealDeployment(channels);
@@ -620,6 +632,98 @@ public final class FridaBridge {
     }
     public void setNavigationHook(boolean enabled) throws IOException { setOptionalHook("navigation", enabled); }
 
+    /** The three parts of the factory assistance path the driver can choose independently. */
+    public static final java.util.List<String> APOLLO_PARTS = java.util.List.of("subscription", "controller", "equipment");
+    private static String apolloKey(String part) {
+        return switch (part) {
+            case "subscription" -> "apolloSubscription";
+            case "controller" -> "apolloController";
+            case "equipment" -> "apolloEquipment";
+            default -> throw new IllegalArgumentException("Unknown factory assistance part");
+        };
+    }
+    public static boolean apolloPartEnabled(Context context, String part) {
+        return context.getSharedPreferences("bridge", Context.MODE_PRIVATE).getBoolean(apolloKey(part), false);
+    }
+    /** The channel runs while the driver wants any part of the factory assistance path. */
+    public static boolean apolloHookEnabled(Context context) {
+        for (String part : APOLLO_PARTS) if (apolloPartEnabled(context, part)) return true;
+        return false;
+    }
+    /** The document the agent reads. Only the chosen parts are true; nothing is inferred from the vehicle. */
+    public static String apolloConfig(Context context) {
+        var store = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
+        StringBuilder document = new StringBuilder("{\"schema\":1");
+        for (String part : APOLLO_PARTS) document.append(",\"").append(part).append("\":")
+            .append(store.getBoolean(apolloKey(part), false));
+        return document.append('}').toString();
+    }
+    /** What the agent reported it could apply, or null when it has not written one yet. */
+    public static String apolloState(Context context) {
+        try { return android.provider.Settings.Global.getString(context.getContentResolver(), APOLLO_STATE); }
+        catch (RuntimeException unreadable) { return null; }
+    }
+    /** The factory settings package is pinned for this firmware and the owner has not forbidden the agent. */
+    private boolean apolloReviewed() {
+        return packageReviewed(ReviewedFirmware.VEHICLE_SETTINGS)
+            && (production == null || production.agentAllowed(ActionCatalog.APOLLO));
+    }
+    /** Turns one part of the factory assistance path over to the agent; the agent applies it within a second. */
+    public void setApolloPart(String part, boolean enabled) throws IOException {
+        synchronized (IO_LOCK) {
+            try (ControlsLog.Span span = ControlsLog.span("bridge_apollo", "part", part, "enabled", enabled)) {
+                try {
+                    apolloKey(part);
+                    if (!knownAuthorization()) throw new ProductionRootAccess.Refused(UiText.get(R.string.production_connect_required));
+                    requireRoot();
+                    if (enabled && !apolloReviewed()) throw unreviewedOperation();
+                    var store = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
+                    if (!store.edit().putBoolean(apolloKey(part), enabled).commit()) {
+                        throw new IOException(UiText.get(R.string.ui_152));
+                    }
+                    if (!apolloHookEnabled(context)) {
+                        command(stopCommand("/apollo"));
+                        command(activationGuard() + "settings delete global " + APOLLO_CONFIG);
+                    } else {
+                        if (!runtimeConfigured()) throw new IOException(UiText.get(R.string.ui_19));
+                        if (production != null) production.requireActivation();
+                        publishApolloConfig();
+                        if (!enabledChannels().contains("apollo")) {
+                            stageOptionalHook("apollo");
+                            if (production != null) {
+                                Set<String> active = enabledChannels();
+                                active.add("apollo");
+                                sealDeployment(active);
+                            }
+                            enableChannel("apollo");
+                            command(activationGuard() + fixtureEnvironment() + DETACHED + "/system/bin/sh " + base
+                                + "/supervise.sh apollo >/dev/null 2>&1 </dev/null &");
+                        }
+                    }
+                    span.outcome("applied");
+                } catch (IOException | RuntimeException ex) {
+                    record(span, ex);
+                    throw ex;
+                }
+            }
+        }
+    }
+
+    private void publishApolloConfig() throws IOException {
+        command(activationGuard() + "settings put global " + APOLLO_CONFIG + " " + quote(apolloConfig(context)));
+    }
+
+    /** Whether the pinned firmware and the owner's allowed actions let one optional channel run. */
+    private boolean channelReviewed(String channel) {
+        return switch (channel) {
+            case "window" -> windowReviewed();
+            case "navigation" -> navigationReviewed();
+            case "can" -> canReviewed();
+            case "apollo" -> apolloReviewed();
+            default -> false;
+        };
+    }
+
     private void setOptionalHook(String channel, boolean enabled) throws IOException {
         synchronized (IO_LOCK) {
             try (ControlsLog.Span span = ControlsLog.span("bridge_optional_hook", "channel", channel, "enabled", enabled)) {
@@ -629,7 +733,7 @@ public final class FridaBridge {
                     boolean restored = true;
                     if (enabled) {
                         if (!runtimeConfigured()) throw new IOException(UiText.get(R.string.ui_19));
-                        if (channel.equals("window") ? !windowReviewed() : !navigationReviewed()) throw unreviewedOperation();
+                        if (!channelReviewed(channel)) throw unreviewedOperation();
                         if (production != null) production.requireActivation();
                         boolean reuseWindow = channel.equals("window") && visualSessionState("/window").state().equals("current")
                             && liveWindowReady("3");
@@ -729,9 +833,9 @@ public final class FridaBridge {
         artifacts.put("supervise.sh", assetDigest("hooks/supervise.sh"));
         artifacts.put("launcher-buttons.js", assetDigest("hooks/launcher-buttons.bundle.js"));
         for (String channel : channels) {
-            if (channel.equals("window") && !windowReviewed() || channel.equals("navigation") && !navigationReviewed()
-                || channel.equals("can") && !canReviewed()
-                || channel.startsWith("locale-") && !localeAllowed(channel.substring(7))) throw unreviewedOperation();
+            if (channel.startsWith("locale-")) {
+                if (!localeAllowed(channel.substring(7))) throw unreviewedOperation();
+            } else if (!channelReviewed(channel)) throw unreviewedOperation();
             String script = channel.startsWith("locale-") ? "localization" : channel;
             artifacts.put(channel + "/launcher-buttons.js", assetDigest("hooks/" + script + ".bundle.js"));
         }
