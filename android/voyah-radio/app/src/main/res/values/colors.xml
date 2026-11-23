@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="radio_background">#0F141C</color>
+    <color name="radio_panel">#17202D</color>
+    <color name="radio_surface">#192230</color>
+    <color name="radio_edge">#2D3A4E</color>
+    <color name="radio_selected">#253752</color>
+    <color name="radio_selected_edge">#506E9C</color>
+    <color name="radio_text">#EDF2FA</color>
+    <color name="radio_muted">#ADBACE</color>
+    <color name="radio_accent">#B5CFFF</color>
+    <color name="radio_on_accent">#182842</color>
+    <color name="radio_error">#FFBAAA</color>
+    <color name="radio_warm">#E1C992</color>
+</resources>

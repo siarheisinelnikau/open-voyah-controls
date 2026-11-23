@@ -1,5 +1,6 @@
 [
-  {"id": "radius", "name": "Радиус FM", "label": "103.7 FM", "aliases": "Radius Радиўс", "local": true, "streams": ["https://media2.datacenter.by/stream/radiusfm/stream", "http://media2.datacenter.by:8002/radiusfm_main"]},
+  {"id": "radius", "name": "Радиус FM", "label": "103.7 FM", "aliases": "Radius RadiusFM РадиусФМ Радиўс", "local": true, "streams": ["https://media2.datacenter.by/stream/radiusfm/stream", "http://media2.datacenter.by:8002/radiusfm_main"]},
+  {"id": "radio-4you", "name": "Radio 4YOU", "label": "4YOU.FM", "aliases": "4 You For You Радио 4Ю Фор Ю Electronic House Минск", "local": true, "streams": ["https://myradio24.org/2455", "https://listen7.myradio24.com/2455"]},
   {"id": "unistar", "name": "Unistar", "label": "99.5 FM", "aliases": "Юнистар Унистар", "local": true, "streams": ["https://edge2.usp.unistar.by/hls/unistar_main/96k.m3u8", "https://edge1.usp.unistar.by/hls/unistar_main/96k.m3u8"]},
   {"id": "pilot", "name": "Пилот FM", "label": "101.2 FM", "aliases": "Pilot Pylot", "local": true, "streams": ["https://edge2.usp.unistar.by/hls/unistar_pilotfm/96k.m3u8", "https://edge1.usp.unistar.by/hls/unistar_pilotfm/96k.m3u8"]},
   {"id": "novoe", "name": "Новое радио", "label": "98.4 FM", "aliases": "Novoe New", "local": true, "streams": ["https://live.novoeradio.by:444/live/novoeradio_aac128/icecast.audio"]},
