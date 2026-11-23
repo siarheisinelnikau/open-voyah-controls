@@ -15,12 +15,13 @@ public final class Station {
     public final List<String> streams;
     private final String label;
     private final String russianLabel;
+    private final String kazakhLabel;
     private final Locale country;
     private final String searchText;
 
     public Station(String id, String name, String label, String aliases,
                    RadioTab group, List<String> streams, int trackSourceId,
-                   String countryCode, String russianLabel) {
+                   String countryCode, String russianLabel, String kazakhLabel) {
         if (id.trim().isEmpty() || name.trim().isEmpty() || streams.isEmpty()) {
             throw new IllegalArgumentException("Incomplete station");
         }
@@ -35,16 +36,33 @@ public final class Station {
         this.name = name;
         this.label = label;
         this.russianLabel = russianLabel.isEmpty() ? label : russianLabel;
+        this.kazakhLabel = kazakhLabel.isEmpty() ? switch (label) {
+            case "Chillout" -> "Баяу музыка";
+            case "Classical" -> "Классикалық музыка";
+            case "Country" -> "Кантри";
+            case "Dance" -> "Би музыкасы";
+            case "Jazz" -> "Джаз";
+            case "News" -> "Жаңалықтар";
+            case "Pop" -> "Поп";
+            case "Rock" -> "Рок";
+            case "Talk" -> "Әңгіме";
+            case "World" -> "Халық музыкасы";
+            default -> label;
+        } : kazakhLabel;
         this.country = countryCode.isEmpty() ? null : new Locale("", countryCode);
         this.group = group;
         this.trackSourceId = trackSourceId;
         this.streams = Collections.unmodifiableList(new ArrayList<>(streams));
         this.searchText = normalize(name + " " + aliases + " " + displayLabel(Locale.ENGLISH)
-                + " " + displayLabel(new Locale("ru")));
+                + " " + displayLabel(new Locale("ru")) + " " + displayLabel(new Locale("kk")));
     }
 
     public String displayLabel(Locale locale) {
-        String detail = locale.getLanguage().equals("ru") ? russianLabel : label;
+        String detail = switch (locale.getLanguage()) {
+            case "ru" -> russianLabel;
+            case "kk" -> kazakhLabel;
+            default -> label;
+        };
         if (country == null) return detail;
         String region = country.getDisplayCountry(locale);
         return detail.isEmpty() ? region : region + " · " + detail;

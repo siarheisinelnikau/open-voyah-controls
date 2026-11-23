@@ -18,15 +18,19 @@ public final class CatalogOptions {
     public final Set<String> unavailableStations;
     public final boolean hideUnavailable;
     private final Map<String, Integer> ranks = new HashMap<>();
+    private final Map<String, Integer> favoriteRanks = new HashMap<>();
 
     public CatalogOptions(Set<RadioTab> hiddenTabs, Set<String> hiddenStations,
                           Set<String> unavailableStations, boolean hideUnavailable,
-                          List<String> order) {
+                          List<String> order, List<String> favoriteOrder) {
         this.hiddenTabs = Collections.unmodifiableSet(new HashSet<>(hiddenTabs));
         this.hiddenStations = Collections.unmodifiableSet(new HashSet<>(hiddenStations));
         this.unavailableStations = Collections.unmodifiableSet(new HashSet<>(unavailableStations));
         this.hideUnavailable = hideUnavailable;
         for (int index = 0; index < order.size(); index++) ranks.putIfAbsent(order.get(index), index);
+        for (int index = 0; index < favoriteOrder.size(); index++) {
+            favoriteRanks.putIfAbsent(favoriteOrder.get(index), index);
+        }
     }
 
     public RadioTab visibleTab(RadioTab preferred) {
@@ -69,11 +73,20 @@ public final class CatalogOptions {
     }
 
     public List<Station> visibleStations(List<Station> stations, RadioTab tab, Set<String> favorites) {
-        List<Station> visible = new ArrayList<>();
-        for (Station station : ordered(stations)) {
-            if (tab.contains(station, favorites) && shows(station)) visible.add(station);
-        }
+        List<Station> visible = stationsForTab(stations, tab, favorites);
+        visible.removeIf(station -> !shows(station));
         return visible;
+    }
+
+    public List<Station> stationsForTab(List<Station> stations, RadioTab tab, Set<String> favorites) {
+        List<Station> matching = new ArrayList<>();
+        for (Station station : ordered(stations)) {
+            if (tab.contains(station, favorites)) matching.add(station);
+        }
+        if (tab == RadioTab.FAVORITES) {
+            matching.sort(Comparator.comparingInt(station -> favoriteRanks.getOrDefault(station.id, Integer.MAX_VALUE)));
+        }
+        return matching;
     }
 
     public List<String> move(List<Station> stations, Station station, int direction) {

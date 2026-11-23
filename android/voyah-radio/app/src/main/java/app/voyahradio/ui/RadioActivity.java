@@ -193,6 +193,7 @@ public final class RadioActivity extends Activity {
         int width = getResources().getConfiguration().screenWidthDp;
         int height = getResources().getConfiguration().screenHeightDp;
         boolean wide = width >= 720;
+        boolean wideHeader = width >= 900;
         listColumns = width >= 1000 ? 2 : 1;
 
         LinearLayout page = vertical();
@@ -203,11 +204,11 @@ public final class RadioActivity extends Activity {
         setContentView(page);
         page.requestFocus();
 
-        LinearLayout header = wide ? horizontal() : vertical();
+        LinearLayout header = wideHeader ? horizontal() : vertical();
         header.setGravity(Gravity.CENTER_VERTICAL);
         page.addView(header, wrap(MATCH_PARENT));
         LinearLayout titleRow = header;
-        if (!wide) {
+        if (!wideHeader) {
             titleRow = horizontal();
             titleRow.setGravity(Gravity.CENTER_VERTICAL);
             header.addView(titleRow, wrap(MATCH_PARENT));
@@ -223,17 +224,17 @@ public final class RadioActivity extends Activity {
         settings.setBackground(actionBackground(getColor(R.color.radio_surface), 15, themeColor(R.attr.radio_edge_role)));
         LinearLayout.LayoutParams settingsParams = size(52, 52);
         settingsParams.leftMargin = dp(8);
-        if (!wide) titleRow.addView(settings, settingsParams);
+        if (!wideHeader) titleRow.addView(settings, settingsParams);
 
         LinearLayout tabGroup = horizontal();
         tabGroup.setPadding(dp(4), dp(4), dp(4), dp(4));
         tabGroup.setBackground(shape(getColor(R.color.radio_surface), 18, themeColor(R.attr.radio_edge_role)));
-        LinearLayout.LayoutParams groupParams = wrap(wide ? WRAP_CONTENT : MATCH_PARENT);
-        if (!wide) groupParams.topMargin = dp(12);
+        LinearLayout.LayoutParams groupParams = wrap(wideHeader ? WRAP_CONTENT : MATCH_PARENT);
+        if (!wideHeader) groupParams.topMargin = dp(12);
         header.addView(tabGroup, groupParams);
-        int tabPadding = width >= 1000 ? 17 : (wide ? 8 : 4);
-        for (RadioTab tab : RadioTab.values()) addTab(tabGroup, tab, wide, tabPadding);
-        if (wide) header.addView(settings, settingsParams);
+        int tabPadding = width >= 1000 ? 17 : (wideHeader ? 8 : 4);
+        for (RadioTab tab : RadioTab.values()) addTab(tabGroup, tab, wideHeader, tabPadding);
+        if (wideHeader) header.addView(settings, settingsParams);
 
         LinearLayout content = wide ? horizontal() : vertical();
         LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f);
@@ -517,10 +518,8 @@ public final class RadioActivity extends Activity {
 
     private void renderTrack(Playback playback) {
         Track track = playback.track;
-        boolean show = track != null || playback.status == Playback.Status.LIVE;
-        trackTitle.setVisibility(show ? View.VISIBLE : View.GONE);
-        setText(trackTitle, track == null ? getString(R.string.track_unavailable) : track.title);
-        trackTitle.setTextColor(track == null ? getColor(R.color.radio_muted) : themeColor(R.attr.radio_accent_role));
+        trackTitle.setVisibility(track != null ? View.VISIBLE : View.GONE);
+        setText(trackTitle, track == null ? "" : track.title);
         boolean showArtist = track != null && !track.artist.isEmpty();
         trackArtist.setVisibility(showArtist ? View.VISIBLE : View.GONE);
         setText(trackArtist, showArtist ? track.artist : "");

@@ -11,6 +11,7 @@ final class RadioLabels {
             case BELARUS -> R.string.belarus;
             case RUSSIA -> R.string.russia;
             case INTERNATIONAL -> R.string.international;
+            case KAZAKHSTAN -> R.string.kazakhstan;
             case FAVORITES -> R.string.favorites;
         };
     }

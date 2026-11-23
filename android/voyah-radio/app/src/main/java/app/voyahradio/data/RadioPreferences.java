@@ -91,10 +91,13 @@ public final class RadioPreferences {
                 unavailableStations.add(entry.getKey().substring(AVAILABILITY_PREFIX.length()));
             }
         }
-        String storedOrder = prefs.getString("station_order", "");
-        List<String> order = storedOrder.isEmpty() ? Collections.emptyList() : Arrays.asList(storedOrder.split(","));
         return new CatalogOptions(hiddenTabs, hiddenStations, unavailableStations,
-                prefs.getBoolean("hide_unavailable", false), order);
+                prefs.getBoolean("hide_unavailable", false), readOrder("station_order"), readOrder("favorite_order"));
+    }
+
+    private List<String> readOrder(String key) {
+        String saved = prefs.getString(key, "");
+        return saved.isEmpty() ? Collections.emptyList() : Arrays.asList(saved.split(","));
     }
 
     public void saveHiddenTabs(Set<RadioTab> tabs) {
@@ -109,6 +112,10 @@ public final class RadioPreferences {
 
     public void saveOrder(List<String> ids) {
         prefs.edit().putString("station_order", String.join(",", ids)).apply();
+    }
+
+    public void saveFavoriteOrder(List<String> ids) {
+        prefs.edit().putString("favorite_order", String.join(",", ids)).apply();
     }
 
     public void setHideUnavailable(boolean enabled) {

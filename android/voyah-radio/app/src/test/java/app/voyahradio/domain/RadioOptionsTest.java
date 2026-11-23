@@ -16,10 +16,10 @@ public final class RadioOptionsTest {
 
     @Test public void customOrderAndHiddenStationsApplyToFavoritesAndCountry() {
         CatalogOptions settings = new CatalogOptions(Set.of(RadioTab.INTERNATIONAL), Set.of(),
-                Set.of(), false, List.of());
+                Set.of(), false, List.of(), List.of());
         List<String> order = settings.move(stations, fourYou, -1);
         CatalogOptions ordered = new CatalogOptions(settings.hiddenTabs, Set.of(radius.id), Set.of(),
-                false, order);
+                false, order, List.of());
 
         assertEquals(List.of(fourYou, europa, radius), ordered.ordered(stations));
         assertEquals(RadioTab.BELARUS, ordered.visibleTab(RadioTab.INTERNATIONAL));
@@ -37,9 +37,9 @@ public final class RadioOptionsTest {
         assertTrue(Availability.isDefinitiveHttpFailure(404));
         assertTrue(Availability.isDefinitiveHttpFailure(410));
 
-        CatalogOptions filtered = new CatalogOptions(Set.of(), Set.of(), Set.of(fourYou.id), true, List.of());
+        CatalogOptions filtered = new CatalogOptions(Set.of(), Set.of(), Set.of(fourYou.id), true, List.of(), List.of());
         assertEquals(List.of(radius), filtered.visibleStations(stations, RadioTab.BELARUS, Set.of()));
-        CatalogOptions unfiltered = new CatalogOptions(Set.of(), Set.of(), Set.of(fourYou.id), false, List.of());
+        CatalogOptions unfiltered = new CatalogOptions(Set.of(), Set.of(), Set.of(fourYou.id), false, List.of(), List.of());
         assertEquals(List.of(radius, fourYou), unfiltered.visibleStations(stations, RadioTab.BELARUS, Set.of()));
     }
 
@@ -54,12 +54,12 @@ public final class RadioOptionsTest {
     }
 
     private static Station station(String id, RadioTab group) {
-        return new Station(id, id, "", "", group, List.of("https://example.com/radio"), 0, "", "");
+        return new Station(id, id, "", "", group, List.of("https://example.com/radio"), 0, "", "", "");
     }
 
     @Test public void internationalStationIsSearchableByCountryInBothLanguages() {
         Station station = new Station("zet", "Radio ZET", "Pop", "",
-                RadioTab.INTERNATIONAL, List.of("https://example.com/radio"), 0, "PL", "Поп");
+                RadioTab.INTERNATIONAL, List.of("https://example.com/radio"), 0, "PL", "Поп", "");
 
         assertEquals("Poland · Pop", station.displayLabel(Locale.ENGLISH));
         assertEquals("Польша · Поп", station.displayLabel(new Locale("ru")));
@@ -74,11 +74,20 @@ public final class RadioOptionsTest {
         Station newInternational = station("international-new", RadioTab.INTERNATIONAL);
         Station newRussian = station("maximum", RadioTab.RUSSIA);
         CatalogOptions previous = new CatalogOptions(Set.of(), Set.of(), Set.of(), false,
-                List.of(fourYou.id, radius.id, europa.id, firstInternational.id, secondInternational.id));
+                List.of(fourYou.id, radius.id, europa.id, firstInternational.id, secondInternational.id), List.of());
 
         List<Station> upgraded = List.of(radius, fourYou, newRussian, europa,
                 newInternational, firstInternational, secondInternational);
         assertEquals(List.of(fourYou, radius, newRussian, europa,
                 newInternational, firstInternational, secondInternational), previous.ordered(upgraded));
+    }
+
+    @Test public void favoriteOrderCrossesRegionsAndKeepsRegionalOrderAndVisibility() {
+        CatalogOptions options = new CatalogOptions(Set.of(), Set.of(), Set.of(fourYou.id), true,
+                List.of(radius.id, fourYou.id), List.of(fourYou.id, europa.id));
+        Set<String> favorites = Set.of(radius.id, fourYou.id, europa.id);
+        assertEquals(List.of(fourYou, europa, radius), options.stationsForTab(stations, RadioTab.FAVORITES, favorites));
+        assertEquals(List.of(europa, radius), options.visibleStations(stations, RadioTab.FAVORITES, favorites));
+        assertEquals(List.of(radius, fourYou), options.stationsForTab(stations, RadioTab.BELARUS, favorites));
     }
 }

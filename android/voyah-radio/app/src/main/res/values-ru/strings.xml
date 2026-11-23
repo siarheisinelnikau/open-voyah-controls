@@ -27,11 +27,13 @@
     <string name="remove_favorite">Убрать «%1$s» из избранного</string>
     <string name="on_air_channel">Воспроизведение радио</string>
     <string name="russia">Россия</string>
+    <string name="kazakhstan">Казахстан</string>
     <string name="settings">Настройки</string>
     <string name="back">Назад</string>
     <string name="language">Язык</string>
     <string name="language_ru">Русский</string>
     <string name="language_en">English</string>
+    <string name="language_kk">Қазақша</string>
     <string name="visible_tabs">Видимые вкладки</string>
     <string name="keep_one_tab">Оставьте хотя бы одну вкладку</string>
     <string name="station_settings">Порядок и видимость</string>
@@ -48,7 +50,6 @@
     <string name="check_needs_internet">Для проверки станций нужен интернет</string>
     <string name="station_unavailable">Эфир недоступен</string>
     <string name="no_visible_stations">Нет видимых станций</string>
-    <string name="track_unavailable">Данные о треке недоступны</string>
     <string name="track_notification">%1$s · %2$s</string>
     <string name="appearance">Внешний вид</string>
     <string name="theme">Тема</string>

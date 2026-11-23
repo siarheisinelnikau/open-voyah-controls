@@ -3,7 +3,7 @@ package app.voyahradio.domain;
 import java.util.Set;
 
 public enum RadioTab {
-    BELARUS, RUSSIA, INTERNATIONAL, FAVORITES;
+    BELARUS, RUSSIA, KAZAKHSTAN, INTERNATIONAL, FAVORITES;
 
     public boolean contains(Station station, Set<String> favorites) {
         return this == FAVORITES ? favorites.contains(station.id) : station.group == this;

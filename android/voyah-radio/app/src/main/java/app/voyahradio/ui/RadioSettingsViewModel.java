@@ -81,10 +81,7 @@ final class RadioSettingsViewModel {
 
     State state() {
         CatalogOptions options = preferences.catalogOptions();
-        List<Station> stations = new ArrayList<>();
-        for (Station station : options.ordered(catalog.all())) {
-            if (station.group == group) stations.add(station);
-        }
+        List<Station> stations = options.stationsForTab(catalog.all(), group, preferences.favorites());
         return new State(group, preferences.language(), preferences.theme(), preferences.visualization(),
                 preferences.smoothVisualization(), options, stations, scan, checked, catalog.all().size(),
                 unavailable, unknown);
@@ -141,7 +138,19 @@ final class RadioSettingsViewModel {
     }
 
     void move(Station station, int direction) {
-        preferences.saveOrder(preferences.catalogOptions().move(catalog.all(), station, direction));
+        CatalogOptions options = preferences.catalogOptions();
+        if (group == RadioTab.FAVORITES) {
+            List<Station> stations = options.stationsForTab(catalog.all(), group, preferences.favorites());
+            int index = stations.indexOf(station);
+            int destination = index + direction;
+            if (index < 0 || destination < 0 || destination >= stations.size()) return;
+            Collections.swap(stations, index, destination);
+            List<String> order = new ArrayList<>(stations.size());
+            for (Station favorite : stations) order.add(favorite.id);
+            preferences.saveFavoriteOrder(order);
+        } else {
+            preferences.saveOrder(options.move(catalog.all(), station, direction));
+        }
         publish();
     }
 

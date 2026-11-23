@@ -27,11 +27,13 @@
     <string name="remove_favorite">Remove %1$s from favorites</string>
     <string name="on_air_channel">Radio playback</string>
     <string name="russia">Russia</string>
+    <string name="kazakhstan">Kazakhstan</string>
     <string name="settings">Settings</string>
     <string name="back">Back</string>
     <string name="language">Language</string>
     <string name="language_ru">Русский</string>
     <string name="language_en">English</string>
+    <string name="language_kk">Қазақша</string>
     <string name="visible_tabs">Visible tabs</string>
     <string name="keep_one_tab">Keep at least one tab visible</string>
     <string name="station_settings">Order and visibility</string>
@@ -48,7 +50,6 @@
     <string name="check_needs_internet">Internet is required to check stations</string>
     <string name="station_unavailable">Stream unavailable</string>
     <string name="no_visible_stations">No visible stations</string>
-    <string name="track_unavailable">Track details unavailable</string>
     <string name="track_notification">%1$s · %2$s</string>
     <string name="appearance">Appearance</string>
     <string name="theme">Theme</string>

@@ -130,11 +130,14 @@ public final class RadioSettingsActivity extends Activity {
 
     private void buildControls(LinearLayout controls, boolean wide) {
         LinearLayout appearance = card(controls, R.string.appearance);
-        LinearLayout languageRow = labeledOptions(appearance, R.string.language, wide);
+        LinearLayout languageRow = labeledOptions(appearance, R.string.language, false);
         option(languageRow, languages, "ru", R.string.language_ru, value -> {
             if (model.setLanguage(value)) recreate();
         });
         option(languageRow, languages, "en", R.string.language_en, value -> {
+            if (model.setLanguage(value)) recreate();
+        });
+        option(languageRow, languages, "kk", R.string.language_kk, value -> {
             if (model.setLanguage(value)) recreate();
         });
         LinearLayout themeRow = labeledOptions(appearance, R.string.theme, wide);
@@ -213,7 +216,6 @@ public final class RadioSettingsActivity extends Activity {
 
         LinearLayout groups = optionRow(panel);
         for (RadioTab tab : RadioTab.values()) {
-            if (tab == RadioTab.FAVORITES) continue;
             TextView group = button(RadioLabels.tab(tab), () -> model.selectGroup(tab));
             groups.addView(group, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
             groupButtons.put(tab, group);
@@ -255,7 +257,7 @@ public final class RadioSettingsActivity extends Activity {
             if (!TextUtils.equals(checkStatus.getText(), status)) checkStatus.setText(status);
             boolean groupChanged = displayedGroup != state.group;
             if (groupChanged || !displayedStations.equals(state.stations)) {
-                rebuildRows(state.stations, groupChanged);
+                rebuildRows(state.stations, state.group, groupChanged);
                 displayedGroup = state.group;
                 displayedStations = state.stations;
                 chooseOptions(groupButtons, state.group);
@@ -272,7 +274,7 @@ public final class RadioSettingsActivity extends Activity {
         }
     }
 
-    private void rebuildRows(List<Station> stations, boolean groupChanged) {
+    private void rebuildRows(List<Station> stations, RadioTab group, boolean groupChanged) {
         int scrollY = stationsScroll == null || groupChanged ? 0 : stationsScroll.getScrollY();
         Map<String, Integer> oldPositions = new LinkedHashMap<>();
         if (!groupChanged && animate) {
@@ -280,6 +282,9 @@ public final class RadioSettingsActivity extends Activity {
         }
         stationRows.removeAllViews();
         rows.clear();
+        if (stations.isEmpty() && group == RadioTab.FAVORITES) {
+            stationRows.addView(caption(R.string.empty_favorites));
+        }
         for (int index = 0; index < stations.size(); index++) {
             Station station = stations.get(index);
             StationControl control = new StationControl(station, index > 0, index + 1 < stations.size());

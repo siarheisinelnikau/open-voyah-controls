@@ -35,7 +35,7 @@ public final class RadioCatalog {
                 Station station = new Station(item.getString("id"), item.getString("name"),
                         item.getString("label"), item.optString("aliases"),
                         RadioTab.valueOf(item.getString("group")), streams, item.optInt("trackSourceId", 0),
-                        item.optString("countryCode"), item.optString("labelRu"));
+                        item.optString("countryCode"), item.optString("labelRu"), item.optString("labelKk"));
                 if (!ids.add(station.id)) throw new IllegalArgumentException("Duplicate station: " + station.id);
                 loaded.add(station);
             }

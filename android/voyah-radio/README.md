@@ -1,12 +1,14 @@
 # Voyah Radio
 
-Internet radio for the Voyah Free center display. The app uses large touch controls and keeps the interface dark in both the graphite and amber themes. The landscape layout adapts to narrower Android screens. Android 9 and later are supported. The interface starts in Russian and can be switched to English in Settings.
+Internet radio for the Voyah Free center display. The app uses large touch controls and keeps the interface dark in both the graphite and amber themes. The landscape layout adapts to narrower Android screens. Android 9 and later are supported. The interface starts in Russian and can be switched to English or Kazakh in Settings.
 
 ![Radio 4YOU playing in graphite with the live spectrum](docs/screenshots/radio-playing.png)
 
 ![Radius FM playing in amber with the live waveform](docs/screenshots/radio-amber.png)
 
-![Settings with visualization smoothing, station visibility and ordering](docs/screenshots/settings.png)
+![Settings with language selection and manual Favorites ordering](docs/screenshots/settings.png)
+
+![Kazakhstan stations with the interface in Kazakh](docs/screenshots/kazakhstan.png)
 
 ![Buffer display with the amount of received data on a throttled connection](docs/screenshots/buffering.png)
 
@@ -14,11 +16,11 @@ Internet radio for the Voyah Free center display. The app uses large touch contr
 
 ## Install and listen
 
-Open the signed `VoyahRadio-v0.3.4.apk` from `dist/` with the head unit's Android package installer. The head unit needs internet access to play stations.
+Open the signed `VoyahRadio-v0.3.5.apk` from `dist/` with the head unit's Android package installer. The head unit needs internet access to play stations.
 
-The built-in catalog has 246 stations with separate Belarus, Russia, International and Favorites tabs. Russia has 34 channels, including Radio Maximum, Avtoradio Moscow and Rock FM. International has 169 stations from 34 countries, including RMF FM, BBC Radio 2, SWR3 and Radio Paradise. Tap a station to listen or tap its star to save it. Search accepts station names, aliases, frequencies and Russian or English country names. The app remembers the last station and starts playback when you press Play. Android's media session carries playback controls and the current track while you switch apps.
+The built-in catalog has 268 stations with separate Belarus, Russia, Kazakhstan, International and Favorites tabs. Kazakhstan has 27 stations, including Qazaq radiosy, Shalqar, Classic, Tengri FM and Zhana FM. Russia has 34 stations, and International has 164. Tap a station to listen or tap its star to save it. Search accepts station names, aliases, frequencies and localized country names. The app remembers the last station and starts playback when you press Play. Android's media session carries playback controls and the current track while you switch apps.
 
-Track titles and artists come from stream metadata. Selected Belarusian stations, including Radius FM, also use the public [RadioPlayer Belarus feed](https://radioplayer.by/). The player displays a status when track details are unavailable. While connecting, buffering or reconnecting, it shows seconds of playable audio buffered, data received so far and a progress bar toward playback. The spectrum and waveform use decoded playback audio and stop drawing when the player leaves the screen.
+Track titles and artists appear when available in stream metadata. Selected Belarusian stations, including Radius FM, also use the public [RadioPlayer Belarus feed](https://radioplayer.by/). While connecting, buffering or reconnecting, the player shows seconds of playable audio buffered, data received so far and a progress bar toward playback. The spectrum and waveform use decoded playback audio and stop drawing when the player leaves the screen.
 
 ## Media buttons
 
@@ -26,7 +28,7 @@ Android media buttons and media controllers can play, pause, toggle playback, st
 
 ## Settings
 
-Toggle each catalog tab under Visible tabs. In Order and visibility, choose a region, use the station switches to show or hide rows, and use the arrows to save a new order. Settings also offers the graphite and amber themes and the choice of spectrum, waveform or no visualization. Smooth visualization is enabled by default and can be switched off under Appearance.
+Toggle each catalog tab under Visible tabs. In Order and visibility, choose a region or Favorites, use the station switches to show or hide rows, and use the arrows to save a new order. Favorites has its own order across regions. Settings also offers the graphite and amber themes and the choice of spectrum, waveform or no visualization. Smooth visualization is enabled by default and can be switched off under Appearance.
 
 Hide unavailable stations uses confirmed responses from all of a station's stream URLs. Connection loss, timeouts and inconclusive responses preserve the station's visibility. Run Check availability from Settings to check the full catalog. Confirmed reports are kept for 24 hours and can be cleared sooner by a successful check or playback.
 
@@ -40,7 +42,7 @@ Use JDK 17 and Android SDK Platform 35. Set `ANDROID_HOME` or set `sdk.dir` in a
 
 For a signed release build, set `VOYAH_RADIO_KEYSTORE` to the absolute path of a PKCS#12 keystore with the alias `voyah-radio` and set `VOYAH_RADIO_STORE_PASSWORD`. Run `.\gradlew.bat :app:assembleRelease`. Subsequent APKs installed over an existing copy must use the same signing key.
 
-The player reads `app/src/main/assets/stations.json` and connects directly to the public stream URLs listed there. Catalog sources include the [Radio Browser directory](https://docs.radio-browser.info/) and the [official MAXIMUM player](https://maximum.ru/online/).
+The player reads `app/src/main/assets/stations.json` and connects directly to the public stream URLs listed there. Catalog sources include the [Radio Browser directory](https://docs.radio-browser.info/), [Qazaq Radiosy](https://qazradio.fm/kz/), and the [official MAXIMUM player](https://maximum.ru/online/).
 
 ## Verification
 
