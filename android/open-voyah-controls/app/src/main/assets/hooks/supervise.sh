@@ -447,7 +447,7 @@ revoke_activation() {
     recovery_recorded=1
     log "OVC_WORKER_NOTICE Activation revoked reason=$revoke_reason."
     # Close every known channel only after durable recovery evidence exists.
-    for suffix in '' /locale-setting /locale-vehicle /locale-bluetooth /locale-hiboard /window /navigation /can; do
+    for suffix in '' /locale-setting /locale-vehicle /locale-bluetooth /locale-hiboard /window /navigation /can /apollo; do
         recovery_dir="$root$suffix"
         if [ -e "$recovery_dir" ] || [ -L "$recovery_dir" ]; then
             private_dir "$recovery_dir" && rm -f "$recovery_dir/enabled" || return 1

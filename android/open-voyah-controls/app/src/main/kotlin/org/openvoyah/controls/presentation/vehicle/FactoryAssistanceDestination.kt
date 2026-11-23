@@ -32,6 +32,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -93,16 +95,37 @@ internal class FactoryAssistanceViewModel(
 ) : ViewModel() {
     private val mutable = MutableStateFlow(FactoryAssistanceState())
     private var reportJob: Job? = null
+    private var statusJob: Job? = null
     val state = mutable.asStateFlow()
 
+    /** The agent publishes its report about a second after the switch changed, so keep reading while in front. */
+    fun startWatching() {
+        if (statusJob?.isActive == true) return
+        statusJob = viewModelScope.launch {
+            while (isActive) {
+                refreshStatus()
+                delay(1000)
+            }
+        }
+    }
+
+    fun stopWatching() {
+        statusJob?.cancel()
+        statusJob = null
+    }
+
+    private fun refreshStatus() {
+        val current = runCatching(request).getOrDefault(null)
+        val reported = runCatching(status).getOrDefault(ApolloAssistanceStatus.Unreported)
+        mutable.update { it.copy(request = current, status = reported) }
+    }
+
     fun refresh() {
+        refreshStatus()
         val assistance = runCatching(canOpenAssistance).getOrDefault(false)
         val vehicle = runCatching(canOpenVehicleMenu).getOrDefault(false)
         val chosen = runCatching(parts).getOrDefault(emptyMap())
-        val current = runCatching(request).getOrDefault(null)
-        val reported = runCatching(status).getOrDefault(ApolloAssistanceStatus.Unreported)
-        mutable.update { it.copy(assistanceMenuAvailable = assistance, vehicleMenuAvailable = vehicle,
-            parts = chosen, request = current, status = reported) }
+        mutable.update { it.copy(assistanceMenuAvailable = assistance, vehicleMenuAvailable = vehicle, parts = chosen) }
     }
 
     /**
@@ -179,6 +202,7 @@ internal class FactoryAssistanceViewModel(
     fun leave() {
         reportJob?.cancel()
         reportJob = null
+        stopWatching()
         mutable.value = FactoryAssistanceState()
     }
 
@@ -222,7 +246,8 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LifecycleResumeEffect(lifecycle, model) {
         model.refresh()
-        onPauseOrDispose { }
+        model.startWatching()
+        onPauseOrDispose { model.stopWatching() }
     }
     fun openFactory(preferAssistance: Boolean) {
         val outcome = launcher.requestFactoryAssistance(preferAssistance, activity::startActivity)
@@ -278,6 +303,9 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
                     }
                     state.status.requested.takeIf { it.isNotEmpty() }?.let {
                         CockpitFeedback(UiText.get(R.string.factory_assistance_answers_controller_request))
+                    }
+                    state.status.uncertain.takeIf { it.isNotEmpty() }?.let {
+                        CockpitFeedback(UiText.get(R.string.factory_assistance_answers_controller_uncertain))
                     }
                 }
                 state.applyError?.let { CockpitFeedback(it, error = true) }

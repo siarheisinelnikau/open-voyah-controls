@@ -658,15 +658,15 @@ public final class FridaBridge {
     }
     /** The document the agent reads. Only the chosen parts are true; nothing is inferred from the vehicle. */
     public static String apolloConfig(Context context) {
-        return apolloConfig(context, apolloRequest(context), false, 0L);
+        return apolloConfig(context, apolloRequest(context), false, 0L, 0L);
     }
-    private static String apolloConfig(Context context, String request, boolean send, long expires) {
+    private static String apolloConfig(Context context, String request, boolean send, long issued, long expires) {
         var store = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
         StringBuilder document = new StringBuilder("{\"schema\":1");
         if (request != null) document.append(",\"request\":\"").append(request).append('"');
-        // A send permit is written only after a fresh Park and zero-speed check. The deadline keeps it from
-        // surviving a stopped or restarted agent and sending much later without another live observation.
-        if (send) document.append(",\"send\":true,\"expires\":").append(expires);
+        // A send permit is written only after a fresh Park and zero-speed check. Wall-clock times bound it across
+        // a reboot: elapsed real time restarts and would make an old document look fresh to a boot agent.
+        if (send) document.append(",\"send\":true,\"issued\":").append(issued).append(",\"expires\":").append(expires);
         for (String part : APOLLO_PARTS) document.append(",\"").append(part).append("\":")
             .append(store.getBoolean(apolloKey(part), false));
         return document.append('}').toString();
@@ -767,13 +767,14 @@ public final class FridaBridge {
     /** A new request id each time ties the agent's report to this write, not to an earlier config it may still hold. */
     private void publishApolloConfig(boolean send) throws IOException {
         String request = UUID.randomUUID().toString().replace("-", "");
-        long expires = send ? SystemClock.elapsedRealtime() + 5000L : 0L;
+        long issued = send ? System.currentTimeMillis() : 0L;
+        long expires = send ? issued + 5000L : 0L;
         var store = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
         if (!store.edit().putString(APOLLO_REQUEST, request).commit()) {
             throw new IOException(UiText.get(R.string.ui_152));
         }
         command(activationGuard() + "settings put global " + APOLLO_CONFIG + " "
-            + quote(apolloConfig(context, request, send, expires)));
+            + quote(apolloConfig(context, request, send, issued, expires)));
     }
 
     /** Whether the pinned firmware and the owner's allowed actions let one optional channel run. */

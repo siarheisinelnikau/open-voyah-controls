@@ -268,7 +268,7 @@ sleep() {{
 
 
     def test_unlocked_clear_data_revokes_the_deployment_before_cleanup(self):
-        for suffix in ("", "window", "navigation"):
+        for suffix in ("", "window", "navigation", "apollo"):
             directory = self.base / suffix
             directory.mkdir(mode=0o700, exist_ok=True)
             (directory / "enabled").touch()
@@ -281,7 +281,7 @@ revoke_activation || exit 2
 for marker in recovery.visual-pending recovery.blocked; do
     [ -f "$root/$marker" ] || exit 4
 done
-[ ! -e "$root/enabled" ] && [ ! -e "$root/window/enabled" ] && [ ! -e "$root/navigation/enabled" ] || exit 5
+[ ! -e "$root/enabled" ] && [ ! -e "$root/window/enabled" ] && [ ! -e "$root/navigation/enabled" ] && [ ! -e "$root/apollo/enabled" ] || exit 5
 printf 'revoked before owned cleanup\\n'
 ''')
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)

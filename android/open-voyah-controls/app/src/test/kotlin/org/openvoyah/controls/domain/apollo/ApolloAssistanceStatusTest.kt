@@ -34,6 +34,14 @@ class ApolloAssistanceStatusTest {
         assertEquals("b".repeat(32), status.request)
     }
 
+    @Test fun anUnrecordedControllerOutcomeIsNamedAsUncertainRatherThanASuccessfulRequest() {
+        val status = ApolloAssistanceStatus.parse(
+            "{\"schema\":1,\"request\":\"${"d".repeat(32)}\",\"controller\":\"uncertain\",\"sent\":1}")
+        assertEquals(setOf("controller"), status.uncertain)
+        assertTrue(status.requested.isEmpty())
+        assertTrue(status.applied.isEmpty())
+    }
+
     @Test fun onlyTheReportForTheCurrentRequestIsShown() {
         val request = "c".repeat(32)
         val current = ApolloAssistanceStatus.parse(

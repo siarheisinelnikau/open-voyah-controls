@@ -1,14 +1,16 @@
 // What the factory Driving assistance page shows in Guest is decided by answers the factory settings process
 // gives itself. Controls can supply them while its own switch is on, and take them away again when it is off.
 // Nothing here changes the vehicle except one separately requested send, and an accepted request is never
-// reported as a verified state change. Controls verifies a fresh Park and zero speed before asking for that send;
-// this agent only honours the one request Controls carries, and never repeats one on its own.
+// reported as a verified state change. Controls verifies a fresh Park and zero speed before writing the permit;
+// the agent claims the request before calling the factory software and never repeats a claim, even after a restart.
 import { createReporter } from './report.js';
 
-/** Settings.Global document Controls writes: {"schema":1,"request":"<32 hex>","send":true|false,...}. */
+/** Settings.Global document Controls writes: {"schema":1,"request":"<32 hex>","send":true,"issued":...,...}. */
 export const APOLLO_CONFIG_KEY = 'org.openvoyah.controls.apolloFactory';
 /** Settings.Global document the agent writes back, so Controls can show what the installed software offered. */
 export const APOLLO_STATE_KEY = 'org.openvoyah.controls.apolloFactoryState';
+/** The request the agent claimed before calling the factory manager; survives the process and the reboot. */
+export const APOLLO_CLAIM_KEY = 'org.openvoyah.controls.apolloFactoryClaim';
 /** The subscription answer the stock factory page reads from the Baidu state provider. */
 export const SUBSCRIPTION_ANSWER = '{"expireStatus":"0","isMqtt":false,"remainDays":"30","subscriptionStatus":"1"}';
 export const APOLLO_CLASSES = Object.freeze({
@@ -35,24 +37,28 @@ export function apolloConfig(raw) {
     for (const part of PARTS) if (document[part] === true) wanted[part] = true;
     if (Object.keys(wanted).length === 0) return null;
     wanted.request = document.request;
-    // A send is never inferred from a controller switch: it needs the switch, an unexpired permit and a deadline.
+    // A send needs the controller switch, a deadline and the wall-clock time Controls observed Park at. Elapsed
+    // real time restarts on boot, so it cannot bound a permit that a boot agent may read much later.
     wanted.send = document.send === true && wanted.controller === true
-        && Number.isSafeInteger(document.expires) && document.expires > 0;
-    if (wanted.send) wanted.expires = document.expires;
+        && Number.isSafeInteger(document.issued) && Number.isSafeInteger(document.expires)
+        && document.issued > 0 && document.expires > document.issued;
+    if (wanted.send) { wanted.issued = document.issued; wanted.expires = document.expires; }
     return wanted;
 }
 
 /**
  * The state document the agent publishes. Only names, the matching request and a request count leave the process.
- * `requested` means the factory call was accepted; it says nothing about what the controller did with it.
+ * `requested` means the factory call was accepted and `uncertain` that the process ended before its outcome was
+ * recorded; neither says anything about what the controller did.
  */
-export function apolloState(applied, controllerRequested, missing, request, sent) {
+export function apolloState(applied, requestedFor, uncertainFor, missing, request, sent) {
     const state = { schema: 1 };
     if (request !== null) state.request = request;
     state.sent = sent;
     for (const part of PARTS) {
         state[part] = missing.has(part) ? 'unavailable'
-            : part === 'controller' && controllerRequested ? 'requested'
+            : request !== null && part === 'controller' && requestedFor === request ? 'requested'
+            : request !== null && part === 'controller' && uncertainFor === request ? 'uncertain'
             : applied.includes(part) ? 'applied' : 'off';
     }
     return JSON.stringify(state);
@@ -61,7 +67,7 @@ export function apolloState(applied, controllerRequested, missing, request, sent
 export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_ERROR')) {
     Java.perform(() => {
         let hooks = [], applied = [], missing = new Set(), sent = 0;
-        let request = null, sentFor = null, controllerRequested = false;
+        let request = null, claimedFor = null, sentFor = null, uncertainFor = null;
         const restore = () => {
             while (hooks.length) {
                 const hook = hooks.pop();
@@ -69,6 +75,28 @@ export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_E
             }
             applied = [];
             missing = new Set();
+        };
+        /** Install the whole part or none of it: a throw between two hooks must not leave a branch substituted. */
+        const install = (entries, part) => {
+            const installed = [];
+            try {
+                for (const [target, implementation] of entries) {
+                    target.implementation = implementation;
+                    installed.push(target);
+                }
+            } catch (error) {
+                for (const target of installed) {
+                    try { target.implementation = null; } catch (restoreError) { report('restore', restoreError); }
+                    const index = hooks.indexOf(target);
+                    if (index >= 0) hooks.splice(index, 1);
+                }
+                report('install', error, { part });
+                missing.add(part);
+                return false;
+            }
+            for (const target of installed) hooks.push(target);
+            applied.push(part);
+            return true;
         };
         const context = () => Java.use('android.app.ActivityThread').currentApplication().getApplicationContext();
         /** The named factory method, tried under each candidate signature; null when the software does not offer it. */
@@ -81,19 +109,22 @@ export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_E
             }
             return null;
         };
-        /** The factory singleton builds and initializes on first use; an accepted call is a request, not telemetry. */
+        /**
+         * The factory singleton builds and initializes on first use. 'failed' means the call threw after it began,
+         * so the process may have sent something even though no result was recorded.
+         */
         const requestAssistanceState = () => {
             const instance = method(APOLLO_CLASSES.manager, 'instance', [['android.content.Context']]);
-            if (instance === null) return false;
+            if (instance === null) return 'missing';
             try {
                 const manager = instance.call(null, context());
                 manager.sendAdasSubStatusToADCU(true);
                 manager.asyncQueryAdasSubData();
                 sent++;
-                return true;
+                return 'ok';
             } catch (error) {
                 report('send', error);
-                return false;
+                return 'failed';
             }
         };
         const apply = wanted => {
@@ -101,56 +132,69 @@ export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_E
                 const query = method(APOLLO_CLASSES.subscription, 'doQuerySubscribeInfo',
                     [['android.content.Context'], null]);
                 if (query === null) missing.add('subscription');
-                else {
-                    query.implementation = function (configuration) { return SUBSCRIPTION_ANSWER; };
-                    hooks.push(query);
-                    applied.push('subscription');
-                }
+                else install([[query, function (configuration) { return SUBSCRIPTION_ANSWER; }]], 'subscription');
             }
             if (wanted.equipment) {
                 // The factory page picks an equipment branch and a region from these predicates. Only what the page
-                // shows changes; the readings behind them stay as the vehicle reported them. A part is installed
-                // whole or not at all: a half-installed branch would hide behind an "unavailable" report.
+                // shows changes; the readings behind them stay as the vehicle reported them.
                 const specs = [
                     [APOLLO_CLASSES.equipment, 'is97Y', false], [APOLLO_CLASSES.equipment, 'is97C', true],
                     [APOLLO_CLASSES.region, 'isOverSeaVehicle', false],
                 ];
                 const predicates = specs.map(([className, name]) => method(className, name, [[]]));
                 if (predicates.some(predicate => predicate === null)) missing.add('equipment');
-                else {
-                    predicates.forEach((predicate, index) => {
-                        const answer = specs[index][2];
-                        predicate.implementation = function () { return answer; };
-                        hooks.push(predicate);
-                    });
-                    applied.push('equipment');
-                }
+                else install(predicates.map((predicate, index) =>
+                    [predicate, function () { return specs[index][2]; }]), 'equipment');
             }
-            if (wanted.controller && wanted.send && now() <= wanted.expires && wanted.request !== sentFor) {
-                if (requestAssistanceState()) {
-                    sentFor = wanted.request;
-                    controllerRequested = true;
-                } else missing.add('controller');
+            const wall = Date.now();
+            if (wanted.controller && wanted.send && wanted.request !== claimedFor
+                && wall >= wanted.issued && wall <= wanted.expires) {
+                // Claim before calling: a crash between the call and the result must not replay the send when the
+                // boot agent reads the same document again.
+                try { Global.putString(resolver, APOLLO_CLAIM_KEY, wanted.request); }
+                catch (error) {
+                    report('claim', error);
+                    missing.add('controller');
+                    return;
+                }
+                claimedFor = wanted.request;
+                const outcome = requestAssistanceState();
+                if (outcome === 'ok') { sentFor = wanted.request; uncertainFor = null; }
+                else if (outcome === 'failed') uncertainFor = wanted.request;
+                else {
+                    // No call reached the factory manager, so this request can be tried again later.
+                    try { Global.putString(resolver, APOLLO_CLAIM_KEY, ''); } catch (error) { report('claim', error); }
+                    claimedFor = null;
+                    missing.add('controller');
+                }
             }
         };
         const Global = Java.use('android.provider.Settings$Global');
-        const clock = Java.use('android.os.SystemClock');
-        const now = () => Number(clock.elapsedRealtime());
         const resolver = Java.use('android.app.ActivityThread').currentApplication().getContentResolver();
         const publish = written => {
-            try { Global.putString(resolver, APOLLO_STATE_KEY, apolloState(applied, controllerRequested, missing, request, sent)); }
-            catch (error) { if (written) report('state', error); }
+            try {
+                Global.putString(resolver, APOLLO_STATE_KEY,
+                    apolloState(applied, sentFor, uncertainFor, missing, request, sent));
+            } catch (error) { if (written) report('state', error); }
         };
-        // A restarted factory app must not replay a request it already accepted. The previous document is the only
-        // record that survives the process; an unreadable one starts with no request and no send.
+        // The state document and the claim survive the process. A claimed request whose outcome was never recorded
+        // is uncertain, never silently sent a second time.
         try {
             const prior = JSON.parse(String(Global.getString(resolver, APOLLO_STATE_KEY) || ''));
             if (prior && typeof prior.request === 'string' && REQUEST.test(prior.request)) {
                 request = prior.request;
                 if (Number.isSafeInteger(prior.sent) && prior.sent >= 0) sent = prior.sent;
-                if (prior.controller === 'requested') { sentFor = prior.request; controllerRequested = true; }
+                if (prior.controller === 'requested') { sentFor = prior.request; claimedFor = prior.request; }
+                if (prior.controller === 'uncertain') { uncertainFor = prior.request; claimedFor = prior.request; }
             }
         } catch (_) { /* No prior document: nothing to carry over. */ }
+        try {
+            const claim = String(Global.getString(resolver, APOLLO_CLAIM_KEY) || '');
+            if (REQUEST.test(claim)) {
+                claimedFor = claim;
+                if (sentFor !== claim && uncertainFor !== claim) uncertainFor = claim;
+            }
+        } catch (error) { report('claim', error); }
         let previous = null;
         const follow = () => {
             let raw;
@@ -159,7 +203,7 @@ export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_E
                 // Stay off while the provider is unavailable, and read the value again once it is back.
                 previous = null;
                 request = null;
-                controllerRequested = false;
+                // Keep the claim: a provider outage must not forget a send we already may have made.
                 restore();
                 report('settings', error);
                 return;
@@ -169,11 +213,10 @@ export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_E
             restore();
             const wanted = apolloConfig(raw);
             if (wanted === null) {
+                // No document means every part is off, but a claim from a previous request stays on record.
                 request = null;
-                controllerRequested = false;
             } else {
                 request = wanted.request;
-                if (!wanted.controller) controllerRequested = false;
                 apply(wanted);
             }
             publish(wanted !== null);

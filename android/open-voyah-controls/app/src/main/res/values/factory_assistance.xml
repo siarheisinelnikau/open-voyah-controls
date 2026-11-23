@@ -18,6 +18,7 @@
     <string name="factory_assistance_answers_waiting">Waiting for the factory settings app to report what it accepted.</string>
     <string name="factory_assistance_answers_unavailable">The installed software did not offer: %1$s.</string>
     <string name="factory_assistance_answers_controller_request">The controller request was accepted. The controller state is not verified.</string>
+    <string name="factory_assistance_answers_controller_uncertain">The factory app stopped before it recorded the result of the controller request. Check assistance status in the vehicle; Controls will not send it again.</string>
     <string name="factory_assistance_park_required">Stop the car in Park before sending the assistance state to the controller.</string>
     <string name="factory_assistance_answers_note">Controls starts the factory settings worker with the first switch and stops it with the last one. The change reaches the factory page within a second. Read Apollo diagnostics still reports cached requests only, never a controller state.</string>
     <string name="factory_assistance_requested">Factory settings requested. Check assistance status in the vehicle.</string>
