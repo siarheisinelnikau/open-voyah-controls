@@ -37,7 +37,7 @@ import org.openvoyah.controls.domain.vehicle.HeadlightInput
 import org.openvoyah.controls.domain.vehicle.HeadlightInputState
 import org.openvoyah.controls.domain.vehicle.HeadlightSource
 import org.openvoyah.controls.domain.vehicle.HeadlightStatus
-import org.openvoyah.controls.platform.ui.copyHeadlightReport
+import org.openvoyah.controls.platform.ui.copyReportToClipboard
 import org.openvoyah.controls.platform.vehicle.headlightDiagnosticReport
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
@@ -60,7 +60,7 @@ internal fun HeadlightSourcesPopup(close: () -> Unit) {
                 copyState = try {
                     val report = headlightDiagnosticReport(activity, model.headlightStatus.value)
                     if (!owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) ReportCopyState.IDLE
-                    else if (copyHeadlightReport(activity, UiText.get(R.string.headlight_sources_title), report)) ReportCopyState.COPIED
+                    else if (copyReportToClipboard(activity, UiText.get(R.string.headlight_sources_title), report)) ReportCopyState.COPIED
                     else ReportCopyState.FAILED
                 } catch (cancelled: CancellationException) {
                     throw cancelled

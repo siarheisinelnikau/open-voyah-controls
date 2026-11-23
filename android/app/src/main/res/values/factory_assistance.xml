@@ -15,6 +15,11 @@
     <string name="factory_assistance_no_access">This software does not offer a trusted, readable factory cache. The report contains the available package details.</string>
     <string name="factory_assistance_incomplete">The factory cache check could not finish. The report contains the reason.</string>
     <string name="factory_assistance_export">Save Apollo report</string>
+    <string name="factory_assistance_note">What the factory page showed</string>
+    <string name="factory_assistance_note_hint">Write the exact control name, the message the factory page shows and the account it asks for. Keep personal data and QR codes out. The note is saved with the report and stays in the report.</string>
+    <string name="factory_assistance_copy">Copy support details</string>
+    <string name="factory_assistance_copied">Model and firmware details copied.</string>
+    <string name="factory_assistance_copy_failed">Could not copy the details. Read them from the saved report.</string>
     <string name="factory_assistance_saving">Saving report…</string>
     <string name="factory_assistance_saved">Apollo report saved.</string>
     <string name="factory_assistance_report_failed">The report could not be prepared or saved. Try again.</string>

@@ -15,6 +15,11 @@
     <string name="factory_assistance_no_access">Доступ к проверенному штатному кэшу закрыт. В отчёте сохранены сведения о доступных пакетах.</string>
     <string name="factory_assistance_incomplete">Чтение штатного кэша не завершилось. Причина указана в отчёте.</string>
     <string name="factory_assistance_export">Сохранить отчёт Apollo</string>
+    <string name="factory_assistance_note">Что показано в штатном меню</string>
+    <string name="factory_assistance_note_hint">Укажите точное название пункта, сообщение штатного меню и требуемый аккаунт. Личные данные и QR-коды не сохраняйте. Пометка записывается в отчёт и остаётся только в нём.</string>
+    <string name="factory_assistance_copy">Скопировать данные для поддержки</string>
+    <string name="factory_assistance_copied">Данные о модели и прошивке скопированы.</string>
+    <string name="factory_assistance_copy_failed">Не удалось скопировать данные. Возьмите их из сохранённого отчёта.</string>
     <string name="factory_assistance_saving">Сохраняем отчёт…</string>
     <string name="factory_assistance_saved">Отчёт Apollo сохранён.</string>
     <string name="factory_assistance_report_failed">Не удалось подготовить или сохранить отчёт. Повторите попытку.</string>

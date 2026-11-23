@@ -7,12 +7,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -26,15 +28,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.apollo.ApolloCandidateEvidenceProbe
+import org.openvoyah.controls.data.apollo.ApolloReportNote
 import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.diagnostics.LogLevel
 import org.openvoyah.controls.domain.apollo.ApolloCacheStatus
 import org.openvoyah.controls.domain.apollo.ApolloCandidatePlan
 import org.openvoyah.controls.domain.apollo.FactoryAssistanceEvidence
+import org.openvoyah.controls.platform.ui.copyReportToClipboard
 import org.openvoyah.controls.platform.ui.VehicleSettingsLauncher
 import org.openvoyah.controls.platform.ui.VehicleSettingsDestination as FactoryDestination
 import org.openvoyah.controls.presentation.theme.CockpitAction
@@ -43,6 +49,7 @@ import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitSection
+import org.openvoyah.controls.presentation.theme.CockpitTextField
 
 internal data class FactoryAssistanceState(
     val assistanceMenuAvailable: Boolean = false,
@@ -51,6 +58,8 @@ internal data class FactoryAssistanceState(
     val evidence: FactoryAssistanceEvidence? = null,
     val working: Boolean = false,
     val reportStatus: Int? = null,
+    val note: String = "",
+    val copyStatus: Int? = null,
 )
 
 /** A factory-menu handoff is never evidence that a driving assistant was activated. */
@@ -58,7 +67,8 @@ internal class FactoryAssistanceViewModel(
     private val canOpenAssistance: () -> Boolean,
     private val canOpenVehicleMenu: () -> Boolean,
     private val capture: suspend () -> FactoryAssistanceEvidence,
-    private val export: suspend (String, FactoryAssistanceEvidence) -> Unit,
+    private val export: suspend (String, FactoryAssistanceEvidence, String) -> Unit,
+    private val copy: (String) -> Boolean,
     private val log: (String) -> Unit,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(FactoryAssistanceState())
@@ -95,12 +105,26 @@ internal class FactoryAssistanceViewModel(
         mutable.update { it.copy(working = true, reportStatus = R.string.factory_assistance_saving) }
         reportJob = viewModelScope.launch {
             try {
-                export(destination, snapshot)
+                // The note leaves with the document only. It is never persisted and never logged.
+                export(destination, snapshot, mutable.value.note)
                 mutable.update { it.copy(working = false, reportStatus = R.string.factory_assistance_saved) }
-                log("event=apollo_factory_report outcome=saved")
+                log("event=apollo_factory_report outcome=saved note=${mutable.value.note.isNotBlank()}")
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { reportFailed() }
         }
+    }
+
+    /** The driver records the factory page in their own words; only the length is observed here. */
+    fun editNote(value: String) {
+        mutable.update { it.copy(note = value.take(ApolloReportNote.MAX_CHARS)) }
+    }
+
+    /** Puts the report identities on the clipboard so a support request can quote them without the file. */
+    fun copySummary() {
+        val summary = mutable.value.evidence?.supportSummary
+        val copied = !summary.isNullOrBlank() && runCatching { copy(summary) }.getOrDefault(false)
+        mutable.update { it.copy(copyStatus = if (copied) R.string.factory_assistance_copied else R.string.factory_assistance_copy_failed) }
+        log("event=apollo_factory_copy outcome=${if (copied) "copied" else "failed"}")
     }
 
     fun reportFailed() {
@@ -108,6 +132,7 @@ internal class FactoryAssistanceViewModel(
         log("event=apollo_factory_report outcome=failed")
     }
 
+    /** Leaving the page drops the note: it belongs to the report it was written for, not to the settings archive. */
     fun leave() {
         reportJob?.cancel()
         reportJob = null
@@ -127,7 +152,8 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
                 canOpenAssistance = { launcher.intent(FactoryDestination.ASSISTANCE) != null },
                 canOpenVehicleMenu = { launcher.intent(FactoryDestination.VEHICLE) != null },
                 capture = { probe.capture(includeFactoryCache = true) },
-                export = { destination, snapshot -> probe.export(Uri.parse(destination), snapshot) },
+                export = { destination, snapshot, note -> probe.export(Uri.parse(destination), snapshot, note) },
+                copy = { summary -> copyReportToClipboard(app, UiText.get(R.string.factory_assistance_title), summary) },
                 log = { ControlsLog.line(LogLevel.INFO, "$it elapsed_ms=${SystemClock.elapsedRealtime()}") },
             )
         } })[FactoryAssistanceViewModel::class.java]
@@ -200,10 +226,17 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
                     }
                     CockpitFeedback(message)
                     CockpitAction(UiText.get(R.string.factory_assistance_export), {
-                        try { saveReport.launch("apollo-factory-report.json") }
+                        try { saveReport.launch(reportFileName()) }
                         catch (_: RuntimeException) { model.reportFailed() }
                     }, enabled = !state.working)
+                    CockpitAction(UiText.get(R.string.factory_assistance_copy), model::copySummary)
+                    state.copyStatus?.let {
+                        CockpitFeedback(UiText.get(it), error = it == R.string.factory_assistance_copy_failed)
+                    }
                 }
+                CockpitTextField(state.note, model::editNote, UiText.get(R.string.factory_assistance_note),
+                    Modifier.fillMaxWidth(), singleLine = false, enabled = !state.working,
+                    supporting = UiText.get(R.string.factory_assistance_note_hint))
                 state.reportStatus?.let { CockpitFeedback(UiText.get(it), error = it == R.string.factory_assistance_report_failed) }
                 CockpitAction(UiText.get(R.string.vehicle_automation_diagnostics), diagnostics)
             }
@@ -212,3 +245,8 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
 }
 
 internal const val H97D_ASSISTANCE_MANUAL = "https://m.dsmp.voyah.com.cn/userguide/h97d/h97D-40.html"
+
+/** A before and after pair needs two names, so the local date and minute separate the saved reports. */
+private val REPORT_NAME: DateTimeFormatter = DateTimeFormatter.ofPattern("'apollo-report-'yyyy-MM-dd-HHmm'.json'")
+
+private fun reportFileName(now: LocalDateTime = LocalDateTime.now()): String = REPORT_NAME.format(now)

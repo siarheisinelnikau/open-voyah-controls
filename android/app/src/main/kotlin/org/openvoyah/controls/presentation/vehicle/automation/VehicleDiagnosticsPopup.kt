@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.vehicle.automation.VehicleSignalKind
-import org.openvoyah.controls.platform.ui.copyHeadlightReport
+import org.openvoyah.controls.platform.ui.copyReportToClipboard
 import org.openvoyah.controls.platform.vehicle.automation.vehicleAutomationDiagnosticReport
 import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime
 import org.openvoyah.controls.presentation.theme.CockpitAction
@@ -69,7 +69,7 @@ internal fun VehicleDiagnosticsPopup(activity: ComponentActivity, close: () -> U
             VehicleDiagnosticsViewModel(
                 report = { vehicleAutomationDiagnosticReport(activity.applicationContext, signals.telemetry.value,
                     lamps.headlightStatus.value, signals.source.diagnostics.value, runtime.state.value) },
-                copy = { copyHeadlightReport(activity, UiText.get(R.string.vehicle_diagnostics_title), it) },
+                copy = { copyReportToClipboard(activity, UiText.get(R.string.vehicle_diagnostics_title), it) },
             )
         } })[VehicleDiagnosticsViewModel::class.java]
     }

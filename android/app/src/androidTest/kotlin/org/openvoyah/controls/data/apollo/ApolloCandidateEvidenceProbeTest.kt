@@ -4,12 +4,14 @@ import android.content.ContentValues
 import android.content.pm.ApplicationInfo
 import android.content.pm.ProviderInfo
 import android.database.MatrixCursor
+import android.net.Uri
 import android.os.Build
 import android.os.CancellationSignal
 import android.provider.MediaStore
 import android.test.AndroidTestCase
 import java.io.File
 import java.security.MessageDigest
+import java.time.Instant
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.openvoyah.controls.domain.apollo.ApolloCacheStatus
@@ -19,11 +21,18 @@ import org.openvoyah.controls.domain.apollo.ApolloCandidatePlan
 class ApolloCandidateEvidenceProbeTest : AndroidTestCase() {
     fun testReportIsReadOnlyAndNeverClaimsActivation() = runBlocking {
         val report = JSONObject(ApolloCandidateEvidenceProbe(context).report())
-        assertEquals(1, report.getInt("schema"))
+        assertEquals(2, report.getInt("schema"))
         assertEquals("read_only", report.getString("mode"))
         assertFalse(report.getBoolean("production_activation_available"))
         assertFalse(report.getJSONObject("provider").getBoolean("content_queried"))
         assertTrue(report.getJSONArray("missing_evidence").length() >= 7)
+        // Elapsed times restart with the head unit, so a wall clock and its plausibility are recorded as well.
+        Instant.parse(report.getString("capture_time_utc"))
+        assertEquals("device_wall_clock", report.getString("capture_clock"))
+        assertTrue(report.has("capture_clock_plausible"))
+        val identity = report.getJSONObject("identity")
+        assertEquals(Build.MODEL, identity.getString("model"))
+        assertEquals(Build.DISPLAY, identity.getString("display_version"))
         val packages = report.getJSONArray("packages")
         assertTrue(packages.length() >= 2)
         assertEquals("com.qinggan.app.vehiclesetting", packages.getJSONObject(0).getString("package"))
@@ -52,11 +61,7 @@ class ApolloCandidateEvidenceProbeTest : AndroidTestCase() {
         val probe = ApolloCandidateEvidenceProbe(context)
         val evidence = probe.capture(includeFactoryCache = true)
         val resolver = context.contentResolver
-        val destination = checkNotNull(resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "apollo-test-${System.nanoTime()}.json")
-            put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
-            put(MediaStore.MediaColumns.IS_PENDING, 1)
-        }))
+        val destination = download("apollo-test-${System.nanoTime()}.json")
         try {
             probe.export(destination, evidence)
             assertEquals(evidence.json, resolver.openInputStream(destination)?.bufferedReader()?.use { it.readText() })
@@ -64,6 +69,55 @@ class ApolloCandidateEvidenceProbeTest : AndroidTestCase() {
             resolver.delete(destination, null, null)
         }
     }
+
+    /** The driver's note about the factory page leaves with the document and is marked as entered by hand. */
+    fun testOwnerNoteIsSavedWithTheReportAsTheDriversOwnWords() = runBlocking {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return@runBlocking
+        check(Build.HARDWARE in setOf("goldfish", "ranchu"))
+        val probe = ApolloCandidateEvidenceProbe(context)
+        val evidence = probe.capture(includeFactoryCache = true)
+        val resolver = context.contentResolver
+        val destination = download("apollo-note-${System.nanoTime()}.json")
+        try {
+            probe.export(destination, evidence, "  NOA stays gray: sign in with the vehicle account.  ")
+            val saved = JSONObject(checkNotNull(resolver.openInputStream(destination))
+                .bufferedReader().use { it.readText() })
+            val note = saved.getJSONObject("owner_note")
+            assertEquals("NOA stays gray: sign in with the vehicle account.", note.getString("text"))
+            assertTrue(note.getBoolean("entered_by_driver"))
+            Instant.parse(note.getString("recorded_at_utc"))
+            assertEquals(JSONObject(evidence.json).getJSONObject("identity").getString("fingerprint"),
+                saved.getJSONObject("identity").getString("fingerprint"))
+        } finally {
+            resolver.delete(destination, null, null)
+        }
+    }
+
+    fun testSupportSummaryQuotesTheInstalledSoftwareWithoutAccountData() = runBlocking {
+        check(Build.HARDWARE in setOf("goldfish", "ranchu"))
+        val summary = ApolloCandidateEvidenceProbe(context).capture(includeFactoryCache = false).supportSummary
+        assertTrue(summary.contains("Apollo diagnostics"))
+        assertTrue(summary.contains(Build.PRODUCT))
+        assertTrue(summary.contains(Build.FINGERPRINT))
+        assertTrue(summary.contains("Factory request cache"))
+    }
+
+    fun testOwnerNoteIsTrimmedAndABlankNoteLeavesTheReportUnchanged() {
+        val report = JSONObject().put("schema", 2).toString()
+        assertEquals(report, ApolloReportNote.attach(report, "   ", Instant.now()))
+        val noted = JSONObject(ApolloReportNote.attach(report, "TLC is off: sign in first.", Instant.now()))
+        assertEquals("TLC is off: sign in first.", noted.getJSONObject("owner_note").getString("text"))
+        val long = JSONObject(ApolloReportNote.attach(report, "x".repeat(ApolloReportNote.MAX_CHARS * 2), Instant.now()))
+        assertEquals(ApolloReportNote.MAX_CHARS, long.getJSONObject("owner_note").getString("text").length)
+    }
+
+    private fun download(name: String): Uri = checkNotNull(context.contentResolver.insert(
+        MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        },
+    ))
 
     fun testOnlyExactCacheKeysAndNumericUnambiguousRowsLeaveTheReader() {
         val keys = mutableListOf<String>()

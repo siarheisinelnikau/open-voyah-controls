@@ -10,6 +10,10 @@ import android.os.SystemClock
 import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -32,6 +36,8 @@ internal class ApolloCandidateEvidenceProbe(context: Context) {
 
     suspend fun capture(includeFactoryCache: Boolean): FactoryAssistanceEvidence = withContext(Dispatchers.IO) {
         val started = SystemClock.elapsedRealtime()
+        val startedUtc = Instant.now()
+        val startedDevice = OffsetDateTime.ofInstant(startedUtc, ZoneId.systemDefault())
         val provider = runCatching { manager.resolveContentProvider(BAIDU_AUTHORITY, 0) }.getOrNull()
         val cacheProvider = runCatching { cacheReader.provider() }.getOrNull()
         val packages = linkedSetOf(FACTORY_VEHICLE_SETTINGS_PACKAGE, ApolloFactoryCacheReader.CAN_PACKAGE)
@@ -56,12 +62,18 @@ internal class ApolloCandidateEvidenceProbe(context: Context) {
             .put("source", "QGSettings.System persisted CAN request cache")
             .put("expected_fields", ApolloCandidatePlan.AFFECTED_FLAGS.size).put("observed_fields", cachedFields)
             .put("fields", fields).put("controller_feedback", false).put("usable_as_rollback", false)
-        val report = JSONObject().put("schema", 1).put("mode", "read_only")
+        val report = JSONObject().put("schema", 2).put("mode", "read_only")
             .put("capture_started_elapsed_ms", started).put("capture_ended_elapsed_ms", SystemClock.elapsedRealtime())
+            // Elapsed times restart with the head unit, so a wall clock is recorded for pairing two captures.
+            .put("capture_time_utc", startedUtc.toString()).put("capture_time_device", startedDevice.toString())
+            .put("capture_clock", "device_wall_clock").put("capture_clock_plausible", startedUtc.isAfter(CLOCK_EPOCH))
             .put("candidate_prepared", true).put("candidate_scope", "isolated_fixture")
             .put("production_activation_available", false)
             .put("identity", JSONObject().put("product", Build.PRODUCT).put("fingerprint", Build.FINGERPRINT)
-                .put("sdk", Build.VERSION.SDK_INT).put("abi", Build.SUPPORTED_ABIS.firstOrNull() ?: JSONObject.NULL))
+                .put("manufacturer", Build.MANUFACTURER).put("model", Build.MODEL).put("sdk", Build.VERSION.SDK_INT)
+                .put("abi", Build.SUPPORTED_ABIS.firstOrNull() ?: JSONObject.NULL)
+                .put("android_version", Build.VERSION.RELEASE).put("build_id", Build.ID)
+                .put("display_version", Build.DISPLAY).put("incremental", Build.VERSION.INCREMENTAL))
             .put("packages", records)
             .put("factory_menu", JSONObject().put("assistance_component", dedicated?.flattenToShortString() ?: JSONObject.NULL)
                 .put("vehicle_component", general?.flattenToShortString() ?: JSONObject.NULL).put("opened_by_probe", false))
@@ -80,13 +92,43 @@ internal class ApolloCandidateEvidenceProbe(context: Context) {
                 "Completion of the factory subscription query worker, subsequent handler processing and any later controller writes",
                 "Fresh qualified Park and zero speed plus session-bound explicit user confirmation",
             )))
-        FactoryAssistanceEvidence(report.toString(2), cache.status, cachedFields)
+        FactoryAssistanceEvidence(report.toString(2), cache.status, cachedFields, supportSummary(report, startedDevice))
     }
 
-    suspend fun export(document: Uri, evidence: FactoryAssistanceEvidence) = withContext(Dispatchers.IO) {
+    /** Exports the snapshot with the driver's own note about the factory page, when one was written. */
+    suspend fun export(document: Uri, evidence: FactoryAssistanceEvidence, note: String = "") = withContext(Dispatchers.IO) {
         require(document.scheme == "content")
+        val text = ApolloReportNote.attach(evidence.json, note, Instant.now())
         val output = app.contentResolver.openOutputStream(document, "wt") ?: throw IOException("Report destination unavailable")
-        output.use { it.write(evidence.json.toByteArray(Charsets.UTF_8)) }
+        output.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+    }
+
+    /**
+     * The short text a driver copies into a support request. It repeats only what the report already holds, so the
+     * vehicle model and installed firmware can be quoted without opening the file. The head-unit wall clock is
+     * reported as read, with its plausibility, because an unset clock cannot order captures.
+     */
+    private fun supportSummary(report: JSONObject, captured: OffsetDateTime): String {
+        val identity = report.getJSONObject("identity")
+        val packages = report.getJSONArray("packages")
+        val settings = (0 until packages.length()).map(packages::getJSONObject)
+            .firstOrNull { it.getString("package") == FACTORY_VEHICLE_SETTINGS_PACKAGE }
+        val cache = report.getJSONObject("factory_request_cache")
+        val firmware = listOf(identity.optString("display_version"), identity.optString("build_id"),
+            identity.optString("incremental")).filter { it.isNotBlank() }.distinct().joinToString(" ")
+        return listOfNotNull(
+            "Apollo diagnostics",
+            "Captured ${captured.format(SUMMARY_TIME)} on the head-unit clock" +
+                if (report.optBoolean("capture_clock_plausible")) "" else " (clock not set; cannot order captures)",
+            "Model ${identity.optString("model")} · product ${identity.optString("product")}" +
+                " · Android ${identity.optString("android_version")} (SDK ${identity.optInt("sdk")})",
+            ("Firmware " + firmware).trim(),
+            "Fingerprint ${identity.optString("fingerprint")}",
+            settings?.let { "Factory settings ${it.optString("version")} (code ${it.optLong("version_code")})" +
+                " · base APK ${it.optString("base_apk_sha256")} (${it.optString("base_apk_hash_state")})" },
+            "Factory request cache ${cache.getString("state")} · ${cache.optInt("observed_fields")} of"
+                + " ${cache.optInt("expected_fields")} fields",
+        ).joinToString("\n")
     }
 
     private suspend fun packageRecord(name: String): JSONObject {
@@ -122,6 +164,9 @@ internal class ApolloCandidateEvidenceProbe(context: Context) {
         .put("read_permission", provider?.readPermission ?: JSONObject.NULL)
 
     private companion object {
+        /** A wall clock before this instant is an unset head-unit clock rather than a capture time. */
+        val CLOCK_EPOCH: Instant = Instant.parse("2024-01-01T00:00:00Z")
+        val SUMMARY_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss xxx")
         const val BAIDU_AUTHORITY = "com.pateo.baiduStateProvider"
         const val SYSTEM_FLAGS = ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP
         // Equality describes the inspected base APK bytes only. It does not authorize any action.

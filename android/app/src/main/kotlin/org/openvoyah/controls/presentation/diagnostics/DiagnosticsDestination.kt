@@ -67,7 +67,7 @@ import org.openvoyah.controls.UiText
 import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.diagnostics.Diagnostics
 import org.openvoyah.controls.diagnostics.LogLevel
-import org.openvoyah.controls.platform.ui.copyHeadlightReport
+import org.openvoyah.controls.platform.ui.copyReportToClipboard
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitBackdrop
@@ -128,7 +128,7 @@ internal fun DiagnosticsDestination(back: () -> Unit) {
         copy = {
             scope.launch {
                 val report = model.export(header).takeLast(COPY_LIMIT_CHARS)
-                if (copyHeadlightReport(app, UiText.get(R.string.diagnostics_title), report)) model.notify(DiagnosticNotice.COPIED)
+                if (copyReportToClipboard(app, UiText.get(R.string.diagnostics_title), report)) model.notify(DiagnosticNotice.COPIED)
             }
         },
         save = {
