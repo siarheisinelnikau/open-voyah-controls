@@ -15,6 +15,7 @@ public final class PlaybackText {
             case LIVE -> R.string.live;
             case PAUSED -> R.string.paused;
             case STREAM_ERROR -> R.string.stream_error;
+            case NETWORK_ERROR -> R.string.network_error;
             case FOCUS_ERROR -> R.string.focus_error;
         };
     }

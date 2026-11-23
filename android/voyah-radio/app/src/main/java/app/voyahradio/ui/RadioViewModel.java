@@ -2,7 +2,9 @@ package app.voyahradio.ui;
 
 import app.voyahradio.data.RadioCatalog;
 import app.voyahradio.data.RadioPreferences;
+import app.voyahradio.domain.CatalogOptions;
 import app.voyahradio.domain.Playback;
+import app.voyahradio.domain.RadioTab;
 import app.voyahradio.domain.Station;
 
 import java.util.ArrayList;
@@ -12,24 +14,26 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 final class RadioViewModel {
-    enum Tab { BELARUS, INTERNATIONAL, FAVORITES }
-
     interface Controls {
-        void play(String id);
+        void play(String id, RadioTab tab);
         void pause();
     }
 
     static final class State {
-        final Tab tab;
+        final RadioTab tab;
+        final Set<RadioTab> hiddenTabs;
+        final Set<String> unavailable;
         final String query;
         final List<Station> stations;
         final Set<String> favorites;
         final Station selected;
         final Playback playback;
 
-        State(Tab tab, String query, List<Station> stations, Set<String> favorites,
+        State(RadioTab tab, CatalogOptions options, String query, List<Station> stations, Set<String> favorites,
               Station selected, Playback playback) {
             this.tab = tab;
+            this.hiddenTabs = options.hiddenTabs;
+            this.unavailable = options.unavailableStations;
             this.query = query;
             this.stations = Collections.unmodifiableList(stations);
             this.favorites = Collections.unmodifiableSet(favorites);
@@ -42,12 +46,12 @@ final class RadioViewModel {
     private final RadioPreferences preferences;
     private final Controls controls;
     private final Consumer<State> render;
-    private Tab tab;
+    private RadioTab tab;
     private String query;
     private Playback playback;
 
     RadioViewModel(RadioCatalog catalog, RadioPreferences preferences, Controls controls,
-                   Tab tab, String query, Consumer<State> render) {
+                   RadioTab tab, String query, Consumer<State> render) {
         this.catalog = catalog;
         this.preferences = preferences;
         this.controls = controls;
@@ -58,20 +62,34 @@ final class RadioViewModel {
     }
 
     State state() {
+        CatalogOptions options = preferences.catalogOptions();
+        RadioTab visibleTab = options.visibleTab(tab);
         Set<String> favorites = preferences.favorites();
         List<Station> available = new ArrayList<>();
         String[] words = Station.searchWords(query);
-        for (Station station : catalog.all()) {
-            boolean inCategory = switch (tab) {
-                case BELARUS -> station.local;
-                case INTERNATIONAL -> !station.local;
-                case FAVORITES -> favorites.contains(station.id);
-            };
-            if (inCategory && station.matches(words)) available.add(station);
+        for (Station station : options.visibleStations(catalog.all(), visibleTab, favorites)) {
+            if (station.matches(words)) available.add(station);
         }
         Station selected = catalog.find(playback.stationId);
-        if (selected == null) selected = catalog.all().get(0);
-        return new State(tab, query, available, favorites, selected, playback);
+        if (selected == null || (!options.shows(selected) && !playback.active() && !playback.failed())) {
+            selected = available.isEmpty() ? firstVisible(options, favorites) : available.get(0);
+        }
+        return new State(visibleTab, options, query, available, favorites, selected, playback);
+    }
+
+    private Station firstVisible(CatalogOptions options, Set<String> favorites) {
+        for (RadioTab category : RadioTab.values()) {
+            if (options.hiddenTabs.contains(category)) continue;
+            List<Station> visible = options.visibleStations(catalog.all(), category, favorites);
+            if (!visible.isEmpty()) return visible.get(0);
+        }
+        return null;
+    }
+
+    void refresh() {
+        State state = state();
+        tab = state.tab;
+        render.accept(state);
     }
 
     void onPlayback(Playback updated) {
@@ -79,7 +97,7 @@ final class RadioViewModel {
         render.accept(state());
     }
 
-    void chooseTab(Tab tab) {
+    void chooseTab(RadioTab tab) {
         if (this.tab == tab) return;
         this.tab = tab;
         render.accept(state());
@@ -92,7 +110,7 @@ final class RadioViewModel {
     }
 
     void select(Station station) {
-        controls.play(station.id);
+        if (station != null) controls.play(station.id, state().tab);
     }
 
     void togglePlayback() {

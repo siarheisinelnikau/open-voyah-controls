@@ -1,6 +1,7 @@
 package app.voyahradio.data;
 
 import android.content.Context;
+import app.voyahradio.domain.RadioTab;
 import app.voyahradio.domain.Station;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -33,7 +34,7 @@ public final class RadioCatalog {
                 for (int link = 0; link < links.length(); link++) streams.add(links.getString(link));
                 Station station = new Station(item.getString("id"), item.getString("name"),
                         item.getString("label"), item.optString("aliases"),
-                        item.getBoolean("local"), streams);
+                        RadioTab.valueOf(item.getString("group")), streams, item.optInt("trackSourceId", 0));
                 if (!ids.add(station.id)) throw new IllegalArgumentException("Duplicate station: " + station.id);
                 loaded.add(station);
             }
@@ -55,9 +56,4 @@ public final class RadioCatalog {
         return null;
     }
 
-    public Station adjacent(String currentId, int direction) {
-        Station current = find(currentId);
-        int index = stations.indexOf(current);
-        return stations.get(index < 0 ? 0 : Math.floorMod(index + direction, stations.size()));
-    }
 }

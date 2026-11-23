@@ -10,7 +10,7 @@ import android.view.View;
 
 @SuppressLint("ViewConstructor") // Glyphs are constructed in code with an explicit shape and size.
 final class RadioGlyph extends View {
-    enum Kind { SEARCH, CLEAR, STAR, STAR_FILLED, PLAY, PAUSE, PREVIOUS, NEXT, SIGNAL }
+    enum Kind { SEARCH, CLEAR, STAR, STAR_FILLED, PLAY, PAUSE, PREVIOUS, NEXT, SIGNAL, SETTINGS, BACK, UP, DOWN }
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
@@ -83,6 +83,27 @@ final class RadioGlyph extends View {
             case NEXT -> {
                 canvas.drawLine(18, 6, 18, 18, paint);
                 triangle(canvas, 6, 15.5f, 6, 18);
+            }
+            case SETTINGS -> {
+                canvas.drawCircle(12, 12, 6.2f, paint);
+                canvas.drawCircle(12, 12, 2.2f, paint);
+                for (int tooth = 0; tooth < 8; tooth++) {
+                    float dx = (float) Math.cos(tooth * Math.PI / 4);
+                    float dy = (float) Math.sin(tooth * Math.PI / 4);
+                    canvas.drawLine(12 + 6.2f * dx, 12 + 6.2f * dy,
+                            12 + 9 * dx, 12 + 9 * dy, paint);
+                }
+            }
+            case BACK -> {
+                canvas.drawLine(5, 12, 19, 12, paint);
+                canvas.drawLine(5, 12, 11, 6, paint);
+                canvas.drawLine(5, 12, 11, 18, paint);
+            }
+            case UP, DOWN -> {
+                float tip = kind == Kind.UP ? 8.5f : 15.5f;
+                float end = kind == Kind.UP ? 15.5f : 8.5f;
+                canvas.drawLine(6, end, 12, tip, paint);
+                canvas.drawLine(12, tip, 18, end, paint);
             }
             case SIGNAL -> {
                 paint.setStrokeWidth(1.25f);

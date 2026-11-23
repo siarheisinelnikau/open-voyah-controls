@@ -1,12 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="@color/radio_selected"
-        android:pathData="M28,4H80Q104,4 104,28V80Q104,104 80,104H28Q4,104 4,80V28Q4,4 28,4Z" />
-    <path android:strokeColor="@color/radio_accent" android:strokeWidth="5"
-        android:strokeLineCap="round" android:strokeLineJoin="round"
-        android:pathData="M29,45L70,28M27,44H81Q85,44 85,48V76Q85,80 81,80H27Q23,80 23,76V48Q23,44 27,44ZM53,57H73M53,67H67" />
-    <path android:fillColor="@color/radio_accent"
-        android:pathData="M37,54A8,8 0,1 1,37 70A8,8 0,1 1,37 54Z" />
+    <path android:pathData="M54,8A46,46 0,1 1,54 100A46,46 0,1 1,54 8Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="20" android:startY="16"
+                android:endX="84" android:endY="92"
+                android:startColor="#F3F6FD"
+                android:centerColor="#A0B7DD"
+                android:endColor="#49678F" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#53324E79"
+        android:pathData="M11,66C28,63 38,58 52,44C65,31 76,25 90,24C96,32 100,43 100,54A46,46 0,0 1,11 66Z" />
+    <path android:fillColor="#53364E75"
+        android:pathData="M64,37L95,49C96,65 88,82 76,90L41,76L51,62L54,48Z" />
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M51,37L72,30V40L60,44V66C60,74 54,79 47,79C41,79 36,75 36,69C36,63 41,58 48,58L51,58ZM47,64C44,64 42,66 42,69C42,72 44,73 47,73C50,73 52,71 52,68C52,65 50,64 47,64Z" />
+    <path android:strokeColor="#BEF5FAFF" android:strokeWidth="2.5" android:strokeLineCap="round"
+        android:pathData="M22,40A36,36 0,0 1,43 21" />
 </vector>

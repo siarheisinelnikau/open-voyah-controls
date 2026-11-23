@@ -26,14 +26,18 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import app.voyahradio.R;
 import app.voyahradio.RadioApp;
+import app.voyahradio.data.RadioPreferences;
 import app.voyahradio.domain.Playback;
+import app.voyahradio.domain.RadioTab;
 import app.voyahradio.domain.Station;
+import app.voyahradio.domain.Track;
 import app.voyahradio.playback.PlaybackText;
 import app.voyahradio.playback.RadioService;
 
@@ -41,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
@@ -49,16 +54,25 @@ import static app.voyahradio.ui.RadioGlyph.Kind.*;
 
 public final class RadioActivity extends Activity {
 
-    private final EnumMap<RadioViewModel.Tab, TextView> tabs = new EnumMap<>(RadioViewModel.Tab.class);
+    private final EnumMap<RadioTab, TextView> tabs = new EnumMap<>(RadioTab.class);
     private final ArrayList<StationRow> rows = new ArrayList<>();
 
     private RadioViewModel model;
     private final Consumer<Playback> playbackListener = state -> model.onPlayback(state);
     private RadioService service;
     private boolean bound;
+    private boolean uiStarted;
+    private boolean compactStage;
+    private String displayedTheme;
     private int listColumns;
     private TextView stationTitle;
     private TextView stationLabel;
+    private TextView trackTitle;
+    private TextView trackArtist;
+    private FrameLayout visualStage;
+    private RadioGlyph signal;
+    private RadioVisualizer visualizer;
+    private ProgressBar bufferProgress;
     private TextView playbackStatus;
     private LinearLayout playButton;
     private TextView playLabel;
@@ -70,35 +84,45 @@ public final class RadioActivity extends Activity {
     private ScrollView catalogScroll;
     private LinearLayout stationList;
     private TextView emptyMessage;
-    private RadioViewModel.Tab displayedTab;
+    private RadioTab displayedTab;
+    private Set<RadioTab> displayedHiddenTabs = Collections.emptySet();
     private String displayedQuery;
     private List<Station> displayedStations = Collections.emptyList();
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder binder) {
             service = ((RadioService.LocalBinder) binder).service();
+            service.refreshLanguage();
             service.observe(playbackListener);
         }
 
         @Override public void onServiceDisconnected(ComponentName name) {
             service = null;
-            model.onPlayback(new Playback(model.state().selected.id, Playback.Status.READY));
+            Station selected = model.state().selected;
+            model.onPlayback(new Playback(selected == null ? "" : selected.id, Playback.Status.READY));
         }
     };
 
+    @Override protected void attachBaseContext(Context base) {
+        super.attachBaseContext(RadioLocale.apply(base, new RadioPreferences(base)));
+    }
+
     @Override protected void onCreate(Bundle saved) {
+        displayedTheme = new RadioPreferences(this).theme();
+        RadioTheme.apply(this, displayedTheme);
         super.onCreate(saved);
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
         RadioApp app = (RadioApp) getApplication();
-        RadioViewModel.Tab tab = saved == null ? RadioViewModel.Tab.BELARUS
-                : RadioViewModel.Tab.valueOf(saved.getString("tab", "BELARUS"));
+        RadioTab tab = saved == null ? RadioTab.BELARUS
+                : RadioTab.parse(saved.getString("tab"), RadioTab.BELARUS);
         String query = saved == null ? "" : saved.getString("query", "");
         model = new RadioViewModel(app.catalog(), app.preferences(), new RadioViewModel.Controls() {
-            @Override public void play(String id) {
+            @Override public void play(String id, RadioTab tab) {
                 hideKeyboard();
                 try {
                     startForegroundService(new Intent(RadioActivity.this, RadioService.class)
-                            .setAction(RadioService.PLAY).putExtra(RadioService.STATION_ID, id));
+                            .setAction(RadioService.PLAY).putExtra(RadioService.STATION_ID, id)
+                            .putExtra(RadioService.TAB, tab.name()));
                 } catch (IllegalStateException | SecurityException error) {
                     Toast.makeText(RadioActivity.this, R.string.stream_error, Toast.LENGTH_SHORT).show();
                 }
@@ -116,10 +140,26 @@ public final class RadioActivity extends Activity {
 
     @Override protected void onStart() {
         super.onStart();
+        uiStarted = true;
         bound = bindService(new Intent(this, RadioService.class), connection, Context.BIND_AUTO_CREATE);
     }
 
+    @Override protected void onResume() {
+        super.onResume();
+        RadioPreferences preferences = ((RadioApp) getApplication()).preferences();
+        String displayed = getResources().getConfiguration().getLocales().get(0).getLanguage();
+        if (!displayed.equals(preferences.language()) || !displayedTheme.equals(preferences.theme())) {
+            recreate();
+            return;
+        }
+        model.refresh();
+        if (service != null) service.refreshLanguage();
+    }
+
     @Override protected void onStop() {
+        uiStarted = false;
+        visualizer.update(null, "off", false);
+        bufferProgress.setVisibility(View.GONE);
         if (service != null) service.removeObserver(playbackListener);
         service = null;
         if (bound) unbindService(connection);
@@ -162,17 +202,29 @@ public final class RadioActivity extends Activity {
         LinearLayout.LayoutParams titleParams = wrap(WRAP_CONTENT);
         titleParams.leftMargin = dp(10);
         brand.addView(title, titleParams);
-        header.addView(brand, wide ? new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f) : wrap(MATCH_PARENT));
+        LinearLayout brandRow = horizontal();
+        brandRow.setGravity(Gravity.CENTER_VERTICAL);
+        brandRow.addView(brand, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
+        header.addView(brandRow, wide ? new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f) : wrap(MATCH_PARENT));
+
+        View settings = iconButton(SETTINGS, getColor(R.color.radio_text), R.string.settings, () -> {
+            hideKeyboard();
+            startActivity(new Intent(this, RadioSettingsActivity.class));
+        });
+        settings.setBackground(actionBackground(getColor(R.color.radio_surface), 15, themeColor(R.attr.radio_edge_role)));
+        LinearLayout.LayoutParams settingsParams = size(52, 52);
+        settingsParams.leftMargin = dp(8);
+        if (!wide) brandRow.addView(settings, settingsParams);
 
         LinearLayout tabGroup = horizontal();
         tabGroup.setPadding(dp(4), dp(4), dp(4), dp(4));
-        tabGroup.setBackground(shape(getColor(R.color.radio_surface), 18, getColor(R.color.radio_edge)));
+        tabGroup.setBackground(shape(getColor(R.color.radio_surface), 18, themeColor(R.attr.radio_edge_role)));
         LinearLayout.LayoutParams groupParams = wrap(wide ? WRAP_CONTENT : MATCH_PARENT);
         if (!wide) groupParams.topMargin = dp(12);
         header.addView(tabGroup, groupParams);
-        addTab(tabGroup, RadioViewModel.Tab.BELARUS, R.string.belarus, wide);
-        addTab(tabGroup, RadioViewModel.Tab.INTERNATIONAL, R.string.international, wide);
-        addTab(tabGroup, RadioViewModel.Tab.FAVORITES, R.string.favorites, wide);
+        int tabPadding = width >= 1000 ? 17 : (wide ? 8 : 4);
+        for (RadioTab tab : RadioTab.values()) addTab(tabGroup, tab, wide, tabPadding);
+        if (wide) header.addView(settings, settingsParams);
 
         LinearLayout content = wide ? horizontal() : vertical();
         LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f);
@@ -193,12 +245,12 @@ public final class RadioActivity extends Activity {
         content.addView(catalogPanel(), catalogParams);
     }
 
-    private void addTab(LinearLayout group, RadioViewModel.Tab tab, int label, boolean wide) {
+    private void addTab(LinearLayout group, RadioTab tab, boolean wide, int padding) {
         TextView button = text(16, getColor(R.color.radio_text), true);
-        button.setText(label);
+        button.setText(RadioLabels.tab(tab));
         button.setGravity(Gravity.CENTER);
         button.setMinHeight(dp(48));
-        button.setPadding(dp(wide ? 21 : 5), 0, dp(wide ? 21 : 5), 0);
+        button.setPadding(dp(padding), 0, dp(padding), 0);
         buttonLike(button, null, () -> model.chooseTab(tab));
         LinearLayout.LayoutParams params = wide ? wrap(WRAP_CONTENT)
                 : new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f);
@@ -211,9 +263,10 @@ public final class RadioActivity extends Activity {
         panel.setGravity(Gravity.CENTER);
         panel.setPadding(dp(compact ? 14 : 25), dp(compact ? 13 : 26),
                 dp(compact ? 14 : 25), dp(compact ? 14 : 27));
-        panel.setBackground(shape(getColor(R.color.radio_panel), compact ? 18 : 24, getColor(R.color.radio_selected_edge)));
+        panel.setBackground(shape(getColor(R.color.radio_panel), compact ? 18 : 24,
+                themeColor(R.attr.radio_selected_edge_role)));
 
-        playbackStatus = text(14, getColor(R.color.radio_accent), true);
+        playbackStatus = text(14, themeColor(R.attr.radio_accent_role), true);
         playbackStatus.setGravity(Gravity.CENTER);
         playbackStatus.setPadding(dp(12), dp(6), dp(12), dp(6));
         playbackStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
@@ -222,10 +275,8 @@ public final class RadioActivity extends Activity {
         if (!compact) {
             View upperSpace = new View(this);
             panel.addView(upperSpace, new LinearLayout.LayoutParams(1, 0, 1f));
-            RadioGlyph signal = new RadioGlyph(this, SIGNAL, getColor(R.color.radio_accent), 96);
-            signal.setBackground(shape(getColor(R.color.radio_selected), 62, getColor(R.color.radio_selected_edge)));
-            panel.addView(signal, size(122, 122));
         }
+        addVisualStage(panel, compact);
 
         stationTitle = text(compact ? 27 : 36, getColor(R.color.radio_text), true);
         stationTitle.setGravity(Gravity.CENTER);
@@ -240,6 +291,21 @@ public final class RadioActivity extends Activity {
         labelParams.topMargin = dp(4);
         panel.addView(stationLabel, labelParams);
 
+        trackTitle = text(compact ? 16 : 20, themeColor(R.attr.radio_accent_role), true);
+        trackTitle.setGravity(Gravity.CENTER);
+        trackTitle.setMaxLines(2);
+        trackTitle.setEllipsize(TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams trackParams = wrap(MATCH_PARENT);
+        trackParams.topMargin = dp(compact ? 8 : 16);
+        panel.addView(trackTitle, trackParams);
+        trackArtist = text(compact ? 14 : 16, getColor(R.color.radio_muted), false);
+        trackArtist.setGravity(Gravity.CENTER);
+        trackArtist.setMaxLines(1);
+        trackArtist.setEllipsize(TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams artistParams = wrap(MATCH_PARENT);
+        artistParams.topMargin = dp(4);
+        panel.addView(trackArtist, artistParams);
+
         if (!compact) {
             View lowerSpace = new View(this);
             panel.addView(lowerSpace, new LinearLayout.LayoutParams(1, 0, 1f));
@@ -253,18 +319,18 @@ public final class RadioActivity extends Activity {
 
         int buttonSize = compact ? 50 : 58;
         previous = iconButton(PREVIOUS, getColor(R.color.radio_text), R.string.previous, () -> model.step(-1));
-        previous.setBackground(actionBackground(getColor(R.color.radio_surface), 15, getColor(R.color.radio_edge)));
+        previous.setBackground(actionBackground(getColor(R.color.radio_surface), 15, themeColor(R.attr.radio_edge_role)));
         controls.addView(previous, size(buttonSize, buttonSize));
 
         playButton = horizontal();
         playButton.setGravity(Gravity.CENTER);
         playButton.setPadding(dp(14), 0, dp(16), 0);
         playButton.setMinimumWidth(dp(compact ? 120 : 142));
-        playButton.setBackground(actionBackground(getColor(R.color.radio_accent), 16, Color.TRANSPARENT));
+        playButton.setBackground(actionBackground(themeColor(R.attr.radio_accent_role), 16, Color.TRANSPARENT));
         buttonLike(playButton, null, () -> model.togglePlayback());
-        playIcon = new RadioGlyph(this, PLAY, getColor(R.color.radio_on_accent), 24);
+        playIcon = new RadioGlyph(this, PLAY, themeColor(R.attr.radio_on_accent_role), 24);
         playButton.addView(playIcon, size(26, 26));
-        playLabel = text(16, getColor(R.color.radio_on_accent), true);
+        playLabel = text(16, themeColor(R.attr.radio_on_accent_role), true);
         playLabel.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         LinearLayout.LayoutParams playText = wrap(WRAP_CONTENT);
         playText.leftMargin = dp(7);
@@ -274,9 +340,33 @@ public final class RadioActivity extends Activity {
         controls.addView(playButton, playParams);
 
         next = iconButton(NEXT, getColor(R.color.radio_text), R.string.next, () -> model.step(1));
-        next.setBackground(actionBackground(getColor(R.color.radio_surface), 15, getColor(R.color.radio_edge)));
+        next.setBackground(actionBackground(getColor(R.color.radio_surface), 15, themeColor(R.attr.radio_edge_role)));
         controls.addView(next, size(buttonSize, buttonSize));
         return panel;
+    }
+
+    private void addVisualStage(LinearLayout panel, boolean compact) {
+        compactStage = compact;
+        visualStage = new FrameLayout(this);
+        panel.addView(visualStage, size(MATCH_PARENT, compact ? 46 : 132));
+
+        int accent = themeColor(R.attr.radio_accent_role);
+        signal = new RadioGlyph(this, SIGNAL, accent, 88);
+        signal.setBackground(shape(themeColor(R.attr.radio_selected_role), 62,
+                themeColor(R.attr.radio_selected_edge_role)));
+        visualStage.addView(signal, new FrameLayout.LayoutParams(dp(112), dp(112), Gravity.CENTER));
+
+        visualizer = new RadioVisualizer(this);
+        FrameLayout.LayoutParams visualParams = new FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT);
+        visualParams.setMargins(dp(8), dp(4), dp(8), dp(4));
+        visualStage.addView(visualizer, visualParams);
+
+        bufferProgress = new ProgressBar(this);
+        bufferProgress.setIndeterminateTintList(ColorStateList.valueOf(accent));
+        bufferProgress.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        int indicatorSize = dp(compact ? 32 : 48);
+        visualStage.addView(bufferProgress, new FrameLayout.LayoutParams(indicatorSize, indicatorSize, Gravity.CENTER));
+        bufferProgress.setVisibility(View.GONE);
     }
 
     private View catalogPanel() {
@@ -284,7 +374,7 @@ public final class RadioActivity extends Activity {
 
         LinearLayout searchBar = horizontal();
         searchBar.setGravity(Gravity.CENTER_VERTICAL);
-        searchBar.setBackground(shape(getColor(R.color.radio_surface), 15, getColor(R.color.radio_edge)));
+        searchBar.setBackground(shape(getColor(R.color.radio_surface), 15, themeColor(R.attr.radio_edge_role)));
         searchBar.setPadding(dp(5), 0, dp(3), 0);
         catalog.addView(searchBar, size(MATCH_PARENT, 54));
         searchBar.addView(new RadioGlyph(this, SEARCH, getColor(R.color.radio_muted), 24), size(44, MATCH_PARENT));
@@ -340,15 +430,17 @@ public final class RadioActivity extends Activity {
     }
 
     private void render(RadioViewModel.State state) {
-        if (displayedTab != state.tab) {
-            for (RadioViewModel.Tab tab : RadioViewModel.Tab.values()) {
+        if (displayedTab != state.tab || !displayedHiddenTabs.equals(state.hiddenTabs)) {
+            for (RadioTab tab : RadioTab.values()) {
                 TextView button = tabs.get(tab);
+                button.setVisibility(state.hiddenTabs.contains(tab) ? View.GONE : View.VISIBLE);
                 boolean selected = tab == state.tab;
                 button.setSelected(selected);
-                button.setTextColor(selected ? getColor(R.color.radio_on_accent) : getColor(R.color.radio_muted));
-                int fill = getColor(selected ? R.color.radio_accent : R.color.radio_surface);
+                button.setTextColor(selected ? themeColor(R.attr.radio_on_accent_role) : getColor(R.color.radio_muted));
+                int fill = selected ? themeColor(R.attr.radio_accent_role) : getColor(R.color.radio_surface);
                 button.setBackground(actionBackground(fill, 14, Color.TRANSPARENT));
             }
+            displayedHiddenTabs = state.hiddenTabs;
         }
 
         boolean newFilter = displayedTab != state.tab || !state.query.equals(displayedQuery);
@@ -362,27 +454,34 @@ public final class RadioActivity extends Activity {
 
         boolean empty = state.stations.isEmpty();
         emptyMessage.setVisibility(empty ? View.VISIBLE : View.GONE);
-        emptyMessage.setText(state.tab == RadioViewModel.Tab.FAVORITES && state.query.trim().isEmpty()
-                ? R.string.empty_favorites : R.string.no_results);
+        int emptyText = !state.query.trim().isEmpty() ? R.string.no_results
+                : state.tab == RadioTab.FAVORITES && state.favorites.isEmpty()
+                        ? R.string.empty_favorites : R.string.no_visible_stations;
+        emptyMessage.setText(emptyText);
         clear.setVisibility(state.query.isEmpty() ? View.INVISIBLE : View.VISIBLE);
 
-        setText(stationTitle, state.selected.name);
-        setText(stationLabel, state.selected.label);
+        boolean hasStation = state.selected != null;
+        setText(stationTitle, hasStation ? state.selected.name : getString(R.string.no_visible_stations));
+        setText(stationLabel, hasStation ? state.selected.label : "");
+        renderTrack(state.playback);
+        renderStage(state.playback);
         setText(playbackStatus, getString(PlaybackText.label(state.playback.status)));
         int statusColor = state.playback.failed() ? getColor(R.color.radio_error) : switch (state.playback.status) {
-            case LIVE -> getColor(R.color.radio_accent);
+            case LIVE -> themeColor(R.attr.radio_accent_role);
             case CONNECTING, BUFFERING, RECONNECTING -> getColor(R.color.radio_warm);
             default -> getColor(R.color.radio_muted);
         };
         if (playbackStatus.getCurrentTextColor() != statusColor || playbackStatus.getBackground() == null) {
             playbackStatus.setTextColor(statusColor);
-            playbackStatus.setBackground(shape(getColor(R.color.radio_selected), 30, Color.TRANSPARENT));
+            playbackStatus.setBackground(shape(themeColor(R.attr.radio_selected_role), 30, Color.TRANSPARENT));
         }
         boolean playing = state.playback.active();
         int action = playing ? R.string.pause : (state.playback.failed() ? R.string.retry : R.string.play);
         setText(playLabel, getString(action));
         playButton.setContentDescription(getString(action));
-        playIcon.appearance(playing ? PAUSE : PLAY, getColor(R.color.radio_on_accent));
+        playButton.setEnabled(hasStation);
+        playButton.setAlpha(hasStation ? 1f : 0.42f);
+        playIcon.appearance(playing ? PAUSE : PLAY, themeColor(R.attr.radio_on_accent_role));
         boolean canStep = state.stations.size() > 1
                 || (state.stations.size() == 1 && state.stations.get(0) != state.selected);
         previous.setEnabled(canStep);
@@ -391,8 +490,35 @@ public final class RadioActivity extends Activity {
         next.setAlpha(canStep ? 1f : 0.42f);
 
         for (StationRow row : rows) {
-            row.render(row.station == state.selected, state.favorites.contains(row.station.id));
+            row.render(row.station == state.selected, state.favorites.contains(row.station.id),
+                    state.unavailable.contains(row.station.id));
         }
+    }
+
+    private void renderTrack(Playback playback) {
+        Track track = playback.track;
+        boolean show = track != null || playback.status == Playback.Status.LIVE;
+        trackTitle.setVisibility(show ? View.VISIBLE : View.GONE);
+        setText(trackTitle, track == null ? getString(R.string.track_unavailable) : track.title);
+        trackTitle.setTextColor(track == null ? getColor(R.color.radio_muted) : themeColor(R.attr.radio_accent_role));
+        boolean showArtist = track != null && !track.artist.isEmpty();
+        trackArtist.setVisibility(showArtist ? View.VISIBLE : View.GONE);
+        setText(trackArtist, showArtist ? track.artist : "");
+    }
+
+    private void renderStage(Playback playback) {
+        String mode = ((RadioApp) getApplication()).preferences().visualization();
+        boolean drawingSound = uiStarted && service != null && playback.status == Playback.Status.LIVE
+                && !"off".equals(mode);
+        boolean fetching = uiStarted && switch (playback.status) {
+            case CONNECTING, BUFFERING, RECONNECTING -> true;
+            default -> false;
+        };
+        visualStage.setVisibility(!compactStage || fetching || drawingSound ? View.VISIBLE : View.GONE);
+        signal.setVisibility(!compactStage && !fetching && !drawingSound ? View.VISIBLE : View.GONE);
+        bufferProgress.setVisibility(fetching ? View.VISIBLE : View.GONE);
+        visualizer.setVisibility(drawingSound ? View.VISIBLE : View.GONE);
+        visualizer.update(service == null ? null : service.meter(), mode, drawingSound);
     }
 
     private void rebuildRows(List<Station> stations) {
@@ -422,6 +548,7 @@ public final class RadioActivity extends Activity {
         final LinearLayout tile;
         final LinearLayout listen;
         final TextView name;
+        final TextView label;
         final RadioGlyph star;
         final FrameLayout favorite;
         Boolean selected;
@@ -446,7 +573,7 @@ public final class RadioActivity extends Activity {
             name.setEllipsize(TextUtils.TruncateAt.END);
             name.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             listen.addView(name, wrap(MATCH_PARENT));
-            TextView label = text(14, getColor(R.color.radio_muted), false);
+            label = text(14, getColor(R.color.radio_muted), false);
             label.setText(station.label);
             label.setMaxLines(1);
             label.setEllipsize(TextUtils.TruncateAt.END);
@@ -463,20 +590,21 @@ public final class RadioActivity extends Activity {
             tile.addView(favorite, favoriteParams);
         }
 
-        void render(boolean active, boolean isFavorite) {
+        void render(boolean active, boolean isFavorite, boolean unavailable) {
+            setText(label, unavailable ? getString(R.string.station_unavailable) : station.label);
             if (selected == null || selected != active) {
                 selected = active;
-                int fill = getColor(active ? R.color.radio_selected : R.color.radio_surface);
-                int border = getColor(active ? R.color.radio_selected_edge : R.color.radio_edge);
+                int fill = active ? themeColor(R.attr.radio_selected_role) : getColor(R.color.radio_surface);
+                int border = themeColor(active ? R.attr.radio_selected_edge_role : R.attr.radio_edge_role);
                 tile.setBackground(shape(fill, 14, border));
                 listen.setSelected(active);
-                name.setTextColor(active ? getColor(R.color.radio_accent) : getColor(R.color.radio_text));
+                name.setTextColor(active ? themeColor(R.attr.radio_accent_role) : getColor(R.color.radio_text));
             }
             if (saved == null || saved != isFavorite) {
                 saved = isFavorite;
                 favorite.setContentDescription(getString(
                         isFavorite ? R.string.remove_favorite : R.string.add_favorite, station.name));
-                int tint = getColor(isFavorite ? R.color.radio_accent : R.color.radio_muted);
+                int tint = isFavorite ? themeColor(R.attr.radio_accent_role) : getColor(R.color.radio_muted);
                 star.appearance(isFavorite ? STAR_FILLED : STAR, tint);
             }
         }
@@ -523,8 +651,8 @@ public final class RadioActivity extends Activity {
 
     private RippleDrawable actionBackground(int color, int radius, int stroke) {
         int[][] states = {{android.R.attr.state_focused}, {android.R.attr.state_pressed}, {}};
-        int accent = getColor(R.color.radio_accent);
-        int onAccent = getColor(R.color.radio_on_accent);
+        int accent = themeColor(R.attr.radio_accent_role);
+        int onAccent = themeColor(R.attr.radio_on_accent_role);
         int[] colors = color == accent
                 ? new int[]{withAlpha(onAccent, 0x55), withAlpha(onAccent, 0x40), withAlpha(onAccent, 0x33)}
                 : new int[]{withAlpha(accent, 0x40), withAlpha(accent, 0x44), withAlpha(accent, 0x22)};
@@ -567,5 +695,9 @@ public final class RadioActivity extends Activity {
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private int themeColor(int role) {
+        return RadioTheme.color(this, role);
     }
 }

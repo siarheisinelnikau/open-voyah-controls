@@ -12,12 +12,13 @@ public final class Station {
     public final String name;
     public final String label;
     public final String aliases;
-    public final boolean local;
+    public final RadioTab group;
+    public final int trackSourceId;
     public final List<String> streams;
     private final String searchText;
 
     public Station(String id, String name, String label, String aliases,
-                   boolean local, List<String> streams) {
+                   RadioTab group, List<String> streams, int trackSourceId) {
         if (id.trim().isEmpty() || name.trim().isEmpty() || streams.isEmpty()) {
             throw new IllegalArgumentException("Incomplete station");
         }
@@ -32,7 +33,8 @@ public final class Station {
         this.name = name;
         this.label = label;
         this.aliases = aliases;
-        this.local = local;
+        this.group = group;
+        this.trackSourceId = trackSourceId;
         this.streams = Collections.unmodifiableList(new ArrayList<>(streams));
         this.searchText = normalize(name + " " + label + " " + aliases);
     }
