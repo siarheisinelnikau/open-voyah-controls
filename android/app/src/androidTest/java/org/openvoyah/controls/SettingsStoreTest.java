@@ -227,6 +227,20 @@ public class SettingsStoreTest extends AndroidTestCase {
         assertFalse(config.getBoolean("enabled"));
         assertEquals("ru.yandex.yandexnavi", config.getJSONObject("homeCard").getString("package"));
     }
+    public void testNavigatorWidgetScaleStartsLargeAndKeepsAChosenLegacyDensity() throws Exception {
+        String base = "{\"schema\":1,\"enabled\":true,\"holdMs\":650,\"debounceMs\":100,\"bindings\":[]";
+        assertEquals(150, new SettingsStore.State().navigatorWidgetScale);
+        assertEquals(150, SettingsStore.decode(base + "}").navigatorWidgetScale);
+        // The first version always saved its default density, 160: not a choice, so today's default applies.
+        assertEquals(150, SettingsStore.decode(base + ",\"navigatorWidgetDpi\":160}").navigatorWidgetScale);
+        assertEquals(130, SettingsStore.decode(base + ",\"navigatorWidgetDpi\":200}").navigatorWidgetScale);
+        assertEquals(80, SettingsStore.decode(base + ",\"navigatorWidgetDpi\":120}").navigatorWidgetScale);
+        assertEquals(100, SettingsStore.decode(base + ",\"navigatorWidgetScale\":100}").navigatorWidgetScale);
+        assertEquals(200, SettingsStore.decode(base + ",\"navigatorWidgetScale\":200}").navigatorWidgetScale);
+        assertEquals(150, SettingsStore.decode(base + ",\"navigatorWidgetScale\":210}").navigatorWidgetScale);
+        SettingsStore.State state = sample(); state.navigatorHomeCard = true; state.navigatorWidgetScale = 180;
+        assertEquals(180, new JSONObject(FridaBridge.config(state)).getJSONObject("homeCard").getInt("scale"));
+    }
     public void testHomeWeatherCardIsOffUntilTurnedOnAndCarriesTheNoDataText() throws Exception {
         assertFalse(new SettingsStore.State().weatherCard);
         assertFalse(new JSONObject(FridaBridge.config(new SettingsStore.State())).has("weatherCard"));

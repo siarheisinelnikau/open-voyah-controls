@@ -21,6 +21,8 @@ import org.openvoyah.controls.domain.vehicle.HeadlightStatus
 import org.openvoyah.controls.domain.vehicle.automation.DrivingMode
 import org.openvoyah.controls.domain.vehicle.automation.VehicleAutomationController
 import org.openvoyah.controls.domain.vehicle.automation.DrivingModeHistory
+import org.openvoyah.controls.domain.vehicle.automation.DrivingModeMemoryMessage
+import org.openvoyah.controls.domain.vehicle.automation.DrivingModeMemoryNotice
 import org.openvoyah.controls.domain.vehicle.automation.DrivingModeMemorySettings
 import org.openvoyah.controls.domain.vehicle.automation.DrivingModeRecord
 import org.openvoyah.controls.domain.vehicle.automation.HeadlightGearAction
@@ -169,6 +171,70 @@ class VehicleAutomationViewModelTest {
             withTimeout(5_000) { model.state.first { it.rememberedMode?.mode == DrivingMode.COMFORT && !it.saving } }
             assertEquals(1, history.saves)
             assertEquals(DrivingMode.COMFORT, history.values.value.getOrNull()?.mode)
+        } finally { model.stopMonitoring(); scope.cancel() }
+    }
+
+    @Test fun manualSaveWorksWithTheSwitchOffAndAnUnknownGearAndSaysWhatWasSaved() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val history = FakeHistory()
+        // After a wake the gear is unknown until it changes; the seeded actual mode is enough to save.
+        val telemetry = MutableStateFlow(car(VehicleGear.PARK, 100).copy(gear = null))
+        val off = config.copy(drivingMode = DrivingModeMemorySettings(false))
+        val model = VehicleAutomationViewModel(FakeStore(off), history, telemetry,
+            MutableStateFlow(HeadlightStatus()), FakePort(), { 100 }, scope)
+        try {
+            model.startMonitoring()
+            withTimeout(5_000) { model.state.first { it.canRememberCurrent } }
+            model.rememberCurrent()
+            val saved = withTimeout(5_000) { model.state.first { it.memoryMessage != null && !it.saving } }
+            assertEquals(DrivingModeMemoryMessage(DrivingModeMemoryNotice.SAVED, DrivingMode.COMFORT), saved.memoryMessage)
+            assertEquals(DrivingMode.COMFORT, history.values.value.getOrNull()?.mode)
+            assertNull(saved.restoreCandidate) // The saved mode is the one already on.
+        } finally { model.stopMonitoring(); scope.cancel() }
+    }
+
+    @Test fun restoreIsReportedRestoredOnlyWhenTheCarReportsTheSavedMode() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val remembered = DrivingModeRecord(DrivingMode.SPORT, identity, "vcu_feedback", "previous", 500)
+        val telemetry = MutableStateFlow(car(VehicleGear.PARK, 100).copy(gear = null))
+        val port = FakePort()
+        var now = 100L
+        val off = config.copy(drivingMode = DrivingModeMemorySettings(false))
+        val model = VehicleAutomationViewModel(FakeStore(off), FakeHistory(remembered), telemetry,
+            MutableStateFlow(HeadlightStatus()), port, { now }, scope)
+        try {
+            model.startMonitoring()
+            withTimeout(5_000) { model.state.first { it.restoreCandidate != null } }
+            model.prepareRestore()
+            model.confirmRestore(checkNotNull(model.state.value.prompt))
+            assertEquals(1, port.modeRequests)
+            assertEquals(DrivingModeMemoryMessage(DrivingModeMemoryNotice.RESTORE_SENT, DrivingMode.SPORT), model.state.value.memoryMessage)
+            now = 200
+            telemetry.value = car(VehicleGear.PARK, 200, DrivingMode.SPORT).copy(gear = null)
+            val restored = withTimeout(5_000) { model.state.first { it.memoryMessage?.notice == DrivingModeMemoryNotice.RESTORED } }
+            assertEquals(DrivingMode.SPORT, restored.memoryMessage?.mode)
+            assertNull(restored.outcome)
+        } finally { model.stopMonitoring(); scope.cancel() }
+    }
+
+    @Test fun restoreWaitsInDriveAndSaysSo() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val remembered = DrivingModeRecord(DrivingMode.SPORT, identity, "vcu_feedback", "previous", 500)
+        val telemetry = MutableStateFlow(car(VehicleGear.PARK, 100))
+        val port = FakePort()
+        var now = 100L
+        val model = VehicleAutomationViewModel(FakeStore(config), FakeHistory(remembered), telemetry,
+            MutableStateFlow(HeadlightStatus()), port, { now }, scope)
+        try {
+            model.startMonitoring()
+            withTimeout(5_000) { model.state.first { it.restoreCandidate != null } }
+            now = 200
+            telemetry.value = car(VehicleGear.DRIVE, 200)
+            val driving = withTimeout(5_000) { model.state.first { it.restoreNeedsPark } }
+            assertNull(driving.restoreCandidate)
+            model.prepareRestore()
+            assertNull(model.state.value.prompt)
+            assertEquals(0, port.modeRequests)
         } finally { model.stopMonitoring(); scope.cancel() }
     }
 

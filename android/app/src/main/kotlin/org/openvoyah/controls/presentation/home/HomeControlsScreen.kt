@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.data.settings.SettingsStore
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
@@ -152,7 +153,7 @@ internal fun HomeBackup(actions: HomeActions) {
     }
 }
 
-private val NAVIGATOR_WIDGET_SCALE = (70..150 step 10).toList()
+private val NAVIGATOR_WIDGET_SCALE = (70..200 step 10).toList()
 
 /**
  * Percent, steps of 10; more is larger content. Saved when the slider is let go, so the card is not redrawn on
@@ -161,10 +162,10 @@ private val NAVIGATOR_WIDGET_SCALE = (70..150 step 10).toList()
 @Composable
 private fun NavigatorWidgetScale(percent: Int, change: (Int) -> Unit) {
     var step by remember(percent) {
-        mutableIntStateOf(NAVIGATOR_WIDGET_SCALE.indexOf(percent).takeIf { it >= 0 } ?: NAVIGATOR_WIDGET_SCALE.indexOf(100))
+        mutableIntStateOf(NAVIGATOR_WIDGET_SCALE.indexOf(percent).takeIf { it >= 0 } ?: NAVIGATOR_WIDGET_SCALE.indexOf(SettingsStore.NAVIGATOR_WIDGET_SCALE))
     }
     val shown = NAVIGATOR_WIDGET_SCALE[step]
-    val value = if (shown == 100) UiText.get(R.string.home_navigator_widget_scale_default) else "$shown %"
+    val value = if (shown == SettingsStore.NAVIGATOR_WIDGET_SCALE) UiText.get(R.string.home_navigator_widget_scale_default) else "$shown %"
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(UiText.get(R.string.home_navigator_widget_scale), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)

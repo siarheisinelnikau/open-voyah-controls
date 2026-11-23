@@ -61,13 +61,14 @@ internal class FridaVehicleAutomationPort(
 
     override suspend fun restoreDrivingMode(record: DrivingModeRecord, telemetry: VehicleTelemetry): VehicleAutomationOutcome {
         currentCoroutineContext().ensureActive()
-        val settings = preferences.observe().first().getOrNull() ?: return VehicleAutomationOutcome.BLOCKED
+        preferences.observe().first().getOrNull() ?: return VehicleAutomationOutcome.BLOCKED
         if (history.observe().first().getOrNull() != record) return VehicleAutomationOutcome.BLOCKED
         val current = this.telemetry()
         val now = SystemClock.elapsedRealtimeNanos()
-        if (!settings.drivingMode.enabled || current.identity != record.identity || current.identity != identity ||
+        // Restore is a confirmed manual action; the memory switch only controls the automatic save.
+        if (current.identity != record.identity || current.identity != identity ||
             current.sessionId != telemetry.sessionId || current.sessionStartedAtElapsedNanos != telemetry.sessionStartedAtElapsedNanos ||
-            current.drivingMode != telemetry.drivingMode || !current.isStationary(now) ||
+            current.drivingMode != telemetry.drivingMode || !current.allowsDrivingModeRestore(now) ||
             current.drivingMode?.isCurrentIn(current, now) != true ||
             record.mode !in capabilities(current.identity).drivingModes) return VehicleAutomationOutcome.BLOCKED
         return send(modeCommands.getValue(record.mode), "driving_mode")

@@ -40,7 +40,6 @@ export function android11DisplayMoves(Java) {
     const virtualType = Display.TYPE_VIRTUAL.value;
     const standardType = Java.use('android.app.WindowConfiguration').ACTIVITY_TYPE_STANDARD.value;
     const content = id => root.getDisplayContent(id);
-    const startHome = root.startHomeOnDisplay.overload('int', 'java.lang.String', 'int');
     const toFront = Stack.moveToFront.overload('java.lang.String');
     const ensureVisible = root.ensureActivitiesVisible.overload('com.android.server.wm.ActivityRecord', 'int', 'boolean');
     const resume = root.resumeFocusedStacksTopActivities.overload();
@@ -125,9 +124,19 @@ export function android11DisplayMoves(Java) {
             const display = content(displayId)?.getDisplay() ?? null;
             return display !== null && (display.getFlags() & privateFlag) === 0 && display.getType() !== virtualType;
         },
-        /** Starts home on [displayId], as the Home key does for display 0. Needs the global lock. */
-        startHome(displayId, user) {
-            return startHome.call(root, user, REASON, displayId);
+        /**
+         * Brings the home task that already runs on [displayId] to the front and lets Android show and resume it.
+         * Home is not started: on the supported unit a start of home resolves to the factory login app's router
+         * (`com.qinggan.app.login/.RootActivity`), which brings the launcher of every display to the front and so
+         * covered a window just moved to the passenger display. Needs the global lock.
+         */
+        frontHome(displayId) {
+            const home = content(displayId)?.getDefaultTaskDisplayArea()?.getRootHomeTask() ?? null;
+            if (home === null) return false;
+            toFront.call(Java.cast(home, Stack), REASON);
+            ensureVisible.call(root, null, 0, false);
+            resume.call(root);
+            return true;
         },
         /**
          * Brings the factory launcher's own task on [displayId] (the passenger display's second home, an ordinary
@@ -288,7 +297,7 @@ export function displayMover({api, componentKey, prepare, placed, schedule, repo
     function reveal(display) {
         try {
             if (display === 0 && settings?.reveal === 'apps') api.openControlsApps(api.user());
-            else if (display === 0) api.lock(() => api.startHome(0, api.user()));
+            else if (display === 0) api.lock(() => api.frontHome(0));
             else api.lock(() => api.frontLauncher(display));
         } catch (error) { report('move_reveal', error); }
     }

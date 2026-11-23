@@ -181,7 +181,7 @@ function unit({clusterPresent = true, passengerPublic = true} = {}) {
         clusterDisplay: () => clusterPresent ? 6 : null,
         publicDisplay: id => id === 1 && passengerPublic,
         follow: (stack, dx, alpha) => follows.push([stack.stack, dx, alpha]),
-        startHome: (display, user) => { log.push('home ' + display + ' user ' + user); return true; },
+        frontHome: display => { log.push('home ' + display); return true; },
         frontLauncher: display => { log.push('launcher ' + display); return true; },
         openControlsApps: user => { log.push('apps user ' + user); },
     };
@@ -233,7 +233,7 @@ test('a left swipe sends the app under the fingers to the cluster and the window
     car.mover.sync({fingers: 3, passenger: 1});
     car.swipe(0, 1200, 500);
     assert.deepEqual(car.log, ['prepare 45', 'move 45->6', 'OVC_WINDOW_MOVE from=0 to=6 reason=swipe outcome=moved',
-        'home 0 user 0']);
+        'home 0']);
     assert.deepEqual(car.placed, [['org.example.nav/org.example.nav.Main', 0, 45, 6]]);
     assert.ok(car.follows.some(([, dx, alpha]) => dx < 0 && alpha < 1), 'the window followed the fingers');
     assert.deepEqual(car.follows.at(-1), [45, 0, 1], 'and was put back before it moved');
@@ -390,7 +390,7 @@ test('the central display shows home or the Controls app grid once a window left
     car.add(45);
     car.mover.sync({fingers: 3, passenger: 1, reveal: 'home'});
     car.swipe(0, 600, 1400);
-    assert.equal(car.log.at(-1), 'home 0 user 0');
+    assert.equal(car.log.at(-1), 'home 0');
     car.swipe(1, 1400, 400);
     assert.equal(car.log.at(-1), 'launcher 1', 'the passenger display shows its own home again');
 
@@ -424,7 +424,7 @@ test('a failure to show home is reported and leaves the moved window where it we
     const car = unit();
     car.add(45);
     car.mover.sync({fingers: 3, passenger: 1, reveal: 'home'});
-    car.api.startHome = () => { throw Object.assign(Error('no home'), {code: 'no_home'}); };
+    car.api.frontHome = () => { throw Object.assign(Error('no home'), {code: 'no_home'}); };
     car.swipe(0, 600, 1400);
     assert.equal(car.tasks.get(45).display, 1);
     assert.deepEqual(car.reports, ['move_reveal:no_home']);

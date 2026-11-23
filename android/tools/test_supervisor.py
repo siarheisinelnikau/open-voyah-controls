@@ -117,7 +117,8 @@ sleep() {{
         self.sources = {}
         for name in ("supervise.sh", "boot-start.sh"):
             source = (ASSETS / name).read_text(encoding="utf-8")
-            for old, new in (("/data/adb", adb), ("/data/local/tmp", local), ("/data/user/0", self.user), ("/proc", self.proc)):
+            for old, new in (("/data/adb", adb), ("/data/local/tmp", local), ("/data/user/0", self.user), ("/proc", self.proc),
+                             ("/data/system/packages.xml", self.root / "packages.xml")):
                 source = source.replace(old, posix_path(new))
             source = source.replace("export PATH=/system/bin:/system/xbin", ":")
             source = source.replace("exec /system/bin/sh ", 'exec "$BASH" ')
@@ -129,7 +130,7 @@ sleep() {{
             (self.base / name).chmod(0o700)
         self.write_receipt()
 
-    def write_receipt(self):
+    def write_receipt(self, signer=None):
         artifacts = [RUNTIME, "boot-start.sh", "supervise.sh", "launcher-buttons.js"]
         rows = [f"device\t{FINGERPRINT}\t30\tarm64-v8a\tqg-fixture"]
         for name, path in (("org.openvoyah.controls", self.app), ("com.qinggan.app.launcher", self.launcher)):
@@ -137,6 +138,8 @@ sleep() {{
         if (self.base / "can/launcher-buttons.js").exists():
             artifacts.append("can/launcher-buttons.js")
             rows.append(f"package\tcom.qinggan.canbus.service\t{posix_path(self.can)}\t{digest(self.can)}")
+        if signer:
+            rows.append(f"signer\torg.openvoyah.controls\t{signer}\t24")
         rows.extend(f"artifact\t{name}\t{digest(self.base / name)}" for name in artifacts)
         stamp = subprocess.run([BASH, "-c", 'stat -c "%d:%i:%s:%Y:%Z" "$1"', "--", posix_path(self.app_key)],
                                capture_output=True, text=True, timeout=10, check=True).stdout.strip()
@@ -160,6 +163,33 @@ sleep() {{
         self.assertNotEqual(0, self.run_script("boot-start.sh", "--verify", owner="10").returncode)
         self.launcher.write_bytes(b"changed OEM launcher")
         self.assertNotEqual(0, self.run_script("boot-start.sh", "--verify").returncode)
+        self.assertFalse((self.root / "started").exists())
+
+    def write_packages(self, cert, version=25):
+        code = posix_path(self.app.parent)
+        (self.root / "packages.xml").write_text(
+            "<packages>\n"
+            f'    <package name="org.openvoyah.controls" codePath="{code}" version="{version}" userId="10086">\n'
+            f'        <sigs count="1" schemeVersion="2">\n            <cert index="3" key="{cert.hex()}" />\n        </sigs>\n'
+            "    </package>\n</packages>\n", newline="\n")
+
+    def test_signer_pin_accepts_a_same_signer_update_and_refuses_a_foreign_or_older_one(self):
+        cert = b"owner signing certificate"
+        self.write_receipt(signer=hashlib.sha256(cert).hexdigest())
+        self.write_packages(cert)
+        self.app.write_bytes(b"updated app, same signer")
+        result = self.run_script("boot-start.sh", "--verify")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("OVC_BOOT_VERIFIED", result.stdout)
+        self.write_packages(b"foreign certificate")
+        self.assertEqual(1, self.run_script("supervise.sh", "--verify-boot").returncode)
+        self.write_packages(cert, version=23)
+        self.assertEqual(1, self.run_script("supervise.sh", "--verify-boot").returncode)
+        (self.root / "packages.xml").unlink()
+        result = self.run_script("supervise.sh", "--verify-boot")
+        self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+        self.assertIn("OVC_BOOT_WAITING", result.stderr)
+        self.assertFalse((self.base / "recovery.blocked").exists())
         self.assertFalse((self.root / "started").exists())
 
     def test_runtime_pin_is_checked_independently_of_receipt(self):

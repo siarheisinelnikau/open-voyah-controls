@@ -11,6 +11,14 @@ const TEMPERATURE = /^-?\d{1,3}$/;
 /** Weather older than this is not shown; the card says there is no data instead. */
 const MAX_AGE_MS = 3 * 60 * 60 * 1000;
 const REPOST_MS = 5 * 60 * 1000;
+// The factory card is laid out in px for Chinese text (`layout_weather_card_mini.xml`): the air quality level sits
+// 134 px from the top, inside the clock's line box (clock: 96 px from 58 px), and the date pattern spells the weekday
+// out. With Russian text the level writes over the clock's digits and the date row ("понедельник, нояб. 23 | Пасмурно
+// 1 ℃") runs past the card's right edge. While Controls feeds the card, the level moves under the digits (their
+// baseline is about 147 px) and the date takes the short weekday from the locale's own pattern.
+const FACTORY_AQI_TOP_PX = 134;
+const AQI_TOP_PX = 160;
+const DATE_SKELETON = 'EEEdMMM';
 
 /** The card's "no data" text when the setting is on, else null. A restore request always means off. */
 export function weatherSetting(config) {
@@ -53,9 +61,14 @@ export function installHomeWeatherCard(Java, {readConfig, readWeather, report = 
         const Reference = Java.use('java.lang.ref.WeakReference');
         const ActivityThread = Java.use('android.app.ActivityThread');
         const View = Java.use('android.view.View');
+        const MarginParams = Java.use('android.view.ViewGroup$MarginLayoutParams');
+        const TextClock = Java.use('android.widget.TextClock');
+        const DateFormat = Java.use('android.text.format.DateFormat');
+        const JString = Java.use('java.lang.String');
         const update = Card.updateWeather.overload('com.qinggan.tsp.models.cpsp.WeatherLiveBean');
         const redraw = Card.updateWeather.overload();
         const attached = Card.onAttachedToWindow.overload();
+        const localeChanged = Card.onLocaleChanged.overload();
 
         function bean(current) {
             const live = Live.$new();
@@ -89,9 +102,49 @@ export function installHomeWeatherCard(Java, {readConfig, readWeather, report = 
             } catch (error) { report('air', error); }
         }
 
+        function child(card, name) {
+            const context = card.getContext();
+            const id = context.getResources().getIdentifier(name, 'id', context.getPackageName());
+            const found = id === 0 ? null : card.findViewById(id);
+            return found === null ? null : Java.cast(found, View);
+        }
+
+        /** Fits the card's layout to the text Controls puts in (`fitted`), or puts the factory layout back. */
+        function fit(card, fitted) {
+            // Its own failure leaves the weather on the card, laid out as the factory does.
+            try {
+                const top = fitted ? AQI_TOP_PX : FACTORY_AQI_TOP_PX;
+                for (const name of ['aqi_view', 'aqi_value']) {
+                    const view = child(card, name);
+                    if (view === null) continue;
+                    const params = Java.cast(view.getLayoutParams(), MarginParams);
+                    if (params.topMargin.value === top) continue;
+                    params.topMargin.value = top;
+                    view.setLayoutParams(params);
+                }
+                const date = child(card, 'weather_date');
+                if (date === null) return;
+                const context = card.getContext();
+                const resources = context.getResources();
+                let pattern;
+                if (fitted) pattern = DateFormat.getBestDateTimePattern(resources.getConfiguration().getLocales().get(0), DATE_SKELETON);
+                else {
+                    // As the card's own onLocaleChanged sets it.
+                    const id = resources.getIdentifier('weather_date_formatter', 'string', context.getPackageName());
+                    if (id === 0) return;
+                    pattern = resources.getString(id);
+                }
+                const clock = Java.cast(date, TextClock);
+                const text = JString.$new(String(pattern));
+                clock.setFormat12Hour(text);
+                clock.setFormat24Hour(text);
+            } catch (error) { report('fit', error); }
+        }
+
         function show(card) {
             update.call(card, bean(model));
             airVisible(card, model.aqi !== null);
+            fit(card, true);
         }
 
         function factory(card) {
@@ -99,6 +152,7 @@ export function installHomeWeatherCard(Java, {readConfig, readWeather, report = 
             card.mWeatherLiveBean.value = null;
             redraw.call(card);
             airVisible(card, false);
+            fit(card, false);
         }
 
         function live() {
@@ -131,6 +185,13 @@ export function installHomeWeatherCard(Java, {readConfig, readWeather, report = 
             return result;
         };
         hooks.push(attached);
+        // A language change resets the date to the factory pattern; keep it fitted while Controls feeds the card.
+        localeChanged.implementation = function () {
+            const result = localeChanged.call(this);
+            try { if (model !== null) fit(this, true); } catch (error) { report('fit', error); }
+            return result;
+        };
+        hooks.push(localeChanged);
 
         function apply(now) {
             const app = ActivityThread.currentApplication();

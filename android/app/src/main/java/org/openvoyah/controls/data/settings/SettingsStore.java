@@ -28,9 +28,13 @@ public final class SettingsStore {
     }
     /** Yandex Navigator. Its launcher icon is a yellow arrow on a white plate. */
     public static final String YANDEX_NAVIGATOR = "ru.yandex.yandexnavi";
-    public static final int NAVIGATOR_WIDGET_SCALE = 100;
-    /** Percent, 70 to 150; anything else is the default. */
-    public static int navigatorWidgetScale(int value) { return value >= 70 && value <= 150 ? value : NAVIGATOR_WIDGET_SCALE; }
+    /**
+     * At 100 % the widget's map labels are a few pixels tall on the 160 dpi head unit display (seen on the car), so the
+     * card starts larger.
+     */
+    public static final int NAVIGATOR_WIDGET_SCALE = 150;
+    /** Percent, 70 to 200; anything else is the default. */
+    public static int navigatorWidgetScale(int value) { return value >= 70 && value <= 200 ? value : NAVIGATOR_WIDGET_SCALE; }
     public static final class State {
         public boolean enabled = true;
         public int holdMs = 650;
@@ -77,9 +81,10 @@ public final class SettingsStore {
         state.debounceMs = root.getInt("debounceMs");
         state.panelEnabled = root.optBoolean("panelEnabled", false);
         state.navigatorHomeCard = root.optBoolean("navigatorHomeCard", false);
-        // A density saved by the first version (160 = 100 %) becomes the nearest 10 %.
+        // A density saved by the first version becomes the nearest 10 % (160 = 100 %). That version always saved its
+        // default, 160, so 160 means "not chosen" and takes today's default.
         int legacyDpi = root.optInt("navigatorWidgetDpi", 0);
-        int legacyScale = legacyDpi > 0 ? Math.round(legacyDpi * 10f / 160f) * 10 : NAVIGATOR_WIDGET_SCALE;
+        int legacyScale = legacyDpi > 0 && legacyDpi != 160 ? Math.round(legacyDpi * 10f / 160f) * 10 : NAVIGATOR_WIDGET_SCALE;
         state.navigatorWidgetScale = navigatorWidgetScale(root.optInt("navigatorWidgetScale", legacyScale));
         state.weatherCard = root.optBoolean("weatherCard", false);
         JSONObject panel = root.optJSONObject("panelActions");

@@ -86,6 +86,17 @@ class PinnedVehicleTelemetryReducerTest {
         assertTrue(VehicleSignalKind.DRIVING_MODE in unknown.unavailable)
     }
 
+    @Test fun serviceCacheSnapshotSeedsActualModeInTheFeedbackLayout() {
+        // getVehicleState(DRIVING_MODE_SET_FB) returned 2 on the owner car while Comfort was on.
+        val reader = reducer()
+        val seeded = reader.read(PinnedVehicleCallbacks.VEHICLE_STATE, PinnedVehicleCallbacks.drivingModeSnapshot(2))
+        assertEquals(DrivingMode.COMFORT, seeded.drivingMode?.value)
+        assertFalse(VehicleSignalKind.DRIVING_MODE in seeded.unavailable)
+        // A later change callback replaces the seed as usual.
+        assertEquals(DrivingMode.SPORT, reader.read(36, listOf(1, 0x238, 0x313, 3), 200).drivingMode?.value)
+        assertNull(reducer().read(PinnedVehicleCallbacks.VEHICLE_STATE, PinnedVehicleCallbacks.drivingModeSnapshot(-1)).drivingMode)
+    }
+
     @Test fun ambiguousFactorySpeedIsNeverAdmitted() {
         val reader = reducer()
         reader.read(12, listOf(1, 0, 0))

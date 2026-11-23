@@ -89,6 +89,15 @@ object TextOverlayCatalog {
     private val folderText = Regex("/[A-Za-z0-9_./-]+")
     val writeModes = setOf("install", "enable", "disable", "rollback", "remove")
 
+    /**
+     * Whether the job after a start has anything to do: this build carries a set ([bundled], the asset folder's
+     * entries), or this project's overlays are in /vendor/overlay ([placed]; null when the folder cannot be listed,
+     * which is not taken as "none"). Overlays placed from the PC come up off after the first start just the same.
+     */
+    fun bootJobNeeded(bundled: List<String>, placed: List<String>?): Boolean =
+        bundled.any(::validLanguage) || placed == null ||
+            placed.any { it.endsWith(".apk") && validPackage(it.removeSuffix(".apk")) }
+
     fun validLanguage(value: String) = language.matches(value)
     fun validPackage(value: String) = packageName.matches(value)
     fun languageOf(pkg: String): String = pkg.removePrefix(PREFIX).substringBefore('.')

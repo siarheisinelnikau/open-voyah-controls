@@ -55,6 +55,24 @@ if (localVehicleDir != null) {
 def voiceApprovals = layout.buildDirectory.dir('generated/voice-approvals')
 def localVoiceApprovals = localVehicleDir == null ? null : new File(localVehicleDir, 'verified-commands.json')
 if (localVoiceApprovals != null && !localVoiceApprovals.isFile()) localVoiceApprovals = null
+// The owner's overlay sets, built once on the PC for that car's firmware (tools/build_text_overlays.py with
+// --target-apks, --require-fingerprint and --require-build-date) and kept as <local-vehicle>/text-overlays/<language>/.
+// A debug build for that car carries them, so Settings → Factory apps language works without the decoded factory APKs.
+def localTextOverlays = localVehicleDir == null ? null : new File(localVehicleDir, 'text-overlays')
+if (localTextOverlays != null && !localTextOverlays.isDirectory()) localTextOverlays = null
+if (localTextOverlays != null && !oemResourcesPath.isEmpty()) {
+    throw new GradleException('Use either ovc.oemResources or <local-vehicle>/text-overlays, not both.')
+}
+if (localTextOverlays != null) {
+    localTextOverlays.listFiles().findAll { it.isDirectory() }.each { language ->
+        def table = new File(language, 'overlays.tsv')
+        // An unpinned table (an older build_text_overlays.py) is refused here, not only later on the head unit.
+        if (!table.isFile() || !(table.readLines().find { !it.isBlank() } ?: '').startsWith('pin ')) {
+            throw new GradleException("$table must start with a \"pin\" line; rebuild the set with --require-fingerprint and --require-build-date.")
+        }
+    }
+}
+def localTextOverlayApks = layout.buildDirectory.dir('generated/local-text-overlays')
 
 // Short commit of the tree the APK was built from, with "+" when tracked files had uncommitted changes.
 def gitOutput = { List<String> arguments ->
@@ -108,6 +126,7 @@ android {
     sourceSets.main.assets.srcDir(runtimeAssets)
     sourceSets.main.assets.srcDir(textOverlayScript)
     if (!oemResourcesPath.isEmpty()) sourceSets.main.assets.srcDir(textOverlayApks)
+    if (localTextOverlays != null) sourceSets.debug.assets.srcDir(localTextOverlayApks)
     // Overrides voice/verified-commands.json from main with the merged catalog, for the app side of the same rows.
     if (localVoiceApprovals != null) sourceSets.debug.assets.srcDir(voiceApprovals)
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
@@ -262,6 +281,12 @@ def buildTextOverlays = tasks.register('buildTextOverlays', Exec) {
     if (!overlayFingerprint.isEmpty()) command += ['--require-fingerprint', overlayFingerprint, '--require-build-date', overlayBuildDate]
     commandLine command
 }
+def stageLocalTextOverlays = tasks.register('stageLocalTextOverlays', Sync) {
+    description = 'Copy the owner\'s prebuilt text overlays from the local-vehicle folder (debug builds for that car).'
+    if (localTextOverlays != null) from(localTextOverlays) { include '*/overlays.tsv', '*/*.apk'; into 'text-overlays' }
+    into localTextOverlayApks
+}
 tasks.named('preBuild').configure {
-    dependsOn 'compileFridaHook', stageRuntimeMetadata, verifyVoiceAssets, verifySherpaRuntime, stageTextOverlayScript, buildTextOverlays
+    dependsOn 'compileFridaHook', stageRuntimeMetadata, verifyVoiceAssets, verifySherpaRuntime, stageTextOverlayScript, buildTextOverlays,
+        stageLocalTextOverlays
 }

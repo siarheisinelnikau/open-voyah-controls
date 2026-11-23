@@ -163,15 +163,10 @@ class OfflineVoiceInput(
             }
         }
         // The recorder is released and the capture lock still excludes a second microphone request.
-        if (endCue != null && !focusLost.isCompleted) {
-            stage("end_cue")
-            captureContext.ensureActive()
-            endCue.invoke()
-            captureContext.ensureActive()
-        }
         stage("transcript")
         captureContext.ensureActive()
-        return decoder.finish(captured, replay, naturalPhrases)
+        val cue = endCue.takeUnless { focusLost.isCompleted }
+        return alongsideCue(cue) { decoder.finish(captured, replay, naturalPhrases) }
     }
 
     private fun requestFocus(manager: AudioManager, focusLost: CompletableDeferred<Unit>): AudioFocusRequest? {
@@ -223,6 +218,21 @@ class OfflineVoiceInput(
 
     private companion object {
         const val SAMPLE_RATE = SpeechModels.SAMPLE_RATE
+    }
+}
+
+/**
+ * Decodes the phrase while the end sound plays instead of after it. The result is returned once both are done, so
+ * spoken feedback still follows the end sound, and the command waits for the longer of the two, not their sum.
+ */
+internal suspend fun <T> alongsideCue(cue: (suspend () -> Unit)?, work: suspend () -> T): T {
+    if (cue == null) return work()
+    return coroutineScope {
+        val playing = launch { cue() }
+        val result = work()
+        playing.join()
+        currentCoroutineContext().ensureActive()
+        result
     }
 }
 

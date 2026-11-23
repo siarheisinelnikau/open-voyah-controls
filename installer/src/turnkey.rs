@@ -1,6 +1,10 @@
 //! The one-button installation: the whole Controls cycle from a chosen APK to agents that start by themselves after a
 //! restart. It replaces the manual sequence install → rollback → restart → `adb root` → rearm, access, boot entry,
 //! first-run check → restart, and stops in a safe state with Retry and Roll back on any failure.
+//!
+//! An update over a running deployment whose receipt pins the signer of Controls skips all of that: Android replaces
+//! the app in place, the running supervisor keeps the activation (same signer, not older) and the new app redeploys
+//! the agents that changed, so the cycle only installs and waits for the agents. No restart.
 
 use crate::{
     adb::{Adb, Device, Result},
@@ -112,7 +116,15 @@ pub struct Plan {
     pub reviewed: bool,
     pub build: Build,
     pub version: String,
+    /// The candidate's Android version code; a live update must not be below the sealed floor.
+    pub code: u64,
 }
+
+/// How long the head unit needs after an in-place update before its status means something: the supervisor
+/// notices the new APK, Android records it a few seconds late, and the new app's start job verifies and redeploys.
+const LIVE_SETTLE: u64 = 30;
+/// How long the agents may take to report ready after an in-place update.
+const LIVE_READY: u64 = 180;
 
 pub enum Rollback {
     Done,
@@ -201,6 +213,20 @@ fn await_ready(unit: &mut impl Unit, seconds: u64, reviewed: bool) -> Result<Boo
     Ok(last)
 }
 
+/// Polls after an in-place update until the agents report ready, the activation is revoked, or `seconds` pass.
+fn await_live(unit: &mut impl Unit, seconds: u64, reviewed: bool) -> Result<BootStatus> {
+    let rounds = seconds.div_ceil(5).max(1);
+    let mut last = unit.status()?;
+    for _ in 0..rounds {
+        if last.blocked || ready_enough(&last, reviewed) {
+            break;
+        }
+        unit.wait(5);
+        last = unit.status()?;
+    }
+    Ok(last)
+}
+
 /// Runs the whole cycle. Every step is idempotent, so Retry simply runs it again.
 pub fn run(unit: &mut impl Unit, report: &Reporter<'_>) -> std::result::Result<String, Failure> {
     let mut current = CHECK;
@@ -252,6 +278,72 @@ pub fn run(unit: &mut impl Unit, report: &Reporter<'_>) -> std::result::Result<S
                 status.ready.join(", ")
             ),
         ));
+    }
+    if plan.update && status.accepts_live_update(plan.code) && ready_enough(&status, plan.reviewed)
+    {
+        step(ROOT, StepState::Done, &mut current);
+        for index in [BACKUP, REMOUNT, PAUSE] {
+            step(index, StepState::Skipped, &mut current);
+        }
+        step(INSTALL, StepState::Running, &mut current);
+        report.say(
+            &format!(
+                "Installing Controls {} over the running agents; the startup activation stays in force…",
+                plan.version
+            ),
+            &format!(
+                "Устанавливаю Controls {} поверх работающих агентов; автозапуск остаётся включённым…",
+                plan.version
+            ),
+        );
+        unit.install().map_err(|e| fail(current, e))?;
+        step(INSTALL, StepState::Done, &mut current);
+        for index in RUNTIME..VERIFY {
+            step(index, StepState::Skipped, &mut current);
+        }
+        step(VERIFY, StepState::Running, &mut current);
+        report.say(
+            "Waiting for the head unit to accept the update and the agents to report ready (no restart)…",
+            "Жду, пока магнитола примет обновление и агенты сообщат о готовности (без перезагрузки)…",
+        );
+        unit.wait(LIVE_SETTLE);
+        let status = await_live(unit, LIVE_READY, plan.reviewed).map_err(|e| fail(current, e))?;
+        if !status.blocked {
+            if !ready_enough(&status, plan.reviewed) {
+                return Err(fail(
+                    current,
+                    format!(
+                        "The update is installed and the activation stayed in force, but the agents did not report ready within {} seconds. Ready agents: {}.",
+                        LIVE_SETTLE + LIVE_READY,
+                        if status.ready.is_empty() {
+                            "none".into()
+                        } else {
+                            status.ready.join(", ")
+                        }
+                    ),
+                ));
+            }
+            step(VERIFY, StepState::Done, &mut current);
+            return Ok(report.lang.pick(
+                &format!(
+                    "Done. Controls {} is installed over the running agents without a restart, and they report ready: {}.",
+                    plan.version,
+                    status.ready.join(", ")
+                ),
+                &format!(
+                    "Готово. Controls {} установлен поверх работающих агентов без перезагрузки, агенты готовы: {}.",
+                    plan.version,
+                    status.ready.join(", ")
+                ),
+            ));
+        }
+        // The supervisor on the unit revoked the activation after all (one sealed by an older version of the app
+        // still pins the exact APK). Continue with the full cycle; the install step finds the APK already in place.
+        report.say(
+            "The head unit did not keep the activation for this update. Continuing with the full installation…",
+            "Магнитола не сохранила активацию при этом обновлении. Продолжаю полную установку…",
+        );
+        step(VERIFY, StepState::Pending, &mut current);
     }
     unit.preflight().map_err(|e| fail(current, e))?;
     step(ROOT, StepState::Done, &mut current);
@@ -517,6 +609,7 @@ impl Unit for Live<'_> {
             reviewed,
             build: candidate.build,
             version: candidate.version.to_string(),
+            code: candidate.code,
         };
         self.identity = Some(identity);
         Ok(plan)
@@ -754,6 +847,14 @@ mod tests {
         fail_at: Option<&'static str>,
         clock: u64,
         ready_at: Option<u64>,
+        /// The receipt pins the signer of Controls with this version floor (a live update is possible).
+        sealed: Option<u64>,
+        /// The candidate's version code.
+        code: u64,
+        /// The running supervisor still pins the exact APK and revokes on any update.
+        old_supervisor: bool,
+        /// The agents never report ready again after an in-place install.
+        silent_after_install: bool,
     }
 
     impl Fake {
@@ -775,6 +876,7 @@ mod tests {
                 reviewed: self.reviewed,
                 build: Build::Owner,
                 version: "0.21.0".into(),
+                code: self.code,
             })
         }
         fn root(&mut self) -> Result<()> {
@@ -815,6 +917,8 @@ mod tests {
                 } else {
                     Vec::new()
                 },
+                live_update: self.sealed.is_some() && !self.blocked,
+                sealed_version: self.sealed,
             })
         }
         fn rollback(&mut self) -> Result<Rollback> {
@@ -848,11 +952,21 @@ mod tests {
         }
         fn install(&mut self) -> Result<String> {
             assert!(
-                !self.active,
-                "install over an active deployment revokes activation"
+                !self.active || self.sealed.is_some_and(|floor| self.code >= floor),
+                "install over an active deployment without a signer pin revokes activation"
             );
             self.op("install")?;
             self.installed = true;
+            if self.active && self.old_supervisor {
+                // Revoked: the agents stop, the startup entry stays and blocks.
+                self.blocked = true;
+                self.ready = false;
+                self.sealed = None;
+            } else if self.active {
+                // Kept: the new app redeploys changed agents, which report ready again shortly.
+                self.ready = false;
+                self.ready_at = (!self.silent_after_install).then_some(self.clock + 20);
+            }
             Ok("installed".into())
         }
         fn runtime(&mut self, reviewed: bool) -> Result<()> {
@@ -962,6 +1076,89 @@ mod tests {
                 "rollback", "restart", "install", "runtime", "entry", "probe", "restart"
             ]
         );
+    }
+
+    fn signed_deployment() -> Fake {
+        Fake {
+            installed: true,
+            active: true,
+            entry: true,
+            access: true,
+            ready: true,
+            reviewed: true,
+            agents_after_restart: true,
+            sealed: Some(24),
+            code: 25,
+            ..Fake::default()
+        }
+    }
+
+    #[test]
+    fn a_same_signer_update_installs_over_running_agents_without_a_restart() {
+        let mut fake = signed_deployment();
+        let (result, states) = drive(&mut fake);
+        let text = result.unwrap();
+        assert!(text.contains("без перезагрузки"), "{text}");
+        assert!(text.contains("launcher, window"), "{text}");
+        assert_eq!(fake.log, ["checks", "root", "install"]);
+        for index in [
+            BACKUP, REMOUNT, PAUSE, RUNTIME, ACCESS, ENTRY, PROBE, RESTART,
+        ] {
+            assert_eq!(states[index], StepState::Skipped, "step {index}");
+        }
+        assert_eq!(states[INSTALL], StepState::Done);
+        assert_eq!(states[VERIFY], StepState::Done);
+    }
+
+    #[test]
+    fn an_update_below_the_sealed_version_takes_the_full_cycle() {
+        let mut fake = Fake {
+            code: 23,
+            ..signed_deployment()
+        };
+        let (result, _) = drive(&mut fake);
+        result.unwrap();
+        assert!(fake.log.contains(&"rollback".to_string()));
+        assert_eq!(fake.log.iter().filter(|op| *op == "restart").count(), 2);
+    }
+
+    #[test]
+    fn a_revoked_live_update_continues_with_the_full_cycle() {
+        let mut fake = Fake {
+            old_supervisor: true,
+            ..signed_deployment()
+        };
+        let (result, states) = drive(&mut fake);
+        let text = result.unwrap();
+        assert!(text.starts_with("Готово."), "{text}");
+        let order: Vec<_> = fake
+            .log
+            .iter()
+            .map(String::as_str)
+            .filter(|op| matches!(*op, "rollback" | "restart" | "install" | "entry"))
+            .collect();
+        assert_eq!(
+            order,
+            ["install", "rollback", "install", "entry", "restart"]
+        );
+        assert!(
+            states
+                .iter()
+                .all(|s| matches!(s, StepState::Done | StepState::Skipped))
+        );
+    }
+
+    #[test]
+    fn live_agents_that_stay_silent_fail_the_last_step_without_a_restart() {
+        let mut fake = Fake {
+            silent_after_install: true,
+            ..signed_deployment()
+        };
+        let (result, states) = drive(&mut fake);
+        let failure = result.unwrap_err();
+        assert_eq!(failure.step, VERIFY);
+        assert_eq!(states[VERIFY], StepState::Failed);
+        assert!(!fake.log.contains(&"restart".to_string()));
     }
 
     #[test]

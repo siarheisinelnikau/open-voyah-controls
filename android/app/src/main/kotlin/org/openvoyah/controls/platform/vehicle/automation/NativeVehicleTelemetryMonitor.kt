@@ -127,6 +127,36 @@ internal class NativeVehicleTelemetryMonitor(context: Context) : VehicleTelemetr
             synchronized(this) {
                 if (!closed) diagnostic.update { it.copy(cachedGear = cached, cachedGearOutcome = outcome) }
             }
+            seedDrivingMode(service)
+        }
+
+        /**
+         * The VCU reports the driving mode only when it changes, so a new session would wait for the driver to switch
+         * modes before Save or Restore could work. The service keeps the latest VCU frame in its cache
+         * (getVehicleState(DRIVING_MODE_SET_FB)); that value is the actual mode, not the requested one, and seeds the
+         * session once. A change callback that arrived first wins.
+         */
+        private fun seedDrivingMode(service: IBinder) {
+            val (value, outcome) = readCachedDrivingMode(service)
+            synchronized(this) {
+                if (closed) return
+                // Stamped under the lock, so a callback handled meanwhile cannot look newer than the seed.
+                val elapsed = SystemClock.elapsedRealtimeNanos()
+                val received = System.currentTimeMillis()
+                if (value == null || telemetry.drivingMode != null) {
+                    ControlsLog.info("vehicle_signal", "signal", "driving_mode", "source", "service_cache",
+                        "outcome", if (value == null) outcome else "superseded", "session", telemetry.sessionId)
+                    return
+                }
+                val previous = telemetry
+                val current = reducer.accept(PinnedVehicleCallbacks.VEHICLE_STATE,
+                    PinnedVehicleCallbacks.drivingModeSnapshot(value), elapsed, received)
+                if (current == previous) return
+                publish(current)
+                ControlsLog.info("vehicle_signal", "signal", "driving_mode", "value", current.drivingMode?.value?.key ?: "unknown",
+                    "source", "service_cache", "outcome", if (current.drivingMode == null) "unavailable" else "observed",
+                    "elapsed_ns", elapsed, "session", current.sessionId)
+            }
         }
 
         @Synchronized
@@ -196,6 +226,28 @@ private fun readCachedGear(service: IBinder): Pair<CachedNativeGear?, String> {
     }
 }
 
+/** ICanBusService.getVehicleState(VehicleState): -1 when the service has no VCU frame yet. Read-only. */
+internal fun readCachedDrivingMode(service: IBinder): Pair<Int?, String> {
+    val request = Parcel.obtain()
+    val reply = Parcel.obtain()
+    return try {
+        request.writeInterfaceToken(SERVICE_DESCRIPTOR)
+        request.writeInt(1) // Parcelable present
+        request.writeInt(PinnedVehicleCallbacks.DRIVING_MODE_FEEDBACK_ORDINAL)
+        request.writeInt(PinnedVehicleCallbacks.DRIVING_MODE_FEEDBACK_ID)
+        if (!service.transact(GET_VEHICLE_STATE, request, reply, 0)) return null to "request_rejected"
+        reply.readException()
+        if (reply.dataAvail() != Int.SIZE_BYTES) return null to "unavailable"
+        reply.readInt().takeIf { it in 1..6 }?.let { it to "cached_snapshot" } ?: (null to "unavailable")
+    } catch (_: Exception) {
+        null to "read_failed"
+    } finally {
+        request.recycle()
+        reply.recycle()
+    }
+}
+
 private const val SERVICE_DESCRIPTOR = "com.qinggan.canbus.ICanBusService"
+private const val GET_VEHICLE_STATE = 57
 private const val LISTENER_DESCRIPTOR = "com.qinggan.canbus.ICanBusServiceCallback"
 private const val GET_GEAR_STATUS = 6

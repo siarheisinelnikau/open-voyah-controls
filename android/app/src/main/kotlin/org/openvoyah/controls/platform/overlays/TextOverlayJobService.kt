@@ -6,8 +6,10 @@ import android.app.job.JobScheduler
 import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
+import java.io.File
 import kotlin.concurrent.thread
 import org.openvoyah.controls.data.overlays.TextOverlayManager
+import org.openvoyah.controls.domain.overlays.TextOverlayCatalog
 import org.openvoyah.controls.diagnostics.ControlsLog
 
 /**
@@ -59,10 +61,16 @@ class TextOverlayJobService : JobService() {
         private const val PREFS = "text_overlay_job"
         private const val ATTEMPTS = "attempts"
         private const val MAX_ATTEMPTS = 6
+        private const val VENDOR_OVERLAYS = "/vendor/overlay"
 
-        /** Schedules the job when this build carries overlays; called on boot and after an update. */
+        /**
+         * Schedules the job when this build carries overlays or this project's overlays are in /vendor/overlay (also
+         * those tools/text-overlays.ps1 placed from the PC); called on boot and after an update.
+         */
         @JvmStatic fun schedule(context: Context) {
-            if (context.assets.list(TextOverlayManager.ASSETS).orEmpty().none { it.matches(Regex("[a-z]{2,3}")) }) return
+            val bundled = context.assets.list(TextOverlayManager.ASSETS).orEmpty().toList()
+            val placed = try { File(VENDOR_OVERLAYS).list() } catch (error: SecurityException) { null }
+            if (!TextOverlayCatalog.bootJobNeeded(bundled, placed?.toList())) return
             context.getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(ATTEMPTS).apply()
             val job = JobInfo.Builder(ID, ComponentName(context, TextOverlayJobService::class.java))
                 .setMinimumLatency(20_000).setBackoffCriteria(30_000, JobInfo.BACKOFF_POLICY_EXPONENTIAL).build()

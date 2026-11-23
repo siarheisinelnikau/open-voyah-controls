@@ -65,7 +65,7 @@ class DrivingModeMemoryPolicyTest {
         val engine = DrivingModeMemoryEngine()
         engine.evaluate(enabled, previous, car(null), 1_000)
         assertNull(engine.evaluate(enabled, previous, car(null, VehicleGear.DRIVE, 2_000), 2_000).save)
-        assertNull(engine.acceptCurrent(enabled, car(null), 3_000))
+        assertNull(engine.acceptCurrent(car(null), 3_000))
     }
 
     @Test fun aFreshGearTransitionCannotPromoteRegressedModeFeedback() {
@@ -77,7 +77,7 @@ class DrivingModeMemoryPolicyTest {
         val rejected = engine.evaluate(enabled, previous, regressed, 300)
         assertNull(rejected.save)
         assertNull(rejected.restore)
-        assertNull(engine.acceptCurrent(enabled, regressed, 300))
+        assertNull(engine.acceptCurrent(regressed, 300))
         assertEquals(DrivingMode.ECO, engine.evaluate(enabled, previous, car(DrivingMode.ECO, VehicleGear.PARK, 400), 400).save?.mode)
     }
 
@@ -88,7 +88,7 @@ class DrivingModeMemoryPolicyTest {
         val conflicting = car(DrivingMode.SNOW, VehicleGear.PARK, 300).copy(
             drivingMode = car(DrivingMode.SNOW, at = 200).drivingMode)
         assertNull(engine.evaluate(enabled, previous, conflicting, 300).save)
-        assertNull(engine.acceptCurrent(enabled, conflicting, 300))
+        assertNull(engine.acceptCurrent(conflicting, 300))
     }
 
     @Test fun repeatedActualFeedbackDoesNotRewriteTheSameTripSelection() {
@@ -105,16 +105,31 @@ class DrivingModeMemoryPolicyTest {
         assertNull(engine.evaluate(enabled, saved, parked, 400).save)
     }
 
-    @Test fun explicitUseCurrentRequiresEnabledParkAndNoMotion() {
+    @Test fun manualSaveNeedsOnlyTheActualModeOfThisSession() {
         val engine = DrivingModeMemoryEngine()
         val current = car(DrivingMode.COMFORT)
-        assertEquals(DrivingMode.COMFORT, engine.acceptCurrent(enabled, current, 1_000)?.mode)
-        assertNull(engine.acceptCurrent(DrivingModeMemorySettings(false), current, 1_000))
+        assertEquals(DrivingMode.COMFORT, engine.acceptCurrent(current, 1_000)?.mode)
         // Mode and gear are reported only on change; their last values of the session still hold later.
-        assertEquals(DrivingMode.COMFORT, engine.acceptCurrent(enabled, current, 60_000_002_000)?.mode)
-        assertNull(engine.acceptCurrent(enabled, car(DrivingMode.COMFORT, VehicleGear.DRIVE), 1_000))
-        assertNull(engine.acceptCurrent(enabled, current.copy(drivingMode = null), 1_000))
-        assertNull(engine.acceptCurrent(enabled, current.copy(speedKph = current.speedKph!!.copy(value = 1f)), 1_000))
+        assertEquals(DrivingMode.COMFORT, engine.acceptCurrent(current, 60_000_002_000)?.mode)
+        // Reading the mode moves nothing: Drive, motion or an unknown gear after a wake do not block Save.
+        assertEquals(DrivingMode.COMFORT, engine.acceptCurrent(car(DrivingMode.COMFORT, VehicleGear.DRIVE), 1_000)?.mode)
+        assertEquals(DrivingMode.COMFORT, engine.acceptCurrent(current.copy(gear = null), 1_000)?.mode)
+        assertNull(engine.acceptCurrent(current.copy(drivingMode = null), 1_000))
+        assertNull(engine.acceptCurrent(current.copy(drivingMode = current.drivingMode!!.copy(sessionId = "other")), 1_000))
+    }
+
+    @Test fun restoreIsOfferedWithoutTheAutomaticSwitchAndAfterAWakeWithUnknownGear() {
+        val disabled = DrivingModeMemorySettings(false)
+        val parked = DrivingModeMemoryEngine().evaluate(disabled, previous, car(DrivingMode.COMFORT), 1_000)
+        assertEquals(previous, parked.restore)
+        assertNull(parked.save)
+        val woke = DrivingModeMemoryEngine().evaluate(disabled, previous, car(DrivingMode.COMFORT).copy(gear = null), 1_000)
+        assertEquals(previous, woke.restore)
+        assertNull(DrivingModeMemoryEngine().evaluate(disabled, previous, car(DrivingMode.COMFORT, VehicleGear.DRIVE), 1_000).restore)
+        assertNull(DrivingModeMemoryEngine().evaluate(disabled, previous, car(DrivingMode.SPORT), 1_000).restore)
+        assertNull(DrivingModeMemoryEngine().evaluate(disabled, previous, car(null), 1_000).restore)
+        val moving = car(DrivingMode.COMFORT).let { it.copy(gear = null, speedKph = it.speedKph!!.copy(value = 30f)) }
+        assertNull(DrivingModeMemoryEngine().evaluate(disabled, previous, moving, 1_000).restore)
     }
 
     @Test fun identityMismatchAndSleepNeverOfferAnOldTarget() {

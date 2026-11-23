@@ -10,7 +10,7 @@ The primary target is VOYAH FREE 318 H97D. The stock vehicle app identifies an H
 | --- | --- | --- |
 | Headlights on Drive/Park transitions | Existing factory light-switch observation, separate lamp readings, last-confirmation history, native command catalog and Park/zero-speed gate | Fresh gear transitions with an identified source; matching light feedback before and after a stock action; the exact H97D lamp setter and values; sleep/wake behavior. An Auto selector does not establish whether the dipped beams are on. |
 | Summer/winter climate | Bounded front temperature and blower commands, separately reviewed climate/seat commands, saved seasonal preferences, and one shared reservation between an automatic and a manual apply | Outside-temperature units and freshness; start-of-trip or readiness events; the installed climate/seat capability and final-state feedback for every selected action. A phone weather value or an old cached outside-temperature getter is insufficient. |
-| Driving-mode memory | Named native driving-mode commands and confirmed observation storage | Actual selected-mode feedback, exact mode names/values and setter for the installed build; startup/reset timing; confirmed post-restore state; distinctions between driving mode, energy mode and regeneration. A requested mode must not overwrite confirmed history. |
+| Driving-mode memory | Named native driving-mode commands, the VCU feedback `DRIVING_MODE_SET_FB` (callback and the service's cached value) and confirmed observation storage | Exact mode names/values and setter for the installed build; startup/reset timing; confirmed post-restore state; distinctions between driving mode, energy mode and regeneration. A requested mode must not overwrite confirmed history. |
 | Factory driving assistance | Public factory vehicle settings entry and manufacturer guidance | Installed ADAS equipment and software identity, including the stock `ASC`/`SDB` configuration classification; supported menus; account, learning and service status shown by that firmware; the factory availability result. Opening settings does not activate assistance. |
 | If–then rules | Existing saved routines and validated references to their IDs | Gear and individually identified door callbacks, correct open/closed interpretation, freshness, disconnect/sleep invalidation and reconnection behavior. Unknown or historical values must not create a trigger. |
 
@@ -28,9 +28,25 @@ The [H97D driving-operation manual](https://m.dsmp.voyah.com.cn/userguide/h97d/h
 
 The factory service reports gear, doors, outside temperature and the actual driving mode only when they change. The status display still marks a reading older than five seconds as **Waiting**, but the routines use the last value of the current session: it stays valid until the service replaces or clears it, and a disconnect, screen-off or wake starts a new session with unknown values. The first door and outside-temperature callbacks of a session give the starting values.
 
-The factory speed callback reports zero both for a stop and for invalid input, so no speed is admitted. Park from the current session therefore counts as standing still for the headlight Park action, seasonal climate in Park and driving-mode restore; a fresh non-zero speed from another source would still refuse. The launcher agent reads the live gear and speed again before every Park-only write, so this check cannot move anything while driving.
+The factory speed callback reports zero both for a stop and for invalid input, so no speed is admitted. Park from the current session therefore counts as standing still for the headlight Park action and seasonal climate in Park; a fresh non-zero speed from another source would still refuse. Driving-mode restore only refuses a gear other than P or a non-zero speed that this session knows. The launcher agent reads the live gear and speed again before every Park-only write, so this check cannot move anything while driving.
 
 **Headlights in Drive and Park** acts on a fresh gear change. When the selector position is unknown it still sends the chosen mode, since requesting the current mode again is harmless. Auto and Low beam also run in Drive; Position lights and Off are sent only in Park.
+
+## Driving-mode memory
+
+**Settings → Routines and automation → Driving mode memory** keeps one driving mode (Eco, Comfort, Sport, Off-road, Individual or Snow). It does not store seat or mirror positions; those are in [Driver seat and mirror memory](DRIVER_MEMORY.md).
+
+The card shows **Now**, the mode the car reports, and **Saved**, the stored mode with its time.
+
+1. Select the mode you want in the factory controls. **Now** shows it.
+2. Press **Save current**. The card confirms, for example **Comfort saved.**
+3. Later, press **Restore** and confirm. The card shows **Sport requested. Waiting for the car to confirm.** and then **Sport restored.** when the car reports that mode.
+
+**Restore** is greyed out when nothing is saved, when the saved mode is already on, when the car is out of P or moving, or when the driving-mode command is not allowed in **Settings → System → Allowed actions**. A line under the buttons says which. Neither button needs the switch below them.
+
+**Also save automatically when a trip ends in P** adds an automatic save: after a trip (P → D … → P) Controls stores the mode that was actually on. A mode that the car resets to when it starts never replaces the previous trip's mode before you drive or change it.
+
+The VCU reports the driving mode only when it changes. To know the mode right away, Controls reads the vehicle service's cached VCU value (`getVehicleState(DRIVING_MODE_SET_FB)`, read-only) once when it connects, and then follows the change callbacks. The journal records the read as `event=vehicle_signal signal=driving_mode source=service_cache`, a save as `event=driving_mode_memory action=save`, and a restore as `event=driving_mode_restore`. Driving-mode commands are motion commands, like the factory control, but a manual restore still waits while Controls knows the car is out of P or moving. A gear that is unknown after a wake does not block it.
 
 ## Runtime ownership
 

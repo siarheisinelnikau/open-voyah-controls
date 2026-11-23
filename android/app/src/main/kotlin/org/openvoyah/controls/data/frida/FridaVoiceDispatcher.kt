@@ -7,6 +7,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
@@ -25,6 +26,11 @@ internal class FridaVoiceDispatcher(
     private val settings: VoiceSettings,
     private val reviewed: ReviewedVoiceCommands,
 ) {
+    /** Starts the slow, read-only part of the first vehicle command in the background; see [FridaBridge.prepareVoice]. */
+    fun prepare() {
+        worker.launch { bridge.prepareVoice() }
+    }
+
     suspend fun dispatch(request: Request, stillAllowed: (() -> Boolean)? = null): VoiceResult {
         currentCoroutineContext().ensureActive()
         val command = loggedCommand(request.command().id())

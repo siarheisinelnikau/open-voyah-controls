@@ -2,6 +2,8 @@
 
 **Driver 1**, **Driver 2** and **Driver 3** correspond to the vehicle's three driver seat and mirror memory slots.
 
+This page is about seat and mirror positions. To save and restore the driving mode (Eco, Comfort, Sport), see [Driving-mode memory](VEHICLE_AUTOMATION.md#driving-mode-memory).
+
 ## Use the car's memory on screen
 
 Open **Settings → Vehicle → Seat and mirror memory**. **Driver 1**, **Driver 2**, and **Driver 3** each have a three-quarter seat illustration with **Restore** and **Save** below it. The buttons sit side by side when their labels fit. The cards adapt to narrow windows and large text. The same numbers identify the vehicle's memory slots and voice commands.

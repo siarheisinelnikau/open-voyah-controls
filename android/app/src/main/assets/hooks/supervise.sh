@@ -37,6 +37,7 @@ if [ "$channel" = window ]; then target=system_server; fi
 script="$root/$relative"
 dir=${script%/*}
 receipt="$root/trust.tsv"
+packages_xml=/data/system/packages.xml
 app=org.openvoyah.controls
 app_key=/data/user/0/$app/files/root-channel.key
 access=/data/adb/open-voyah-controls-access
@@ -99,7 +100,7 @@ reviewed_receipt() {
         for rr_component do case "$rr_component" in ''|*[!0-9]*) return 1;; esac; done
     }
     rr_tab=$(printf '\t')
-    rr_device=0; rr_lifetime=0; rr_packages='|'; rr_artifacts='|'
+    rr_device=0; rr_lifetime=0; rr_signer=0; rr_packages='|'; rr_artifacts='|'
     # Split each tab explicitly: shell whitespace splitting would silently drop empty fields.
     while IFS= read -r rr_line || [ -n "$rr_line" ]; do
         set --
@@ -142,6 +143,17 @@ reviewed_receipt() {
                 case "$3" in [1-9][0-9][0-9][0-9][0-9]) ;; *) return 1;; esac
                 rr_stamp "$4" && rr_sha "$5" || return 1
                 rr_lifetime=1;;
+            signer)
+                # Controls is pinned by its signing certificate and a version floor, so a same-signer update keeps
+                # the activation (see signed_package). Only the app itself; OEM packages keep their exact APK hash.
+                [ "$#" = 4 ] && [ "$2" = org.openvoyah.controls ] && [ "$rr_signer" = 0 ] || return 1
+                rr_sha "$3" || return 1
+                case "$4" in [1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9]|\
+                    [1-9][0-9][0-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9][0-9][0-9]|\
+                    [1-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) ;;
+                    *) return 1;;
+                esac
+                rr_signer=1;;
             *) return 1;;
         esac
     done < "$receipt"
@@ -184,7 +196,63 @@ artifact_ok() {
     expected=$(record artifact "$1" 3) || return 1
     root_file "$root/$1" && [ "$(digest "$root/$1")" = "$expected" ]
 }
+# "<codePath> <versionCode> <certificate hex>" of package $1 as Android's package manager recorded it after verifying
+# the APK signature. Exactly one current signer; certificates listed under pastSigs (key rotation) are not current.
+# A cert element names its key once in the file and refers to it by index elsewhere. 0 found, 1 unsafe or malformed,
+# 2 not readable now: the package manager rewrites the file by moving it to packages-backup.xml and writing it anew.
+package_signer() {
+    if [ -e "${packages_xml%.xml}-backup.xml" ] || [ ! -e "$packages_xml" ]; then return 2; fi
+    [ -f "$packages_xml" ] && [ ! -L "$packages_xml" ] || return 1
+    case "$(stat -c %u "$packages_xml" 2>/dev/null)" in 0|1000) ;; *) return 1;; esac
+    awk -v pkg="$1" '
+        function attr(line, name,   at, rest, end) {
+            at = index(line, " " name "=\""); if (!at) return ""
+            rest = substr(line, at + length(name) + 3); end = index(rest, "\"")
+            return end ? substr(rest, 1, end - 1) : ""
+        }
+        /<cert / { i = attr($0, "index"); k = attr($0, "key"); if (i != "" && k != "" && !(i in keys)) keys[i] = k }
+        /^[ \t]*<package / && attr($0, "name") == pkg { inside = 1; seen++; code = attr($0, "codePath"); version = attr($0, "version") }
+        inside && /<pastSigs/ { past = 1 }
+        inside && !past && /<cert / { certs++; want = attr($0, "index") }
+        inside && /<\/pastSigs>/ { past = 0 }
+        inside && /<\/package>/ { inside = 0; past = 0 }
+        /<\/packages>/ { complete = 1 }
+        END {
+            if (!complete || !seen) exit 2
+            if (seen != 1 || certs != 1 || want == "" || !(want in keys) || code == "" || version == "") exit 1
+            print code " " version " " keys[want]
+        }
+    ' "$packages_xml"
+}
+# Whether the APK at $2 of package $1 matches the receipt's signer row: the same signing certificate and a version
+# no older than the one sealed. 0 yes, 1 no (a foreign signer or a downgrade), 2 not settled yet: right after an
+# install the package manager writes its settings file a few seconds later, so the file still describes the APK it
+# replaced. The uid and the app's private key are checked separately (lifetime_status), which catches a reinstall.
+signed_package() {
+    sp_signer=$(record signer "$1" 3) && sp_floor=$(record signer "$1" 4) || return 1
+    sp_record=$(package_signer "$1") || return $?
+    sp_code=${sp_record%% *}; sp_rest=${sp_record#* }
+    sp_version=${sp_rest%% *}; sp_cert=${sp_rest#* }
+    [ "$sp_code" = "${2%/*}" ] || return 2
+    case "$sp_version" in [1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9]|\
+        [1-9][0-9][0-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9][0-9][0-9]|\
+        [1-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) ;;
+        *) return 1;;
+    esac
+    [ "$sp_version" -ge "$sp_floor" ] || return 1
+    case "$sp_cert" in ''|*[!0-9a-f]*) return 1;; esac
+    [ "${#sp_cert}" -le 32768 ] && [ $(( ${#sp_cert} % 2 )) = 0 ] || return 1
+    sp_digest=$(printf '%s' "$sp_cert" | xxd -r -p | sha256sum | awk '{print $1}') || return 1
+    [ "$sp_digest" = "$sp_signer" ]
+}
 reviewed_package() {
+    if record signer "$1" 3 >/dev/null 2>&1; then
+        installed=$(package_path "$1") || return 1
+        [ -f "$installed" ] && [ ! -L "$installed" ] || return 1
+        signed_package "$1" "$installed" || return $?
+        printf '%s\n' "$installed"
+        return 0
+    fi
     declared=$(record package "$1" 3) && expected=$(record package "$1" 4) || return 1
     installed=$(package_path "$1") || return 1
     [ "$declared" = "$installed" ] && [ -f "$installed" ] && [ ! -L "$installed" ] &&
@@ -234,7 +302,9 @@ check_runtime() {
             private_file "$root/boot-start.sh" 700 && artifact_ok boot-start.sh &&
             private_file "$root/supervise.sh" 700 && artifact_ok supervise.sh && artifact_ok "$relative" ||
             return 1
-        app_path=$(reviewed_package "$app") && package_file=$(reviewed_package "$package") || return 1
+        # 2: the package manager has not yet recorded a fresh install of Controls; wait, it is no evidence of a change.
+        app_path=$(reviewed_package "$app") || return $?
+        package_file=$(reviewed_package "$package") || return 1
         lifetime_status || return $?
     fi
     app_identity=$(file_identity "$app_path") && injector_identity=$(file_identity "$injector") &&
@@ -245,15 +315,49 @@ check_runtime() {
     if [ "$fixture" = 0 ]; then receipt_identity=$(file_identity "$receipt") || return 1; fi
 }
 runtime_unchanged() {
-    [ "$app_identity" = "$(file_identity "$app_path")" ] &&
-        [ "$injector_identity" = "$(file_identity "$injector")" ] &&
+    [ "$injector_identity" = "$(file_identity "$injector")" ] &&
         [ "$script_identity" = "$(file_identity "$script")" ] &&
         { [ -z "$package_file" ] || [ "$package_identity" = "$(file_identity "$package_file")" ]; }
 }
 packages_unchanged() {
     { [ "$fixture" = 1 ] || [ "$(am get-current-user 2>/dev/null)" = 0 ]; } &&
-        [ "$(package_path "$app")" = "$app_path" ] &&
         { [ -z "$package_file" ] || [ "$(package_path "$package")" = "$package_file" ]; }
+}
+# The APK file every two seconds (a stat), the package manager's path every ten (pm is a slow process to start).
+app_unchanged() {
+    [ "$app_identity" = "$(file_identity "$app_path")" ] || return 1
+    [ $((elapsed%10)) -ne 0 ] || [ "$(package_path "$app")" = "$app_path" ]
+}
+# An update of Controls itself (adb install -r, the Windows installer, an in-car update) replaces its APK while the
+# agents run. With a signer row in the receipt the new APK is accepted when Android recorded the same signing
+# certificate and no older version, and the uid and the app's private key are unchanged (the activation lifetime).
+# The agents keep running: they are this deployment's sealed files, not part of the APK. The new app compares them
+# with its own assets when it starts and redeploys through the root channel if they differ, which reseals the receipt.
+# Without a signer row (a receipt sealed by an older app), any change of the APK still revokes. 0 adopted, 1 not.
+adopt_app_update() {
+    [ "$fixture" = 0 ] && record signer "$app" 3 >/dev/null 2>&1 || return 1
+    au_waited=0
+    while :; do
+        au_code=2
+        if au_path=$(package_path "$app") && [ -f "$au_path" ] && [ ! -L "$au_path" ]; then
+            signed_package "$app" "$au_path"
+            au_code=$?
+            if [ "$au_code" = 0 ]; then
+                settled lifetime_status
+                au_code=$?
+                if [ "$au_code" = 0 ]; then
+                    au_identity=$(file_identity "$au_path") || return 1
+                    [ "$(package_path "$app")" = "$au_path" ] || au_code=2
+                fi
+            fi
+        fi
+        case "$au_code" in 0) break;; 2) ;; *) return 1;; esac
+        [ "$au_waited" -lt "$update_wait" ] || return 1
+        sleep 2
+        au_waited=$((au_waited+2))
+    done
+    app_path=$au_path; app_identity=$au_identity
+    log 'OVC_WORKER_NOTICE Controls was updated by the same signer. Activation kept.'
 }
 # A single failed package-manager, user-state or file query under boot load is not evidence of a change: on boot 211
 # one such sample revoked the whole deployment 30 s after boot. A real change persists, so a check that decides a
@@ -261,6 +365,8 @@ packages_unchanged() {
 # and 2 (user storage locked or package manager silent: wait) end the check at once.
 settle_samples=3
 settle_delay=3
+# How long a replaced Controls APK may stay unrecorded by the package manager before it counts as a change.
+update_wait=60
 settled() {
     st_sample=1
     while :; do
@@ -591,8 +697,8 @@ esac
 #   $3 same_boot: 1 when a marker was written in the current boot, so the screen may still show changed visuals
 #   $4 visuals: clear, or pending while a visual session or an injector of this project is still live
 #   $5 verify: check_runtime's result (0 verified, 2 user storage locked, 3 lifetime must be resealed, else changed)
-# Integrity is the verify step: the receipt pins the APKs, the Frida runtime, both scripts and every agent, so a real
-# APK, runtime or package change still needs the PC. The reboot is what proves the original visuals are back.
+# Integrity is the verify step: the receipt pins the OEM APKs, the signer of Controls, the Frida runtime, both scripts
+# and every agent, so a foreign or older Controls, a runtime or an OEM package change still needs the PC. The reboot is what proves the original visuals are back.
 recover_decision() {
     if [ "$1" = auto ] && [ "$2" != recorded ]; then echo pc:unrecorded; return; fi
     if [ "$1" = auto ] && [ "$3" = 1 ]; then echo reboot:same-boot; return; fi
@@ -715,7 +821,7 @@ if [ "$channel" = --verify-boot ]; then
     settled check_runtime
     checked=$?
     if [ "$checked" = 0 ]; then echo 'OVC_BOOT_VERIFIED'; exit 0; fi
-    if [ "$checked" = 2 ]; then echo 'OVC_BOOT_WAITING User storage is not verified unlocked.' >&2; exit 2; fi
+    if [ "$checked" = 2 ]; then echo 'OVC_BOOT_WAITING User storage or package settings are not settled yet.' >&2; exit 2; fi
     if [ "$checked" = 3 ]; then echo 'OVC_BOOT_ERROR Deployment lifetime must be resealed by an explicit connection.' >&2; exit 1; fi
     echo 'OVC_BOOT_ERROR Deployment is missing, changed, or unapproved.' >&2
     exit 1
@@ -916,6 +1022,11 @@ while may_start; do
         if ! settled runtime_unchanged; then
             log 'OVC_WORKER_NOTICE Deployment package or runtime changed.'
             revoke_activation runtime || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
+            break
+        fi
+        if ! settled app_unchanged && ! adopt_app_update; then
+            log 'OVC_WORKER_NOTICE Controls package changed.'
+            revoke_activation package || log 'OVC_WORKER_ERROR Durable recovery requires PC assistance.'
             break
         fi
         if [ "$(pid_for system_server)" != "$system_pid" ] || [ "$(pid_for "$target")" != "$target_pid" ] ||

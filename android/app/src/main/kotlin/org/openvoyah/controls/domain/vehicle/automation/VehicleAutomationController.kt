@@ -33,6 +33,11 @@ internal class DrivingModeRestorePrompt(
     val sessionStartedAtElapsedNanos: Long,
 )
 
+/** What the driving-mode memory card tells the driver after Save or Restore. */
+internal enum class DrivingModeMemoryNotice { SAVED, RESTORE_SENT, RESTORED, RESTORE_FAILED, RESTORE_NEEDS_PARK }
+
+internal data class DrivingModeMemoryMessage(val notice: DrivingModeMemoryNotice, val mode: DrivingMode)
+
 internal data class VehicleAutomationState(
     val settings: VehicleAutomationSettings? = null,
     val settingsFailed: Boolean = false,
@@ -46,9 +51,12 @@ internal data class VehicleAutomationState(
     val actualMode: DrivingMode? = null,
     val canRememberCurrent: Boolean = false,
     val restoreCandidate: DrivingModeRecord? = null,
+    /** The session knows the car is out of Park or moving, so a manual restore waits. */
+    val restoreNeedsPark: Boolean = false,
     val capabilities: VehicleAutomationCapabilities = VehicleAutomationCapabilities(),
     val prompt: DrivingModeRestorePrompt? = null,
     val outcome: VehicleAutomationOutcome? = null,
+    val memoryMessage: DrivingModeMemoryMessage? = null,
 )
 
 /** Shared automatic work is scoped to an explicit runtime lease, independent of screen lifetime. */
@@ -98,14 +106,24 @@ internal class VehicleAutomationController(
                         settings == prompt.settings && car.sessionId == prompt.sessionId &&
                             car.sessionStartedAtElapsedNanos == prompt.sessionStartedAtElapsedNanos &&
                             remembered.getOrNull() == prompt.record && prompt.record.mode in capabilities.drivingModes &&
-                            memory?.restore == prompt.record && car.drivingMode == prompt.actualMode && car.isStationary(now)
+                            memory?.restore == prompt.record && car.drivingMode == prompt.actualMode &&
+                            car.allowsDrivingModeRestore(now)
                     }
+                    // A sent restore is confirmed only by the actual mode the VCU reports afterwards.
+                    val message = before.memoryMessage?.let { sent ->
+                        if (sent.notice == DrivingModeMemoryNotice.RESTORE_SENT && memory?.actual == sent.mode)
+                            DrivingModeMemoryMessage(DrivingModeMemoryNotice.RESTORED, sent.mode) else sent
+                    }
+                    val confirmedNow = message?.notice == DrivingModeMemoryNotice.RESTORED &&
+                        before.memoryMessage?.notice == DrivingModeMemoryNotice.RESTORE_SENT
                     before.copy(settings = settings, settingsFailed = configuration.isFailure,
                         historyFailed = remembered.isFailure, telemetry = car, lighting = lamps,
                         rememberedMode = remembered.getOrNull(), actualMode = memory?.actual,
-                        canRememberCurrent = settings?.drivingMode?.enabled == true && remembered.isSuccess &&
-                            car.isStationary(now) && car.drivingMode?.isCurrentIn(car, now) == true,
-                        restoreCandidate = memory?.restore, capabilities = capabilities, prompt = prompt)
+                        canRememberCurrent = settings != null && remembered.isSuccess &&
+                            car.drivingMode?.isCurrentIn(car, now) == true,
+                        restoreCandidate = memory?.restore, capabilities = capabilities, prompt = prompt,
+                        restoreNeedsPark = !car.allowsDrivingModeRestore(now),
+                        memoryMessage = message, outcome = if (confirmedNow) null else before.outcome)
                 }
                 memory?.save?.takeIf { active == generation }?.let { record ->
                     try { history.save(record) }
@@ -120,14 +138,14 @@ internal class VehicleAutomationController(
                     if (decision != null) {
                         if (decision.action !in capabilities.headlightActions) {
                             log("event=headlight_gear_action gear=${decision.gear.value.key} action=${decision.action.key} outcome=unqualified")
-                            mutable.update { it.copy(outcome = VehicleAutomationOutcome.BLOCKED) }
+                            mutable.update { it.copy(outcome = VehicleAutomationOutcome.BLOCKED, memoryMessage = null) }
                         } else if (!mutable.value.working && active == generation &&
                             decision.isCurrent(settings.headlights, car, lamps, nowNanos())) {
                             log("event=headlight_gear_action gear=${decision.gear.value.key} action=${decision.action.key} outcome=dispatching")
                             mutable.update { it.copy(working = true) }
                             val outcome = attempt { port.setHeadlight(decision) }
                             log("event=headlight_gear_action gear=${decision.gear.value.key} action=${decision.action.key} outcome=${outcome.name.lowercase()}")
-                            if (active == generation) mutable.update { it.copy(working = false, outcome = outcome) }
+                            if (active == generation) mutable.update { it.copy(working = false, outcome = outcome, memoryMessage = null) }
                         }
                     }
                 }
@@ -147,7 +165,7 @@ internal class VehicleAutomationController(
         driving.reset()
         mutable.update { it.copy(telemetry = null, actualMode = null, canRememberCurrent = false,
             restoreCandidate = null, prompt = null, working = false, settingsFailed = false,
-            historyFailed = false, saveFailed = false, outcome = null) }
+            historyFailed = false, saveFailed = false, outcome = null, memoryMessage = null) }
     }
 
     fun setHeadlightsEnabled(enabled: Boolean) = change { copy(headlights = headlights.copy(enabled = enabled)) }
@@ -163,7 +181,7 @@ internal class VehicleAutomationController(
         if (before.saving || before.working) return
         val next = settings.edit()
         if (next == settings) return
-        mutable.value = before.copy(saving = true, saveFailed = false, prompt = null, outcome = null)
+        mutable.value = before.copy(saving = true, saveFailed = false, prompt = null, outcome = null, memoryMessage = null)
         tasks.launch {
             try {
                 store.update(settings, next)
@@ -182,13 +200,18 @@ internal class VehicleAutomationController(
         val target = before.restoreCandidate ?: return
         val car = before.telemetry ?: return
         val actual = car.drivingMode
-        if (before.working || before.saving || !car.isStationary(nowNanos()) || target.mode !in before.capabilities.drivingModes ||
+        if (!car.allowsDrivingModeRestore(nowNanos())) {
+            mutable.update { it.copy(outcome = null,
+                memoryMessage = DrivingModeMemoryMessage(DrivingModeMemoryNotice.RESTORE_NEEDS_PARK, target.mode)) }
+            return
+        }
+        if (before.working || before.saving || target.mode !in before.capabilities.drivingModes ||
             actual == null || !actual.isCurrentIn(car, nowNanos())) {
-            mutable.update { it.copy(outcome = VehicleAutomationOutcome.BLOCKED) }
+            mutable.update { it.copy(outcome = VehicleAutomationOutcome.BLOCKED, memoryMessage = null) }
             return
         }
         mutable.value = before.copy(prompt = DrivingModeRestorePrompt(target, car.sessionId, settings, actual,
-            car.sessionStartedAtElapsedNanos), outcome = null)
+            car.sessionStartedAtElapsedNanos), outcome = null, memoryMessage = null)
     }
 
     fun dismissRestore() { mutable.update { it.copy(prompt = null) } }
@@ -209,7 +232,7 @@ internal class VehicleAutomationController(
             before.restoreCandidate != prompt.record || car.sessionId != prompt.sessionId ||
             car.sessionStartedAtElapsedNanos != prompt.sessionStartedAtElapsedNanos ||
             car.drivingMode != prompt.actualMode ||
-            prompt.record.identity != car.identity || !car.isStationary(nowNanos()) ||
+            prompt.record.identity != car.identity || !car.allowsDrivingModeRestore(nowNanos()) ||
             car.drivingMode?.isCurrentIn(car, nowNanos()) != true ||
             prompt.record.mode !in before.capabilities.drivingModes) {
             if (before.prompt === prompt) mutable.update { it.copy(prompt = null, outcome = VehicleAutomationOutcome.BLOCKED) }
@@ -225,7 +248,7 @@ internal class VehicleAutomationController(
                 if (restoreOwner !== owner || current.settings != prompt.settings || current.rememberedMode != prompt.record ||
                     latest == null || latest.sessionId != car.sessionId || latest.identity != car.identity ||
                     latest.sessionStartedAtElapsedNanos != car.sessionStartedAtElapsedNanos ||
-                    latest.drivingMode != car.drivingMode || !latest.isStationary(nowNanos()) ||
+                    latest.drivingMode != car.drivingMode || !latest.allowsDrivingModeRestore(nowNanos()) ||
                     latest.drivingMode?.isCurrentIn(latest, nowNanos()) != true) {
                     if (restoreOwner === owner) mutable.update { it.copy(outcome = VehicleAutomationOutcome.BLOCKED) }
                     return@launch
@@ -234,7 +257,17 @@ internal class VehicleAutomationController(
                 val outcome = attempt { port.restoreDrivingMode(prompt.record, latest) }
                 log("event=driving_mode_restore mode=${prompt.record.mode.key} outcome=${outcome.name.lowercase()}")
                 // Native receipts do not replace actual-mode history. Only feedback can save it.
-                if (restoreOwner === owner) mutable.update { it.copy(outcome = outcome) }
+                val notice = when (outcome) {
+                    VehicleAutomationOutcome.REQUESTED -> DrivingModeMemoryNotice.RESTORE_SENT
+                    VehicleAutomationOutcome.CONFIRMED -> DrivingModeMemoryNotice.RESTORED
+                    else -> DrivingModeMemoryNotice.RESTORE_FAILED
+                }
+                if (restoreOwner === owner) mutable.update {
+                    // The VCU feedback can arrive before this receipt; then the restore is already confirmed.
+                    val arrived = notice == DrivingModeMemoryNotice.RESTORE_SENT && it.actualMode == prompt.record.mode
+                    it.copy(outcome = if (arrived) null else outcome, memoryMessage = DrivingModeMemoryMessage(
+                        if (arrived) DrivingModeMemoryNotice.RESTORED else notice, prompt.record.mode))
+                }
             } finally {
                 if (restoreOwner === owner) {
                     restoreOwner = null
@@ -247,18 +280,25 @@ internal class VehicleAutomationController(
 
     fun rememberCurrent() {
         val before = mutable.value
-        val settings = before.settings ?: return
+        if (before.settings == null) return
         val car = before.telemetry ?: return
         if (before.working || before.saving || before.historyFailed) return
-        val record = driving.acceptCurrent(settings.drivingMode, car, nowNanos()) ?: run {
-            mutable.update { it.copy(canRememberCurrent = false, outcome = VehicleAutomationOutcome.BLOCKED) }
+        val record = driving.acceptCurrent(car, nowNanos()) ?: run {
+            mutable.update { it.copy(canRememberCurrent = false, outcome = VehicleAutomationOutcome.BLOCKED, memoryMessage = null) }
             return
         }
-        mutable.value = before.copy(saving = true, saveFailed = false, prompt = null)
+        mutable.value = before.copy(saving = true, saveFailed = false, prompt = null, outcome = null, memoryMessage = null)
         tasks.launch {
-            try { history.save(record); mutable.update { it.copy(saving = false) } }
-            catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { mutable.update { it.copy(saving = false, saveFailed = true) } }
+            try {
+                history.save(record)
+                log("event=driving_mode_memory action=save mode=${record.mode.key} outcome=saved")
+                mutable.update { it.copy(saving = false,
+                    memoryMessage = DrivingModeMemoryMessage(DrivingModeMemoryNotice.SAVED, record.mode)) }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                log("event=driving_mode_memory action=save outcome=save_failed error=${failure.javaClass.simpleName}")
+                mutable.update { it.copy(saving = false, saveFailed = true) }
+            }
         }
     }
 

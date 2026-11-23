@@ -29,6 +29,18 @@ class TextOverlayCatalogTest {
 
     private fun file(pkg: String, sha: String) = "OVC_VENDOR_OVERLAY_FILE $pkg.apk sha256=$sha owner=0:0:644"
 
+    @Test fun bootJobRunsForBundledSetsAndForOverlaysPlacedFromThePc() {
+        val vendor = listOf("framework-res__auto_generated_rro_vendor.apk")
+        assertFalse(TextOverlayCatalog.bootJobNeeded(listOf("text-overlays.sh"), vendor))
+        assertTrue(TextOverlayCatalog.bootJobNeeded(listOf("ru", "text-overlays.sh"), vendor))
+        // An owner build without bundled overlays still turns on a set tools/text-overlays.ps1 placed.
+        assertTrue(TextOverlayCatalog.bootJobNeeded(emptyList(), vendor + "$setting.apk"))
+        // A temporary file of an interrupted change is not a set.
+        assertFalse(TextOverlayCatalog.bootJobNeeded(emptyList(), vendor + ".$setting.apk.tmp"))
+        // A folder that cannot be listed is not taken as empty.
+        assertTrue(TextOverlayCatalog.bootJobNeeded(emptyList(), null))
+    }
+
     @Test fun readsTheBundledTableAndItsPin() {
         assertEquals(listOf(setting, phone), set.overlays.map { it.pkg })
         assertEquals("com.qinggan.bluetoothphone", set.byPackage.getValue(phone).target)

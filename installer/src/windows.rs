@@ -2166,7 +2166,7 @@ impl State {
                         if confirm(
                             self.hwnd,
                             &format!(
-                                "{label} on {}?\n\nOnly the APK is installed, without the root channel or startup entry. An installed Controls must be rolled back first.",
+                                "{label} on {}?\n\nOnly the APK is installed, without the root channel or startup entry. A running Controls sealed with its signer is updated in place; any other installed Controls must be rolled back first.",
                                 device.serial
                             ),
                         ) {

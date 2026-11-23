@@ -45,6 +45,8 @@ internal object VoiceScreenFactory {
         val commands = VoiceCommandUseCase(android::supports, settings::phone)
         val reviewed = ReviewedVoiceCommands(application)
         val vehicle = FridaVoiceDispatcher(FridaBridge(application), settings, reviewed)
+        // Overlaps the one-time APK proof with listening instead of adding it to the first command.
+        vehicle.prepare()
         val labels = VoiceViewModel.Labels(
             UiText.get(R.string.ui_139), UiText.get(R.string.voice_executing), UiText.get(R.string.unknown_command),
             UiText.get(R.string.ui_205), UiText.get(R.string.weather_offline), UiText.get(R.string.voice_online_checking),

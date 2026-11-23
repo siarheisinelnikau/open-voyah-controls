@@ -19,6 +19,13 @@ internal object PinnedVehicleCallbacks {
     const val AIR_CONDITION_WORDS = 82
     const val OUTSIDE_TEMPERATURE_INDEX = 36 // includes the Parcelable presence marker
 
+    // VehicleState.DRIVING_MODE_SET_FB as parcelled by the pinned service: enum ordinal, then its id (787).
+    const val DRIVING_MODE_FEEDBACK_ORDINAL = 0x238
+    const val DRIVING_MODE_FEEDBACK_ID = 0x313
+
+    /** The callback layout of a VCU driving-mode value read from the service cache with getVehicleState. */
+    fun drivingModeSnapshot(value: Int): List<Int> = listOf(1, DRIVING_MODE_FEEDBACK_ORDINAL, DRIVING_MODE_FEEDBACK_ID, value)
+
     fun drivingMode(values: List<Int>): DrivingMode? {
         if (diagnosticKey(VEHICLE_STATE, values) != "driving_mode_feedback") return null
         return when (values[3]) {
@@ -67,7 +74,7 @@ internal object PinnedVehicleCallbacks {
         VEHICLE_SPEED -> "speed_callback".takeIf { values.size == 1 }
         VEHICLE_STATE -> when {
             values.size != 4 || values.first() != 1 -> null
-            values[1] == 0x238 && values[2] == 0x313 -> "driving_mode_feedback"
+            values[1] == DRIVING_MODE_FEEDBACK_ORDINAL && values[2] == DRIVING_MODE_FEEDBACK_ID -> "driving_mode_feedback"
             values[1] == 0x148 && values[2] == 0x221 -> "driving_mode_request_echo"
             else -> null
         }

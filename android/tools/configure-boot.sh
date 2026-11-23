@@ -445,6 +445,17 @@ report_status() {
     blocked=no
     if exists "$private/recovery.blocked" || exists "$legacy/recovery.blocked"; then blocked=yes; fi
     printf 'OVC_RECOVERY_BLOCKED=%s\n' "$blocked"
+    # A receipt sealed with the signer of Controls lets the running supervisor keep the activation across a
+    # same-signer update of the app that is not older than the version floor, so the PC may install it without a
+    # rollback. Older receipts pin the exact APK.
+    live=no; floor=
+    if [ "$blocked" = no ] && safe_file "$private/trust.tsv"; then
+        floor=$(awk -F '\t' '$1=="signer" && $2=="org.openvoyah.controls" && NF==4 && $3~/^[0-9a-f]+$/ && length($3)==64 &&
+            $4~/^[1-9][0-9]*$/ && length($4)<=9 { n++; v=$4 } END { if (n==1) print v }' "$private/trust.tsv" 2>/dev/null || true)
+        if numeric "$floor"; then live=yes; else floor=; fi
+    fi
+    printf 'OVC_LIVE_UPDATE=%s\n' "$live"
+    if [ -n "$floor" ]; then printf 'OVC_SEALED_VERSION=%s\n' "$floor"; fi
     legacy_status=$(legacy_state_value)
     printf 'OVC_LEGACY_STATE=%s\n' "$legacy_status"
     processes=$(owned_processes)

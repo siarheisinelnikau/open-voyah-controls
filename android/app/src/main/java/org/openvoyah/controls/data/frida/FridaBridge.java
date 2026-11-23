@@ -49,6 +49,8 @@ public final class FridaBridge {
         "ru.yandex.yandexnavi/ru.yandex.yandexmaps.widget.traffic.internal.configuration.TrafficWidgetConfigurationActivity";
     private static final String WINDOW_REQUEST = "org.openvoyah.controls.windowRequest";
     private static final String WINDOW_STRIP = "windowSystemInsets";
+    /** Set while an update pauses a deployment that was running, so finishing the update starts it again. */
+    private static final String RESUME_AFTER_UPDATE = "resumeAfterUpdate";
     private static final String WINDOW_STRIP_ATTEMPT = "windowSystemInsetsAttempt";
     private static final String WINDOW_STRIP_READY = "^OVC_WINDOW_READY protocol=3 .*systemInsets=1( |$)";
     private static final String DISPLAY_MOVE_READY = "^OVC_WINDOW_READY protocol=3 .*displayMove=1( |$)";
@@ -400,17 +402,28 @@ public final class FridaBridge {
         }
     }
 
+    /**
+     * Starts the sealed workers when every staged script and agent is exactly what this APK carries, so after an
+     * update of the app itself (the supervisor keeps a same-signer update active) unchanged agents keep running and
+     * changed ones are redeployed by the caller. A receipt sealed by another version of the app is resealed here, so
+     * its version floor follows the installed app; nothing else in it changes.
+     */
     private boolean resumeVerifiedDeployment(SettingsStore.State state) throws IOException {
         String entry = quote(base + "/boot-start.sh");
-        String digest = assetDigest("hooks/boot-start.sh");
-        String launcher = quote(base + "/launcher-buttons.js");
-        String launcherDigest = assetDigest("hooks/launcher-buttons.bundle.js");
-        String verified = command(activationGuard() + "if [ -f " + base + "/enabled ] && [ ! -L " + entry
-            + " ] && [ \"$(sha256sum " + entry + " | cut -d ' ' -f 1)\" = '" + digest + "' ] "
-            + "&& [ -f " + launcher + " ] && [ ! -L " + launcher
-            + " ] && [ \"$(sha256sum " + launcher + " | cut -d ' ' -f 1)\" = '" + launcherDigest + "' ]; then "
-            + "/system/bin/sh " + entry + " --verify 2>/dev/null || true; fi");
-        if (!"OVC_BOOT_VERIFIED".equals(verified)) return false;
+        Set<String> channels = enabledChannels();
+        Map<String, String> pins;
+        try {
+            pins = artifactPins(channels);
+        } catch (ProductionRootAccess.Refused unreviewed) {
+            return false; // A channel this version no longer runs: deploy afresh with the current choice.
+        }
+        String reply = command(activationGuard() + ResumeCheck.script(base, pins, production.signerRow()));
+        ResumeCheck.Result result = ResumeCheck.parse(reply);
+        if (result == ResumeCheck.Result.STALE) return false;
+        if (result == ResumeCheck.Result.RESEAL) {
+            sealDeployment(channels);
+            ControlsLog.info("bridge_resume", "outcome", "resealed", "channels", String.join(",", channels));
+        }
         String icons = publishPanelIcons(state);
         command(activationGuard() + "settings put global " + KEY + " " + quote(deploymentConfig(state, icons)));
         if (windowHookEnabled(context) && windowHookSupported() && windowReviewed()) publishWindowProfiles();
@@ -685,6 +698,11 @@ public final class FridaBridge {
 
     private void sealDeployment(Set<String> channels) throws IOException {
         if (production == null) return;
+        production.sealDeployment(artifactPins(channels));
+    }
+
+    /** The staged file of each sealed artifact and the SHA-256 of the asset it comes from in this APK. */
+    private Map<String, String> artifactPins(Set<String> channels) throws IOException {
         Map<String, String> artifacts = new LinkedHashMap<>();
         artifacts.put("boot-start.sh", assetDigest("hooks/boot-start.sh"));
         artifacts.put("supervise.sh", assetDigest("hooks/supervise.sh"));
@@ -696,7 +714,7 @@ public final class FridaBridge {
             String script = channel.startsWith("locale-") ? "localization" : channel;
             artifacts.put(channel + "/launcher-buttons.js", assetDigest("hooks/" + script + ".bundle.js"));
         }
-        production.sealDeployment(artifacts);
+        return artifacts;
     }
 
     private String assetDigest(String name) throws IOException {
@@ -953,13 +971,18 @@ public final class FridaBridge {
     }
 
     private boolean channelReady(String suffix, String marker) throws IOException {
+        return "ready".equals(command(channelProbe() + "if " + readyCondition(suffix, marker) + "; then echo ready; fi"));
+    }
+
+    private String channelProbe() { return production == null ? "" : workerIdentityScript(); }
+
+    /** A shell condition, true when the agent of [suffix] is live and has printed [marker]; needs {@link #channelProbe}. */
+    private String readyCondition(String suffix, String marker) {
         String dir = base + suffix;
-        String probe = production == null ? "" : workerIdentityScript();
         String worker = production == null ? "" : " && ovc_worker_live " + dir + " && ovc_child_live " + dir
             + " && ovc_ready_fresh " + dir;
         String evidence = dir + "/ready" + (production == null ? " " + dir + "/hook.log" : "");
-        return "ready".equals(command(probe + "if [ -f " + dir + "/enabled ]" + worker
-            + " && grep -Eqs " + quote(marker) + " " + evidence + "; then echo ready; fi"));
+        return "[ -f " + dir + "/enabled ]" + worker + " && grep -Eqs " + quote(marker) + " " + evidence;
     }
 
     private String windowRequest(String operation, String component) throws IOException {
@@ -1090,6 +1113,19 @@ public final class FridaBridge {
         return sendRecognizedVoice(id, options).message();
     }
 
+    /**
+     * Proves the installed APKs while the voice popup is still listening, so the first command after a start does not
+     * wait for it. Read-only; a failure here is reported by the command itself.
+     */
+    void prepareVoice() {
+        if (production == null || !runtimeConfigured()) return;
+        try {
+            production.prepare();
+        } catch (IOException | RuntimeException ex) {
+            ControlsLog.debug("bridge_voice_prepare", "outcome", "failed", "error", ex);
+        }
+    }
+
     public VoiceReply sendRecognizedVoice(String id, JSONObject options) throws IOException {
         return sendRecognizedVoice(id, options, () -> true);
     }
@@ -1097,31 +1133,35 @@ public final class FridaBridge {
     VoiceReply sendRecognizedVoice(String id, JSONObject options, BooleanSupplier stillAllowed) throws IOException {
         synchronized (IO_LOCK) {
             if (!runtimeConfigured()) throw new IOException(UiText.get(R.string.ui_19));
-            requireRoot();
-            if (production != null) production.requireActivation();
-            if (!channelReady("", "^OVC_VOICE_READY protocol=3( |$)")) {
-                throw new IOException(UiText.get(R.string.voice_refresh_bridge));
-            }
             String token = UUID.randomUUID().toString().replace("-", "");
             String request;
             try { request = new JSONObject().put("schema",3).put("id",token).put("command",id)
                 .put("confirmed",true).put("expires",SystemClock.elapsedRealtime()+12000).put("options",options).toString(); }
             catch (JSONException ex) { throw new IOException(ex); }
             if (!stillAllowed.getAsBoolean()) return new VoiceReply("blocked", UiText.get(R.string.voice_vehicle_blocked));
-            boolean published = false;
+            // Root, activation, the live agent, the request and its reply share one root round trip and one guard.
+            String script = activationGuard() + VoiceRequestScript.INSTANCE.build(channelProbe(),
+                readyCondition("", "^OVC_VOICE_READY protocol=3( |$)"),
+                "settings put global org.openvoyah.controls.voice " + quote(request), base + "/hook.log", token);
+            String output;
             try {
-                command(activationGuard() + "settings put global org.openvoyah.controls.voice " + quote(request));
-                published = true;
-                // A lost response can be ambiguous even when publishing failed locally. Do not resend.
-                String reply = command("i=0; while [ $i -lt 10 ]; do r=$(grep 'OVC_VOICE_RESULT.*" + token + "' "
-                    + base + "/hook.log 2>/dev/null | tail -n 1); if [ -n \"$r\" ]; then printf '%s\\n' \"$r\"; exit 0; fi; "
-                    + "sleep 1; i=$((i+1)); done; exit 1");
-                return parseVoiceReply(reply, token);
-            }
-            catch (IOException | RuntimeException ex) {
-                ControlsLog.warn("bridge_voice_request", ex, "command", id, "phase", published ? "await_reply" : "publish");
+                output = command(script);
+            } catch (ProductionRootAccess.Refused refused) {
+                // Only the guards in front of the script refuse, so nothing was published.
+                throw refused;
+            } catch (IOException | RuntimeException ex) {
+                ControlsLog.warn("bridge_voice_request", ex, "command", id, "phase", "request");
                 return unknownVoiceOutcome();
             }
+            VoiceRequestScript.Outcome outcome = VoiceRequestScript.INSTANCE.outcome(output);
+            if (outcome instanceof VoiceRequestScript.Outcome.NoRoot) {
+                throw new IOException(UiText.get(R.string.production_broker_unavailable));
+            }
+            if (outcome instanceof VoiceRequestScript.Outcome.NotReady) {
+                throw new IOException(UiText.get(R.string.voice_refresh_bridge));
+            }
+            if (outcome instanceof VoiceRequestScript.Outcome.Reply reply) return parseVoiceReply(reply.getLine(), token);
+            return rejectedVoiceReply("no_result_marker");
         }
     }
 
@@ -1424,7 +1464,11 @@ public final class FridaBridge {
                     bridge.requireRoot();
                     String pending = pendingUpdate(context);
                     if (pending != null && !pending.equals(token)) throw new IOException(UiText.get(R.string.runtime_update_paused));
-                    if (!context.getSharedPreferences("bridge", Context.MODE_PRIVATE).edit()
+                    // A deployment that ran before the update starts again by itself once it is finished.
+                    android.content.SharedPreferences bridgePrefs = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
+                    boolean resume = pending != null ? bridgePrefs.getBoolean(RESUME_AFTER_UPDATE, false)
+                        : wasConfigured(context) && bridgePrefs.getBoolean("productionAuthorized", false);
+                    if (!bridgePrefs.edit().putBoolean(RESUME_AFTER_UPDATE, resume)
                             .putString("updatePauseToken", token).putBoolean("configured", false)
                             .putBoolean("stopPending", true).commit()) throw new IOException(UiText.get(R.string.ui_152));
                     RecoveryJobs.cancel(context);
@@ -1464,11 +1508,19 @@ public final class FridaBridge {
                         + "test ! -L " + path + " && test -f " + path
                         + " && test \"$(stat -c '%u:%a:%h' " + path + ")\" = 0:600:1"
                         + " && test \"$(cat " + path + ")\" = " + quote(token) + " || exit 77\nrm -f " + path + "\nsync\nfi");
+                    boolean resume = context.getSharedPreferences("bridge", Context.MODE_PRIVATE)
+                        .getBoolean(RESUME_AFTER_UPDATE, false);
                     if (!context.getSharedPreferences("bridge", Context.MODE_PRIVATE).edit()
-                            .remove("updatePauseToken").putString("finishedUpdateToken", token)
-                            .putBoolean("configured", false).putBoolean("stopPending", false).commit())
+                            .remove("updatePauseToken").remove(RESUME_AFTER_UPDATE).putString("finishedUpdateToken", token)
+                            .putBoolean("configured", resume).putBoolean("stopPending", false).commit())
                         throw new IOException(UiText.get(R.string.ui_152));
-                    bridge.health(UiText.get(R.string.runtime_update_reconnect));
+                    if (resume) {
+                        // The boot job verifies the deployment against this APK and redeploys what changed.
+                        RecoveryJobs.schedule(context);
+                        span.field("resume", true);
+                    } else {
+                        bridge.health(UiText.get(R.string.runtime_update_reconnect));
+                    }
                 }
                 span.outcome("finished");
             } catch (IOException | RuntimeException ex) {

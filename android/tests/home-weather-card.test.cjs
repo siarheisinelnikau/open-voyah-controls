@@ -50,12 +50,18 @@ function harness(options = {}) {
     const hooks = {};
     const hook = name => (hooks[name] = {implementation: null, call(self, ...args) { calls.push([name, ...args]); return undefined; }});
     const visibility = {};
-    const ids = {aqi_view: 11, aqi_value: 12};
+    const ids = {aqi_view: 11, aqi_value: 12, weather_date: 13, weather_date_formatter: 21};
+    // The factory layout: the air quality 134 px from the top, the long weekday in the date.
+    const layout = {11: {topMargin: {value: 134}}, 12: {topMargin: {value: 134}}};
+    const dateFormat = {f12: 'EEEE, MMM d', f24: 'EEEE, MMM d'};
+    const relayouts = [];
     const card = {
         mWeatherLiveBean: {value: 'factory'},
         equals(other) { return other === this; }, $dispose() {},
         getContext: () => ({getPackageName: () => 'com.qinggan.app.launcher',
-            getResources: () => ({getIdentifier: name => ids[name] ?? 0})}),
+            getResources: () => ({getIdentifier: name => ids[name] ?? 0,
+                getString: id => (id === 21 ? 'EEEE, MMM d' : assert.fail('string ' + id)),
+                getConfiguration: () => ({getLocales: () => ({get: () => 'ru_RU'})})})}),
         // As the bridge returns it: a java.lang.Object without View methods until it is cast.
         findViewById: id => ({object: true, id})
     };
@@ -70,8 +76,14 @@ function harness(options = {}) {
     const classes = {
         'com.qinggan.app.launcher.homecard.HomeWeatherCardView': {
             updateWeather: {overload: (...types) => types.length ? (hooks.update ?? hook('update')) : (hooks.redraw ?? hook('redraw'))},
-            onAttachedToWindow: {overload: () => hook('attached')}
+            onAttachedToWindow: {overload: () => hook('attached')},
+            onLocaleChanged: {overload: () => hook('locale')}
         },
+        'android.view.ViewGroup$MarginLayoutParams': {isMargin: true},
+        'android.widget.TextClock': {isClock: true},
+        'android.text.format.DateFormat': {getBestDateTimePattern: (locale, skeleton) =>
+            (locale === 'ru_RU' && skeleton === 'EEEdMMM' ? 'ccc, d MMM' : assert.fail(locale + ' ' + skeleton))},
+        'java.lang.String': {$new: value => value},
         'com.qinggan.tsp.models.cpsp.WeatherLiveBean': {$new: bean('bean')},
         'com.qinggan.tsp.models.cpsp.WeatherLiveBean$DataBean': {$new: bean('data')},
         'com.qinggan.tsp.models.cpsp.WeatherLiveBean$DataBean$LiveBean': {$new: bean('live')},
@@ -87,7 +99,12 @@ function harness(options = {}) {
             return classes[name];
         },
         cast(value, type) {
-            if (type?.isView && value?.object) return {setVisibility(visible) { visibility[value.id] = visible; }};
+            if (type?.isView && value?.object) return {id: value.id,
+                setVisibility(visible) { visibility[value.id] = visible; },
+                getLayoutParams: () => layout[value.id],
+                setLayoutParams(params) { relayouts.push(value.id); layout[value.id] = params; }};
+            if (type?.isMargin) return value;
+            if (type?.isClock) return {setFormat12Hour(text) { dateFormat.f12 = text; }, setFormat24Hour(text) { dateFormat.f24 = text; }};
             return value;
         },
         retain: value => value, perform: fn => fn(), scheduleOnMainThread: fn => fn(),
@@ -103,7 +120,8 @@ function harness(options = {}) {
             temperature: live.Temperature, aqi: last.Data.WeatherAirQuality.Aqi};
     };
     const tick = () => timers[0].fn();
-    return {result, logs, calls, card, hooks, state, shown, tick, visibility};
+    const fitted = () => ({aqiTop: [layout[11].topMargin.value, layout[12].topMargin.value], date: {...dateFormat}});
+    return {result, logs, calls, card, hooks, state, shown, tick, visibility, fitted, relayouts};
 }
 
 test('the card shows Controls weather in its own model as soon as the agent attaches', () => {
@@ -172,5 +190,47 @@ test('a failure around the air quality never undoes the weather or calls the fac
     h.hooks.update.implementation.call(h.card, 'oem');
     assert.deepEqual(h.calls.map(call => call[0]), ['update']);
     assert.equal(h.shown().code, '2');
-    assert.deepEqual(h.logs, ['OVC_HOME_WEATHER_ERROR stage=air kind=TypeError']);
+    assert.deepEqual(h.logs, ['OVC_HOME_WEATHER_ERROR stage=air kind=TypeError', 'OVC_HOME_WEATHER_ERROR stage=fit kind=TypeError']);
+});
+
+test('while Controls feeds the card, the air quality moves under the clock and the date takes the short weekday', () => {
+    const h = harness();
+    assert.deepEqual(h.fitted(), {aqiTop: [160, 160], date: {f12: 'ccc, d MMM', f24: 'ccc, d MMM'}});
+    // A re-send does not lay the card out again.
+    h.relayouts.length = 0;
+    h.hooks.update.implementation.call(h.card, 'oem');
+    assert.deepEqual(h.relayouts, []);
+});
+
+test('a language change keeps the short date while the setting is on', () => {
+    const h = harness();
+    h.hooks.locale.implementation.call(h.card);
+    assert.equal(h.calls.at(-1)[0], 'locale');
+    assert.deepEqual(h.fitted().date, {f12: 'ccc, d MMM', f24: 'ccc, d MMM'});
+});
+
+test('off and the restore handshake put the factory layout and date pattern back', () => {
+    for (const leave of [h => { h.state.config = {schema: 1}; h.tick(); }, h => h.result.restoreAll()]) {
+        const h = harness();
+        leave(h);
+        assert.deepEqual(h.fitted(), {aqiTop: [134, 134], date: {f12: 'EEEE, MMM d', f24: 'EEEE, MMM d'}});
+    }
+});
+
+test('without the setting the card layout is never touched', () => {
+    const h = harness({config: {schema: 1, enabled: true}});
+    h.hooks.locale.implementation.call(h.card);
+    assert.deepEqual(h.fitted(), {aqiTop: [134, 134], date: {f12: 'EEEE, MMM d', f24: 'EEEE, MMM d'}});
+    assert.deepEqual(h.relayouts, []);
+});
+
+test('a failure while fitting the layout keeps the weather and is reported', () => {
+    const h = harness();
+    h.card.findViewById = () => { throw new TypeError('find'); };
+    h.calls.length = 0;
+    h.logs.length = 0;
+    h.hooks.update.implementation.call(h.card, 'oem');
+    assert.deepEqual(h.calls.map(call => call[0]), ['update']);
+    assert.equal(h.shown().code, '2');
+    assert.deepEqual(h.logs, ['OVC_HOME_WEATHER_ERROR stage=air kind=TypeError', 'OVC_HOME_WEATHER_ERROR stage=fit kind=TypeError']);
 });

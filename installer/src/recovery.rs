@@ -116,6 +116,10 @@ pub struct BootStatus {
     pub legacy: String,
     pub inert: bool,
     pub ready: Vec<String>,
+    /// The receipt pins Controls by its signer, so the running supervisor keeps the activation across an update of
+    /// the app that has the same signer and is not older than [`Self::sealed_version`].
+    pub live_update: bool,
+    pub sealed_version: Option<u64>,
 }
 
 impl BootStatus {
@@ -132,7 +136,20 @@ impl BootStatus {
                 .filter(|item| !item.is_empty())
                 .map(str::to_owned)
                 .collect(),
+            live_update: field(output, "OVC_LIVE_UPDATE").is_ok_and(|value| value == "yes"),
+            sealed_version: field(output, "OVC_SEALED_VERSION")
+                .ok()
+                .and_then(|value| value.parse().ok()),
         })
+    }
+
+    /// Whether Android may replace Controls with version `code` while its agents run: the activation is in force,
+    /// the receipt pins the signer and `code` is not below the sealed floor. The signer itself is compared earlier.
+    pub fn accepts_live_update(&self, code: u64) -> bool {
+        self.live_update
+            && !self.blocked
+            && self.entry == "present"
+            && self.sealed_version.is_some_and(|floor| code >= floor)
     }
 
     pub fn has(&self, channel: &str) -> bool {
@@ -168,6 +185,13 @@ pub fn latest_backup(store: &Path, identity: &Identity) -> Option<PathBuf> {
 pub fn rollback_needs_restart(error: &str) -> bool {
     error.contains("OVC_ROLLBACK_VISUALS=reboot-required")
         && !error.contains("OVC_BOOT_RESTORE=unconfirmed")
+}
+
+/// Whether the head unit keeps the Controls activation across an in-place update to version `code`.
+pub fn accepts_live_update(target: &Target<'_>, identity: &Identity, code: u64) -> bool {
+    boot(target, identity, "status", None)
+        .and_then(|status| BootStatus::parse(&status))
+        .is_ok_and(|status| status.accepts_live_update(code))
 }
 
 pub fn require_inactive(

@@ -101,8 +101,9 @@ internal class DrivingModeMemoryEngine {
         }
         val actual = sample?.value
         val target = remembered?.takeIf { it.identity == telemetry.identity && it.mode != actual }
-        if (!settings.enabled || sample == null) return DrivingModeMemoryEvaluation(actual = actual)
-        val restore = target?.takeIf { telemetry.isStationary(nowNanos) }
+        // Save and Restore are manual and work without the switch; the switch only adds the automatic save below.
+        val restore = target?.takeIf { sample != null && telemetry.allowsDrivingModeRestore(nowNanos) }
+        if (!settings.enabled || sample == null) return DrivingModeMemoryEvaluation(restore = restore, actual = actual)
         if (sample == previousMode && !departingNow && !completedTrip)
             return DrivingModeMemoryEvaluation(restore = restore, actual = actual)
         newestMode = sample
@@ -122,8 +123,8 @@ internal class DrivingModeMemoryEngine {
         return DrivingModeMemoryEvaluation(save = save, restore = restore.takeIf { save == null }, actual = actual)
     }
 
-    fun acceptCurrent(settings: DrivingModeMemorySettings, telemetry: VehicleTelemetry, nowNanos: Long): DrivingModeRecord? {
-        if (!settings.enabled || !telemetry.isStationary(nowNanos)) return null
+    /** Manual Save: records the actual mode of this session. Reading it moves nothing, so neither Park nor the switch is needed. */
+    fun acceptCurrent(telemetry: VehicleTelemetry, nowNanos: Long): DrivingModeRecord? {
         val actual = telemetry.drivingMode?.takeIf {
             it.isCurrentIn(telemetry, nowNanos)
         } ?: return null

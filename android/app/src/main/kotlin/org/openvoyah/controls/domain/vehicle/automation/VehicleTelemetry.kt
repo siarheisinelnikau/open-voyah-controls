@@ -96,6 +96,18 @@ internal data class VehicleTelemetry(
             ?: return true
         return speed.value == 0f
     }
+
+    /**
+     * Driving-mode commands are motion commands: the factory control and voice change the mode while driving too.
+     * A manual memory restore still waits while this session knows the car is out of Park or moving. A gear that is
+     * unknown after a wake (the gear is reported only on change) does not block it.
+     */
+    fun allowsDrivingModeRestore(nowElapsedNanos: Long): Boolean {
+        val current = gear?.takeIf { it.isCurrentIn(this, nowElapsedNanos) }
+        if (current != null && current.value != VehicleGear.PARK) return false
+        val speed = speedKph?.takeIf { VehicleSignalKind.SPEED !in unavailable && it.isFreshFor(this, nowElapsedNanos) }
+        return speed == null || speed.value == 0f
+    }
 }
 
 /** The source can revoke a session before its replacement reaches observers. */

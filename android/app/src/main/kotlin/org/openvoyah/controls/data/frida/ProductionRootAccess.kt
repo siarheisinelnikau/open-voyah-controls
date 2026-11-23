@@ -42,8 +42,6 @@ class ProductionRootAccess(context: Context) {
             throw Refused(UiText.get(R.string.production_evidence_changed), error)
         }
     }
-    private var proof: Proof? = null
-
     private val permissions by lazy { ActionPermissions(app) }
 
     /** The APK of [name] is pinned for this firmware, so the root channel can prove what it runs against. */
@@ -60,10 +58,27 @@ class ProductionRootAccess(context: Context) {
     fun injectorPath(): String = "$BASE/${runtime.name}"
     fun injectorVersion(): String = runtime.version
 
+    /**
+     * The receipt row that lets the boot supervisor accept an update of this app without the PC: the signing
+     * certificate this build requires of itself, and its own version as the floor, so only a same-signer APK that is
+     * not older keeps the activation (see `signed_package` in supervise.sh).
+     */
+    fun signerRow(): String = signerRow(app.packageName, expectedSigner, BuildConfig.VERSION_CODE)
+
+    private val expectedSigner: String
+        get() = (if (LOCAL_VEHICLE) BuildConfig.LOCAL_SIGNER_SHA256 else BuildConfig.RELEASE_CERT_SHA256)
+            .lowercase(Locale.ROOT)
+
     @Synchronized
     @Throws(IOException::class)
     fun refresh() {
-        proof = null
+        proofs.invalidate()
+        evidence()
+    }
+
+    /** Proves the installed APKs ahead of the first command, for example while the voice popup listens. */
+    @Throws(IOException::class)
+    fun prepare() {
         evidence()
     }
 
@@ -74,7 +89,7 @@ class ProductionRootAccess(context: Context) {
         return try {
             verified.broker.execute(verified.guard + script, "command")
         } catch (error: Refused) {
-            proof = null
+            proofs.invalidate(verified)
             throw error
         }
     }
@@ -115,6 +130,7 @@ class ProductionRootAccess(context: Context) {
             val device = review.device
             appendLine("device\t${device.fingerprint}\t${device.sdk}\t${device.abi}\t${device.product}")
             for (pkg in verified.packages) appendLine("package\t${pkg.name}\t${pkg.path}\t${pkg.apkHash}")
+            appendLine(signerRow())
             for ((file, digest) in pins) appendLine("artifact\t$file\t$digest")
         }
         val script = buildString {
@@ -150,11 +166,16 @@ class ProductionRootAccess(context: Context) {
         execute(script)
     }
 
-    private fun evidence(): Proof {
-        proof?.let { return it }
+    /**
+     * Hashing every pinned APK takes seconds, so the proof is shared by every instance of the process. Each command
+     * still runs [Proof.guard], which refuses when a package path or file stamp differs from the proven one; that
+     * refusal drops the proof and the next command proves the APKs again.
+     */
+    private fun evidence(): Proof = proofs.get(::prove)
+
+    private fun prove(): Proof {
         val profile = review
-        val expected = (if (LOCAL_VEHICLE) BuildConfig.LOCAL_SIGNER_SHA256 else BuildConfig.RELEASE_CERT_SHA256)
-            .lowercase(Locale.ROOT)
+        val expected = expectedSigner
         val release = when {
             BuildConfig.DEBUG && !LOCAL_VEHICLE -> "debug_build"
             app.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && !LOCAL_VEHICLE -> "debuggable"
@@ -209,7 +230,7 @@ class ProductionRootAccess(context: Context) {
                 appendLine("test \"\$(stat -c '%d:%i:%s:%Y:%Z' ${shell(pkg.path)})\" = '${record.stamp}' || exit 77")
             }
         }
-        return Proof(broker, verified, commandGuard).also { proof = it }
+        return Proof(broker, verified, commandGuard)
     }
 
     @Suppress("DEPRECATION")
@@ -303,11 +324,21 @@ class ProductionRootAccess(context: Context) {
             "test \"\$(getenforce)\" = Enforcing || exit 77"
         }
         private val refusals = RepeatedFailureFilter()
+        private val proofs = ProofCache<Proof>()
         private val artifactPath = Regex("(?:[a-z0-9-]+/)?[a-z0-9.-]+")
         private val apkPath = Regex("/[A-Za-z0-9_./+=~-]{1,511}\\.apk")
         private val stampPattern = Regex("[0-9]+(?::[0-9]+){4}")
 
         private fun shell(text: String) = "'${text.replace("'", "'\"'\"'")}'"
+
+        /** One `signer` receipt row; the supervisor accepts exactly this shape (supervise.sh `reviewed_receipt`). */
+        @JvmStatic
+        fun signerRow(packageName: String, signer: String, versionCode: Int): String {
+            require(packageName == "org.openvoyah.controls") { "Only Controls is pinned by its signer" }
+            require(signer.matches(ReviewedFirmware.sha256)) { "Signer must be a lowercase SHA-256" }
+            require(versionCode in 1..999_999_999) { "Version code out of range" }
+            return "signer\t$packageName\t$signer\t$versionCode"
+        }
 
         private fun hashGuard(quotedPath: String, expected: String): String =
             "ovc_hash=\$(sha256sum $quotedPath) || exit 77\n" +

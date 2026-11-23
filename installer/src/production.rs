@@ -702,7 +702,13 @@ fn install_product(
             ));
         }
     }
-    if product == Product::Controls {
+    // An active deployment sealed with the signer of Controls keeps running across a same-signer update that is not
+    // older (checked above and by the supervisor), and the new app redeploys whatever agents changed. Anything else
+    // needs the inactive state a rollback leaves.
+    let live = product == Product::Controls
+        && current.is_some()
+        && recovery::accepts_live_update(target, &identity, candidate.code);
+    if product == Product::Controls && !live {
         recovery::require_inactive(target, &identity, current.is_some())?;
     }
     identity.recheck(target)?;
@@ -719,6 +725,9 @@ fn install_product(
     })?;
     verify_install(target, &identity, product, &candidate.sha256, storage)?;
     Ok(match product {
+        Product::Controls if live => format!(
+            "Controls {version} installed and verified ({label}) over the running agents, without a restart. The app redeploys changed agents within a minute; Device status shows when they are ready."
+        ),
         Product::Controls => format!(
             "Controls {version} installed and verified ({label}). Check Device status separately for Frida and boot readiness."
         ),

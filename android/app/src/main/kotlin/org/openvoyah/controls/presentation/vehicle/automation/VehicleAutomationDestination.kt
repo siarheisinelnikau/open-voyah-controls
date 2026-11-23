@@ -21,6 +21,7 @@ import java.util.Locale
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.vehicle.automation.DrivingMode
+import org.openvoyah.controls.domain.vehicle.automation.DrivingModeMemoryNotice
 import org.openvoyah.controls.domain.vehicle.automation.HeadlightGearAction
 import org.openvoyah.controls.domain.vehicle.automation.VehicleAutomationOutcome
 import org.openvoyah.controls.presentation.theme.LocalCockpitEmbedded
@@ -126,31 +127,62 @@ internal fun VehicleAutomationScreen(
             }
         }, second = {
             CockpitSection(text(R.string.vehicle_automation_drive_memory), CockpitIcon.CAR) {
-                CockpitSwitch(text(R.string.vehicle_automation_memory_enabled), state.settings?.drivingMode?.enabled == true,
-                    enabled = enabled, change = setDrivingMemoryEnabled)
+                // What is saved, the two states side by side, then Save and Restore: the card reads top to bottom.
+                Text(text(R.string.vehicle_automation_memory_explain), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(state.actualMode?.let { text(R.string.vehicle_automation_actual_mode).format(modeLabel(it)) }
+                    ?: text(R.string.vehicle_automation_actual_missing), style = MaterialTheme.typography.titleMedium)
                 val remembered = state.rememberedMode
                 Text(if (remembered == null) text(R.string.vehicle_automation_memory_empty) else
                     text(R.string.vehicle_automation_memory_saved).format(modeLabel(remembered.mode), observationTime(remembered.confirmedAtMillis)),
                     style = MaterialTheme.typography.titleMedium)
-                Text(state.actualMode?.let { text(R.string.vehicle_automation_actual_mode).format(modeLabel(it)) }
-                    ?: text(R.string.vehicle_automation_actual_missing), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (state.capabilities.drivingModes.isEmpty()) Text(text(R.string.vehicle_automation_mode_blocked),
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val restorable = state.restoreCandidate?.let { it.mode in state.capabilities.drivingModes } == true
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CockpitAction(text(R.string.vehicle_automation_restore), restore, Modifier.weight(1f),
-                        enabled = enabled && state.restoreCandidate?.let { it.mode in state.capabilities.drivingModes } == true)
                     CockpitAction(text(R.string.vehicle_automation_remember_current), rememberCurrent, Modifier.weight(1f),
-                        enabled = enabled && state.canRememberCurrent)
+                        enabled = enabled && state.canRememberCurrent, primary = true)
+                    CockpitAction(text(R.string.vehicle_automation_restore), restore, Modifier.weight(1f),
+                        enabled = enabled && restorable)
                 }
+                memoryHint(state, restorable)?.let {
+                    Text(text(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                state.memoryMessage?.let { message ->
+                    CockpitFeedback(text(memoryMessageLabel(message.notice)).format(modeLabel(message.mode)),
+                        error = message.notice == DrivingModeMemoryNotice.RESTORE_FAILED ||
+                            message.notice == DrivingModeMemoryNotice.RESTORE_NEEDS_PARK)
+                }
+                CockpitSwitch(text(R.string.vehicle_automation_memory_enabled), state.settings?.drivingMode?.enabled == true,
+                    enabled = enabled, change = setDrivingMemoryEnabled)
                 factoryDriving?.let { CockpitAction(text(R.string.vehicle_automation_open_driving), it) }
             }
         })
         if (state.settingsFailed || state.historyFailed || state.saveFailed) {
             CockpitFeedback(text(if (state.saveFailed) R.string.vehicle_automation_save_failed else R.string.vehicle_automation_load_failed), error = true)
         }
-        state.outcome?.let { CockpitFeedback(text(outcomeLabel(it)), error = it in setOf(VehicleAutomationOutcome.FAILED, VehicleAutomationOutcome.UNCONFIRMED)) }
+        state.outcome?.takeIf { state.memoryMessage == null }?.let { CockpitFeedback(text(outcomeLabel(it)), error = it in setOf(VehicleAutomationOutcome.FAILED, VehicleAutomationOutcome.UNCONFIRMED)) }
     }
+}
+
+/** Why Save or Restore is unavailable right now, in the order the driver can act on it. */
+private fun memoryHint(state: VehicleAutomationState, restorable: Boolean): Int? {
+    val remembered = state.rememberedMode
+    return when {
+        state.actualMode == null -> null // The "Now" line already says the car has not reported its mode yet.
+        remembered == null || restorable -> null
+        remembered.mode == state.actualMode -> R.string.vehicle_automation_memory_same
+        state.capabilities.drivingModes.isEmpty() || remembered.mode !in state.capabilities.drivingModes ->
+            R.string.vehicle_automation_mode_blocked
+        state.restoreNeedsPark -> R.string.vehicle_automation_memory_needs_park
+        else -> null
+    }
+}
+
+private fun memoryMessageLabel(notice: DrivingModeMemoryNotice): Int = when (notice) {
+    DrivingModeMemoryNotice.SAVED -> R.string.vehicle_automation_memory_note_saved
+    DrivingModeMemoryNotice.RESTORE_SENT -> R.string.vehicle_automation_memory_note_sent
+    DrivingModeMemoryNotice.RESTORED -> R.string.vehicle_automation_memory_note_restored
+    DrivingModeMemoryNotice.RESTORE_FAILED -> R.string.vehicle_automation_memory_note_failed
+    DrivingModeMemoryNotice.RESTORE_NEEDS_PARK -> R.string.vehicle_automation_memory_note_park
 }
 
 private fun actionLabel(action: HeadlightGearAction): String = action.mode?.let { text(headlightModeLabel(it)) }
