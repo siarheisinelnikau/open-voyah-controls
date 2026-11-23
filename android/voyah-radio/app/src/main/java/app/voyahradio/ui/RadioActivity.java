@@ -98,6 +98,7 @@ public final class RadioActivity extends Activity {
     private final ServiceConnection connection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder binder) {
             service = ((RadioService.LocalBinder) binder).service();
+            service.setWindowFocused(hasWindowFocus());
             service.refreshLanguage();
             service.observe(playbackListener);
         }
@@ -167,11 +168,19 @@ public final class RadioActivity extends Activity {
         visualizer.update(null, "off", false, false);
         bufferPanel.setVisibility(View.GONE);
         bufferPanel.removeCallbacks(bufferTick);
-        if (service != null) service.removeObserver(playbackListener);
+        if (service != null) {
+            service.setWindowFocused(false);
+            service.removeObserver(playbackListener);
+        }
         service = null;
         if (bound) unbindService(connection);
         bound = false;
         super.onStop();
+    }
+
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (service != null) service.setWindowFocused(hasFocus);
     }
 
     @Override protected void onSaveInstanceState(Bundle out) {

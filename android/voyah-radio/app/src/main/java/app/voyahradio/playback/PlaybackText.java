@@ -14,6 +14,7 @@ public final class PlaybackText {
             case RECONNECTING -> R.string.reconnecting;
             case LIVE -> R.string.live;
             case PAUSED -> R.string.paused;
+            case STOPPED -> R.string.stopped;
             case STREAM_ERROR -> R.string.stream_error;
             case NETWORK_ERROR -> R.string.network_error;
             case FOCUS_ERROR -> R.string.focus_error;

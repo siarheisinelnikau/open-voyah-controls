@@ -14,6 +14,7 @@
     <string name="reconnecting">Trying another connection…</string>
     <string name="live">On air</string>
     <string name="paused">Paused</string>
+    <string name="stopped">Stopped</string>
     <string name="stream_error">Stream unavailable. Try again or choose another station.</string>
     <string name="network_error">No internet connection. Reconnect and try again.</string>
     <string name="focus_error">Audio is in use. Try again when it is available.</string>

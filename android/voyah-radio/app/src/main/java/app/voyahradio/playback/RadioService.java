@@ -25,6 +25,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
+import android.view.KeyEvent;
 
 import androidx.annotation.OptIn;
 import androidx.media3.common.C;
@@ -57,6 +58,7 @@ import app.voyahradio.ui.RadioActivity;
 import app.voyahradio.ui.RadioLocale;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -129,6 +131,7 @@ public final class RadioService extends Service {
     private long bufferStartBytes;
     private Playback.Status status = READY;
     private boolean foreground;
+    private boolean windowFocused;
     private boolean focused;
     private boolean waitingForFocus;
     private boolean retryUsed;
@@ -167,13 +170,34 @@ public final class RadioService extends Service {
         session.setSessionActivity(openApp);
         session.setPlaybackToLocal(audioAttributes);
         session.setCallback(new MediaSession.Callback() {
-            @Override public void onPlay() {
-                if (foreground && !snapshot().active()) play(station);
-            }
+            @Override public void onPlay() { resumePlayback(); }
             @Override public void onPause() { pause(); }
-            @Override public void onStop() { pause(); }
-            @Override public void onSkipToNext() { if (foreground) step(1); }
-            @Override public void onSkipToPrevious() { if (foreground) step(-1); }
+            @Override public void onStop() {
+                if (foreground) finishPlayback(STOPPED);
+                else if (windowFocused) publish(STOPPED);
+            }
+            @Override public void onSkipToNext() { step(1); }
+            @Override public void onSkipToPrevious() { step(-1); }
+
+            @Override public boolean onMediaButtonEvent(Intent intent) {
+                KeyEvent key = Build.VERSION.SDK_INT >= 33
+                        ? intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent.class)
+                        : intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+                if (key == null) return false;
+                Runnable command = switch (key.getKeyCode()) {
+                    case KeyEvent.KEYCODE_MEDIA_PLAY -> this::onPlay;
+                    case KeyEvent.KEYCODE_MEDIA_PAUSE -> this::onPause;
+                    case KeyEvent.KEYCODE_MEDIA_STOP -> this::onStop;
+                    case KeyEvent.KEYCODE_MEDIA_NEXT -> this::onSkipToNext;
+                    case KeyEvent.KEYCODE_MEDIA_PREVIOUS -> this::onSkipToPrevious;
+                    case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_HEADSETHOOK ->
+                            () -> { if (foreground) onPause(); else onPlay(); };
+                    default -> null;
+                };
+                if (command == null) return super.onMediaButtonEvent(intent);
+                if (key.getAction() == KeyEvent.ACTION_DOWN && key.getRepeatCount() == 0) command.run();
+                return true;
+            }
         }, handler);
         updateMetadata();
         updateSession();
@@ -220,6 +244,15 @@ public final class RadioService extends Service {
         if (foreground) finishPlayback(PAUSED);
     }
 
+    public void setWindowFocused(boolean hasFocus) {
+        windowFocused = hasFocus;
+        updateSessionActive();
+    }
+
+    private void updateSessionActive() {
+        session.setActive(foreground || windowFocused);
+    }
+
     public AudioMeter meter() {
         return meter;
     }
@@ -249,14 +282,50 @@ public final class RadioService extends Service {
     }
 
     private void step(int direction) {
+        if (!foreground && !windowFocused) return;
         CatalogOptions options = preferences.catalogOptions();
         RadioTab tab = options.visibleTab(currentTab);
         List<Station> playlist = options.visibleStations(catalog.all(), tab, preferences.favorites());
         if (playlist.isEmpty()) return;
-        int index = playlist.indexOf(station);
+        int index = station == null ? 0 : playlist.indexOf(station);
         int next = index < 0 ? (direction > 0 ? 0 : playlist.size() - 1)
                 : Math.floorMod(index + direction, playlist.size());
-        play(playlist.get(next));
+        requestPlay(playlist.get(next), tab);
+    }
+
+    private void resumePlayback() {
+        if ((!foreground && !windowFocused) || snapshot().active() || waitingForFocus) return;
+        CatalogOptions options = preferences.catalogOptions();
+        RadioTab tab = options.visibleTab(currentTab);
+        if (station != null && options.shows(station) && tab.contains(station, preferences.favorites())) {
+            requestPlay(station, tab);
+            return;
+        }
+        Set<RadioTab> candidates = new LinkedHashSet<>();
+        candidates.add(tab);
+        Collections.addAll(candidates, RadioTab.values());
+        for (RadioTab group : candidates) {
+            if (options.hiddenTabs.contains(group)) continue;
+            List<Station> playlist = options.visibleStations(catalog.all(), group, preferences.favorites());
+            if (!playlist.isEmpty()) {
+                requestPlay(playlist.get(0), group);
+                return;
+            }
+        }
+    }
+
+    private void requestPlay(Station requested, RadioTab tab) {
+        if (foreground) {
+            currentTab = tab;
+            play(requested);
+            return;
+        }
+        try {
+            startForegroundService(new Intent(this, RadioService.class).setAction(PLAY)
+                    .putExtra(STATION_ID, requested.id).putExtra(TAB, tab.name()));
+        } catch (IllegalStateException | SecurityException error) {
+            Log.w(TAG, "Unable to start playback from a media command", error);
+        }
     }
 
     private void play(Station requested) {
@@ -274,7 +343,7 @@ public final class RadioService extends Service {
         updateMetadata();
         foreground = true;
         status = waitingForFocus ? PAUSED : CONNECTING;
-        session.setActive(true);
+        updateSessionActive();
         updateSession();
         startForeground(NOTIFICATION_ID, notification());
         notifyObservers();
@@ -472,7 +541,7 @@ public final class RadioService extends Service {
         foreground = false;
         stopForeground(STOP_FOREGROUND_REMOVE);
         publish(result);
-        session.setActive(false);
+        updateSessionActive();
         stopSelf();
     }
 
@@ -517,6 +586,7 @@ public final class RadioService extends Service {
             case CONNECTING, BUFFERING, RECONNECTING -> PlaybackState.STATE_BUFFERING;
             case LIVE -> PlaybackState.STATE_PLAYING;
             case PAUSED -> PlaybackState.STATE_PAUSED;
+            case STOPPED -> PlaybackState.STATE_STOPPED;
             case STREAM_ERROR, NETWORK_ERROR, FOCUS_ERROR -> PlaybackState.STATE_ERROR;
             case READY -> PlaybackState.STATE_NONE;
         };

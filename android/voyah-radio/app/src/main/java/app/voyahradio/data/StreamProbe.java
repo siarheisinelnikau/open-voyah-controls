@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 public final class StreamProbe {
-    public static final String USER_AGENT = "VoyahRadio/0.3.2";
+    public static final String USER_AGENT = "VoyahRadio/0.3.3";
     private final ConnectivityManager connectivity;
 
     public StreamProbe(Context context) {

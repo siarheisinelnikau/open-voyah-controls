@@ -14,11 +14,15 @@ Internet radio for the Voyah Free center display. The app uses large touch contr
 
 ## Install and listen
 
-Open the signed `VoyahRadio-v0.3.2.apk` from `dist/` with the head unit's Android package installer. The head unit needs internet access to play stations.
+Open the signed `VoyahRadio-v0.3.3.apk` from `dist/` with the head unit's Android package installer. The head unit needs internet access to play stations.
 
 The built-in catalog has 246 stations with separate Belarus, Russia, International and Favorites tabs. Russia has 34 channels, including Radio Maximum, Avtoradio Moscow and Rock FM. International has 169 stations from 34 countries, including RMF FM, BBC Radio 2, SWR3 and Radio Paradise. Tap a station to listen or tap its star to save it. Search accepts station names, aliases, frequencies and Russian or English country names. The app remembers the last station and starts playback when you press Play. Android's media session carries playback controls and the current track while you switch apps.
 
 Track titles and artists come from stream metadata. Selected Belarusian stations, including Radius FM, also use the public [RadioPlayer Belarus feed](https://radioplayer.by/). The player displays a status when track details are unavailable. While connecting, buffering or reconnecting, it shows seconds of playable audio buffered, data received so far and a progress bar toward playback. The spectrum and waveform use decoded playback audio and stop drawing when the player leaves the screen.
+
+## Media buttons
+
+Android media buttons and media controllers can play, pause, toggle playback, stop, and move to the next or previous station. With the player on screen, the media session remains available before playback starts and after pausing or stopping. A live stream cannot seek backward or forward.
 
 ## Settings
 
@@ -45,3 +49,5 @@ The signed APK was installed on an Android 13 emulator with a 1280 × 720 landsc
 The expanded catalog was checked against the live public endpoints before packaging. The Android 13 emulator played Radio Maximum and RMF FM, displayed RMF FM track metadata, and retained the existing manual order after upgrading from v0.2.0.
 
 The Android 13 emulator verified the smoothing switch across an app restart and the buffer display on a throttled connection. The indicator disappeared once playback began.
+
+Android media dispatch switched between Radius FM and Radio 4YOU, paused and resumed playback, stopped the stream, restarted it, and changed stations while the player was in the background. Open Voyah Controls also started the idle, focused radio from a virtual hardware Play key.

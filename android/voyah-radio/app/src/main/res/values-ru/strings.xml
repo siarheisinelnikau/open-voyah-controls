@@ -14,6 +14,7 @@
     <string name="reconnecting">Повторное подключение…</string>
     <string name="live">В эфире</string>
     <string name="paused">На паузе</string>
+    <string name="stopped">Остановлено</string>
     <string name="stream_error">Эфир недоступен. Повторите попытку или выберите другую станцию.</string>
     <string name="network_error">Нет интернета. Восстановите подключение и повторите попытку.</string>
     <string name="focus_error">Звук занят другим приложением. Попробуйте ещё раз.</string>

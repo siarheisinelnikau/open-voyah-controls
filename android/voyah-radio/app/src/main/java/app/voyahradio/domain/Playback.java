@@ -2,7 +2,7 @@ package app.voyahradio.domain;
 
 public final class Playback {
     public enum Status {
-        READY, CONNECTING, BUFFERING, RECONNECTING, LIVE, PAUSED, STREAM_ERROR, NETWORK_ERROR, FOCUS_ERROR
+        READY, CONNECTING, BUFFERING, RECONNECTING, LIVE, PAUSED, STOPPED, STREAM_ERROR, NETWORK_ERROR, FOCUS_ERROR
     }
 
     public final String stationId;
