@@ -54,6 +54,9 @@
     <string name="theme_graphite">Графит</string>
     <string name="theme_amber">Янтарная</string>
     <string name="visualization">Визуализация</string>
+    <string name="smooth_visualization">Плавная визуализация</string>
+    <string name="buffer_amount">В буфере %1$.1f с</string>
+    <string name="buffer_amount_with_transfer">В буфере %1$.1f с · получено %2$s</string>
     <string name="spectrum">Спектр</string>
     <string name="wave">Волна</string>
     <string name="visualization_off">Выкл.</string>

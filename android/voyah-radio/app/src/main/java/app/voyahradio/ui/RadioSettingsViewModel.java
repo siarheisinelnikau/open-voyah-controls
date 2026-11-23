@@ -30,6 +30,7 @@ final class RadioSettingsViewModel {
         final String language;
         final String theme;
         final String visualization;
+        final boolean smoothVisualization;
         final CatalogOptions options;
         final List<Station> stations;
         final ScanStatus scan;
@@ -39,12 +40,13 @@ final class RadioSettingsViewModel {
         final int unknown;
 
         State(RadioTab group, String language, String theme, String visualization,
-              CatalogOptions options, List<Station> stations,
+              boolean smoothVisualization, CatalogOptions options, List<Station> stations,
               ScanStatus scan, int checked, int total, int unavailable, int unknown) {
             this.group = group;
             this.language = language;
             this.theme = theme;
             this.visualization = visualization;
+            this.smoothVisualization = smoothVisualization;
             this.options = options;
             this.stations = Collections.unmodifiableList(stations);
             this.scan = scan;
@@ -84,7 +86,8 @@ final class RadioSettingsViewModel {
             if (station.group == group) stations.add(station);
         }
         return new State(group, preferences.language(), preferences.theme(), preferences.visualization(),
-                options, stations, scan, checked, catalog.all().size(), unavailable, unknown);
+                preferences.smoothVisualization(), options, stations, scan, checked, catalog.all().size(),
+                unavailable, unknown);
     }
 
     void selectGroup(RadioTab selected) {
@@ -107,6 +110,11 @@ final class RadioSettingsViewModel {
 
     void setVisualization(String mode) {
         preferences.setVisualization(mode);
+        publish();
+    }
+
+    void setSmoothVisualization(boolean enabled) {
+        preferences.setSmoothVisualization(enabled);
         publish();
     }
 

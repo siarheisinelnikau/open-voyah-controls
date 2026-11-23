@@ -54,6 +54,9 @@
     <string name="theme_graphite">Graphite</string>
     <string name="theme_amber">Amber</string>
     <string name="visualization">Visualization</string>
+    <string name="smooth_visualization">Smooth visualization</string>
+    <string name="buffer_amount">%1$.1f s buffered</string>
+    <string name="buffer_amount_with_transfer">%1$.1f s buffered · %2$s received</string>
     <string name="spectrum">Spectrum</string>
     <string name="wave">Wave</string>
     <string name="visualization_off">Off</string>

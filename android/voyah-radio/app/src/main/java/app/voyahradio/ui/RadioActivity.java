@@ -18,6 +18,7 @@ import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.InputType;
+import android.text.format.Formatter;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -56,6 +57,7 @@ import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static app.voyahradio.ui.RadioGlyph.Kind.*;
 
 public final class RadioActivity extends Activity {
+    private static final long BUFFER_REFRESH_MS = 200;
 
     private final EnumMap<RadioTab, TextView> tabs = new EnumMap<>(RadioTab.class);
 
@@ -74,7 +76,10 @@ public final class RadioActivity extends Activity {
     private FrameLayout visualStage;
     private RadioGlyph signal;
     private RadioVisualizer visualizer;
+    private LinearLayout bufferPanel;
     private ProgressBar bufferProgress;
+    private TextView bufferAmount;
+    private final Runnable bufferTick = this::refreshBufferProgress;
     private TextView playbackStatus;
     private LinearLayout playButton;
     private TextView playLabel;
@@ -159,8 +164,9 @@ public final class RadioActivity extends Activity {
 
     @Override protected void onStop() {
         uiStarted = false;
-        visualizer.update(null, "off", false);
-        bufferProgress.setVisibility(View.GONE);
+        visualizer.update(null, "off", false, false);
+        bufferPanel.setVisibility(View.GONE);
+        bufferPanel.removeCallbacks(bufferTick);
         if (service != null) service.removeObserver(playbackListener);
         service = null;
         if (bound) unbindService(connection);
@@ -349,7 +355,7 @@ public final class RadioActivity extends Activity {
     private void addVisualStage(LinearLayout panel, boolean compact) {
         compactStage = compact;
         visualStage = new FrameLayout(this);
-        panel.addView(visualStage, size(MATCH_PARENT, compact ? 46 : 132));
+        panel.addView(visualStage, size(MATCH_PARENT, compact ? 58 : 132));
 
         int accent = themeColor(R.attr.radio_accent_role);
         signal = new RadioGlyph(this, SIGNAL, accent, 88);
@@ -362,12 +368,26 @@ public final class RadioActivity extends Activity {
         visualParams.setMargins(dp(8), dp(4), dp(8), dp(4));
         visualStage.addView(visualizer, visualParams);
 
-        bufferProgress = new ProgressBar(this);
-        bufferProgress.setIndeterminateTintList(ColorStateList.valueOf(accent));
+        bufferPanel = vertical();
+        bufferPanel.setGravity(Gravity.CENTER_HORIZONTAL);
+        int inset = dp(compact ? 24 : 52);
+        bufferPanel.setPadding(inset, 0, inset, 0);
+        bufferAmount = text(compact ? 14 : 17, getColor(R.color.radio_text), true);
+        bufferAmount.setGravity(Gravity.CENTER);
+        bufferAmount.setMaxLines(2);
+        bufferAmount.setEllipsize(TextUtils.TruncateAt.END);
+        bufferPanel.addView(bufferAmount, wrap(MATCH_PARENT));
+        bufferProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        bufferProgress.setIndeterminate(false);
+        bufferProgress.setProgressTintList(ColorStateList.valueOf(accent));
+        bufferProgress.setProgressBackgroundTintList(
+                ColorStateList.valueOf(themeColor(R.attr.radio_selected_edge_role)));
         bufferProgress.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        int indicatorSize = dp(compact ? 32 : 48);
-        visualStage.addView(bufferProgress, new FrameLayout.LayoutParams(indicatorSize, indicatorSize, Gravity.CENTER));
-        bufferProgress.setVisibility(View.GONE);
+        LinearLayout.LayoutParams progressParams = size(MATCH_PARENT, 8);
+        progressParams.topMargin = dp(8);
+        bufferPanel.addView(bufferProgress, progressParams);
+        visualStage.addView(bufferPanel, new FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.CENTER));
+        bufferPanel.setVisibility(View.GONE);
     }
 
     private View catalogPanel() {
@@ -505,7 +525,8 @@ public final class RadioActivity extends Activity {
     }
 
     private void renderStage(Playback playback) {
-        String mode = ((RadioApp) getApplication()).preferences().visualization();
+        RadioPreferences preferences = ((RadioApp) getApplication()).preferences();
+        String mode = preferences.visualization();
         boolean drawingSound = uiStarted && service != null && playback.status == Playback.Status.LIVE
                 && !"off".equals(mode);
         boolean fetching = uiStarted && switch (playback.status) {
@@ -514,9 +535,30 @@ public final class RadioActivity extends Activity {
         };
         visualStage.setVisibility(!compactStage || fetching || drawingSound ? View.VISIBLE : View.GONE);
         signal.setVisibility(!compactStage && !fetching && !drawingSound ? View.VISIBLE : View.GONE);
-        bufferProgress.setVisibility(fetching ? View.VISIBLE : View.GONE);
+        boolean bufferWasVisible = bufferPanel.getVisibility() == View.VISIBLE;
+        bufferPanel.setVisibility(fetching ? View.VISIBLE : View.GONE);
+        if (fetching) {
+            bufferProgress.setMax(playback.status == Playback.Status.BUFFERING
+                    ? RadioService.REBUFFER_MS : RadioService.INITIAL_BUFFER_MS);
+            if (!bufferWasVisible) refreshBufferProgress();
+        } else if (bufferWasVisible) {
+            bufferPanel.removeCallbacks(bufferTick);
+        }
         visualizer.setVisibility(drawingSound ? View.VISIBLE : View.GONE);
-        visualizer.update(service == null ? null : service.meter(), mode, drawingSound);
+        visualizer.update(service == null ? null : service.meter(), mode, drawingSound,
+                preferences.smoothVisualization());
+    }
+
+    private void refreshBufferProgress() {
+        if (!uiStarted || bufferPanel.getVisibility() != View.VISIBLE) return;
+        int bufferedMs = service == null ? 0 : service.bufferedAudioMs();
+        long received = service == null ? 0 : service.receivedDuringBuffering();
+        float bufferedSeconds = bufferedMs / 1000f;
+        bufferProgress.setProgress(Math.min(bufferedMs, bufferProgress.getMax()));
+        setText(bufferAmount, received == 0 ? getString(R.string.buffer_amount, bufferedSeconds)
+                : getString(R.string.buffer_amount_with_transfer, bufferedSeconds,
+                        Formatter.formatShortFileSize(this, received)));
+        bufferPanel.postDelayed(bufferTick, BUFFER_REFRESH_MS);
     }
 
     private final class StationAdapter extends BaseAdapter {

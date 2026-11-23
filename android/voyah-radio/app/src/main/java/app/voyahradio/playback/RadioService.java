@@ -33,7 +33,10 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.datasource.DataSource;
+import androidx.media3.datasource.DataSpec;
 import androidx.media3.datasource.HttpDataSource;
+import androidx.media3.datasource.TransferListener;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
@@ -61,6 +64,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static app.voyahradio.domain.Playback.Status.*;
@@ -69,6 +73,8 @@ import static app.voyahradio.domain.Playback.Status.*;
 public final class RadioService extends Service {
     public static final String PLAY = "app.voyahradio.PLAY";
     public static final String STATION_ID = "station_id";
+    public static final int INITIAL_BUFFER_MS = 1000;
+    public static final int REBUFFER_MS = 2000;
     public static final String TAB = "tab";
     private static final String PAUSE = "app.voyahradio.PAUSE";
     private static final String PREVIOUS = "app.voyahradio.PREVIOUS";
@@ -119,6 +125,8 @@ public final class RadioService extends Service {
     private Bitmap mediaArt;
     private Context notificationStrings;
     private ExoPlayer player;
+    private AtomicLong transferBytes;
+    private long bufferStartBytes;
     private Playback.Status status = READY;
     private boolean foreground;
     private boolean focused;
@@ -216,6 +224,15 @@ public final class RadioService extends Service {
         return meter;
     }
 
+    public int bufferedAudioMs() {
+        if (player == null) return 0;
+        return (int) Math.max(0, Math.min(Integer.MAX_VALUE, player.getTotalBufferedDuration()));
+    }
+
+    public long receivedDuringBuffering() {
+        return transferBytes == null ? 0 : Math.max(0, transferBytes.get() - bufferStartBytes);
+    }
+
     public void refreshLanguage() {
         if (notificationStrings.getResources().getConfiguration().getLocales().get(0)
                 .getLanguage().equals(preferences.language())) return;
@@ -275,15 +292,28 @@ public final class RadioService extends Service {
         if (!foreground || waitingForFocus) return;
         publish(connectingStatus);
 
+        AtomicLong received = new AtomicLong();
+        transferBytes = received;
+        bufferStartBytes = 0;
         DefaultHttpDataSource.Factory network = new DefaultHttpDataSource.Factory()
                 .setUserAgent(StreamProbe.USER_AGENT)
                 .setConnectTimeoutMs(7000)
                 .setReadTimeoutMs(9000)
-                .setAllowCrossProtocolRedirects(true);
+                .setAllowCrossProtocolRedirects(true)
+                .setTransferListener(new TransferListener() {
+                    @Override public void onTransferInitializing(DataSource source, DataSpec spec, boolean network) {}
+                    @Override public void onTransferStart(DataSource source, DataSpec spec, boolean network) {}
+                    @Override public void onTransferEnd(DataSource source, DataSpec spec, boolean network) {}
+
+                    @Override public void onBytesTransferred(DataSource source, DataSpec spec,
+                                                             boolean network, int count) {
+                        if (network) received.addAndGet(count);
+                    }
+                });
         ExoPlayer candidate = new ExoPlayer.Builder(this, new MeteringRenderersFactory(this, meter))
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(network))
                 .setLoadControl(new DefaultLoadControl.Builder()
-                        .setBufferDurationsMs(4000, 12000, 1000, 2000)
+                        .setBufferDurationsMs(4000, 12000, INITIAL_BUFFER_MS, REBUFFER_MS)
                         .build())
                 .setAudioAttributes(new androidx.media3.common.AudioAttributes.Builder()
                         .setUsage(C.USAGE_MEDIA)
@@ -297,6 +327,7 @@ public final class RadioService extends Service {
                 if (candidate != player) return;
                 if (state == Player.STATE_BUFFERING && status == LIVE) {
                     cancelTrackLookup();
+                    bufferStartBytes = received.get();
                     publish(BUFFERING);
                     armDeadline(candidate);
                 } else if (state == Player.STATE_ENDED) {
@@ -552,6 +583,7 @@ public final class RadioService extends Service {
         hasStreamTrack = false;
         ExoPlayer released = player;
         player = null;
+        transferBytes = null;
         if (released != null) released.release();
         if (track != null) {
             track = null;

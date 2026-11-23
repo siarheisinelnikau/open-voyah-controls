@@ -47,6 +47,7 @@ public final class RadioSettingsActivity extends Activity {
     private ScrollView stationsScroll;
     private LinearLayout stationRows;
     private Switch hideUnavailable;
+    private Switch smoothVisualization;
     private TextView checkButton;
     private TextView checkStatus;
     private RadioTab displayedGroup;
@@ -111,6 +112,7 @@ public final class RadioSettingsActivity extends Activity {
             content.setGravity(Gravity.TOP);
             page.addView(content, contentParams);
             ScrollView controlsScroll = scroll();
+            controlsScroll.setVerticalScrollBarEnabled(true);
             controlsScroll.addView(controls);
             content.addView(controlsScroll, size(378, MATCH_PARENT));
             LinearLayout.LayoutParams stationsParams = new LinearLayout.LayoutParams(0, MATCH_PARENT, 1f);
@@ -142,6 +144,11 @@ public final class RadioSettingsActivity extends Activity {
         option(visualRow, visualizations, "spectrum", R.string.spectrum, model::setVisualization);
         option(visualRow, visualizations, "wave", R.string.wave, model::setVisualization);
         option(visualRow, visualizations, "off", R.string.visualization_off, model::setVisualization);
+        smoothVisualization = toggle(getString(R.string.smooth_visualization));
+        appearance.addView(smoothVisualization, size(MATCH_PARENT, WRAP_CONTENT));
+        smoothVisualization.setOnCheckedChangeListener((button, enabled) -> {
+            if (!updating) model.setSmoothVisualization(enabled);
+        });
 
         LinearLayout tabs = card(controls, R.string.visible_tabs);
         LinearLayout tabRow = tabs;
@@ -235,6 +242,7 @@ public final class RadioSettingsActivity extends Activity {
             chooseOptions(languages, state.language);
             chooseOptions(themes, state.theme);
             chooseOptions(visualizations, state.visualization);
+            smoothVisualization.setChecked(state.smoothVisualization);
             hideUnavailable.setChecked(state.options.hideUnavailable);
             checkButton.setText(state.scan == RadioSettingsViewModel.ScanStatus.RUNNING
                     ? R.string.cancel_check : R.string.check_availability);
