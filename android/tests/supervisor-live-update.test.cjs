@@ -202,3 +202,50 @@ test('the receipt schema admits one signer row for Controls and the loop adopts 
     const loop = supervisor.slice(supervisor.indexOf('while [ -n "$child_start" ]'));
     assert.ok(loop.indexOf('! settled app_unchanged && ! adopt_app_update') < loop.indexOf('revoke_activation package'));
 });
+
+const bootStart = fs.readFileSync(path.join(__dirname, '../app/src/main/assets/hooks/boot-start.sh'), 'utf8');
+const bridge = fs.readFileSync(path.join(__dirname, '../app/src/main/java/org/openvoyah/controls/data/frida/FridaBridge.java'), 'utf8');
+
+/** The worker launch of boot-start.sh with a deployment of [channels] and the session tools [tools] (setsid, nohup). */
+function launch(channels, tools) {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'ovc-boot-launch-'));
+    fs.writeFileSync(path.join(base, 'enabled'), '');
+    for (const name of channels) {
+        fs.mkdirSync(path.join(base, name));
+        fs.writeFileSync(path.join(base, name, 'enabled'), '');
+    }
+    const calls = path.join(base, 'calls');
+    const section = bootStart.slice(bootStart.indexOf('# Each worker gets a session of its own.'));
+    const stubs = tools.map(tool => `${tool}() { printf '${tool} %s\n' "$*" >> '${posix(calls)}'; }`).join('\n');
+    // A setsid or nohup that is missing must not be found on the PATH of the test machine either.
+    const result = run(`set -eu\nPATH=/nonexistent\nbase='${posix(base)}'\n${stubs}\n${section}\nwait`);
+    return {status: result.status, stderr: result.stderr, calls: fs.existsSync(calls) ? fs.readFileSync(calls, 'utf8').trim().split('\n').sort() : []};
+}
+
+test('boot-start starts every enabled worker in a session of its own, so a root-channel restart cannot end it', {skip: !bash && 'Bash is not available'}, () => {
+    const base = '/system/bin/sh';
+    const result = launch(['locale-hiboard', 'window'], ['setsid', 'nohup']);
+    assert.equal(result.status, 0, result.stderr);
+    const supervise = result.calls.map(call => call.replace(/ \S*\/supervise\.sh/, ' supervise.sh'));
+    assert.deepEqual(supervise, [`setsid ${base} supervise.sh`, `setsid ${base} supervise.sh hiboard`, `setsid ${base} supervise.sh window`]);
+    const fallback = launch(['window'], ['nohup']);
+    assert.deepEqual(fallback.calls.map(call => call.replace(/ \S*\/supervise\.sh/, ' supervise.sh')),
+        [`nohup ${base} supervise.sh`, `nohup ${base} supervise.sh window`], 'nohup where setsid is missing');
+});
+
+test('Controls starts an optional channel worker detached from the root channel session as well', () => {
+    assert.match(bridge, /DETACHED = "\$\(command -v setsid >\/dev\/null 2>&1 && echo setsid \|\| echo nohup\) "/);
+    assert.doesNotMatch(bridge, /"nohup \/system\/bin\/sh " \+ base \+ "\/supervise\.sh/);
+    assert.doesNotMatch(bootStart, /^\s*nohup \/system\/bin\/sh/m);
+});
+
+test('a worker whose injector ended while the target kept running attaches again instead of revoking', () => {
+    const loop = supervisor.slice(supervisor.indexOf('while [ -n "$child_start" ]'));
+    // After the attach loop only a target that restarted has its session retired; a running one keeps it.
+    assert.match(loop, /if enabled && \[ "\$target_changed" = 1 \]; then guard_visual_session \|\| true; fi/);
+    // Before the next attachment the session of exactly this target is adopted, and only recorded when absent.
+    assert.match(supervisor, /guard_visual_session "\$target_pid" "\$target_start" \|\| break/);
+    assert.match(supervisor, /if ! guard_visual_session defer; then/);
+    // Restore in Controls accepts a current session with no injector of this project left.
+    assert.match(supervisor, /case "\$\(visual_session_state\)" in absent\|changed\|current\) ;; \*\) rc_visuals=pending;; esac/);
+});

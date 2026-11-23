@@ -40,6 +40,27 @@ export function translated(config, packageName, product, source, presets = PRESE
     return typeof source === 'string' ? lookup(tableFor(config, packageName, product, presets), source) : source;
 }
 
+/** The TextViews (subclasses included) in this process's windows. Runs on the main thread. */
+export function shownTextViews(Java) {
+    const TextView = Java.use('android.widget.TextView');
+    const ViewGroup = Java.use('android.view.ViewGroup');
+    const View = Java.use('android.view.View');
+    const found = [];
+    const pending = [];
+    const roots = Java.use('android.view.WindowManagerGlobal').getInstance().mViews.value;
+    for (let index = roots.size() - 1; index >= 0; index--) pending.push(Java.cast(roots.get(index), View));
+    while (pending.length) {
+        const view = pending.pop();
+        if (view === null) continue;
+        if (TextView.class.isInstance(view)) found.push(Java.cast(view, TextView));
+        else if (ViewGroup.class.isInstance(view)) {
+            const group = Java.cast(view, ViewGroup);
+            for (let index = group.getChildCount() - 1; index >= 0; index--) pending.push(group.getChildAt(index));
+        }
+    }
+    return found;
+}
+
 export function installLocalization(Java, report = createReporter('OVC_LOCALIZATION_ERROR')) {
     Java.perform(() => {
         let detach = () => { };
@@ -93,6 +114,18 @@ export function installLocalization(Java, report = createReporter('OVC_LOCALIZAT
                 const text = TextView.setText.overload('java.lang.CharSequence', 'android.widget.TextView$BufferType');
                 text.implementation = function(value, type) { return text.call(this, convert(value), type); };
                 installed.push(text);
+                // Every setText variant ends in this private method, also where the public ones are inlined into
+                // compiled code past their hooks (on a 97C launcher: the app grid labels, the air quality level and
+                // the media card's hint, set after the views were shown). Too large to be inlined itself.
+                const inner = TextView.setText.overload('java.lang.CharSequence', 'android.widget.TextView$BufferType',
+                    'boolean', 'int');
+                inner.implementation = function(value, type, notify, oldLength) {
+                    const next = convert(value);
+                    // Typed text in an editor is the driver's, never a label.
+                    const keep = next !== value && this.onCheckIsTextEditor();
+                    return inner.call(this, keep ? value : next, type, notify, oldLength);
+                };
+                installed.push(inner);
                 const hint = TextView.setHint.overload('java.lang.CharSequence');
                 hint.implementation = function(value) { return hint.call(this, convert(value)); };
                 installed.push(hint);
@@ -159,20 +192,15 @@ export function installLocalization(Java, report = createReporter('OVC_LOCALIZAT
                 const contextText = Context.getText.overload('int');
                 contextText.implementation = function(id) { return convert(contextText.call(this, id)); };
                 installed.push(contextText);
-                // Refresh text that is already visible.
-                Java.choose('android.widget.TextView', {
-                    onMatch(view) {
-                        const retained = Java.retain(view);
-                        Java.scheduleOnMainThread(() => {
-                            try {
-                                const old = retained.getText(), next = convert(old);
-                                if (next !== old) retained.setText.overload('java.lang.CharSequence').call(retained, next);
-                                const oldHint = retained.getHint(), nextHint = convert(oldHint);
-                                if (nextHint !== oldHint) hint.call(retained, nextHint);
-                            } catch (error) { report('refresh', error); }
-                            finally { retained.$dispose(); }
-                        });
-                    }, onComplete() { }
+                // Refresh text that is already visible: every TextView, subclasses included, in this process's
+                // windows. (Java.choose finds only instances of the exact class, so it missed the launcher's
+                // AppCompatTextView labels shown before the agent attached.)
+                Java.scheduleOnMainThread(() => {
+                    try {
+                        for (const view of shownTextViews(Java)) {
+                            try { fix(view); } catch (error) { report('refresh', error); }
+                        }
+                    } catch (error) { report('refresh', error); }
                 });
             };
             // A failed attach after start-up is retried no sooner than 30 s later, like a failed installation.

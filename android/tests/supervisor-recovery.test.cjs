@@ -215,15 +215,23 @@ test('the boot job leaves a changed deployment, an unrecorded block and its own 
     }
 });
 
-test('Restore in OVC works in the same boot only once no changed visuals can remain', {skip}, () => {
+test('Restore in OVC works in the same boot unless a visual state cannot be read', {skip}, () => {
     const box = sandbox();
     revoked(box, {boot: CURRENT, reason: null});
-    fs.writeFileSync(path.join(box.root, 'visual.state'), 'current\n');
+    fs.writeFileSync(path.join(box.root, 'visual.state'), 'uncertain\n');
     let result = run(recoveryScript(box, 'recover_activation manual; echo "status=$?"'), {OVC_BOOT_FILE: box.boot});
     assert.equal(result.stdout, 'OVC_RECOVER outcome=reboot reason=visual\nstatus=1');
     assert.equal(exists(box.root, 'recovery.blocked'), true);
 
-    // The launcher restarted since (its new process has the original visuals): every sealed channel comes back.
+    // A session still current for a running target with no injector of this project left: the next attachment adopts
+    // it (the agent of the same deployment takes its predecessor's views back), so no reboot is needed.
+    fs.writeFileSync(path.join(box.root, 'visual.state'), 'current\n');
+    result = run(recoveryScript(box, 'recover_activation manual; echo "status=$?"'), {OVC_BOOT_FILE: box.boot});
+    assert.equal(result.stdout, 'OVC_RECOVER outcome=recovered reason=- channels=main,locale-hiboard,window\nstatus=0', result.stderr);
+    assert.equal(exists(box.root, 'visual.cleared'), false, 'a current session is kept for adoption, not cleared');
+
+    // The launcher restarted (its new process has the original visuals): every sealed channel comes back as well.
+    revoked(box, {boot: CURRENT, reason: null});
     fs.writeFileSync(path.join(box.root, 'visual.state'), 'changed\n');
     result = run(recoveryScript(box, 'recover_activation manual; echo "status=$?"'), {OVC_BOOT_FILE: box.boot});
     assert.equal(result.stdout, 'OVC_RECOVER outcome=recovered reason=- channels=main,locale-hiboard,window\nstatus=0', result.stderr);

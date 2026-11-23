@@ -21,6 +21,8 @@ internal interface SystemRestarts {
     fun rebootSystem()
     /** Re-arms the car agents without the PC when the approved deployment still verifies. */
     fun restoreActivation(): ActivationRecovery.Result
+    /** Whether the supervisor paused the activation in this boot; it re-arms itself after the next restart. */
+    fun activationPaused(): Boolean = false
 }
 
 internal enum class SystemOperation { MEDIA, REBOOT, RESTORE }
@@ -40,10 +42,22 @@ internal class SystemMaintenanceViewModel(
 ) : ViewModel() {
     private val scope = tasks ?: viewModelScope
 
-    data class State(val working: SystemOperation? = null, val notice: SystemNotice? = null)
+    data class State(val working: SystemOperation? = null, val notice: SystemNotice? = null, val paused: Boolean = false)
 
     private val mutable = MutableStateFlow(State())
     val state = mutable.asStateFlow()
+
+    init { checkActivation() }
+
+    /** Reads the pause through the root channel; a failed check keeps what the page shows. */
+    fun checkActivation() {
+        scope.launch {
+            val paused = try { withContext(io) { restarts.activationPaused() } }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (failure: Exception) { return@launch }
+            mutable.update { it.copy(paused = paused) }
+        }
+    }
 
     fun restartMultimedia() = run(SystemOperation.MEDIA) { SystemNotice.MediaRestarted(restarts.restartMultimedia()) }
 
@@ -66,7 +80,12 @@ internal class SystemMaintenanceViewModel(
             } catch (failure: Exception) {
                 SystemNotice.Failed(operation, failure.message)
             }
-            mutable.update { State(working = null, notice = notice) }
+            val paused = when ((notice as? SystemNotice.Restored)?.result?.outcome) {
+                ActivationRecovery.Outcome.RECOVERED, ActivationRecovery.Outcome.NONE -> false
+                ActivationRecovery.Outcome.REBOOT -> true
+                else -> mutable.value.paused
+            }
+            mutable.update { State(working = null, notice = notice, paused = paused) }
         }
     }
 }

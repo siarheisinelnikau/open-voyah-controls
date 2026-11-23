@@ -12,4 +12,6 @@ internal class FridaSystemRestarts(context: Context) : SystemRestarts {
     override fun rebootSystem() = FridaBridge(app).rebootSystem()
 
     override fun restoreActivation(): ActivationRecovery.Result = FridaBridge(app).restoreActivation()
+
+    override fun activationPaused(): Boolean = FridaBridge(app).checkActivationPaused()
 }

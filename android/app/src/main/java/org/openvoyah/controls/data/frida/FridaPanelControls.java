@@ -31,6 +31,17 @@ public final class FridaPanelControls implements PanelControls {
 
     @Override public String health() { return FridaBridge.lastHealth(context); }
     @Override public boolean configured() { return FridaBridge.wasConfigured(context); }
+    @Override public boolean activationPaused() { return FridaBridge.activationPaused(context); }
+
+    @Override public void checkActivation(Consumer<Boolean> done) {
+        WORKER.execute(() -> {
+            boolean paused;
+            try { paused = bridge.checkActivationPaused(); }
+            catch (Exception ex) { paused = FridaBridge.activationPaused(context); }
+            boolean answer = paused;
+            main.post(() -> done.accept(answer));
+        });
+    }
 
     @Override public void run(Operation operation, Consumer<Result> done) {
         WORKER.execute(() -> {

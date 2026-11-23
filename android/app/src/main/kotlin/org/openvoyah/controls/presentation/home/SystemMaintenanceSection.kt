@@ -68,6 +68,7 @@ internal fun SystemMaintenanceSection() {
         version = version.lines(text(R.string.system_version_build), text(R.string.system_version_commit),
             text(R.string.system_version_installed), Locale.forLanguageTag(UiText.language())),
         working = state.working,
+        paused = state.paused,
         copied = copied,
         copy = { lines ->
             if (active()) copied = copyVersion(activity, lines.joinToString("\n"))
@@ -104,10 +105,17 @@ internal fun SystemMaintenance(
     restartMedia: () -> Unit,
     reboot: () -> Unit,
     restore: () -> Unit = {},
+    paused: Boolean = false,
 ) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     CockpitSection(text(R.string.system_section_title), CockpitIcon.SYSTEM) {
         val idle = working == null
+        if (paused) {
+            // The supervisor paused the agents in this boot and re-arms them after a restart: say so first, with the restart.
+            Text(text(R.string.activation_paused), Modifier.testTag("activation_paused"), color = MaterialTheme.colorScheme.error)
+            CockpitAction(text(R.string.system_reboot), reboot, Modifier.fillMaxWidth().testTag("activation_paused_reboot"),
+                enabled = idle, destructive = true)
+        }
         SelectionContainer(Modifier.testTag("system_version")) {
             Text(version.joinToString("\n"), style = MaterialTheme.typography.bodyMedium)
         }

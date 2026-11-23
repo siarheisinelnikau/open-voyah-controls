@@ -22,7 +22,36 @@ internal enum class AppGridIconStyle(val storedValue: String) {
     NATIVE("native"),
     MONOCHROME("monochrome");
 
+    /**
+     * The 4x5 Android colour matrix this style draws icons with, row-major (R, G, B, A rows of R, G, B, A, offset),
+     * or null for the icons as they are. The app grid and the launcher panel agent use the same matrix.
+     */
+    val colorMatrix: FloatArray? get() = when (this) {
+        NATIVE -> null
+        MONOCHROME -> MONOCHROME_MATRIX.copyOf()
+    }
+
     companion object {
+        /** Rec. 709 luminance: a colour keeps its lightness when it loses its hue. */
+        private val LUMA = floatArrayOf(0.2126f, 0.7152f, 0.0722f)
+        /**
+         * Monochrome draws every icon like the factory glyphs of the launcher panel (home, car): lightness maps
+         * from the slate blue of their shading ([SHADOW]) to their blue-white ([LIGHT]). Blue reaches white
+         * first and red last ([GAIN]), so the middle tones turn pale blue as in those glyphs and a light icon
+         * reads white. Transparency stays as it is.
+         */
+        private val SHADOW = floatArrayOf(40f, 58f, 108f)
+        private val LIGHT = floatArrayOf(248f, 250f, 255f)
+        private val GAIN = floatArrayOf(1.3f, 1.4f, 1.6f)
+        private val MONOCHROME_MATRIX = FloatArray(20).also { m ->
+            for (row in 0..2) {
+                val scale = GAIN[row] * (LIGHT[row] - SHADOW[row]) / 255f
+                for (column in 0..2) m[row * 5 + column] = LUMA[column] * scale
+                m[row * 5 + 4] = SHADOW[row]
+            }
+            m[3 * 5 + 3] = 1f
+        }
+
         fun parse(value: String): AppGridIconStyle =
             requireNotNull(entries.firstOrNull { it.storedValue == value }) { "Invalid app grid icon style" }
     }

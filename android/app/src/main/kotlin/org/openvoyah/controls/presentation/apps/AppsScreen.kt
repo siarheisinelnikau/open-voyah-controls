@@ -529,7 +529,7 @@ internal fun AppIcon(app: LocalApp, modifier: Modifier, style: AppGridIconStyle 
 }
 
 private val monochromeIcons by lazy {
-    ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+    ColorFilter.colorMatrix(ColorMatrix(requireNotNull(AppGridIconStyle.MONOCHROME.colorMatrix)))
 }
 
 @Composable

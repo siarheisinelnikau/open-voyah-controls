@@ -57,7 +57,9 @@ function harness(options={}) {
             return bySig[key] ??= {call:(self,...args)=>original(key,self,...args)};
         }};
     };
-    const setText=overloads((sig,_self,...args)=>{
+    const setText=overloads((sig,self,...args)=>{
+        // A shown view's text set again (the refresh after attaching) is recorded on its own.
+        if(sig==='java.lang.CharSequence' && self?.shown) { refreshed.push(args[0]); return 'oem'; }
         if(sig.startsWith('java.lang.CharSequence')) { passed.push(args[0]); return 'oem'; }
         originals.push('setText('+sig+')');
     });
@@ -85,14 +87,21 @@ function harness(options={}) {
             return raw;
         }},
         'java.lang.String':{$new:value=>({translated:value}),format},
-        'android.widget.TextView':{setText,setHint,onAttachedToWindow:attached},
+        'android.widget.TextView':{setText,setHint,onAttachedToWindow:attached,class:{isInstance:view=>!view.children}},
+        'android.view.ViewGroup':{class:{isInstance:view=>!!view.children}},
+        'android.view.View':{},
+        // One window whose root holds the given views; a failing window list is reported like a failing view.
+        'android.view.WindowManagerGlobal':{getInstance(){
+            if(options.brokenWindows) throw Error('java.lang.IllegalStateException: private window');
+            const roots=options.views?[{children:options.views,getChildCount:()=>options.views.length,
+                getChildAt:index=>options.views[index]}]:[];
+            return {mViews:{value:{size:()=>roots.length,get:index=>roots[index]}}};
+        }},
         'android.content.res.TypedArray':{getText:typed},
         'android.content.res.Resources':{getText:resourceText,getString:resourceStrings},
         'android.content.Context':{getString:contextStrings,getText:contextText}
     };
-    const Java={perform:fn=>fn(),use:name=>classes[name],retain:view=>view,scheduleOnMainThread:fn=>fn(),
-        choose(_name,callbacks){for(const view of options.views ?? []) callbacks.onMatch(view);callbacks.onComplete();}};
-    for(const view of options.views ?? []) view.setText={overload:()=>({call:(_view,value)=>refreshed.push(value)})};
+    const Java={perform:fn=>fn(),use:name=>classes[name],cast:value=>value,scheduleOnMainThread:fn=>fn()};
     vm.runInNewContext(source+'\ninstallLocalization(Java);',{Java,console:{log:line=>logs.push(line)},
         setInterval:fn=>{tick=fn;},setTimeout:(fn,ms)=>retries.push({fn,ms}),
         JSON:{parse:value=>{parses.count++;return JSON.parse(value);},stringify:JSON.stringify}});
@@ -105,6 +114,8 @@ function harness(options={}) {
         failReads:value=>{readFailure=value;},
         hooked:()=>[main,hint,typedText,resource].map(item=>typeof item.implementation==='function'),
         setText:value=>invoke(main,{},value,'NORMAL'),
+        setInner:(view,value)=>invoke(setText.overload('java.lang.CharSequence','android.widget.TextView$BufferType',
+            'boolean','int'),view,value,'NORMAL',true,0),
         setHint:value=>invoke(hint,{},value),
         getText:()=>invoke(typedText,{},0),
         getResourceText:()=>invoke(resource,{},0x7f010001),
@@ -158,7 +169,7 @@ test('an applicable dictionary translates exact text and keeps every other text 
 });
 
 test('a dictionary that arrives later installs the hooks and refreshes visible text',()=>{
-    const working={getText:()=>chars('设置'),getHint:()=>null,$dispose(){}};
+    const working={shown:true,onCheckIsTextEditor:()=>false,getText:()=>chars('设置'),getHint:()=>null};
     const h=harness({raw:'',views:[working]});
     assert.deepEqual(h.hooked(),[false,false,false,false]);
     assert.deepEqual(h.refreshed,[]);
@@ -223,15 +234,38 @@ test('an installation failure names its class, resets hooks and keeps retrying e
     assert.equal(h.logs.length,1);
 });
 
-test('visible text is refreshed on attach and a failing view is reported and released',()=>{
-    const disposed=[];
-    const working={getText:()=>chars('设置'),getHint:()=>null,$dispose(){disposed.push('working');}};
-    const broken={getText(){throw Error('java.lang.IllegalStateException: private view');},$dispose(){disposed.push('broken');}};
-    const h=harness({views:[working,broken]});
+test('visible text in every window is refreshed on attach and a failing view or window is reported',()=>{
+    const working={shown:true,onCheckIsTextEditor:()=>false,getText:()=>chars('设置'),getHint:()=>null};
+    const broken={shown:true,onCheckIsTextEditor(){throw Error('java.lang.IllegalStateException: private view');}};
+    const editor={shown:true,onCheckIsTextEditor:()=>true,getText:()=>chars('设置'),getHint:()=>null};
+    const h=harness({views:[broken,working,editor]});
+    // Subclasses are found by walking the windows, not by their exact class; typed text in an editor stays.
     assert.deepEqual(h.refreshed,[{translated:'Settings'}]);
-    assert.deepEqual(disposed,['working','broken']);
     assert.deepEqual(h.logs.filter(line=>line.startsWith('OVC_LOCALIZATION_ERROR')),
         ['OVC_LOCALIZATION_ERROR stage=refresh kind=IllegalStateException']);
+    const windows=harness({brokenWindows:true});
+    assert.deepEqual(windows.hooked(),[true,true,true,true]);
+    assert.deepEqual(windows.logs.filter(line=>line.startsWith('OVC_LOCALIZATION_ERROR')),
+        ['OVC_LOCALIZATION_ERROR stage=refresh kind=IllegalStateException']);
+});
+
+test('text set past the public setText hooks is translated where every variant ends',()=>{
+    const h=harness();
+    const label={onCheckIsTextEditor:()=>false};
+    h.setInner(label,chars('设置'));
+    assert.deepEqual(h.passed,[{translated:'Settings'}]);
+    const editor={onCheckIsTextEditor:()=>true};
+    const typed=chars('设置');
+    h.setInner(editor,typed);
+    assert.equal(h.passed[1],typed);
+    // Other text keeps its object and asks nothing of the view.
+    const other=chars('其他');
+    h.setInner({onCheckIsTextEditor(){throw Error('not asked');}},other);
+    assert.equal(h.passed[2],other);
+    h.setRaw(JSON.stringify({...config,enabled:false}));h.tick();
+    const off=chars('设置');
+    h.setInner(label,off);
+    assert.equal(h.passed[3],off);
 });
 
 test('a resource template is translated before the app formats it',()=>{

@@ -166,6 +166,12 @@ internal class AppGridPreferences(context: Context) {
         synchronized(lock) { write(settings) }
     }
 
+    /** The icon style alone, read at once for the launcher panel's configuration. */
+    fun iconStyle(): AppGridIconStyle = synchronized(lock) {
+        (preferences.getString(ICON_STYLE, null))?.let { runCatching { AppGridIconStyle.parse(it) }.getOrNull() }
+            ?: AppGridIconStyle.NATIVE
+    }
+
     private fun read(): AppGridConfiguration {
         val values = preferences.all
         return AppGridConfiguration(

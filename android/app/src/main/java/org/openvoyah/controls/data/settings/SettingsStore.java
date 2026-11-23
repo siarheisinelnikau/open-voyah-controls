@@ -33,8 +33,17 @@ public final class SettingsStore {
      * card starts larger.
      */
     public static final int NAVIGATOR_WIDGET_SCALE = 150;
-    /** Percent, 70 to 200; anything else is the default. */
-    public static int navigatorWidgetScale(int value) { return value >= 70 && value <= 200 ? value : NAVIGATOR_WIDGET_SCALE; }
+    /**
+     * The smallest scale. Below it the widget is laid out so large that Android refuses Navigator's picture (a widget
+     * update may carry bitmaps of at most 6 x the display's pixels in bytes; at 80 % the traffic widget needed 8.9 of
+     * 8.3 MB on the car) and the card keeps an old picture.
+     */
+    public static final int NAVIGATOR_WIDGET_SCALE_MIN = 90;
+    /** Percent, 90 to 200; a smaller one saved earlier (from 50) becomes 90, anything else the default. */
+    public static int navigatorWidgetScale(int value) {
+        if (value >= 50 && value < NAVIGATOR_WIDGET_SCALE_MIN) return NAVIGATOR_WIDGET_SCALE_MIN;
+        return value >= NAVIGATOR_WIDGET_SCALE_MIN && value <= 200 ? value : NAVIGATOR_WIDGET_SCALE;
+    }
     public static final class State {
         public boolean enabled = true;
         public int holdMs = 650;

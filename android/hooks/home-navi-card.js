@@ -12,6 +12,10 @@ const TAP_SLOP = 10;
 const POLL_MS = 2000;
 // Id of the widget host the agent registers for the launcher package. The factory launcher hosts no widgets.
 const WIDGET_HOST = 0x4f56;
+// Smallest widget scale in percent the navigator's picture fits at (see widgetScale).
+const MIN_WIDGET_SCALE = 90;
+// The map image of Yandex Navigator's traffic widget (`traffic_widget_layout_content`).
+const WIDGET_MAP_VIEW = 'traffic_widget_map_view';
 
 /**
  * The app whose card replaces the factory navigation card, or null for the factory card. A restore request (the
@@ -24,12 +28,14 @@ export function cardPackage(config) {
 }
 
 /**
- * The widget's scale in the card in percent: 100 unless the configuration asks for 50 to 200. More is larger
- * content (text, buttons, map features) with less of the map in view; less is smaller content with more map.
+ * The widget's scale in the card in percent: 100 unless the configuration asks for 50 to 200, and at least 90. More is
+ * larger content (text, buttons, map features) with less of the map in view; less is smaller content with more map.
+ * Below 90 % the widget is laid out so large that Android refuses the navigator's picture (an update may carry
+ * bitmaps of at most 6 x the display's pixels in bytes), and the card would keep an old one.
  */
 export function widgetScale(config) {
     const scale = cardPackage(config) === null ? undefined : config.homeCard.scale;
-    return Number.isInteger(scale) && scale >= 50 && scale <= 200 ? scale : 100;
+    return Number.isInteger(scale) && scale >= 50 && scale <= 200 ? Math.max(scale, MIN_WIDGET_SCALE) : 100;
 }
 
 function clean(value) {
@@ -188,8 +194,9 @@ function createWidgetSlot(Java) {
     const Manager = Java.use('android.appwidget.AppWidgetManager');
     const Info = Java.use('android.appwidget.AppWidgetProviderInfo');
     const Bundle = Java.use('android.os.Bundle');
+    const Intent = Java.use('android.content.Intent');
     const ActivityThread = Java.use('android.app.ActivityThread');
-    let host = null, id = -1, users = 0;
+    let host = null, id = -1, users = 0, provider = null, mapId = 0;
 
     function bind(name, aspect) {
         const app = ActivityThread.currentApplication();
@@ -202,7 +209,7 @@ function createWidgetSlot(Java) {
         }
         const chosen = pickWidget(providers, aspect);
         if (chosen === null) return null;
-        const provider = chosen.info.provider.value;
+        provider = chosen.info.provider.value;
         if (host === null) host = Java.retain(Host.$new(app, WIDGET_HOST));
         // Reuse a widget this host still has for the chosen provider; drop any other.
         const ids = host.getAppWidgetIds();
@@ -236,11 +243,29 @@ function createWidgetSlot(Java) {
             const view = host.createView(plain, id, info);
             users++;
             view.setPadding(0, 0, 0, 0);
+            try {
+                const manager = context.getPackageManager();
+                const resources = manager.getResourcesForApplication.overload('java.lang.String').call(manager, name);
+                mapId = resources.getIdentifier(WIDGET_MAP_VIEW, 'id', name);
+            }
+            catch (_) { mapId = 0; }
             return view;
         },
-        /** Tells the navigator the size the widget is laid out at, in dp. */
+        /** The id of the widget's map image in the navigator's package, 0 when it has none. */
+        mapId: () => mapId,
+        /**
+         * Tells the navigator the size the widget is laid out at, in dp, and asks it to draw for that size. Yandex
+         * Navigator draws its map once per update (a job that reads the widget's maximum size) and ignores a mere
+         * options change, so without the update its old picture stays, too small or cropped. The provider is not
+         * exported; the launcher runs as the system uid, which may still send to it.
+         */
         size(view, widthDp, heightDp) {
             view.updateAppWidgetSize(Bundle.$new(), widthDp, heightDp, widthDp, heightDp);
+            if (provider === null || id === -1) return;
+            const intent = Intent.$new.overload('java.lang.String').call(Intent, 'android.appwidget.action.APPWIDGET_UPDATE');
+            intent.setComponent(provider);
+            intent.putExtra.overload('java.lang.String', '[I').call(intent, 'appWidgetIds', Java.array('int', [id]));
+            ActivityThread.currentApplication().sendBroadcast(intent);
         },
         /**
          * No card shows the widget any more. The widget stays bound, with the settings the driver chose in
@@ -256,6 +281,8 @@ function createWidgetSlot(Java) {
             const released = host;
             host = null;
             id = -1;
+            provider = null;
+            mapId = 0;
             try { if (users > 0) released.stopListening(); }
             finally {
                 users = 0;
@@ -306,6 +333,7 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
         const JString = Java.use('java.lang.String');
         const Reference = Java.use('java.lang.ref.WeakReference');
         const ActivityThread = Java.use('android.app.ActivityThread');
+        const HostView = Java.use('android.appwidget.AppWidgetHostView');
 
         const retain = object => Java.retain(object);
         const dereference = ref => {
@@ -379,8 +407,21 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
         const widgetOverlays = new Set();
 
         /**
-         * Lays the widget out at the card's size divided by the scale and scales the view back to the card. The
-         * navigator renders for that logical size; Android maps taps through the view's scale itself.
+         * Lets the navigator's map image cover its frame. The navigator centres a picture drawn for the size of its
+         * last update without scaling it, so after a scale change the old picture would sit small in the card (or be
+         * cut) until the new one arrives. Its new picture fills the frame either way.
+         */
+        function fillMap(widget) {
+            const id = widgets.mapId();
+            if (id === 0) return;
+            const map = widget.findViewById(id);
+            if (map !== null && ImageView.class.isInstance(map)) Java.cast(map, ImageView).setScaleType(ScaleType.CENTER_CROP.value);
+        }
+
+        /**
+         * Lays the widget out at the card's size divided by the scale and scales the view back to the card, so it
+         * always covers the whole card. The navigator draws for that logical size (more map and smaller labels below
+         * 100 %, larger labels above); Android maps taps through the view's scale itself.
          */
         function layoutWidget(overlay) {
             const {widget} = overlay.views;
@@ -391,6 +432,7 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
             widget.setPivotY(0);
             widget.setScaleX(scale);
             widget.setScaleY(scale);
+            fillMap(widget);
             widgets.size(widget, Math.round(w / overlay.density), Math.round(h / overlay.density));
         }
         try { widgets = createWidgetSlot(Java); }
@@ -569,6 +611,17 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
             } catch (error) { report('tap', error); }
             // Baidu's map under the card gets no gestures while it is covered.
             return true;
+        };
+
+        // Each update from the navigator may inflate its layout anew, with the map image centred again.
+        const update = HostView.updateAppWidget.overload('android.widget.RemoteViews');
+        hooks.push(update);
+        update.implementation = function (remote) {
+            const result = update.call(this, remote);
+            try {
+                for (const overlay of widgetOverlays) if (overlay.views.widget.equals(this)) fillMap(overlay.views.widget);
+            } catch (error) { report('widget_fill', error); }
+            return result;
         };
 
         // The fragment resumes the card, and the card restarts Baidu's map; a covered card pauses it again.

@@ -47,6 +47,11 @@ esac
 [ ! -e "$base/recovery.visual-pending" ] && [ ! -L "$base/recovery.visual-pending" ] || fail 'Visual recovery is pending.'
 [ ! -e "$base/update.pending" ] && [ ! -L "$base/update.pending" ] || fail 'A runtime update is pending.'
 [ -f "$base/enabled" ] && [ ! -L "$base/enabled" ] || exit 0
+# Each worker gets a session of its own. When Controls starts them through the root channel (a connection or an app
+# update), they would otherwise belong to that telnet session, and a restart of the channel would end the injector
+# while its target keeps the changed visuals, which revokes the activation.
+detach=nohup
+if command -v setsid >/dev/null 2>&1; then detach=setsid; fi
 
 for channel in launcher setting vehicle bluetooth hiboard window navigation can; do
     case "$channel" in
@@ -56,5 +61,5 @@ for channel in launcher setting vehicle bluetooth hiboard window navigation can;
     esac
     [ -d "$dir" ] && [ ! -L "$dir" ] || continue
     [ -f "$dir/enabled" ] && [ ! -L "$dir/enabled" ] || continue
-    nohup /system/bin/sh "$base/supervise.sh" "$@" >/dev/null 2>&1 </dev/null &
+    "$detach" /system/bin/sh "$base/supervise.sh" "$@" >/dev/null 2>&1 </dev/null &
 done

@@ -146,7 +146,7 @@ It then adds `FLAG_ACTIVITY_NEW_TASK` and calls `ActivityAnimUtils.startActivity
 | Draw a Yandex map in the card | Postponed. WebView refuses to run in the launcher (a system-uid process), so Controls would have to draw the map and embed it (`SurfaceControlViewHost`, Android 11). The Yandex map SDKs need a personal API key and location access. |
 | Show the navigator's own state from its notification | Fallback when the navigator has no widget or binding fails. Without a route the navigator had no notification (checked on the unit). |
 
-**Not established.** Whether the traffic widget draws without its configuration screen, how it fills the tall card (its smallest provider is 110 × 110 dp), and what the navigator's notification holds during guidance.
+**Not established.** What the navigator's notification holds during guidance. The traffic widget draws without its configuration screen and fills the tall card once it is told the card's size and asked to update (see [Home navigation card](FRIDA_AGENTS.md#home-navigation-card)).
 
 ## Lowered-screen layout
 

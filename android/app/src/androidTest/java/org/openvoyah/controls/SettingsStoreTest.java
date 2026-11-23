@@ -234,7 +234,11 @@ public class SettingsStoreTest extends AndroidTestCase {
         // The first version always saved its default density, 160: not a choice, so today's default applies.
         assertEquals(150, SettingsStore.decode(base + ",\"navigatorWidgetDpi\":160}").navigatorWidgetScale);
         assertEquals(130, SettingsStore.decode(base + ",\"navigatorWidgetDpi\":200}").navigatorWidgetScale);
-        assertEquals(80, SettingsStore.decode(base + ",\"navigatorWidgetDpi\":120}").navigatorWidgetScale);
+        // 120 DPI is 80 %, below what Navigator can draw for: the smallest scale.
+        assertEquals(90, SettingsStore.decode(base + ",\"navigatorWidgetDpi\":120}").navigatorWidgetScale);
+        assertEquals(90, SettingsStore.decode(base + ",\"navigatorWidgetScale\":70}").navigatorWidgetScale);
+        assertEquals(90, SettingsStore.decode(base + ",\"navigatorWidgetScale\":90}").navigatorWidgetScale);
+        assertEquals(150, SettingsStore.decode(base + ",\"navigatorWidgetScale\":40}").navigatorWidgetScale);
         assertEquals(100, SettingsStore.decode(base + ",\"navigatorWidgetScale\":100}").navigatorWidgetScale);
         assertEquals(200, SettingsStore.decode(base + ",\"navigatorWidgetScale\":200}").navigatorWidgetScale);
         assertEquals(150, SettingsStore.decode(base + ",\"navigatorWidgetScale\":210}").navigatorWidgetScale);

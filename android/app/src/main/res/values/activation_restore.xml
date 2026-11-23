@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="activation_paused">Open Voyah Controls is paused for safety. It restores itself after the next system restart.</string>
     <string name="activation_restore">Restore Open Voyah Controls</string>
     <string name="activation_restore_hint">Starts the car agents again after a safety stop, without the PC, while the installed files are still the approved ones.</string>
     <string name="activation_restore_title">Restore Open Voyah Controls?</string>

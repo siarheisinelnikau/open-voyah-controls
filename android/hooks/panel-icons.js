@@ -5,6 +5,15 @@ const GET_META_DATA = 0x80;
 const PANEL_ICONS = 'org.openvoyah.controls.panelIcons';
 
 /**
+ * The configuration's `iconMatrix`: the 4x5 colour matrix of the app grid's icon style (monochrome with a slight
+ * blue tint), or null for the icons as they are. Anything but 20 finite numbers leaves the icons as they are.
+ */
+export function iconMatrix(config) {
+    const values = config?.iconMatrix;
+    return Array.isArray(values) && values.length === 20 && values.every(Number.isFinite) ? values : null;
+}
+
+/**
  * Builds the selected activity's icon for an existing Qinggan button.
  *
  * The drawable holds only the icon and the pressed ripple. The launcher's QGRadioGroup already draws
@@ -29,6 +38,7 @@ export function createPanelIcon(Java) {
     const Global = Java.use('android.provider.Settings$Global');
     const Colors = Java.use('android.content.res.ColorStateList');
     const Gravity = Java.use('android.view.Gravity');
+    const MatrixFilter = Java.use('android.graphics.ColorMatrixColorFilter');
     const rippleColor = Colors.valueOf(0x26ffffff);
     let published = {version: null, icons: {}, bitmaps: {}};
 
@@ -97,6 +107,9 @@ export function createPanelIcon(Java) {
         const layer = Layer.$new(Java.array('android.graphics.drawable.Drawable', [icon]));
         layer.setLayerGravity(0, Gravity.CENTER.value);
         layer.setLayerSize(0, Math.max(1, Math.round(iconWidth)), Math.max(1, Math.round(iconHeight)));
+        // The app grid's icon style. It colours the icon only: the ripple keeps the launcher's white.
+        const matrix = iconMatrix(config);
+        if (matrix !== null) layer.setColorFilter(MatrixFilter.$new(Java.array('float', matrix)));
         // Without a mask the ripple only shows where the layers paint. A plate-free icon paints just its
         // shape, so its ripple fills the button's rounded bounds instead, where the launcher's slider sits.
         let mask = null;

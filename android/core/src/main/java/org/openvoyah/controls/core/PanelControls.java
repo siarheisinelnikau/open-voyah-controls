@@ -14,4 +14,10 @@ public interface PanelControls {
     boolean configured();
     void run(Operation operation, Consumer<Result> done);
     void publish(Consumer<String> error);
+
+    /** Whether the boot supervisor paused the activation (it re-arms itself after the next restart), as last checked. */
+    default boolean activationPaused() { return false; }
+
+    /** Checks the pause again off the main thread and reports the answer on the main thread; nothing without root. */
+    default void checkActivation(Consumer<Boolean> done) { }
 }

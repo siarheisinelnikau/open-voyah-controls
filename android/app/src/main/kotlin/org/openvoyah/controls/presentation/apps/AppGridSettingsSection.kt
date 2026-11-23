@@ -44,6 +44,7 @@ import org.openvoyah.controls.domain.apps.AppGridColumns
 import org.openvoyah.controls.domain.apps.AppGridConfiguration
 import org.openvoyah.controls.domain.apps.AppGridDesktop
 import org.openvoyah.controls.domain.apps.AppGridDesktopNames
+import org.openvoyah.controls.data.frida.FridaBridge
 import org.openvoyah.controls.domain.apps.AppGridIconStyle
 import org.openvoyah.controls.domain.apps.AppGridManualOrderFull
 import org.openvoyah.controls.domain.apps.AppGridOrderApp
@@ -69,6 +70,8 @@ import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 internal class AppGridSettingsViewModel(
     private val preferences: AppGridPreferences,
     private val catalog: AppsCatalog,
+    /** Sends the panel configuration to the launcher agent, which draws its icons in the same style. */
+    private val publishPanel: () -> Unit = {},
 ) : ViewModel() {
     data class State(
         val settings: Result<AppGridConfiguration>? = null,
@@ -106,7 +109,10 @@ internal class AppGridSettingsViewModel(
 
     fun resetHiddenApps() = save { preferences.resetHiddenApps() }
 
-    fun setIconStyle(style: AppGridIconStyle) = save { preferences.setIconStyle(style) }
+    fun setIconStyle(style: AppGridIconStyle) = save {
+        preferences.setIconStyle(style)
+        publishPanel()
+    }
 
     fun setShowAppLabels(show: Boolean) = save { preferences.setShowAppLabels(show) }
 
@@ -162,7 +168,11 @@ internal fun AppGridSettingsSection(part: AppGridPart) {
     val model = remember(activity) {
         val app = activity.applicationContext
         ViewModelProvider(activity, viewModelFactory {
-            initializer { AppGridSettingsViewModel(AppGridPreferences(app), AppsCatalog(app, InstalledAppPermissions(app))) }
+            initializer {
+                AppGridSettingsViewModel(AppGridPreferences(app), AppsCatalog(app, InstalledAppPermissions(app))) {
+                    FridaBridge(app).publishAsync { }
+                }
+            }
         })[AppGridSettingsViewModel::class.java]
     }
     val owner = LocalLifecycleOwner.current

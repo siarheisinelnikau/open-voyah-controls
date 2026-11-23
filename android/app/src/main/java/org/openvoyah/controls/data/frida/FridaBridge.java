@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.openvoyah.controls.BuildConfig;
@@ -22,6 +23,7 @@ import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
 import org.openvoyah.controls.core.Action;
 import org.openvoyah.controls.core.display.DisplayEventBus.Media;
+import org.openvoyah.controls.data.apps.AppGridPreferences;
 import org.openvoyah.controls.data.display.AppWindowPreferences;
 import org.openvoyah.controls.data.frida.WindowDiagnostics.Operation;
 import org.openvoyah.controls.data.frida.WindowDiagnostics.Outcome;
@@ -41,6 +43,12 @@ import org.openvoyah.controls.platform.boot.RecoveryJobs;
 /** Coordinates injected agents, their configuration and recovery. */
 public final class FridaBridge {
     private static final String KEY = "org.openvoyah.controls.panel";
+    /**
+     * Starts a worker in a session of its own (nohup where setsid is missing). A worker started through the root channel
+     * otherwise belongs to that telnet session, and a restart of the channel ends its injector while the target keeps
+     * the changed visuals, which revokes the activation.
+     */
+    static final String DETACHED = "$(command -v setsid >/dev/null 2>&1 && echo setsid || echo nohup) ";
     private static final String WINDOW_PROFILES = "org.openvoyah.controls.windowProfiles";
     private static final String HOME_WEATHER = "org.openvoyah.controls.homeWeather";
     /** 0x4f56, the widget host id of the launcher agent's home card. */
@@ -133,7 +141,15 @@ public final class FridaBridge {
         try {
             String steering = canSteering();
             String source = steering == null ? "qg" : steering.equals(ReviewedFirmware.CAN_STEERING_EDGES) ? "can-edges" : "can-terminal";
-            return new JSONObject(config(state)).put("steeringSource", source).put("customIcons", icons).toString();
+            JSONObject config = new JSONObject(config(state)).put("steeringSource", source).put("customIcons", icons);
+            // The app grid's icon style: the agent draws the panel's icons through the same colour matrix.
+            float[] matrix = new AppGridPreferences(context).iconStyle().getColorMatrix();
+            if (matrix != null) {
+                JSONArray values = new JSONArray();
+                for (float value : matrix) values.put((double) value);
+                config.put("iconMatrix", values);
+            }
+            return config.toString();
         } catch (JSONException ex) { throw new IllegalArgumentException(ex); }
     }
     public static String config(SettingsStore.State state) {
@@ -337,6 +353,11 @@ public final class FridaBridge {
         if (result.getOutcome() != ActivationRecovery.Outcome.NONE) {
             ControlsLog.info("activation_recovery", "mode", mode.getToken(), "outcome", result.getOutcome().getToken(),
                 "reason", result.getReason(), "channels", String.join(",", result.getChannels()));
+        }
+        switch (result.getOutcome()) {
+            case RECOVERED, NONE -> recordActivationPaused(false);
+            case REBOOT, WAITING -> recordActivationPaused(true);
+            default -> { }
         }
         return result;
     }
@@ -632,7 +653,7 @@ public final class FridaBridge {
                                 sealDeployment(active);
                             }
                             enableChannel(channel);
-                            command(activationGuard() + fixtureEnvironment() + "nohup /system/bin/sh " + base + "/supervise.sh "
+                            command(activationGuard() + fixtureEnvironment() + DETACHED + "/system/bin/sh " + base + "/supervise.sh "
                                 + channel + " >/dev/null 2>&1 </dev/null &");
                         }
                     } else {
@@ -1055,6 +1076,30 @@ public final class FridaBridge {
             return command(script+"true");
         }
     }
+    /** Whether the last check found the activation paused by the supervisor; see {@link #checkActivationPaused()}. */
+    public static boolean activationPaused(Context context) {
+        return context.getSharedPreferences("bridge", Context.MODE_PRIVATE).getBoolean("activation_paused", false);
+    }
+
+    private void recordActivationPaused(boolean paused) {
+        context.getSharedPreferences("bridge", Context.MODE_PRIVATE).edit().putBoolean("activation_paused", paused).apply();
+    }
+
+    /**
+     * Whether the supervisor revoked the activation in this boot (recovery markers present). Its boot job re-arms it after
+     * the next restart, so the owner is told to restart rather than to call for the PC.
+     */
+    public boolean checkActivationPaused() throws IOException {
+        synchronized (IO_LOCK) {
+            requireRoot();
+            String reply = command("if [ -e " + base + "/recovery.blocked ] || [ -e " + base + "/recovery.visual-pending ]; "
+                + "then echo OVC_ACTIVATION=paused; else echo OVC_ACTIVATION=active; fi");
+            boolean paused = reply.contains("OVC_ACTIVATION=paused");
+            recordActivationPaused(paused);
+            return paused;
+        }
+    }
+
     public static String lastHealth(Context context) {
         return FridaFailureText.recordedStatus(context.getSharedPreferences("bridge", Context.MODE_PRIVATE)
             .getString("health", UiText.get(R.string.ui_18)));

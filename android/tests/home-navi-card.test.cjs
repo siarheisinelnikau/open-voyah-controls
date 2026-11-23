@@ -230,20 +230,26 @@ function adapterHarness(options = {}) {
             ? {getComponent: () => ({flattenToString: () => NAVI + '/.core.NavigatorActivity'})} : null,
         getApplicationIcon: {overload: () => ({call: () => 'app-icon'})},
         getApplicationInfo: {overload: () => ({call: () => 'info'})},
-        getApplicationLabel: () => 'Yandex Navigator'
+        getApplicationLabel: () => 'Yandex Navigator',
+        getResourcesForApplication: {overload: type => ({call(manager, name) {
+            assert.equal(type, 'java.lang.String');
+            return {getIdentifier: (entry, kind, pkg) => entry === 'traffic_widget_map_view' && kind === 'id' && pkg === NAVI
+                && !options.noMapView ? 0x7f0b0042 : 0};
+        }})}
     };
     const appContext = {
         getPackageManager: () => packages, getPackageName: () => 'com.qinggan.app.launcher',
         getResources: () => ({getIdentifier: () => 0, getDimension: () => 0, getDisplayMetrics: () => ({density: {value: 1}}),
             getConfiguration: () => 'config'}),
-        createConfigurationContext(config) { assert.equal(config, 'config'); return plainContext; }
+        createConfigurationContext(config) { assert.equal(config, 'config'); return plainContext; },
+        sendBroadcast(intent) { widget.broadcasts.push(intent); }
     };
     // A context without the activity's view factories, for the widget's RemoteViews.
     const plainContext = {plain: true};
     const card = view('card', {isCard: true, isShown: () => true, getWidth: () => 576, getHeight: () => 652,
         onResume() { events.push(['card_resume']); }});
     const widget = {providers: options.widgets ?? [], bound: new Map(options.bound ?? []), next: 7, created: 0, refuse: options.refuseBind === true,
-        listening: false, deleted: [], hostDeleted: 0, sizes: [], contexts: []};
+        listening: false, deleted: [], hostDeleted: 0, sizes: [], contexts: [], broadcasts: [], maps: []};
     const widgetHost = {
         getAppWidgetIds: () => [...widget.bound.keys()],
         allocateAppWidgetId: () => widget.next++,
@@ -253,7 +259,11 @@ function adapterHarness(options = {}) {
         createView(context, id, info) {
             widget.contexts.push(context);
             widget.created++;
+            // The navigator's map image, centred and unscaled as its layout declares it.
+            const map = view('image', {isImage: true, scaleType: 'center', setScaleType(value) { this.scaleType = value; }});
+            widget.maps.push(map);
             return view('widget', {id, info, updateAppWidgetSize(options, ...size) { widget.sizes.push(size); },
+                findViewById: found => found === 0x7f0b0042 ? map : null,
                 setLayoutParams(params) { this.params = params; }, setPivotX(x) { this.pivot = [x, this.pivot?.[1]]; },
                 setPivotY(y) { this.pivot = [this.pivot?.[0], y]; }, setScaleX(x) { this.scale = [x, this.scale?.[1]]; },
                 setScaleY(y) { this.scale = [this.scale?.[0], y]; }});
@@ -279,8 +289,8 @@ function adapterHarness(options = {}) {
         'android.widget.FrameLayout$LayoutParams': {$new: (w, h) => ({w, h})},
         'android.widget.LinearLayout': {$new: () => view('column')},
         'android.widget.LinearLayout$LayoutParams': {$new: (w, h) => ({w, h, bottomMargin: {value: 0}})},
-        'android.widget.ImageView': {$new: () => view('image')},
-        'android.widget.ImageView$ScaleType': {FIT_CENTER: {value: 'fit'}},
+        'android.widget.ImageView': {$new: () => view('image'), class: {isInstance: value => value?.isImage === true}},
+        'android.widget.ImageView$ScaleType': {FIT_CENTER: {value: 'fit'}, CENTER_CROP: {value: 'crop'}},
         'android.widget.TextView': {$new: () => view('text')},
         'android.text.TextUtils$TruncateAt': {END: {value: 'end'}},
         'android.graphics.Typeface': {DEFAULT_BOLD: {value: 'bold'}},
@@ -297,6 +307,12 @@ function adapterHarness(options = {}) {
             }
         })},
         'android.app.INotificationManager': {},
+        'android.appwidget.AppWidgetHostView': {updateAppWidget: {overload: () => hook('updateAppWidget')}},
+        'android.content.Intent': {$new: {overload: type => ({call(cls, action) {
+            assert.equal(type, 'java.lang.String');
+            return {action, setComponent(component) { this.component = component; },
+                putExtra: {overload: (...types) => ({call(intent, key, value) { intent.extras = {...intent.extras, [key]: [types, value]}; }})}};
+        }})}},
         'android.appwidget.AppWidgetHost': {$new(app, id) { widget.hostId = id; return widgetHost; }},
         'android.appwidget.AppWidgetProviderInfo': {},
         'android.os.Bundle': {$new: () => ({})},
@@ -319,7 +335,7 @@ function adapterHarness(options = {}) {
             assert.ok(classes[name], name);
             return classes[name];
         },
-        cast: value => value, retain: value => value, perform: fn => fn(), scheduleOnMainThread: fn => fn(),
+        cast: value => value, retain: value => value, array: (type, values) => ({type, values}), perform: fn => fn(), scheduleOnMainThread: fn => fn(),
         choose(name, callbacks) { callbacks.onMatch(card); callbacks.onComplete(); }
     };
     const {api, logs} = load({setInterval: (fn, ms) => { timers.push({fn, ms}); return timers.length; }});
@@ -425,7 +441,7 @@ test('restoreAll is the detach handshake and dispose unhooks everything', () => 
     assert.equal(h.result.restoreAll(), true);
     assert.equal(h.overlay(), null);
     h.result.dispose();
-    for (const name of ['touch', 'onResume', 'onAttachedToWindow', 'doScreenLift']) assert.equal(h.hooks[name].implementation, null);
+    for (const name of ['touch', 'updateAppWidget', 'onResume', 'onAttachedToWindow', 'doScreenLift']) assert.equal(h.hooks[name].implementation, null);
 });
 
 test('a launcher without the factory card reports it and installs nothing', () => {
@@ -492,13 +508,13 @@ test('the detach handshake keeps the widget bound; only turning the setting off 
 });
 
 test('the widget scale follows the setting live, larger meaning larger content, without rebinding', () => {
-    // 75 %: laid out a third larger, then scaled down, so more map fits and the content is smaller.
-    const h = adapterHarness({widgets: TRAFFIC, config: {schema: 1, homeCard: {package: NAVI, scale: 75}}});
+    // 90 %: laid out a ninth larger, then scaled down, so more map fits and the content is smaller.
+    const h = adapterHarness({widgets: TRAFFIC, config: {schema: 1, homeCard: {package: NAVI, scale: 90}}});
     const hosted = h.overlay().children[1];
-    assert.deepEqual(hosted.params, {w: 768, h: 869});
-    assert.deepEqual(hosted.scale, [0.75, 0.75]);
+    assert.deepEqual(hosted.params, {w: 640, h: 724});
+    assert.deepEqual(hosted.scale, [0.9, 0.9]);
     assert.deepEqual(hosted.pivot, [0, 0]);
-    assert.deepEqual(h.widget.sizes.at(-1), [768, 869, 768, 869]);
+    assert.deepEqual(h.widget.sizes.at(-1), [640, 724, 640, 724]);
     // 150 %: laid out smaller, then scaled up, so the content is larger.
     h.config.value = {schema: 1, homeCard: {package: NAVI, scale: 150}};
     h.timers.find(timer => timer.ms === 1000).fn();
@@ -509,10 +525,58 @@ test('the widget scale follows the setting live, larger meaning larger content, 
     assert.deepEqual(h.widget.sizes.at(-1), [384, 435, 384, 435]);
 });
 
-test('the widget scale is 100 % unless the configuration names 50 to 200', () => {
+test('every size sent to the navigator comes with an update, so it draws for that size', () => {
+    // An older 70 % is drawn at 90 %: laid out at the card / 0.9 and scaled down to cover exactly the 576 x 652 card.
+    const h = adapterHarness({widgets: TRAFFIC, config: {schema: 1, homeCard: {package: NAVI, scale: 70}}});
+    const hosted = h.overlay().children[1];
+    assert.deepEqual(hosted.params, {w: 640, h: 724});
+    assert.deepEqual(hosted.scale, [0.9, 0.9]);
+    assert.equal(Math.round(640 * 0.9), 576);
+    assert.equal(Math.round(724 * 0.9), 652);
+    assert.deepEqual(h.widget.sizes, [[640, 724, 640, 724]]);
+    // The agent runs in its own realm; compare plain JSON.
+    const sent = () => JSON.parse(JSON.stringify(h.widget.broadcasts.map(intent => [intent.action, intent.component.name, intent.extras.appWidgetIds])));
+    const update = ['android.appwidget.action.APPWIDGET_UPDATE', '2x2', [['java.lang.String', '[I'], {type: 'int', values: [hosted.id]}]];
+    assert.deepEqual(sent(), [update]);
+    h.config.value = {schema: 1, homeCard: {package: NAVI, scale: 150}};
+    h.timers.find(timer => timer.ms === 1000).fn();
+    assert.deepEqual(h.widget.sizes.at(-1), [384, 435, 384, 435]);
+    assert.deepEqual(sent(), [update, update]);
+});
+
+test('the map image covers the card while the navigator redraws, and after each of its updates', () => {
+    const h = adapterHarness({widgets: TRAFFIC});
+    const hosted = h.overlay().children[1];
+    const [map] = h.widget.maps;
+    assert.equal(map.scaleType, 'crop');
+    // An update from the navigator that inflates its layout anew centres the image again.
+    map.scaleType = 'center';
+    assert.equal(h.hooks.updateAppWidget.implementation.call(hosted, 'remote'), undefined);
+    assert.deepEqual(h.events.at(-1), ['original', 'updateAppWidget']);
+    assert.equal(map.scaleType, 'crop');
+    // Another host view (none in the factory launcher) is left alone.
+    const other = {equals: () => false};
+    map.scaleType = 'center';
+    h.hooks.updateAppWidget.implementation.call(other, 'remote');
+    assert.equal(map.scaleType, 'center');
+    assert.deepEqual(h.logs, ['OVC_HOME_CARD_READY']);
+});
+
+test('a navigator widget without a map image is laid out and updated all the same', () => {
+    const h = adapterHarness({widgets: TRAFFIC, noMapView: true});
+    assert.equal(h.widget.maps[0].scaleType, 'center');
+    assert.equal(h.widget.broadcasts.length, 1);
+    h.hooks.updateAppWidget.implementation.call(h.overlay().children[1], 'remote');
+    assert.deepEqual(h.logs, ['OVC_HOME_CARD_READY']);
+});
+
+test('the widget scale is 100 % unless the configuration names 50 to 200, and never under 90 %', () => {
     const {widgetScale} = load().api;
     const card = scale => ({schema: 1, homeCard: {package: NAVI, scale}});
-    assert.equal(widgetScale(card(50)), 50);
+    // Below 90 % Android refuses the navigator's picture for its size.
+    assert.equal(widgetScale(card(50)), 90);
+    assert.equal(widgetScale(card(80)), 90);
+    assert.equal(widgetScale(card(90)), 90);
     assert.equal(widgetScale(card(200)), 200);
     for (const scale of [undefined, 49, 201, 90.5, '120', null]) assert.equal(widgetScale(card(scale)), 100, String(scale));
     assert.equal(widgetScale({schema: 1, homeCard: {package: NAVI, scale: 120}, restoreIcons: 'x'}), 100);

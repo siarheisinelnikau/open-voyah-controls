@@ -101,7 +101,7 @@ After the supervisor revokes activation (`recovery.blocked`, `recovery.visual-pe
 | Mode | Who asks | Re-arms when |
 | --- | --- | --- |
 | `auto` | Controls' boot job after every boot (`bridge_reconnect`, `path=recover`) | The markers are from an earlier boot (the reboot restored the original visuals), `recovery.reason` was written by the supervisor for that revocation, no visual session or injector of this project is live, and the deployment verifies. |
-| `manual` | The owner: Settings → System → About and restart → **Restore Open Voyah Controls**, behind a confirmation | The same, but also for a revocation of the current boot or one without a recorded reason, once no visual session is `current` or `uncertain` (the affected targets restarted since). Otherwise Controls asks for a system restart and re-arms by itself after the boot. |
+| `manual` | The owner: Settings → System → About and restart → **Restore Open Voyah Controls**, behind a confirmation | The same, but also for a revocation of the current boot or one without a recorded reason, once no visual session is `uncertain` and no injector of this project is live. A `current` session of a target that kept running is adopted by the next attachment; an `uncertain` one needs a restart. Otherwise Controls asks for a system restart and re-arms by itself after the boot. |
 
 "Verifies" is `check_runtime`, the same check a boot runs: the receipt's device row, the signer pin of Controls, the APK pins of every hooked OEM package, the Frida runtime hash, both scripts, every agent, the app's uid and root-channel key against the sealed lifetime, user 0, and no legacy deployment. On success it retires changed visual sessions, resets the retry and restart budgets, enables the channels listed in `recovery.reason` (without a list, every channel whose agent the receipt seals) and removes the markers; Controls then starts the workers as after a normal boot. The journal shows `activation_recovery mode=<auto|manual> outcome=recovered reason=<cause> channels=<…>`, and the main `worker.log` `Activation re-armed without the PC`.
 
@@ -117,6 +117,8 @@ What still needs the PC (**Install** in the Windows installer, which runs `rollb
 - a revocation written by a supervisor older than this one (no `recovery.reason`): the boot job leaves it (`pc:unrecorded`), Restore in Controls lifts it once the deployment verifies.
 
 A PC `rollback` also disables the root channel, so Controls cannot undo it.
+
+While a revocation of the current boot waits for the next restart, Controls says so in red in Settings → System → About and restart (with **Restart the system** beside it) and above the connection status in Settings → System → Connection and Settings → Buttons → Factory panel: Open Voyah Controls is paused for safety and restores itself after the next system restart. The check reads the recovery markers through the root channel when those pages open and after **Restore**.
 
 ## Validate rollback before driving
 

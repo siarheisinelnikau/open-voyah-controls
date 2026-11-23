@@ -291,8 +291,10 @@ function harness(config, options = {}) {
         'android.graphics.drawable.LayerDrawable': {$new(layers) { return {
             layers, icon: layers[0],
             setLayerGravity(index, gravity) { this.gravity = [index, gravity]; },
-            setLayerSize(index, width, height) { this.sizedLayer = index; this.size = [width,height]; }
+            setLayerSize(index, width, height) { this.sizedLayer = index; this.size = [width,height]; },
+            setColorFilter(filter) { this.filter = filter; }
         }; }},
+        'android.graphics.ColorMatrixColorFilter': {$new(matrix) { return {matrix}; }},
         'android.graphics.drawable.RippleDrawable': {$new(color, layer, mask) { return object({color, layer, mask}); }},
         'android.graphics.drawable.GradientDrawable': {$new() { return {setColor(color) { this.color = color; }, setCornerRadius(radius) { this.radius = radius; }}; }},
         'android.content.res.ColorStateList': {valueOf:color => color},
@@ -768,6 +770,40 @@ test('a missing, damaged or unreadable published icon document leaves the other 
         const {background} = h.bar(0).views.screen_up_icon_2;
         assert.equal(background.layer.icon.component, player.component);
         assert.equal(background.mask, null);
+    }
+});
+
+test('the app grid icon style colours the panel icons, follows changes live and leaves the ripple', () => {
+    const matrix = Array.from({length: 20}, (_, index) => index / 10);
+    const player = {kind:'LAUNCH_APP', component:'com.example.player/.Main'};
+    const actions = {navbar02:player, mainApps:{kind:'CONTROLS_APPS'}};
+    const h = harness({schema:1, enabled:true, actions, iconMatrix:matrix}, {glyphs:{'org.openvoyah.controls':0x7f080042}});
+    const bar = h.bar(0);
+    for (const name of ['screen_up_icon_2', 'screen_up_all_app_icon']) {
+        const {background} = bar.views[name];
+        assert.deepEqual([...background.layer.filter.matrix], matrix);
+        assert.equal(background.color, 0x26ffffff);
+    }
+    h.setConfig({schema:1, enabled:true, actions});
+    h.tick();
+    assert.equal(bar.views.screen_up_icon_2.background.layer.filter, undefined);
+    assert.equal(bar.views.screen_up_icon_2.background.layer.icon.component, player.component);
+    h.setConfig({schema:1, enabled:true, actions, iconMatrix:matrix});
+    h.tick();
+    assert.deepEqual([...bar.views.screen_up_icon_2.background.layer.filter.matrix], matrix);
+    const token = 'e'.repeat(32);
+    h.setConfig({schema:1, enabled:false, restoreIcons:token});
+    h.tick();
+    for (const view of Object.values(bar.views)) assert.equal(view.background, view.stock);
+});
+
+test('an icon matrix that is not 20 finite numbers leaves the panel icons as they are', () => {
+    const player = {kind:'LAUNCH_APP', component:'com.example.player/.Main'};
+    for (const iconMatrix of [null, 'monochrome', Array(19).fill(1), [...Array(19).fill(1), null], [...Array(19).fill(1), Infinity]]) {
+        const h = harness({schema:1, enabled:true, actions:{navbar02:player}, iconMatrix});
+        const {background} = h.bar(0).views.screen_up_icon_2;
+        assert.equal(background.layer.icon.component, player.component);
+        assert.equal(background.layer.filter, undefined);
     }
 });
 

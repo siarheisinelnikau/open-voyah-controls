@@ -537,12 +537,30 @@ clear_visual_session() {
     [ "$visual_clear_stamp" = "$(file_identity "$visual_clear_path")" ] && [ "$(digest "$visual_clear_path")" = "$2" ] &&
         rm -f "$visual_clear_path" && sync
 }
+# The visual session of this boot, process and start time, as visual_session_state read it (current only).
+visual_session_of() {
+    [ "$visual_boot:$visual_pid:$visual_since" = "$(cat /proc/sys/kernel/random/boot_id 2>/dev/null):$1:$2" ]
+}
+# $1 $2 (optional) the target about to be attached. A session that is current for exactly that process was left by an
+# injector of this deployment that ended while the target kept running (the root channel restarted, the injector
+# crashed or was killed). Frida unloads a script that is not eternalized when its injector ends, so the hooks are gone,
+# and a new agent of the same deployment takes the views of its predecessor back (orphan sweeps); attaching again
+# adopts the session instead of revoking. "defer" leaves a current session to the check before the next attachment.
 guard_visual_session() {
     case "$channel" in ''|window) ;; *) return 0;; esac
     visual_guard_state=$(visual_session_descriptor)
     case "$visual_guard_state" in
         absent) return 0;;
         changed:*) clear_visual_session changed "${visual_guard_state#*:}" && return 0;;
+        current:*)
+            if [ "${1:-}" = defer ]; then return 0; fi
+            visual_boot=; visual_pid=; visual_since=
+            # Run in this shell (not a substitution) so the recorded boot, process and start time stay readable.
+            [ "$#" = 2 ] && visual_session_state >/dev/null
+            if [ "$#" = 2 ] && visual_session_of "$1" "$2" && [ "$(visual_session_state)" = current ]; then
+                log 'OVC_WORKER_NOTICE The agent ended while its target kept running; attaching again to the same process.'
+                return 0
+            fi;;
     esac
     log 'OVC_WORKER_ERROR Original visual state is uncertain for the current target. Recovery is required.'
     revoke_activation visual || log 'OVC_WORKER_ERROR Durable visual recovery requires PC assistance.'
@@ -759,7 +777,8 @@ recover_activation() {
     for rc_dir in "$root" "$root/window"; do
         [ -d "$rc_dir" ] || continue
         dir=$rc_dir
-        case "$(visual_session_state)" in absent|changed) ;; *) rc_visuals=pending;; esac
+        # A current session with no injector of this project left (checked below) is adopted by the next attachment.
+        case "$(visual_session_state)" in absent|changed|current) ;; *) rc_visuals=pending;; esac
     done
     dir=$root
     for rc_proc in $(cmdline_matches -e "$injector"); do
@@ -889,7 +908,7 @@ if ! ln "$claim" "$lock" 2>/dev/null; then
             stop_child "$orphan" "$orphan_start" || exit 1
             exit 1
         fi
-        if ! guard_visual_session; then
+        if ! guard_visual_session defer; then
             if [ "$recovery_recorded" = 1 ]; then stop_child "$orphan" "$orphan_start" || exit 1; fi
             exit 1
         fi
@@ -994,8 +1013,13 @@ while may_start; do
         attempts=$((attempts+1)); save_attempts
         continue
     fi
-    guard_visual_session || break
-    record_visual_session "$target_pid" "$target_start" || { log 'OVC_WORKER_ERROR Visual session could not be recorded before attachment.'; break; }
+    guard_visual_session "$target_pid" "$target_start" || break
+    if [ -e "$dir/visual.session" ] || [ -L "$dir/visual.session" ]; then
+        # Adopted above: the session already names this target.
+        :
+    else
+        record_visual_session "$target_pid" "$target_start" || { log 'OVC_WORKER_ERROR Visual session could not be recorded before attachment.'; break; }
+    fi
     printf '%s\n' "$target_pid" > "$dir/target.pid"
     printf '%s\n' "$system_pid" > "$dir/system.pid"
     rm -f "$dir/ready"
@@ -1080,7 +1104,9 @@ while may_start; do
         target_changed=1
     fi
     outcome=$(attach_outcome "$target_changed" "$system_same" "$healthy" "$elapsed" "$locale")
-    case "$channel" in ''|window) if enabled; then guard_visual_session || true; fi;; esac
+    # Retire the session of a target that restarted. When the injector ended while its target kept running, keep the
+    # session: the next attachment adopts it (see guard_visual_session) instead of revoking the activation.
+    case "$channel" in ''|window) if enabled && [ "$target_changed" = 1 ]; then guard_visual_session || true; fi;; esac
     rm -f "$dir/target.pid" "$dir/system.pid" "$dir/ready"
     if [ "$recovery_required" = 1 ] && [ "$recovery_recorded" != 1 ]; then break; fi
     if ! stop_child "$child" "$child_start"; then log 'OVC_WORKER_ERROR Injector did not stop.'; break; fi

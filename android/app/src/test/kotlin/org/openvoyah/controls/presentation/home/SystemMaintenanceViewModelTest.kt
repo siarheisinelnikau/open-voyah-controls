@@ -20,6 +20,7 @@ class SystemMaintenanceViewModelTest {
         var media: () -> SystemRestartScripts.MediaRestart,
         var reboot: () -> Unit = {},
         var restore: () -> ActivationRecovery.Result = { ActivationRecovery.Result(ActivationRecovery.Outcome.NONE, "active") },
+        var paused: () -> Boolean = { false },
     ) : SystemRestarts {
         var mediaCalls = 0
         var rebootCalls = 0
@@ -27,6 +28,28 @@ class SystemMaintenanceViewModelTest {
         override fun restartMultimedia(): SystemRestartScripts.MediaRestart { mediaCalls++; return media() }
         override fun rebootSystem() { rebootCalls++; reboot() }
         override fun restoreActivation(): ActivationRecovery.Result { restoreCalls++; return restore() }
+        override fun activationPaused(): Boolean = paused()
+    }
+
+    @Test fun aPausedActivationIsShownUntilARestoreBringsItBack() {
+        val recovered = ActivationRecovery.Result(ActivationRecovery.Outcome.RECOVERED, "visual", listOf("main"))
+        val fake = Fake({ restarted }, restore = { recovered }, paused = { true })
+        val model = model(fake)
+        assertEquals(true, model.state.value.paused)
+
+        model.restoreActivation()
+
+        assertEquals(false, model.state.value.paused)
+    }
+
+    @Test fun aRestoreThatNeedsARestartKeepsThePauseAndAFailedCheckChangesNothing() {
+        val reboot = ActivationRecovery.Result(ActivationRecovery.Outcome.REBOOT, "visual")
+        val model = model(Fake({ restarted }, restore = { reboot }, paused = { throw IOException("No root channel") }))
+        assertEquals(false, model.state.value.paused)
+
+        model.restoreActivation()
+
+        assertEquals(true, model.state.value.paused)
     }
 
     @Test fun restoreReportsTheSupervisorOutcome() {

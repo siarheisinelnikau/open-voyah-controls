@@ -65,6 +65,7 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
 internal fun HomePanel(state: HomeControlsState, actions: HomeActions) {
     CockpitSection(UiText.get(R.string.ui_67), CockpitIcon.BUTTONS, UiText.get(R.string.ui_68)) {
         if (unavailable(state)) return@CockpitSection
+        ActivationPaused(state.activationPaused)
         CockpitFeedback(state.health)
         CockpitSwitch(UiText.get(R.string.ui_69), state.panelEnabled, change = actions::panelEnabled)
         state.panels.forEach { row -> key(row.slot) {
@@ -128,6 +129,7 @@ internal fun HomeHardwareButtons(state: HomeControlsState, actions: HomeActions)
 internal fun HomeConnection(state: HomeControlsState, actions: HomeActions) {
     CockpitSection(UiText.get(R.string.settings_part_connection), CockpitIcon.CAR) {
         if (unavailable(state)) return@CockpitSection
+        ActivationPaused(state.activationPaused)
         CockpitFeedback(state.health)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             CockpitAction(UiText.get(R.string.ui_73), { actions.command(HomeCommand.CONNECT) }, primary = true)
@@ -153,7 +155,7 @@ internal fun HomeBackup(actions: HomeActions) {
     }
 }
 
-private val NAVIGATOR_WIDGET_SCALE = (70..200 step 10).toList()
+private val NAVIGATOR_WIDGET_SCALE = (SettingsStore.NAVIGATOR_WIDGET_SCALE_MIN..200 step 10).toList()
 
 /**
  * Percent, steps of 10; more is larger content. Saved when the slider is let go, so the card is not redrawn on
@@ -175,4 +177,10 @@ private fun NavigatorWidgetScale(percent: Int, change: (Int) -> Unit) {
             valueRange = 0f..NAVIGATOR_WIDGET_SCALE.lastIndex.toFloat(), steps = NAVIGATOR_WIDGET_SCALE.lastIndex - 1,
             onValueChangeFinished = { change(NAVIGATOR_WIDGET_SCALE[step]) })
     }
+}
+
+/** The supervisor paused the activation in this boot; it comes back by itself after the next system restart. */
+@Composable
+internal fun ActivationPaused(paused: Boolean) {
+    if (paused) CockpitFeedback(UiText.get(R.string.activation_paused), error = true)
 }

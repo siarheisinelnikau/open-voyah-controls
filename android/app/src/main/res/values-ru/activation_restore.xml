@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="activation_paused">Open Voyah Controls приостановлен для безопасности. Он восстановится сам после следующей перезагрузки системы.</string>
     <string name="activation_restore">Восстановить Open Voyah Controls</string>
     <string name="activation_restore_hint">Снова запускает агентов в машине после защитной остановки, без ПК, если установленные файлы по-прежнему одобренные.</string>
     <string name="activation_restore_title">Восстановить Open Voyah Controls?</string>

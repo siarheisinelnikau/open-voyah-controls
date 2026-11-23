@@ -39,6 +39,8 @@ internal data class HomeControlsState(
     val navigatorWidgetScale: Int = SettingsStore.NAVIGATOR_WIDGET_SCALE,
     val weatherCard: Boolean = false, val weatherCity: String = "",
     val connected: Boolean = false,
+    /** The supervisor paused the activation; it re-arms itself after the next system restart. */
+    val activationPaused: Boolean = false,
     val holdMs: Int = 650, val debounceMs: Int = 100, val steeringSupported: Boolean = false,
     val panels: List<PanelRow> = emptyList(), val bindings: List<BindingRow> = emptyList(),
     val steering: List<SteeringRow> = emptyList(), val busy: Boolean = false, val notices: List<HomeNotice> = emptyList(),
@@ -59,7 +61,16 @@ internal class HomeControlsViewModel(
     private var closed = false
     private var feedbackOwner = 0L
 
-    init { refresh() }
+    init {
+        refresh()
+        checkActivation()
+    }
+
+    /** Asks the root channel whether the activation is paused; the answer also stays for the next refresh. */
+    fun checkActivation() {
+        if (closed) return
+        panel.checkActivation { paused -> if (!closed) current.value = current.value.copy(activationPaused = paused) }
+    }
     fun attach(): Long = ++feedbackOwner
     fun detach(owner: Long) {
         if (feedbackOwner != owner) return
@@ -73,6 +84,7 @@ internal class HomeControlsViewModel(
         catch (failure: RuntimeException) {
             settings = null
             current.value = HomeControlsState(error = failure.message, connected = connected(), health = panel.health(),
+                activationPaused = panel.activationPaused(),
                 busy = current.value.busy, notices = current.value.notices)
         }
     }
@@ -217,6 +229,7 @@ internal class HomeControlsViewModel(
                 homeActionLabel(settings.steeringActions[slot] ?: Action.NONE))
         }
         current.value = current.value.copy(available = true, error = null, health = panel.health(),
+            activationPaused = panel.activationPaused(),
             buttonsEnabled = settings.enabled, panelEnabled = settings.panelEnabled,
             navigatorHomeCard = settings.navigatorHomeCard, navigatorWidgetScale = settings.navigatorWidgetScale,
             weatherCard = settings.weatherCard,

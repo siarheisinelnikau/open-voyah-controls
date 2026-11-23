@@ -288,6 +288,26 @@ printf 'revoked before owned cleanup\\n'
             self.assertFalse((self.base / "recovery.blocked").exists())
             self.assertFalse((self.root / "started").exists())
 
+    def test_a_session_of_the_same_running_target_is_adopted_not_revoked(self):
+        session = self.base / "visual.session"
+        session.write_text(f"{BOOT_ID}:4242:777:{'ab' * 16}\n", newline="\n")
+        session.chmod(0o600)
+        result = self.run_functions('''
+channel=; dir=$root
+start_of() { [ "$1" = 4242 ] && echo 777; }
+child_gone() { [ "$(start_of "$1")" != "$2" ]; }
+revoke_activation() { printf 'revoked %s\\n' "$1"; return 0; }
+guard_visual_session 4242 777; echo "same=$?"
+guard_visual_session defer; echo "defer=$?"
+guard_visual_session 4242 999; echo "other=$?"
+guard_visual_session; echo "unknown=$?"
+''')
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual(["same=0", "defer=0", "revoked visual", "other=1", "revoked visual", "unknown=1"],
+                         result.stdout.splitlines())
+        self.assertTrue(session.exists(), "the adopted session is kept")
+        self.assertIn("attaching again to the same process", (self.base / "worker.log").read_text())
+
     def test_legacy_receipt_requires_explicit_reseal(self):
         rows = self.record.read_text().splitlines()
         self.record.write_text("\n".join(row for row in rows if not row.startswith("lifetime\t")) + "\n", newline="\n")
