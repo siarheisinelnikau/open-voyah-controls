@@ -72,6 +72,7 @@ internal data class FactoryAssistanceState(
     val note: String = "",
     val copyStatus: Int? = null,
     val parts: Map<String, Boolean> = emptyMap(),
+    val request: String? = null,
     val status: ApolloAssistanceStatus = ApolloAssistanceStatus.Unreported,
     val applying: Boolean = false,
     val applyError: String? = null,
@@ -85,6 +86,7 @@ internal class FactoryAssistanceViewModel(
     private val export: suspend (String, FactoryAssistanceEvidence, String) -> Unit,
     private val copy: (String) -> Boolean,
     private val parts: () -> Map<String, Boolean>,
+    private val request: () -> String?,
     private val status: () -> ApolloAssistanceStatus,
     private val apply: suspend (String, Boolean) -> Unit,
     private val log: (String) -> Unit,
@@ -97,9 +99,10 @@ internal class FactoryAssistanceViewModel(
         val assistance = runCatching(canOpenAssistance).getOrDefault(false)
         val vehicle = runCatching(canOpenVehicleMenu).getOrDefault(false)
         val chosen = runCatching(parts).getOrDefault(emptyMap())
+        val current = runCatching(request).getOrDefault(null)
         val reported = runCatching(status).getOrDefault(ApolloAssistanceStatus.Unreported)
         mutable.update { it.copy(assistanceMenuAvailable = assistance, vehicleMenuAvailable = vehicle,
-            parts = chosen, status = reported) }
+            parts = chosen, request = current, status = reported) }
     }
 
     /**
@@ -202,6 +205,7 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
                 export = { destination, snapshot, note -> probe.export(Uri.parse(destination), snapshot, note) },
                 copy = { summary -> copyReportToClipboard(app, UiText.get(R.string.factory_assistance_title), summary) },
                 parts = { FridaBridge.APOLLO_PARTS.associateWith { FridaBridge.apolloPartEnabled(app, it) } },
+                request = { FridaBridge.apolloRequest(app) },
                 status = { ApolloAssistanceStatus.parse(FridaBridge.apolloState(app)) },
                 apply = { part, enable -> withContext(Dispatchers.IO) { FridaBridge(app).setApolloPart(part, enable) } },
                 log = { ControlsLog.line(LogLevel.INFO, "$it elapsed_ms=${SystemClock.elapsedRealtime()}") },
@@ -265,11 +269,16 @@ internal fun FactoryAssistanceDestination(back: () -> Unit, diagnostics: () -> U
                         if (enable) pending = part.id else model.change(part.id, false)
                     }
                 }
-                if (state.status.waitingFor(state.parts)) {
+                if (state.status.waitingFor(state.parts, state.request)) {
                     CockpitFeedback(UiText.get(R.string.factory_assistance_answers_waiting))
                 }
-                state.status.unavailable.takeIf { it.isNotEmpty() }?.let {
-                    CockpitFeedback(UiText.get(R.string.factory_assistance_answers_unavailable).format(it.joinToString(", ")))
+                if (state.status.isCurrent(state.request)) {
+                    state.status.unavailable.takeIf { it.isNotEmpty() }?.let {
+                        CockpitFeedback(UiText.get(R.string.factory_assistance_answers_unavailable).format(it.joinToString(", ")))
+                    }
+                    state.status.requested.takeIf { it.isNotEmpty() }?.let {
+                        CockpitFeedback(UiText.get(R.string.factory_assistance_answers_controller_request))
+                    }
                 }
                 state.applyError?.let { CockpitFeedback(it, error = true) }
                 Text(UiText.get(R.string.factory_assistance_answers_note), style = MaterialTheme.typography.bodyMedium,

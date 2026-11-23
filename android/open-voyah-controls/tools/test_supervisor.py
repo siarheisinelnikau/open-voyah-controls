@@ -35,9 +35,11 @@ class SupervisorTest(unittest.TestCase):
         self.app = self.root / "controls.apk"
         self.launcher = self.root / "launcher.apk"
         self.can = self.root / "can.apk"
+        self.vehiclesetting = self.root / "vehiclesetting.apk"
         self.app.write_bytes(b"approved app")
         self.launcher.write_bytes(b"approved OEM launcher")
         self.can.write_bytes(b"approved CAN service")
+        self.vehiclesetting.write_bytes(b"approved factory settings")
         self.injector = self.base / RUNTIME
         self.injector.write_text(
             "#!/usr/bin/env bash\nprintf 'started\\n' > '" + posix_path(self.root / "started") + "'\n",
@@ -105,6 +107,7 @@ pm() {{
         org.openvoyah.controls) echo 'package:{posix_path(self.app)}';;
         com.qinggan.app.launcher) echo 'package:{posix_path(self.launcher)}';;
         com.qinggan.canbus.service) echo 'package:{posix_path(self.can)}';;
+        com.qinggan.app.vehiclesetting) echo 'package:{posix_path(self.vehiclesetting)}';;
         *) return 1;;
     esac
 }}
@@ -242,6 +245,26 @@ sleep() {{
         self.can.write_bytes(b"changed CAN service")
         self.assertNotEqual(0, verify().returncode)
         self.assertFalse((self.root / "started").exists())
+
+    def test_apollo_artifact_in_a_resealed_receipt_is_reviewed(self):
+        channel = self.base / "apollo"
+        channel.mkdir(mode=0o700)
+        agent = channel / "launcher-buttons.js"
+        agent.write_text("// independent factory assistance agent\n", newline="\n")
+        agent.chmod(0o600)
+        self.write_receipt()
+        rows = self.record.read_text().splitlines()
+        lifetime = next(row for row in rows if row.startswith("lifetime\t"))
+        rows[rows.index(lifetime):rows.index(lifetime)] = [
+            f"package\tcom.qinggan.app.vehiclesetting\t{posix_path(self.vehiclesetting)}\t{digest(self.vehiclesetting)}",
+            f"artifact\tapollo/launcher-buttons.js\t{digest(agent)}",
+        ]
+        self.record.write_text("\n".join(rows) + "\n", newline="\n")
+        prefix = self.sources["supervise.sh"].split('if [ "$channel" = --verify-boot ]; then', 1)[0]
+        script = prefix + 'check_runtime && printf "%s\\n" "$target $relative"\n'
+        result = subprocess.run([BASH, "-s", "--", "apollo"], input=script, capture_output=True, text=True, timeout=15)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("com.qinggan.app.vehiclesetting apollo/launcher-buttons.js", result.stdout)
 
 
     def test_unlocked_clear_data_revokes_the_deployment_before_cleanup(self):

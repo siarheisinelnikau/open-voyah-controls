@@ -133,7 +133,8 @@ reviewed_receipt() {
                     boot-start.sh|supervise.sh|open-voyah-controls-frida-17.26.2|launcher-buttons.js|\
                     locale-setting/launcher-buttons.js|locale-vehicle/launcher-buttons.js|locale-bluetooth/launcher-buttons.js|\
                     locale-hiboard/launcher-buttons.js|\
-                    window/launcher-buttons.js|navigation/launcher-buttons.js|can/launcher-buttons.js) ;;
+                    window/launcher-buttons.js|navigation/launcher-buttons.js|can/launcher-buttons.js|\
+                    apollo/launcher-buttons.js) ;;
                     *) return 1;;
                 esac
                 case "$rr_artifacts" in *"|$2|"*) return 1;; esac
