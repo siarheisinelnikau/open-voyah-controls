@@ -54,7 +54,7 @@ function member(options = {}) {
  * offer; `failImplement` names parts whose second hook assignment throws after the first one was installed.
  */
 function headUnit({ config = '', missing = [], sendFails = false, failImplement = [], failRestore = [],
-    putFails = [], claim = '', boot = BOOT_ID } = {}) {
+    putFails = [], readFails = [], claim = '', boot = BOOT_ID } = {}) {
     const published = [];
     const sends = [];
     const failures = { implement: new Set(failImplement), restore: new Set(failRestore) };
@@ -67,8 +67,11 @@ function headUnit({ config = '', missing = [], sendFails = false, failImplement 
         'java.io.BufferedReader': { $new: reader => ({ readLine: () => reader.path === '/proc/sys/kernel/random/boot_id'
             ? boot : null, close: () => {} }) },
         'android.provider.Settings$Global': {
-            getString: (resolver, key) => key === CONFIG_KEY ? config
-                : key === STATE_KEY ? stateDoc : key === CLAIM_KEY ? claimValue : null,
+            getString: (resolver, key) => {
+                if (readFails.includes(key)) throw new Error('record unreadable');
+                return key === CONFIG_KEY ? config
+                    : key === STATE_KEY ? stateDoc : key === CLAIM_KEY ? claimValue : null;
+            },
             putString: (resolver, key, value) => {
                 published.push({ key, value });
                 if (putFails.includes(key)) return false;
@@ -127,13 +130,17 @@ function headUnit({ config = '', missing = [], sendFails = false, failImplement 
         api, classes, logs, published, sends, Java, tick,
         setNow: value => { now = value; },
         healRestore: () => failures.restore.clear(),
+        failImplementNow: part => { failures.implement.clear(); failures.implement.add(part); },
         claim: () => claimValue,
         state: () => JSON.parse(published.at(-1).value),
         install: () => api.installApolloFactory(Java),
         config: value => {
             published.length = 0;
-            classes['android.provider.Settings$Global'].getString = (resolver, key) =>
-                key === CONFIG_KEY ? value : key === STATE_KEY ? stateDoc : key === CLAIM_KEY ? claimValue : null;
+            classes['android.provider.Settings$Global'].getString = (resolver, key) => {
+                if (readFails.includes(key)) throw new Error('record unreadable');
+                return key === CONFIG_KEY ? value
+                    : key === STATE_KEY ? stateDoc : key === CLAIM_KEY ? claimValue : null;
+            };
         },
     };
 }
@@ -281,6 +288,17 @@ test('a claim with no recorded result is reported uncertain, never sent again af
     assert.equal(unit.state().controller, 'uncertain');
 });
 
+test('an unreadable previous record blocks a send instead of treating it as an empty history', () => {
+    for (const key of [STATE_KEY, CLAIM_KEY]) {
+        const unit = headUnit({ readFails: [key] });
+        unit.config(configDoc({ controller: true }, REQUEST_A, true));
+        unit.tick();
+        assert.equal(unit.sends.length, 0, key);
+        assert.equal(unit.claim(), '', key);
+        assert.equal(unit.state().controller, 'uncertain', key);
+    }
+});
+
 test('a rejected send is reported as unavailable, never as a request the controller accepted', () => {
     const unit = headUnit({ sendFails: true });
     unit.config(configDoc({ controller: true }, REQUEST_A, true));
@@ -379,6 +397,23 @@ test('a hook that cannot be removed stays on record as a partial substitution un
     assert.equal(utils.is97C.implementation, null);
     assert.equal(utils.is97Y.implementation, null);
     assert.equal(unit.state().equipment, 'off');
+});
+
+test('a failed reinstall cannot erase an earlier hook that is still pending removal', () => {
+    const unit = headUnit({ failImplement: ['region'], failRestore: ['equipment'] });
+    const utils = unit.classes['com.qinggan.app.vehiclesetting.fragments.driveassistance.utils.Utils'];
+
+    unit.config(configDoc({ equipment: true }, REQUEST_A));
+    unit.tick();
+    assert.equal(unit.state().equipment, 'partial');
+    assert.notEqual(utils.is97Y.implementation, null);
+
+    // The next attempt now fails on the very first hook, whose earlier removal is still pending.
+    unit.failImplementNow('equipment');
+    unit.config(configDoc({ equipment: true }, REQUEST_B));
+    unit.tick();
+    assert.equal(unit.state().equipment, 'partial', 'the pending hook must stay on record');
+    assert.notEqual(utils.is97Y.implementation, null);
 });
 
 test('a factory settings process without the subscription class is reported, not guessed at', () => {

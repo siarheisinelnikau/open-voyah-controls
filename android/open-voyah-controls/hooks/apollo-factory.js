@@ -70,7 +70,7 @@ export function apolloState(applied, requestedFor, uncertainFor, missing, partia
 export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_ERROR')) {
     Java.perform(() => {
         let hooks = [], stuck = [], applied = [], missing = new Set(), partial = new Set(), sent = 0;
-        let request = null, claimedFor = null, sentFor = null, uncertainFor = null;
+        let request = null, claimedFor = null, sentFor = null, uncertainFor = null, recordsReadable = true;
         /**
          * Only forget a hook once its original implementation is back. A failed removal stays on record so the
          * next tick can try again and the published state can say the substitution is still running.
@@ -96,11 +96,12 @@ export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_E
             const installed = [];
             try {
                 for (const [target, implementation] of entries) {
-                    // Taking over a member again retires any older record that still wanted it removed.
-                    stuck = stuck.filter(entry => entry.target !== target || entry.part !== part);
-                    partial = new Set(stuck.map(entry => entry.part));
                     target.implementation = implementation;
                     installed.push(target);
+                    // Retire an older removal record only after this member really carries the new hook. Removing
+                    // it first would lose a live substitution if this assignment or a later one throws.
+                    stuck = stuck.filter(entry => entry.target !== target || entry.part !== part);
+                    partial = new Set(stuck.map(entry => entry.part));
                 }
             } catch (error) {
                 report('install', error, { part });
@@ -199,6 +200,8 @@ export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_E
             const wall = Date.now();
             if (wanted.controller && wanted.send && wanted.request !== claimedFor
                 && bootId() === wanted.boot && wall >= wanted.issued && wall <= wanted.expires) {
+                // An unreadable earlier record cannot prove this is not a replay of a send whose result was lost.
+                if (!recordsReadable) { uncertainFor = wanted.request; return; }
                 // Settings.Global.putString can fail by returning false without throwing. No durable record means
                 // no send: a restart could otherwise replay a request whose call was never acknowledged.
                 let claimed = false;
@@ -224,23 +227,31 @@ export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_E
             } catch (error) { if (written) report('state', error); }
         };
         // The state document and the claim survive the process. A claimed request whose outcome was never recorded
-        // is uncertain, never silently sent a second time.
-        try {
-            const prior = JSON.parse(String(Global.getString(resolver, APOLLO_STATE_KEY) || ''));
-            if (prior && typeof prior.request === 'string' && REQUEST.test(prior.request)) {
-                request = prior.request;
-                if (Number.isSafeInteger(prior.sent) && prior.sent >= 0) sent = prior.sent;
-                if (prior.controller === 'requested') { sentFor = prior.request; claimedFor = prior.request; }
-                if (prior.controller === 'uncertain') { uncertainFor = prior.request; claimedFor = prior.request; }
+        // is uncertain, never silently sent a second time. A failed read is not an empty record: until both reads
+        // succeed, no new send may go out, because the previous one cannot be ruled out.
+        const readRecords = seed => {
+            let stateRaw, claimRaw;
+            try { stateRaw = String(Global.getString(resolver, APOLLO_STATE_KEY) || ''); }
+            catch (error) { recordsReadable = false; report('state_read', error); return; }
+            try { claimRaw = String(Global.getString(resolver, APOLLO_CLAIM_KEY) || ''); }
+            catch (error) { recordsReadable = false; report('claim_read', error); return; }
+            recordsReadable = true;
+            if (seed) {
+                let prior = null;
+                try { prior = JSON.parse(stateRaw); } catch (_) { /* An unreadable document seeds nothing. */ }
+                if (prior && typeof prior.request === 'string' && REQUEST.test(prior.request)) {
+                    request = prior.request;
+                    if (Number.isSafeInteger(prior.sent) && prior.sent >= 0) sent = prior.sent;
+                    if (prior.controller === 'requested') { sentFor = prior.request; claimedFor = prior.request; }
+                    if (prior.controller === 'uncertain') { uncertainFor = prior.request; claimedFor = prior.request; }
+                }
             }
-        } catch (_) { /* No prior document: nothing to carry over. */ }
-        try {
-            const claim = String(Global.getString(resolver, APOLLO_CLAIM_KEY) || '');
-            if (REQUEST.test(claim)) {
-                claimedFor = claim;
-                if (sentFor !== claim && uncertainFor !== claim) uncertainFor = claim;
+            if ((seed || claimedFor === null) && REQUEST.test(claimRaw)) {
+                claimedFor = claimRaw;
+                if (sentFor !== claimRaw && uncertainFor !== claimRaw) uncertainFor = claimRaw;
             }
-        } catch (error) { report('claim', error); }
+        };
+        readRecords(true);
         let previous = null;
         const follow = () => {
             let raw;
@@ -258,6 +269,7 @@ export function installApolloFactory(Java, report = createReporter('OVC_APOLLO_E
                 return;
             }
             previous = raw;
+            readRecords(false);
             restore();
             heal();
             const wanted = apolloConfig(raw);
