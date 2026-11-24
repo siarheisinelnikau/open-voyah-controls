@@ -101,7 +101,8 @@ internal fun KeyboardScreen(state: KeyboardViewModel.State, back: () -> Unit, se
             }
             availabilityText(state.availability)?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-        CockpitSection(UiText.get(R.string.keyboard_choice_section), CockpitIcon.KEYBOARD, UiText.get(R.string.keyboard_choice_info)) {
+        CockpitSection(UiText.get(R.string.keyboard_choice_section), CockpitIcon.KEYBOARD, UiText.get(R.string.keyboard_choice_info),
+            guideId = R.string.keyboard_choice_section) {
             val factoryEnabled = !state.loading && !state.working && status != null
             KeyboardRow(UiText.get(R.string.keyboard_factory), UiText.get(R.string.keyboard_factory_detail), null,
                 selected = status != null && status.choice == null, enabled = factoryEnabled, tag = KEYBOARD_FACTORY_TAG,

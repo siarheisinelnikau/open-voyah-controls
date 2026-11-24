@@ -121,11 +121,12 @@ internal fun <T> CockpitOptionDialog(
     enabled: Boolean = true,
     detail: ((T) -> String?)? = null,
     preview: (@Composable (T) -> Unit)? = null,
+    guideId: Int? = null,
 ) {
     CockpitAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { CockpitTextAction(UiText.get(R.string.ui_89), onDismiss) },
-        title = { Text(title) },
+        title = { if (guideId == null) Text(title) else SettingGuideHeading(title, guideId) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()).selectableGroup(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {

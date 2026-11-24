@@ -110,7 +110,7 @@ internal fun AppIconSettings(app: LocalApp) {
             }, enabled = !busy)
         }
     }
-    CockpitSwitch(text(R.string.app_icon_plain), current.plain, enabled = !busy) { plain ->
+    CockpitSwitch(R.string.app_icon_plain, current.plain, enabled = !busy) { plain ->
         change(R.string.app_icon_save_failed) { store.setPlain(app.packageName, plain) }
     }
     Text(text(R.string.app_icon_plain_hint), style = MaterialTheme.typography.bodyMedium,

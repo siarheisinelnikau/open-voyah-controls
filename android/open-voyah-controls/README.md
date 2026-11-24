@@ -73,7 +73,11 @@ The worker waits for Android and a stable system process before attaching. It re
 
 ![Preview album artwork, progress and player controls with a demo media session on Android 9](docs/screenshots/displays.png)
 
-![Offline voice settings in the signed Android 9 app](docs/screenshots/voice.png)
+![Appearance settings with an information button beside each control on a 1920 × 720 Android emulator](docs/screenshots/settings-info-buttons.png)
+
+![Before-and-after accent color demonstration in Settings on a 1920 × 720 Android emulator](docs/screenshots/settings-accent-guide.png)
+
+![Voice command catalog filtered to Media and volume on a 1920 × 720 Android emulator](docs/screenshots/voice-catalog.png)
 
 ## Keyboard
 

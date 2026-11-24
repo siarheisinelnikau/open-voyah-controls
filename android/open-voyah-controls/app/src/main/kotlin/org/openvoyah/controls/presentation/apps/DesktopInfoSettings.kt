@@ -128,7 +128,7 @@ internal fun DesktopInfoSettings(
     var show by rememberSaveable { mutableStateOf(false) }
     var editingPhoneFavorites by rememberSaveable { mutableStateOf(false) }
     val title = UiText.get(R.string.desktop_info_settings)
-    CockpitChoice(title, enabled = editable && active) { show = true }
+    CockpitChoice(title, enabled = editable && active, guideId = R.string.desktop_info_settings) { show = true }
     if (!show || !active) return
 
     val activity = checkNotNull(LocalActivity.current as? ComponentActivity) {
@@ -196,7 +196,7 @@ internal fun DesktopInfoSettings(
                                 if (canSave()) model.headlightContent(desktop, it)
                             }
                         }
-                        DesktopInfoCard.PHONE -> CockpitChoice(UiText.get(R.string.desktop_info_phone_edit), enabled = canEdit) {
+                        DesktopInfoCard.PHONE -> CockpitChoice(R.string.desktop_info_phone_edit, enabled = canEdit) {
                             editingPhoneFavorites = true
                         }
                         DesktopInfoCard.ROUTE -> if (size != null) {
@@ -253,7 +253,8 @@ private fun <T> DesktopCardChoice(
     supporting: (T) -> String? = { null }, select: (T) -> Unit,
 ) {
     var choosing by remember { mutableStateOf(false) }
-    CockpitChoice(UiText.get(title), value, enabled = enabled) { choosing = true }
+    CockpitChoice(UiText.get(title), value, enabled = enabled,
+        guideId = if (DesktopInfoCard.entries.any { it.label() == title }) R.string.desktop_info_settings else title) { choosing = true }
     if (choosing) CockpitOptionDialog(UiText.get(title), options, current, label, onSelect = select, onDismiss = { choosing = false },
         enabled = enabled, detail = supporting)
 }

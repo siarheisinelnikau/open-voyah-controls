@@ -128,7 +128,7 @@ internal fun StartupVolumeSettings() {
     val state by model.state.collectAsStateWithLifecycle()
     val startup = state.startup
     CockpitSection(UiText.get(R.string.settings_startup_volume_title), CockpitIcon.PLAY) {
-        CockpitSwitch(UiText.get(R.string.voice_startup_volume), startup?.enabled == true, enabled = startup != null) { on ->
+        CockpitSwitch(R.string.voice_startup_volume, startup?.enabled == true, enabled = startup != null) { on ->
             model.startup { it.copy(enabled = on) }
         }
         // The level takes the columns its title needs and shares the row with the switch; the hint has a row of its own.
@@ -153,10 +153,10 @@ internal fun DuckingSettings() {
     val state by model.state.collectAsStateWithLifecycle()
     val duck = state.duck
     CockpitSection(UiText.get(R.string.settings_part_ducking), CockpitIcon.VOICE) {
-        CockpitSwitch(UiText.get(R.string.voice_duck_media), duck?.listening == true, enabled = duck != null) { on ->
+        CockpitSwitch(R.string.voice_duck_media, duck?.listening == true, enabled = duck != null) { on ->
             model.duck { it.copy(listening = on) }
         }
-        CockpitSwitch(UiText.get(R.string.voice_duck_calls), duck?.calls == true, enabled = duck != null) { on ->
+        CockpitSwitch(R.string.voice_duck_calls, duck?.calls == true, enabled = duck != null) { on ->
             model.duck { it.copy(calls = on) }
         }
         CockpitReveal(duck != null && (duck.listening || duck.calls), Modifier.cockpitCell()) {
@@ -184,7 +184,8 @@ internal fun MediaAccessSettings(extra: @Composable androidx.compose.foundation.
         val listener = ComponentName(context, MediaAccessService::class.java)
         granted = context.getSystemService(NotificationManager::class.java)?.isNotificationListenerAccessGranted(listener)
     }
-    CockpitSection(UiText.get(R.string.display_media_access), CockpitIcon.PLAY, UiText.get(R.string.settings_media_access_summary)) {
+    CockpitSection(UiText.get(R.string.display_media_access), CockpitIcon.PLAY, UiText.get(R.string.settings_media_access_summary),
+        guideId = R.string.display_media_access) {
         granted?.let { CockpitFeedback(UiText.get(if (it) R.string.settings_media_access_on else R.string.settings_media_access_off)) }
         CockpitAction(UiText.get(R.string.settings_media_access_open), {
             failed = try {

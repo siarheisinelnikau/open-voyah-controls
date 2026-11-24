@@ -24,10 +24,11 @@ import org.openvoyah.controls.domain.display.AppWindowProfile
 import org.openvoyah.controls.domain.display.WindowConnection
 import org.openvoyah.controls.domain.display.WindowProfileDelivery
 import org.openvoyah.controls.domain.display.WindowProfileDelivery.Outcome
-import org.openvoyah.controls.presentation.theme.CockpitAction
-import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import java.util.Locale
 import kotlin.math.roundToInt
+import org.openvoyah.controls.presentation.theme.CockpitAction
+import org.openvoyah.controls.presentation.theme.CockpitFeedback
+import org.openvoyah.controls.presentation.theme.SettingInfo
 
 @Composable
 internal fun AppWindowSettings(window: AppSettingsViewModel.Window, model: AppSettingsViewModel) {
@@ -42,7 +43,7 @@ internal fun AppWindowSettings(window: AppSettingsViewModel.Window, model: AppSe
     val editable = !window.busy
     val inset = profile.panelWidthPx
     StepSlider(
-        label(R.string.app_window_panel_width),
+        R.string.app_window_panel_width,
         if (inset == 0) label(R.string.app_window_panel_auto) else label(R.string.app_window_pixels).format(inset),
         inset / AppWindowProfile.INSET_STEP_PX,
         AppWindowProfile.MAX_INSET_PX / AppWindowProfile.INSET_STEP_PX,
@@ -71,7 +72,7 @@ internal fun AppWindowSettings(window: AppSettingsViewModel.Window, model: AppSe
 @Composable
 private fun WindowDimensions(profile: AppWindowProfile, editable: Boolean, change: ((AppWindowProfile) -> AppWindowProfile) -> Unit) {
     val widths: @Composable (Modifier) -> Unit = { modifier ->
-        StepSlider(label(R.string.app_window_width), "${profile.widthPercent}%",
+        StepSlider(R.string.app_window_width, "${profile.widthPercent}%",
             (profile.widthPercent - 50) / 5, 10, editable, modifier) { step ->
             change { it.copy(widthPercent = 50 + step * 5) }
         }
@@ -83,7 +84,7 @@ private fun WindowDimensions(profile: AppWindowProfile, editable: Boolean, chang
             0 -> label(R.string.app_window_default_dpi)
             else -> "$dpi DPI"
         }
-        StepSlider(label(R.string.app_window_dpi), text,
+        StepSlider(R.string.app_window_dpi, text,
             densityChoices.indexOf(dpi), densityChoices.lastIndex, editable, modifier) { step ->
             val selected = densityChoices[step]
             change { it.copy(densityDpi = selected ?: 0, inheritDensity = selected == null) }
@@ -106,7 +107,7 @@ private fun WindowDimensions(profile: AppWindowProfile, editable: Boolean, chang
 
 @Composable
 private fun StepSlider(
-    title: String,
+    titleId: Int,
     value: String,
     step: Int,
     last: Int,
@@ -114,11 +115,13 @@ private fun StepSlider(
     modifier: Modifier = Modifier,
     change: (Int) -> Unit,
 ) {
+    val title = label(titleId)
     Column(modifier) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             Text(value, color = MaterialTheme.colorScheme.primary)
+            SettingInfo(title, titleId)
         }
         // A dot per step is noise at this density, and TalkBack should read the value instead of a step index.
         Slider(step.toFloat(), { change(it.roundToInt()) },

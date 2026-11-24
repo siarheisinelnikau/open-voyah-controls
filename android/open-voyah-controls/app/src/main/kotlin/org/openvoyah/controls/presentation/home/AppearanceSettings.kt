@@ -59,7 +59,7 @@ internal fun AppearanceSettings(state: AppearanceUiState, part: AppearancePart, 
                     enabled, { UiText.get(it.label) }, preview = { BackgroundSample(it, current) }) {
                     change(AppearanceChange.BackgroundTreatment(it))
                 }
-                CockpitSwitch(UiText.get(R.string.appearance_high_contrast), current.highContrast, enabled) {
+                CockpitSwitch(R.string.appearance_high_contrast, current.highContrast, enabled) {
                     change(AppearanceChange.HighContrast(it))
                 }
             }
@@ -80,7 +80,7 @@ internal fun AppearanceSettings(state: AppearanceUiState, part: AppearancePart, 
                     { UiText.get(it.label) }, preview = { FontSample(it, current) }) {
                     change(AppearanceChange.FontFamily(it))
                 }
-                CockpitSwitch(UiText.get(R.string.appearance_bold_text), current.boldText, enabled) {
+                CockpitSwitch(R.string.appearance_bold_text, current.boldText, enabled) {
                     change(AppearanceChange.BoldText(it))
                 }
             }
@@ -95,7 +95,7 @@ internal fun AppearanceSettings(state: AppearanceUiState, part: AppearancePart, 
                 }
             }
             AppearancePart.MOTION -> {
-                CockpitSwitch(UiText.get(R.string.appearance_animate_routes), current.animateRoutes, enabled) {
+                CockpitSwitch(R.string.appearance_animate_routes, current.animateRoutes, enabled) {
                     change(AppearanceChange.AnimateRoutes(it))
                 }
                 AppearanceChoiceRow(R.string.appearance_transition_speed, current.transitionSpeed, RouteTransitionSpeed.entries,
@@ -118,7 +118,7 @@ internal fun AppearanceSettings(state: AppearanceUiState, part: AppearancePart, 
                 }
             }
             AppearancePart.LAUNCH_VOLUME -> {
-                CockpitSwitch(UiText.get(R.string.appearance_limit_media_on_launch), current.limitMediaVolumeOnLaunch, enabled) {
+                CockpitSwitch(R.string.appearance_limit_media_on_launch, current.limitMediaVolumeOnLaunch, enabled) {
                     change(AppearanceChange.LimitMediaVolumeOnLaunch(it))
                 }
                 CockpitReveal(current.limitMediaVolumeOnLaunch) {
@@ -147,7 +147,7 @@ private fun <T> AppearanceChoiceRow(
     change: (T) -> Unit,
 ) {
     var choosing by rememberSaveable { mutableStateOf(false) }
-    CockpitChoice(UiText.get(title), label(current), enabled) { choosing = true }
+    CockpitChoice(title, label(current), enabled) { choosing = true }
     if (!choosing) return
     CockpitOptionDialog(UiText.get(title), choices, current, label, change, { choosing = false },
         description = description?.let { UiText.get(it) }, enabled = enabled, preview = preview)

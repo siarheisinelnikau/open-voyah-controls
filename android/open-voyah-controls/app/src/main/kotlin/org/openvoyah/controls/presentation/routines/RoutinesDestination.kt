@@ -209,7 +209,7 @@ private fun RoutineToolbar(library: RoutineLibrary, sorted: List<NamedRoutine>, 
         }
     }
     library.startupId?.let { id ->
-        CockpitSwitch(UiText.get(R.string.routines_startup_enabled), library.startupEnabled, enabled) { runAtStartup ->
+        CockpitSwitch(R.string.routines_startup_enabled, library.startupEnabled, enabled) { runAtStartup ->
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) model.setStartupEnabled(id, runAtStartup)
         }
     }

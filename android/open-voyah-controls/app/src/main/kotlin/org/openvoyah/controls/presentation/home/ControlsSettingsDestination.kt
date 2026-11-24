@@ -187,7 +187,7 @@ internal fun ControlsSettingsDestination(
         SettingsSection.LANGUAGE -> listOf(
             settingsPart(SettingsPartId.LANGUAGE_APP) {
                 CockpitSection(UiText.get(R.string.settings_part_app_language), CockpitIcon.LANGUAGE) {
-                    CockpitChoice(UiText.get(R.string.cockpit_language),
+                    CockpitChoice(R.string.cockpit_language,
                         UiText.get(UiText.languageName(UiText.language())),
                         onClick = coordinator::language)
                 }

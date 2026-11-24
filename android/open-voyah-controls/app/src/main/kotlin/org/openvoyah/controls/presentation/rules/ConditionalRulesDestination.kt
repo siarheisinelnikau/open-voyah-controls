@@ -107,7 +107,7 @@ internal fun ConditionalRulesDestination(back: () -> Unit, editRoutines: () -> U
                         CockpitColumns(first = {
                             CockpitChoice(rule.name, rule.summary(), enabled = !shown.form.saving) { model.edit(rule) }
                         }, second = {
-                            CockpitSwitch(text(R.string.rules_enabled), rule.enabled, enabled = !shown.form.saving &&
+                            CockpitSwitch(R.string.rules_enabled, rule.enabled, enabled = !shown.form.saving &&
                                 (currentRoutine != null || rule.enabled)) { model.setEnabled(rule, it) }
                             Text(text(R.string.flows_rule_routine).format(rule.routine.name), style = MaterialTheme.typography.bodyMedium)
                             Text(text(if (currentRoutine == null) R.string.rules_routine_changed else if (rule.enabled)
@@ -142,15 +142,15 @@ private fun ConditionalRuleEditor(draft: ConditionalRuleDraft, state: Conditiona
     }
     fun choose(value: RulePicker) { focus.clearFocus(); picker = value }
     CockpitDetail(text(if (draft.original == null) R.string.rules_create else R.string.rules_edit), null, model::closeEditor, nested = true) {
-        CockpitTextField(draft.name, model::name, text(R.string.rules_name), Modifier.fillMaxWidth(), enabled = enabled,
+        CockpitTextField(draft.name, model::name, text(R.string.rules_name), Modifier.fillMaxWidth(), enabled = enabled, guideId = R.string.rules_name,
             error = draft.name.isNotEmpty() && (!draft.validName || duplicateName),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }))
         CockpitColumns(first = {
             CockpitSection(text(R.string.rules_if), CockpitIcon.CAR) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CockpitChoice(text(R.string.rules_gear), draft.gear.label(), enabled,
+                    CockpitChoice(R.string.rules_gear, draft.gear.label(), enabled,
                         modifier = Modifier.weight(1f)) { choose(RulePicker.GEAR) }
-                    CockpitChoice(text(R.string.rules_doors), draft.doors.label(), enabled,
+                    CockpitChoice(R.string.rules_doors, draft.doors.label(), enabled,
                         modifier = Modifier.weight(1f)) { choose(RulePicker.DOORS) }
                 }
                 Text(text(R.string.rules_and_hint), color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -159,13 +159,13 @@ private fun ConditionalRuleEditor(draft: ConditionalRuleDraft, state: Conditiona
         }, second = {
             CockpitSection(text(R.string.rules_then), CockpitIcon.BUTTONS) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CockpitChoice(text(R.string.rules_routine), draft.routine?.name ?: text(R.string.rules_no_routine),
+                    CockpitChoice(R.string.rules_routine, draft.routine?.name ?: text(R.string.rules_no_routine),
                         enabled && state.routines?.entries?.isNotEmpty() == true,
                         modifier = Modifier.weight(1f)) { choose(RulePicker.ROUTINE) }
-                    CockpitChoice(text(R.string.rules_cooldown), text(R.string.rules_seconds).format(draft.cooldownSeconds), enabled,
+                    CockpitChoice(R.string.rules_cooldown, text(R.string.rules_seconds).format(draft.cooldownSeconds), enabled,
                         modifier = Modifier.weight(1f)) { choose(RulePicker.INTERVAL) }
                 }
-                CockpitSwitch(text(R.string.rules_enabled), draft.enabled, enabled, model::enabled)
+                CockpitSwitch(R.string.rules_enabled, draft.enabled, enabled, model::enabled)
             }
         }, minimumWidth = 570.dp)
         problem?.let { CockpitFeedback(text(it), error = true) }

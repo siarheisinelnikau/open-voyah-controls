@@ -13,7 +13,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -34,10 +33,9 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -45,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,7 +55,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -73,7 +71,6 @@ import org.openvoyah.controls.presentation.theme.CockpitHeading
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitMotion
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
-import org.openvoyah.controls.presentation.theme.CockpitTextField
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 
@@ -103,14 +100,17 @@ internal fun VoiceSettingsScreen(
     back: () -> Unit,
 ) {
     var search by rememberSaveable { mutableStateOf("") }
-    val allCommands = remember(catalog) { catalog.all() }
-    val searchable = remember(allCommands) {
-        allCommands.associateWith { VoiceCatalog.normalize(it.phrases().joinToString(" ")) }
+    var category by rememberSaveable { mutableStateOf<VoiceGuideCategory?>(null) }
+    var showCatalog by rememberSaveable { mutableStateOf(false) }
+    val interfaceLanguage = UiText.language()
+    val guides = remember(catalog, assignments, interfaceLanguage) {
+        catalog.all().map { describeVoiceCommand(it, it.id() in assignments) }
     }
-    val visible = remember(searchable, search) {
-        val query = VoiceCatalog.normalize(search)
-        if (query.isBlank()) allCommands else allCommands.filter { searchable.getValue(it).contains(query) }
+    val categories = remember(guides) {
+        VoiceGuideCategory.entries.filter { category -> guides.any { it.category == category } }
     }
+    val selectedCategory = category?.takeIf { it in categories }
+    val groups = remember(guides, selectedCategory, search) { filterVoiceGuides(guides, selectedCategory, search) }
     val layout = LocalCockpitLayout.current
     CockpitBackdrop {
         // The same header position and padding as CockpitDetail, so Back and the title stay put between pages.
@@ -123,33 +123,40 @@ internal fun VoiceSettingsScreen(
             BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
                 if (maxWidth >= 760.dp) {
                     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                        Column(Modifier.weight(.82f).verticalScroll(rememberScrollState())) {
                             SettingsOptions(language, engine, vehicleCommandsReviewed, message, microphone, recoverMicrophone, openOption)
                         }
                         Surface(
-                            Modifier.weight(1f).fillMaxSize(),
+                            Modifier.weight(1.18f).fillMaxSize(),
                             shape = MaterialTheme.shapes.large,
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                             color = MaterialTheme.colorScheme.surface,
                         ) {
                             Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
-                                SearchField(search, { search = it })
-                                LazyColumn(Modifier.weight(1f)) {
-                                    if (visible.isEmpty()) item { EmptyResults() }
-                                    items(visible, key = { it.id() }) {
-                                        CommandRow(it, it.id() in assignments, openCommand, Modifier.animateItem())
-                                    }
+                                VoiceCatalogFilters(search, { search = it }, categories, selectedCategory) { category = it }
+                                key(search, selectedCategory) {
+                                    LazyColumn(Modifier.weight(1f)) { voiceCatalogRows(groups, openCommand) }
                                 }
                             }
                         }
                     }
                 } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
-                        item { SettingsOptions(language, engine, vehicleCommandsReviewed, message, microphone, recoverMicrophone, openOption) }
-                        item { SearchField(search, { search = it }) }
-                        if (visible.isEmpty()) item { EmptyResults() }
-                        items(visible, key = { it.id() }) {
-                            CommandRow(it, it.id() in assignments, openCommand, Modifier.animateItem())
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(!showCatalog, { showCatalog = false }, label = { Text(label(R.string.cockpit_settings)) })
+                            FilterChip(showCatalog, { showCatalog = true }, label = { Text(label(R.string.ui_34)) })
+                        }
+                        if (showCatalog) {
+                            VoiceCatalogFilters(search, { search = it }, categories, selectedCategory, compact = true) { category = it }
+                            key(search, selectedCategory) {
+                                LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 12.dp)) {
+                                    voiceCatalogRows(groups, openCommand)
+                                }
+                            }
+                        } else {
+                            Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())) {
+                                SettingsOptions(language, engine, vehicleCommandsReviewed, message, microphone, recoverMicrophone, openOption)
+                            }
                         }
                     }
                 }
@@ -317,47 +324,21 @@ private fun SettingsOptions(language: String, engine: RecognitionEngine, vehicle
         // Trying the microphone is a command; every other option opens a dialog, so it is a row like other settings.
         CockpitAction(label(VoiceOption.TRY_VOICE.label), { select(VoiceOption.TRY_VOICE) }, enabled = !microphone.requesting)
         BoxWithConstraints {
-            val columns = if (maxWidth >= 420.dp) 2 else 1
+            val columns = if (maxWidth >= 500.dp) 2 else 1
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (row in VoiceOption.entries.filter { it != VoiceOption.TRY_VOICE }.chunked(columns)) {
                     Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         for (option in row) {
-                            val name = when (option) {
-                                VoiceOption.RECOGNITION -> label(option.label) + " · " +
-                                    label(engine.label) + " · " + label(recognitionLanguageName(language))
-                                else -> label(option.label)
-                            }
-                            CockpitChoice(name, modifier = Modifier.weight(1f).fillMaxHeight()) { select(option) }
+                            val recognition = if (option == VoiceOption.RECOGNITION) {
+                                label(engine.label) + " · " + label(recognitionLanguageName(language))
+                            } else null
+                            CockpitChoice(option.label, recognition, modifier = Modifier.weight(1f).fillMaxHeight()) { select(option) }
                         }
                         if (row.size < columns) Spacer(Modifier.weight(1f))
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun SearchField(query: String, onChange: (String) -> Unit) {
-    Column(Modifier.padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label(R.string.ui_34), style = MaterialTheme.typography.titleLarge)
-        CockpitTextField(query, onChange, label(R.string.ui_185), Modifier.fillMaxWidth())
-    }
-}
-
-@Composable
-private fun EmptyResults() {
-    Text(label(R.string.voice_no_commands), Modifier.padding(vertical = 16.dp),
-        color = MaterialTheme.colorScheme.onSurfaceVariant)
-}
-
-@Composable
-private fun CommandRow(command: VoiceCatalog.Command, assigned: Boolean, select: (VoiceCatalog.Command) -> Unit, modifier: Modifier = Modifier) {
-    val title = if (assigned) "${command.title()} · ${label(R.string.ui_186)}" else command.title()
-    Column(modifier) {
-        Text(title, Modifier.fillMaxWidth().heightIn(min = 54.dp).clickable(role = Role.Button) { select(command) }
-            .padding(horizontal = 8.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyLarge)
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 

@@ -15,7 +15,6 @@ import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -30,6 +29,8 @@ import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
+import org.openvoyah.controls.presentation.theme.CockpitTextField
+import org.openvoyah.controls.presentation.theme.SettingInfo
 
 /** Shows the bridge error in place of a part that needs the bridge; true when the part has nothing else to show. */
 @Composable
@@ -47,15 +48,15 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
             Text(UiText.get(R.string.settings_factory_home_unsupported), color = MaterialTheme.colorScheme.onSurfaceVariant)
             return@CockpitSection
         }
-        CockpitSwitch(UiText.get(R.string.home_navigator_card), state.navigatorHomeCard, change = actions::navigatorHomeCard)
+        CockpitSwitch(R.string.home_navigator_card, state.navigatorHomeCard, change = actions::navigatorHomeCard)
         if (state.navigatorHomeCard) {
             NavigatorWidgetScale(state.navigatorWidgetScale, actions::navigatorWidgetScale)
             CockpitAction(UiText.get(R.string.home_navigator_widget_settings), { actions.command(HomeCommand.NAVIGATOR_WIDGET) })
         }
-        CockpitSwitch(UiText.get(R.string.home_weather_card), state.weatherCard, change = actions::weatherCard)
+        CockpitSwitch(R.string.home_weather_card, state.weatherCard, change = actions::weatherCard)
         if (state.weatherCard) {
-            OutlinedTextField(state.weatherCity, actions::weatherCity, singleLine = true,
-                label = { Text(UiText.get(R.string.home_weather_city)) }, modifier = Modifier.fillMaxWidth())
+            CockpitTextField(state.weatherCity, actions::weatherCity,
+                label = UiText.get(R.string.home_weather_city), modifier = Modifier.fillMaxWidth(), guideId = R.string.home_weather_city)
         }
     }
 }
@@ -67,9 +68,9 @@ internal fun HomePanel(state: HomeControlsState, actions: HomeActions) {
         if (unavailable(state)) return@CockpitSection
         ActivationPaused(state.activationPaused)
         CockpitFeedback(state.health)
-        CockpitSwitch(UiText.get(R.string.ui_69), state.panelEnabled, change = actions::panelEnabled)
+        CockpitSwitch(R.string.ui_69, state.panelEnabled, change = actions::panelEnabled)
         state.panels.forEach { row -> key(row.slot) {
-            CockpitChoice(row.title, row.action) { actions.choosePanel(row.slot) }
+            CockpitChoice(row.title, row.action, guideId = R.string.ui_67) { actions.choosePanel(row.slot) }
         } }
     }
 }
@@ -77,7 +78,8 @@ internal fun HomePanel(state: HomeControlsState, actions: HomeActions) {
 /** Settings → Buttons → Steering wheel. */
 @Composable
 internal fun HomeSteering(state: HomeControlsState, actions: HomeActions) {
-    CockpitSection(UiText.get(R.string.settings_part_steering), CockpitIcon.CAR, UiText.get(R.string.oem_steering_scope)) {
+    CockpitSection(UiText.get(R.string.settings_part_steering), CockpitIcon.CAR, UiText.get(R.string.oem_steering_scope),
+        guideId = R.string.oem_steering) {
         if (unavailable(state)) return@CockpitSection
         if (state.steeringSupported) {
             CockpitAction(UiText.get(R.string.oem_steering), { actions.command(HomeCommand.STEERING) }, Modifier.fillMaxWidth())
@@ -99,15 +101,15 @@ internal fun HomeHardwareButtons(state: HomeControlsState, actions: HomeActions)
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         CockpitAction(UiText.get(if (state.connected) R.string.ui_42 else R.string.button_service_enable),
             { actions.command(HomeCommand.ACCESSIBILITY) })
-        CockpitSwitch(UiText.get(R.string.ui_43), state.buttonsEnabled, change = actions::buttonsEnabled)
+        CockpitSwitch(R.string.ui_43, state.buttonsEnabled, change = actions::buttonsEnabled)
     }
-    CockpitSection(UiText.get(R.string.ui_44), CockpitIcon.SETTINGS) {
+    CockpitSection(UiText.get(R.string.ui_44), CockpitIcon.SETTINGS, guideId = R.string.ui_44) {
         if (state.bindings.isEmpty()) {
             Text(UiText.get(R.string.ui_45), style = MaterialTheme.typography.titleMedium)
             Text(UiText.get(R.string.ui_46), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         state.bindings.forEach { row -> key(row.id) {
-            CockpitChoice(row.title, row.device + "\n" + row.actions) { actions.editBinding(row.id) }
+            CockpitChoice(row.title, row.device + "\n" + row.actions, guideId = R.string.ui_44) { actions.editBinding(row.id) }
         } }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             CockpitAction(UiText.get(R.string.ui_53), { actions.command(HomeCommand.CAPTURE) }, primary = true)
@@ -172,6 +174,7 @@ private fun NavigatorWidgetScale(percent: Int, change: (Int) -> Unit) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(UiText.get(R.string.home_navigator_widget_scale), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             Text(value, color = MaterialTheme.colorScheme.primary)
+            SettingInfo(UiText.get(R.string.home_navigator_widget_scale), R.string.home_navigator_widget_scale)
         }
         Slider(step.toFloat(), { step = it.roundToInt() }, Modifier.fillMaxWidth().semantics { stateDescription = value },
             valueRange = 0f..NAVIGATOR_WIDGET_SCALE.lastIndex.toFloat(), steps = NAVIGATOR_WIDGET_SCALE.lastIndex - 1,

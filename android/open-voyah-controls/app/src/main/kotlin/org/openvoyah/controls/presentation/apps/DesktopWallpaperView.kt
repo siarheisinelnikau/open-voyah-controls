@@ -116,7 +116,7 @@ internal fun DesktopWallpaperSettings(extraDesktops: Boolean, desktopName: (AppG
 
     val active = lifecycle.isAtLeast(Lifecycle.State.RESUMED)
     val available = active && !state.saving && target == null
-    CockpitChoice(text(R.string.apps_wallpaper_title), enabled = active) { show = true }
+    CockpitChoice(R.string.apps_wallpaper_title, enabled = active) { show = true }
     if (show && active) {
         CockpitAlertDialog(
             onDismissRequest = { show = false },
@@ -131,6 +131,7 @@ internal fun DesktopWallpaperSettings(extraDesktops: Boolean, desktopName: (AppG
                         val name = desktopName(desktop)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             CockpitChoice(name, text(if (custom) R.string.apps_wallpaper_custom else R.string.apps_wallpaper_default),
+                                guideId = R.string.apps_wallpaper_title,
                                 enabled = available, modifier = Modifier.weight(1f)) {
                                 if (owner.lifecycle.currentState != Lifecycle.State.RESUMED || !available) return@CockpitChoice
                                 target = desktop.storedValue

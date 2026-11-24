@@ -68,7 +68,7 @@ internal fun UpdatesScreen(state: UpdatesState, back: () -> Unit, check: () -> U
             }
         }, second = {
             CockpitSection(text(R.string.updates_startup_heading), CockpitIcon.SETTINGS, text(R.string.updates_startup_description)) {
-                CockpitSwitch(text(R.string.updates_startup_toggle), state.checkOnStartup, !state.preferenceSaving, startup)
+                CockpitSwitch(R.string.updates_startup_toggle, state.checkOnStartup, !state.preferenceSaving, startup)
                 Text(text(R.string.updates_user_action), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         })

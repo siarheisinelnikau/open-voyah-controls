@@ -1,0 +1,1131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setting_guide_open">About %1$s</string>
+    <string name="setting_guide_example">Example</string>
+    <string name="setting_guide_replay">Replay</string>
+    <string-array name="guide_apps_grid_tile_size">
+        <item>Changes the size of app tiles and how many fit on a desktop page.</item>
+        <item>Large tiles</item>
+        <item>More compact tiles</item>
+    </string-array>
+    <string-array name="guide_apps_grid_columns">
+        <item>Sets the number of app columns. Automatic adapts to the available width.</item>
+        <item>Automatic layout</item>
+        <item>More columns</item>
+    </string-array>
+    <string-array name="guide_apps_grid_icon_style">
+        <item>Changes the shape and treatment of app icons in the grid.</item>
+        <item>Original icons</item>
+        <item>Unified icon style</item>
+    </string-array>
+    <string-array name="guide_apps_grid_show_labels">
+        <item>Shows or hides app names below the icons on the desktop.</item>
+        <item>Icons only</item>
+        <item>Icons with app names</item>
+    </string-array>
+    <string-array name="guide_apps_grid_sort_order">
+        <item>Changes the order of the All apps grid. Manual order follows the sequence you save.</item>
+        <item>Alphabetical order</item>
+        <item>Your own order</item>
+    </string-array>
+    <string-array name="guide_apps_grid_edit_manual_order">
+        <item>Reorder apps in All apps when Manual sorting is selected.</item>
+        <item>Maps after Music</item>
+        <item>Maps before Music</item>
+    </string-array>
+    <string-array name="guide_apps_grid_shortcuts">
+        <item>Choose which built-in Controls shortcuts appear in the app grid.</item>
+        <item>Controls tile only</item>
+        <item>Controls and Voice tiles</item>
+    </string-array>
+    <string-array name="guide_apps_grid_hidden_apps">
+        <item>Choose which apps appear in All apps. Hidden apps can still open from their Favorites shortcuts.</item>
+        <item>App listed</item>
+        <item>App hidden from All apps</item>
+    </string-array>
+    <string-array name="guide_apps_grid_show_search_field">
+        <item>Keeps the search field above All apps. The keyboard opens when you tap the field.</item>
+        <item>Search opens on demand</item>
+        <item>Search field stays visible</item>
+    </string-array>
+    <string-array name="guide_apps_grid_hide_by_default">
+        <item>Applies the default filter for firmware and service apps. Your individual visibility choices take priority.</item>
+        <item>Firmware apps included</item>
+        <item>Firmware apps filtered by default</item>
+    </string-array>
+    <string-array name="guide_apps_desktop_enable">
+        <item>Adds Favorites desktops alongside All apps so you can keep separate sets of shortcuts.</item>
+        <item>All apps</item>
+        <item>All apps and Favorites desktops</item>
+    </string-array>
+    <string-array name="guide_apps_desktop_default">
+        <item>Chooses the desktop that the app grid opens by default.</item>
+        <item>All apps opens first</item>
+        <item>Favorites opens first</item>
+    </string-array>
+    <string-array name="guide_apps_grid_desktop_names">
+        <item>Renames desktop tabs. Each desktop keeps its own name.</item>
+        <item>Favorites 1</item>
+        <item>Daily drive</item>
+    </string-array>
+    <string-array name="guide_apps_grid_favorites_back">
+        <item>Chooses where Android Back takes you from a Favorites desktop.</item>
+        <item>Leave the app grid</item>
+        <item>Return to All apps</item>
+    </string-array>
+    <string-array name="guide_apps_grid_smooth_paging">
+        <item>Controls the transition between desktop pages when you swipe or select a page.</item>
+        <item>Instant page change</item>
+        <item>Pages slide across</item>
+    </string-array>
+    <string-array name="guide_apps_wallpaper_title">
+        <item>Choose a wallpaper for each desktop. Restoring the default affects the selected desktop.</item>
+        <item>Default background</item>
+        <item>Your picture</item>
+    </string-array>
+    <string-array name="guide_desktop_layouts_settings">
+        <item>Save a snapshot of the desktop arrangement and apply it later from Settings or a routine.</item>
+        <item>Current desktops</item>
+        <item>Saved layout restored</item>
+    </string-array>
+    <string-array name="guide_desktop_layouts_name">
+        <item>Names the saved layout in the picker and routine editor.</item>
+        <item>New layout</item>
+        <item>Trip layout</item>
+    </string-array>
+    <string-array name="guide_desktop_info_settings">
+        <item>Choose which information cards each desktop shows and how much width they take.</item>
+        <item>Only app tiles</item>
+        <item>Tiles and information cards</item>
+    </string-array>
+    <string-array name="guide_desktop_info_desktop">
+        <item>Selects the desktop whose cards you are editing.</item>
+        <item>Edit All apps</item>
+        <item>Edit Favorites</item>
+    </string-array>
+    <string-array name="guide_apps_grid_card_placement">
+        <item>Chooses whether information cards or pinned apps appear first on a Favorites desktop.</item>
+        <item>Cards first</item>
+        <item>Pinned apps first</item>
+    </string-array>
+    <string-array name="guide_apps_grid_card_outlines">
+        <item>Adds a visible outline to desktop information cards so their boundaries are easier to see.</item>
+        <item>Plain card</item>
+        <item>Outlined card</item>
+    </string-array>
+    <string-array name="guide_desktop_info_clock_format">
+        <item>Changes the information shown on the clock card.</item>
+        <item>Time</item>
+        <item>Time and date</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media_style">
+        <item>Changes how track information and playback controls are arranged on the media card.</item>
+        <item>Track and controls</item>
+        <item>Track with artwork</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media_open_target">
+        <item>Chooses what tapping the media card opens, or makes the card display-only.</item>
+        <item>Media preview</item>
+        <item>Active player</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media_source">
+        <item>Selects the player that supplies track information to the desktop card.</item>
+        <item>Current active player</item>
+        <item>Selected media app</item>
+    </string-array>
+    <string-array name="guide_desktop_info_headlights_content">
+        <item>Chooses which headlight reading the desktop card shows.</item>
+        <item>Switch mode</item>
+        <item>High beams</item>
+    </string-array>
+    <string-array name="guide_desktop_info_phone_edit">
+        <item>Choose and order up to three saved voice contacts. A card button opens the dialer with the number filled in.</item>
+        <item>Saved contacts</item>
+        <item>Contacts in the phone card</item>
+    </string-array>
+    <string-array name="guide_desktop_info_route_content">
+        <item>Selects whether the navigation card shows the next turn only or also the current road.</item>
+        <item>Next turn</item>
+        <item>Next turn and current road</item>
+    </string-array>
+    <string-array name="guide_desktop_info_route_open_target">
+        <item>Chooses what tapping the navigation card opens, or makes the card display-only.</item>
+        <item>Route preview</item>
+        <item>Assigned navigator</item>
+    </string-array>
+    <string-array name="guide_home_navigator_card">
+        <item>Puts the Yandex Navigator widget on the supported factory home screen in place of the Baidu map.</item>
+        <item>Factory map card</item>
+        <item>Yandex Navigator card</item>
+    </string-array>
+    <string-array name="guide_home_navigator_widget_scale">
+        <item>Changes the size of the Navigator widget within the factory home screen.</item>
+        <item>Standard widget</item>
+        <item>Larger widget</item>
+    </string-array>
+    <string-array name="guide_home_weather_card">
+        <item>Shows weather on the supported factory home screen.</item>
+        <item>Weather hidden</item>
+        <item>Weather card visible</item>
+    </string-array>
+    <string-array name="guide_home_weather_city">
+        <item>Sets the city used by the factory home screen’s weather card.</item>
+        <item>Current city</item>
+        <item>Weather for your city</item>
+    </string-array>
+    <string-array name="guide_apps_hide">
+        <item>Removes this app from All apps and its search. Existing Favorites shortcuts can still open it.</item>
+        <item>Listed in All apps</item>
+        <item>Hidden from All apps</item>
+    </string-array>
+    <string-array name="guide_app_icon_plain">
+        <item>Attempts to remove the white background around this app’s icon. The result depends on the source picture.</item>
+        <item>White icon background</item>
+        <item>Background removed</item>
+    </string-array>
+    <string-array name="guide_window_hook_title">
+        <item>Enables the supported window service used for opening apps with custom window and display settings.</item>
+        <item>Default Android launch</item>
+        <item>Custom window and display options</item>
+    </string-array>
+    <string-array name="guide_window_strip_title">
+        <item>Lets Android reserve a strip beside app windows for the factory launcher panel on supported firmware.</item>
+        <item>App can fill the screen</item>
+        <item>Space for the launcher panel</item>
+    </string-array>
+    <string-array name="guide_app_window_panel_width">
+        <item>Sets the minimum space kept beside this app for the factory panel. Automatic uses the detected width.</item>
+        <item>Automatic panel margin</item>
+        <item>Wider reserved margin</item>
+    </string-array>
+    <string-array name="guide_app_window_width">
+        <item>Sets how much of the available window area this app uses on supported displays.</item>
+        <item>Full available width</item>
+        <item>Narrower app window</item>
+    </string-array>
+    <string-array name="guide_app_window_dpi">
+        <item>Sets the display density for this app when the window service opens it. Higher DPI makes the app’s interface larger.</item>
+        <item>Default app scale</item>
+        <item>Larger controls and text</item>
+    </string-array>
+    <string-array name="guide_app_display_defaults_title">
+        <item>Sets default app density separately for each display. Per-app DPI can override it.</item>
+        <item>Android display DPI</item>
+        <item>Default DPI for apps on this display</item>
+    </string-array>
+    <string-array name="guide_window_swipe_title">
+        <item>Configure a multi-finger swipe that moves the active app between supported displays.</item>
+        <item>App on the center display</item>
+        <item>App on the other display</item>
+    </string-array>
+    <string-array name="guide_window_swipe_fingers">
+        <item>Select two or three fingers for moving windows between displays, or switch the gesture off.</item>
+        <item>Swipe disabled</item>
+        <item>Two-finger window move</item>
+    </string-array>
+    <string-array name="guide_window_swipe_after">
+        <item>Chooses what remains on the source display after you move a window away.</item>
+        <item>Factory home screen</item>
+        <item>Controls app grid</item>
+    </string-array>
+    <string-array name="guide_display_density">
+        <item>Sets DPI for the virtual display rather than the physical screens.</item>
+        <item>Smaller preview controls</item>
+        <item>Larger preview controls</item>
+    </string-array>
+    <string-array name="guide_cluster_media_share">
+        <item>Offers media metadata to the supported instrument cluster.</item>
+        <item>Player on center screen</item>
+        <item>Track information on cluster</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_media">
+        <item>Shows the active media pane in the virtual display preview.</item>
+        <item>Media pane hidden</item>
+        <item>Media pane visible</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_navigation">
+        <item>Shows the route pane in the virtual display preview when route information is available.</item>
+        <item>Route hidden</item>
+        <item>Route and turn guidance</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_playback_progress">
+        <item>Adds the current playback position and track duration to the media pane.</item>
+        <item>Track title only</item>
+        <item>Track with progress</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_album_artwork">
+        <item>Shows available cover art in the media pane.</item>
+        <item>Track without cover</item>
+        <item>Track with cover</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_transport_controls">
+        <item>Shows playback buttons that the active player supports.</item>
+        <item>Track information</item>
+        <item>Playback buttons alongside track</item>
+    </string-array>
+    <string-array name="guide_display_preview_arrangement">
+        <item>Places the media and route panes next to each other or one above the other.</item>
+        <item>Side by side</item>
+        <item>Stacked panes</item>
+    </string-array>
+    <string-array name="guide_display_preview_pane_order">
+        <item>Selects which pane comes first when both media and navigation are visible.</item>
+        <item>Media first</item>
+        <item>Route first</item>
+    </string-array>
+    <string-array name="guide_display_preview_media_source">
+        <item>Chooses the app that supplies media data, or follows the current active player.</item>
+        <item>Active player</item>
+        <item>Preferred player</item>
+    </string-array>
+    <string-array name="guide_display_preview_media_fallback">
+        <item>Chooses whether the preview may use another active player when the preferred one has no session.</item>
+        <item>Wait for preferred player</item>
+        <item>Use another active player</item>
+    </string-array>
+    <string-array name="guide_display_preview_seek_step">
+        <item>Sets how far the skip-back and skip-forward buttons move the track when seeking is supported.</item>
+        <item>Short skip</item>
+        <item>Longer skip</item>
+    </string-array>
+    <string-array name="guide_display_preview_details">
+        <item>Opens the controls for preview layout, road labels, text and colors.</item>
+        <item>Basic layout</item>
+        <item>Detailed preview settings</item>
+    </string-array>
+    <string-array name="guide_display_preview_text_size">
+        <item>Changes text size inside the virtual display preview.</item>
+        <item>Normal label size</item>
+        <item>Larger preview labels</item>
+    </string-array>
+    <string-array name="guide_display_preview_palette">
+        <item>Selects the color scheme of the virtual display preview independently of the main app.</item>
+        <item>Dark preview</item>
+        <item>Daytime preview</item>
+    </string-array>
+    <string-array name="guide_display_preview_pane_balance">
+        <item>Changes how available width is split between media and route in side-by-side mode.</item>
+        <item>Equal widths</item>
+        <item>More room for one pane</item>
+    </string-array>
+    <string-array name="guide_display_preview_hide_empty_panes">
+        <item>Releases space reserved for a media or route pane while that pane has no data.</item>
+        <item>Placeholder stays</item>
+        <item>Other pane uses the space</item>
+    </string-array>
+    <string-array name="guide_display_preview_media_subtitle">
+        <item>Chooses what extra track information appears below the title.</item>
+        <item>Track title</item>
+        <item>Track title and artist</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_current_road">
+        <item>Shows the current road name in the route pane when provided by navigation.</item>
+        <item>Turn only</item>
+        <item>Turn and current road</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_next_road">
+        <item>Adds the road name after the next maneuver when navigation provides it.</item>
+        <item>Turn arrow</item>
+        <item>Turn arrow and next road</item>
+    </string-array>
+    <string-array name="guide_display_preview_road_names">
+        <item>Chooses how names provided by navigation are written, including transliteration where available.</item>
+        <item>Original road name</item>
+        <item>Road name in Latin script</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_turn_distance">
+        <item>Adds the distance remaining to the next maneuver when the route feed has it.</item>
+        <item>Turn arrow only</item>
+        <item>Turn arrow and 300 m</item>
+    </string-array>
+    <string-array name="guide_display_preview_distance_units">
+        <item>Sets the units used for the distance to a turn.</item>
+        <item>1 km</item>
+        <item>0.6 mi</item>
+    </string-array>
+    <string-array name="guide_appearance_palette">
+        <item>Changes the colors of Controls surfaces and text. Choose a dark palette or daytime colors.</item>
+        <item>Dark cockpit</item>
+        <item>Daytime cockpit</item>
+    </string-array>
+    <string-array name="guide_appearance_accent">
+        <item>Changes the color used for actions, selections, focus and the startup intro.</item>
+        <item>Standard accent</item>
+        <item>Teal accent</item>
+    </string-array>
+    <string-array name="guide_appearance_background">
+        <item>Chooses a subtle ambient backdrop or a flat surface behind Controls pages.</item>
+        <item>Ambient backdrop</item>
+        <item>Solid backdrop</item>
+    </string-array>
+    <string-array name="guide_appearance_high_contrast">
+        <item>Makes text, outlines and selection states stand out more against the background.</item>
+        <item>Standard outlines</item>
+        <item>Stronger outlines</item>
+    </string-array>
+    <string-array name="guide_appearance_text_size">
+        <item>Changes the base size of Controls text and labels. Titles and navigation labels can use their own settings.</item>
+        <item>Standard text</item>
+        <item>Larger text</item>
+    </string-array>
+    <string-array name="guide_appearance_navigation_label_size">
+        <item>Changes navigation labels separately or makes them follow the general text size.</item>
+        <item>Follow text size</item>
+        <item>Larger navigation labels</item>
+    </string-array>
+    <string-array name="guide_appearance_page_title_size">
+        <item>Changes page headings separately from regular text when you choose a fixed size.</item>
+        <item>Standard headings</item>
+        <item>Larger headings</item>
+    </string-array>
+    <string-array name="guide_appearance_font_family">
+        <item>Selects the typeface Controls uses for its interface.</item>
+        <item>Android system font</item>
+        <item>Golos Text</item>
+    </string-array>
+    <string-array name="guide_appearance_bold_text">
+        <item>Makes Controls text heavier for easier reading.</item>
+        <item>Regular weight</item>
+        <item>Bold text</item>
+    </string-array>
+    <string-array name="guide_appearance_spacing">
+        <item>Changes gaps and padding across the Controls interface.</item>
+        <item>Compact spacing</item>
+        <item>More room between controls</item>
+    </string-array>
+    <string-array name="guide_appearance_corners">
+        <item>Changes the radius of cards, buttons and dialogs in Controls.</item>
+        <item>Subtle corners</item>
+        <item>More rounded corners</item>
+    </string-array>
+    <string-array name="guide_appearance_animate_routes">
+        <item>Enables short animations when moving between Controls screens.</item>
+        <item>Pages switch instantly</item>
+        <item>Pages slide and fade</item>
+    </string-array>
+    <string-array name="guide_appearance_transition_speed">
+        <item>Changes how quickly page transitions finish when screen animations are enabled.</item>
+        <item>Short transition</item>
+        <item>Slower, smoother transition</item>
+    </string-array>
+    <string-array name="guide_appearance_wallpaper_dimming">
+        <item>Changes how much custom desktop wallpapers are darkened behind icons and cards.</item>
+        <item>More of the image shows</item>
+        <item>A darker image behind icons</item>
+    </string-array>
+    <string-array name="guide_appearance_start_screen">
+        <item>Chooses where the Open Controls launcher shortcut goes.</item>
+        <item>App grid</item>
+        <item>Settings or Vehicle</item>
+    </string-array>
+    <string-array name="guide_appearance_limit_media_on_launch">
+        <item>Can lower media that is already above the selected cap when Controls launches. Quieter media stays at its current level.</item>
+        <item>Media is above the cap</item>
+        <item>Media drops to the cap</item>
+    </string-array>
+    <string-array name="guide_appearance_launch_media_limit">
+        <item>Sets the upper media volume allowed by the launch limit.</item>
+        <item>Cap at 50%</item>
+        <item>Cap at 30%</item>
+    </string-array>
+    <string-array name="guide_quick_actions_enabled">
+        <item>Shows a bar of Controls and app shortcuts inside the Controls window.</item>
+        <item>Full page</item>
+        <item>Page with quick actions</item>
+    </string-array>
+    <string-array name="guide_quick_actions_area">
+        <item>Chooses on which Controls screens the quick-action bar appears.</item>
+        <item>App grid only</item>
+        <item>Bar on all Controls screens</item>
+    </string-array>
+    <string-array name="guide_quick_actions_hide_on_virtual_display">
+        <item>Gives the virtual display page and its preview the full available Controls window.</item>
+        <item>Preview beside dock</item>
+        <item>Preview uses full width</item>
+    </string-array>
+    <string-array name="guide_quick_actions_headlight_indicator">
+        <item>Adds the last known or live headlight reading to the expanded bar.</item>
+        <item>Shortcuts only</item>
+        <item>Headlight indicator added</item>
+    </string-array>
+    <string-array name="guide_quick_actions_headlight_content">
+        <item>Selects what the bar’s light indicator shows: switch mode, headlamps or high beam.</item>
+        <item>Switch mode</item>
+        <item>High beam status</item>
+    </string-array>
+    <string-array name="guide_quick_actions_headlight_tap">
+        <item>Selects what tapping the headlight indicator opens.</item>
+        <item>Vehicle settings</item>
+        <item>Lighting sources over this page</item>
+    </string-array>
+    <string-array name="guide_quick_actions_apps_destination">
+        <item>Chooses whether the Apps shortcut opens the configured default desktop or All apps.</item>
+        <item>Default desktop</item>
+        <item>All apps</item>
+    </string-array>
+    <string-array name="guide_quick_actions_side">
+        <item>Places the side bar on the left or right of wide screens.</item>
+        <item>Left rail</item>
+        <item>Right rail</item>
+    </string-array>
+    <string-array name="guide_quick_actions_wide_width">
+        <item>Sets the width the side bar reserves on wide screens.</item>
+        <item>Standard rail</item>
+        <item>Compact rail</item>
+    </string-array>
+    <string-array name="guide_quick_actions_rail_alignment">
+        <item>Moves the expanded shortcuts to the top, center or bottom of the side bar.</item>
+        <item>Shortcuts at the top</item>
+        <item>Shortcuts centered</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_edge">
+        <item>Moves the bar between the top and bottom edges on compact screens.</item>
+        <item>Top bar</item>
+        <item>Bottom bar</item>
+    </string-array>
+    <string-array name="guide_quick_actions_labels">
+        <item>Adds names below or beside shortcut icons. Compact screens can override this choice.</item>
+        <item>Icons only</item>
+        <item>Icons and names</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_labels">
+        <item>Overrides shortcut labels on compact screens or follows the main labels setting.</item>
+        <item>Follow the main setting</item>
+        <item>Icons only on compact screens</item>
+    </string-array>
+    <string-array name="guide_quick_actions_start_state">
+        <item>Chooses whether the bar is open when Controls starts. Default follows Collapse after choosing a shortcut.</item>
+        <item>Open at startup</item>
+        <item>Collapsed at startup</item>
+    </string-array>
+    <string-array name="guide_quick_actions_collapse_after_use">
+        <item>Folds the bar after you tap a shortcut.</item>
+        <item>Shortcut opens, bar stays</item>
+        <item>Shortcut opens, bar folds</item>
+    </string-array>
+    <string-array name="guide_quick_actions_idle_collapse">
+        <item>Folds the open bar after the selected time without interaction.</item>
+        <item>Bar stays open</item>
+        <item>Bar folds after 10 seconds</item>
+    </string-array>
+    <string-array name="guide_quick_actions_keep_side_inset">
+        <item>Keeps the same page width after a wide side bar collapses, so content stays in place.</item>
+        <item>Page expands when bar folds</item>
+        <item>Page width stays fixed</item>
+    </string-array>
+    <string-array name="guide_quick_actions_handle_size">
+        <item>Changes the size of the button used to expand the collapsed bar.</item>
+        <item>Standard handle</item>
+        <item>Larger tap target</item>
+    </string-array>
+    <string-array name="guide_quick_actions_side_handle_position">
+        <item>Places the expand button at the top, center or bottom of the collapsed side bar on wide screens.</item>
+        <item>Button at the top</item>
+        <item>Button at the bottom</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_handle_side">
+        <item>Moves the expand button to the left or right on a compact screen.</item>
+        <item>Button on the left</item>
+        <item>Button on the right</item>
+    </string-array>
+    <string-array name="guide_quick_actions_handle_accent">
+        <item>Sets the expand button’s accent to the app theme, amber or teal.</item>
+        <item>Theme accent</item>
+        <item>Teal handle</item>
+    </string-array>
+    <string-array name="guide_quick_actions_dim_idle_handle">
+        <item>Softens the expand button’s fill while idle. Touch or focus brings back the full color.</item>
+        <item>Normal fill</item>
+        <item>Dimmed while idle</item>
+    </string-array>
+    <string-array name="guide_quick_actions_contrast_handle">
+        <item>Makes the expand button’s arrow and border more distinct.</item>
+        <item>Standard contrast</item>
+        <item>Stronger arrow and border</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_handle_label">
+        <item>Shows a text caption beside the collapsed button on compact screens.</item>
+        <item>Arrow only</item>
+        <item>Arrow and caption</item>
+    </string-array>
+    <string-array name="guide_quick_actions_larger_shortcuts">
+        <item>Gives selected built-in shortcuts bigger tap targets on the expanded bar.</item>
+        <item>Standard shortcuts</item>
+        <item>Selected shortcuts are larger</item>
+    </string-array>
+    <string-array name="guide_quick_actions_routine_shortcut">
+        <item>Runs the chosen saved routine from the bar in one tap.</item>
+        <item>Routine library</item>
+        <item>Direct access to one routine</item>
+    </string-array>
+    <string-array name="guide_quick_actions_shortcuts">
+        <item>Choose which Controls shortcuts appear on the bar and change their order.</item>
+        <item>Factory shortcut order</item>
+        <item>Your shortcuts in your order</item>
+    </string-array>
+    <string-array name="guide_ui_69">
+        <item>Applies your assignments to supported buttons in the factory launcher panel.</item>
+        <item>Factory panel action</item>
+        <item>Your panel shortcut</item>
+    </string-array>
+    <string-array name="guide_ui_43">
+        <item>Enables the actions you assigned to captured Android hardware buttons.</item>
+        <item>Original button behavior</item>
+        <item>Your assigned action</item>
+    </string-array>
+    <string-array name="guide_oem_short">
+        <item>Chooses the action for a short press of this button.</item>
+        <item>Tap the button</item>
+        <item>Short-press action runs</item>
+    </string-array>
+    <string-array name="guide_oem_hold">
+        <item>Chooses the action for holding this button past the hold threshold.</item>
+        <item>Hold the button</item>
+        <item>Hold action runs</item>
+    </string-array>
+    <string-array name="guide_ui_98">
+        <item>Applies this Android key binding on all input devices with the same key code.</item>
+        <item>One input device</item>
+        <item>Any matching input device</item>
+    </string-array>
+    <string-array name="guide_ui_99">
+        <item>Enables this individual assignment while keeping the chosen actions saved.</item>
+        <item>Assignment paused</item>
+        <item>Assignment active</item>
+    </string-array>
+    <string-array name="guide_ui_91">
+        <item>Selects which Android key code this assignment listens for.</item>
+        <item>Another key code</item>
+        <item>Matching key code triggers the binding</item>
+    </string-array>
+    <string-array name="guide_ui_95">
+        <item>Names this assignment in the hardware button list.</item>
+        <item>Key code</item>
+        <item>Your button name</item>
+    </string-array>
+    <string-array name="guide_ui_115">
+        <item>Sets how long a button must be held to trigger its hold action.</item>
+        <item>Released before the threshold</item>
+        <item>Held long enough</item>
+    </string-array>
+    <string-array name="guide_ui_116">
+        <item>Sets the debounce interval used to ignore very closely spaced repeated presses.</item>
+        <item>Two rapid signals</item>
+        <item>One accepted press</item>
+    </string-array>
+    <string-array name="guide_cockpit_language">
+        <item>Changes the language of Controls menus and settings. Voice recognition has its own language setting.</item>
+        <item>English interface</item>
+        <item>Russian interface</item>
+    </string-array>
+    <string-array name="guide_keyboard_choice_section">
+        <item>Selects the keyboard for the supported displays or restores the factory keyboard.</item>
+        <item>Factory keyboard</item>
+        <item>Selected installed keyboard</item>
+    </string-array>
+    <string-array name="guide_text_overlays_title">
+        <item>Installs a supported language pack for factory apps on matching firmware. Individual apps can be opted out.</item>
+        <item>Factory app text</item>
+        <item>Translated factory app text</item>
+    </string-array>
+    <string-array name="guide_text_overlays_off">
+        <item>Restores the original factory app text on supported apps.</item>
+        <item>Translated menu</item>
+        <item>Original factory menu</item>
+    </string-array>
+    <string-array name="guide_cockpit_dictionary_russian">
+        <item>Uses the bundled Russian text dictionary where factory screen translation is supported.</item>
+        <item>Original factory labels</item>
+        <item>Russian factory labels</item>
+    </string-array>
+    <string-array name="guide_translation_import">
+        <item>Loads a compatible custom translation dictionary for supported factory screens.</item>
+        <item>Current dictionary</item>
+        <item>Imported translations</item>
+    </string-array>
+    <string-array name="guide_updates_startup_toggle">
+        <item>Looks for a compatible newer Controls release in the background at startup. Manual checking remains available.</item>
+        <item>Check on demand</item>
+        <item>Check after startup</item>
+    </string-array>
+    <string-array name="guide_settings_archive_export">
+        <item>Saves portable Controls settings in a file you can keep or move to another installation.</item>
+        <item>Settings on this unit</item>
+        <item>Portable backup file</item>
+    </string-array>
+    <string-array name="guide_settings_archive_import">
+        <item>Reviews and restores portable choices from a compatible Controls backup.</item>
+        <item>Current settings</item>
+        <item>Saved settings restored</item>
+    </string-array>
+    <string-array name="guide_headlight_monitoring_open">
+        <item>Listens for supported headlight feedback while Controls is open. It updates the reading in Vehicle and enabled cards.</item>
+        <item>Last known reading</item>
+        <item>Live confirmed reading when available</item>
+    </string-array>
+    <string-array name="guide_seat_memory_open_factory_on_tap">
+        <item>Opens factory Seats when you choose Save or Restore in Controls. The factory screen handles the actual seat positions.</item>
+        <item>Instructions in Controls</item>
+        <item>Factory Seats opens</item>
+    </string-array>
+    <string-array name="guide_service_reminder_show_on_vehicle">
+        <item>Shows your maintenance plan and its current due status on the Vehicle page.</item>
+        <item>Reminder in maintenance settings</item>
+        <item>Reminder also on Vehicle</item>
+    </string-array>
+    <string-array name="guide_service_reminder_interval">
+        <item>Sets the distance between services. Controls adds it to the last service odometer value.</item>
+        <item>Last service</item>
+        <item>Next service at the selected distance</item>
+    </string-array>
+    <string-array name="guide_service_reminder_current">
+        <item>Provides the current odometer value for the distance remaining calculation.</item>
+        <item>Current odometer unknown</item>
+        <item>Distance remaining shown</item>
+    </string-array>
+    <string-array name="guide_service_reminder_last">
+        <item>Records the odometer value at the most recent service, which anchors the distance plan.</item>
+        <item>No last service recorded</item>
+        <item>Next service distance calculated</item>
+    </string-array>
+    <string-array name="guide_service_reminder_lead_title">
+        <item>Sets how far before the due mileage Controls starts showing an early reminder.</item>
+        <item>Distance still remaining</item>
+        <item>Early mileage reminder</item>
+    </string-array>
+    <string-array name="guide_service_reminder_calendar_interval">
+        <item>Adds the selected number of months to the last service date to calculate the next due date.</item>
+        <item>Last service date</item>
+        <item>Next service due date</item>
+    </string-array>
+    <string-array name="guide_service_reminder_calendar_lead_title">
+        <item>Sets how many days before the due date the calendar reminder becomes active.</item>
+        <item>Due date only</item>
+        <item>Reminder before the due date</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_lights_enabled">
+        <item>Enables the configured headlight routine on supported firmware when the gear changes and its checks pass.</item>
+        <item>Gear changes with lights unchanged</item>
+        <item>Configured light action requested</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_on_drive">
+        <item>Chooses the lighting action the routine requests on shifting into Drive, when the feature and vehicle checks allow it.</item>
+        <item>Drive selected</item>
+        <item>Configured Drive light action</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_on_park">
+        <item>Chooses the lighting action the routine requests on reaching Park, when the vehicle checks allow it.</item>
+        <item>Park selected</item>
+        <item>Configured Park light action</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_memory_enabled">
+        <item>Remembers the last observed driving mode and can restore it when the supported start conditions are met.</item>
+        <item>Driving mode changes</item>
+        <item>Last confirmed mode remembered</item>
+    </string-array>
+    <string-array name="guide_voice_recognition">
+        <item>Open the recognition language, offline engine and online interpretation settings.</item>
+        <item>Speech in one language</item>
+        <item>Recognition configured for your voice</item>
+    </string-array>
+    <string-array name="guide_voice_language">
+        <item>Selects the language of both the phrases in this catalog and the offline recognition model.</item>
+        <item>English phrases and model</item>
+        <item>Russian phrases and model</item>
+    </string-array>
+    <string-array name="guide_voice_recognition_engine">
+        <item>Selects the offline engine. The chosen engine and language need a local speech model.</item>
+        <item>Speech captured</item>
+        <item>Selected engine recognizes it</item>
+    </string-array>
+    <string-array name="guide_voice_online_title">
+        <item>Allows optional online interpretation of a confident local transcript when no catalog phrase matches.</item>
+        <item>No local match</item>
+        <item>Online service may suggest a supported command</item>
+    </string-array>
+    <string-array name="guide_voice_online_switch">
+        <item>Enables the OpenRouter fallback for supported intents. The service receives short recognized text.</item>
+        <item>Local result only</item>
+        <item>Text fallback after a missed command</item>
+    </string-array>
+    <string-array name="guide_voice_online_key">
+        <item>Stores the key used to connect to your OpenRouter account on this device.</item>
+        <item>Online fallback unavailable</item>
+        <item>Account ready for interpretation</item>
+    </string-array>
+    <string-array name="guide_default_levels">
+        <item>Sets saved seat comfort levels used when a voice command asks to enable the feature without naming a level.</item>
+        <item>Turn on seat heating</item>
+        <item>Seat heating uses your default level</item>
+    </string-array>
+    <string-array name="guide_window_options">
+        <item>Choose how much the windows open for the Smoke and Ventilation commands on supported vehicles.</item>
+        <item>Regular opening</item>
+        <item>Extended window opening</item>
+    </string-array>
+    <string-array name="guide_double_smoke">
+        <item>Uses the extended driver-window position for the Smoke command.</item>
+        <item>Regular driver window gap</item>
+        <item>Larger driver window gap</item>
+    </string-array>
+    <string-array name="guide_double_ventilation">
+        <item>Uses extended window gaps for the cabin Ventilation command.</item>
+        <item>Regular window gaps</item>
+        <item>Larger cabin window gaps</item>
+    </string-array>
+    <string-array name="guide_voice_vehicle_commands">
+        <item>Choose which vehicle commands may be requested. Firmware and vehicle-state checks still apply.</item>
+        <item>Command forbidden</item>
+        <item>Command allowed to reach its checks</item>
+    </string-array>
+    <string-array name="guide_voice_audio_settings">
+        <item>Adjust voice feedback, listening signals and how long the voice popup stays visible.</item>
+        <item>Listening starts</item>
+        <item>Chosen signals and reply play</item>
+    </string-array>
+    <string-array name="guide_voice_spoken_feedback">
+        <item>Plays a spoken reply after a recognized voice command using an installed offline voice.</item>
+        <item>Result on screen</item>
+        <item>Result with a spoken reply</item>
+    </string-array>
+    <string-array name="guide_voice_speech_rate">
+        <item>Changes how quickly spoken replies and voice samples are read.</item>
+        <item>Normal speech</item>
+        <item>Faster speech</item>
+    </string-array>
+    <string-array name="guide_voice_speech_volume">
+        <item>Changes the level of spoken replies relative to the selected audio channel.</item>
+        <item>Quieter reply</item>
+        <item>Louder reply</item>
+    </string-array>
+    <string-array name="guide_voice_feedback_style">
+        <item>Chooses whether the reply repeats what was recognized or reads the outcome.</item>
+        <item>Repeat the phrase</item>
+        <item>Read the result</item>
+    </string-array>
+    <string-array name="guide_voice_reply_channel">
+        <item>Sends spoken feedback and samples to the Assistant or Media audio channel.</item>
+        <item>Assistant channel</item>
+        <item>Media channel</item>
+    </string-array>
+    <string-array name="guide_voice_offline_voice">
+        <item>Selects an installed voice for replies in the current recognition language. Automatic finds a compatible voice.</item>
+        <item>Automatically chosen voice</item>
+        <item>Your chosen offline voice</item>
+    </string-array>
+    <string-array name="guide_voice_ready_cue">
+        <item>Plays a ready signal before each recording starts.</item>
+        <item>Microphone opens quietly</item>
+        <item>Ready signal before listening</item>
+    </string-array>
+    <string-array name="guide_voice_ready_style">
+        <item>Selects a tone or a spoken prompt as the ready signal.</item>
+        <item>Short tone</item>
+        <item>Spoken prompt</item>
+    </string-array>
+    <string-array name="guide_voice_ready_phrase">
+        <item>Sets a custom ready phrase for this recognition language. Clear it to use the built-in prompt.</item>
+        <item>Built-in prompt</item>
+        <item>Your own ready phrase</item>
+    </string-array>
+    <string-array name="guide_voice_ready_cue_volume">
+        <item>Controls how loud the ready signal plays before listening.</item>
+        <item>Soft ready signal</item>
+        <item>Louder ready signal</item>
+    </string-array>
+    <string-array name="guide_voice_end_listening_cue">
+        <item>Chooses the sound played when the microphone closes or turns it off.</item>
+        <item>Silent end</item>
+        <item>Soft end tone</item>
+    </string-array>
+    <string-array name="guide_voice_end_cue_volume">
+        <item>Changes only the end-of-listening sound level. The reset button restores the sound’s preset.</item>
+        <item>Quiet end tone</item>
+        <item>Louder end tone</item>
+    </string-array>
+    <string-array name="guide_voice_capture_popup">
+        <item>Open settings for the listening deadline, result time and recognized text on the voice popup.</item>
+        <item>Listening</item>
+        <item>Result popup</item>
+    </string-array>
+    <string-array name="guide_voice_listening_limit">
+        <item>Sets the longest time the microphone can listen for one command.</item>
+        <item>Up to 3 seconds</item>
+        <item>Up to 6 seconds</item>
+    </string-array>
+    <string-array name="guide_voice_result_duration">
+        <item>Sets how long the voice popup holds the result. Spoken feedback can keep it visible a little longer.</item>
+        <item>Result for 1 second</item>
+        <item>Result for 4 seconds</item>
+    </string-array>
+    <string-array name="guide_voice_show_recognized_phrase">
+        <item>Shows the exact recognized phrase above the result when one is available.</item>
+        <item>Result only</item>
+        <item>Recognized phrase and result</item>
+    </string-array>
+    <string-array name="guide_voice_startup_volume">
+        <item>Applies your chosen media level once when the head unit starts.</item>
+        <item>Previous volume</item>
+        <item>Startup volume applied</item>
+    </string-array>
+    <string-array name="guide_voice_startup_volume_level">
+        <item>Sets the share of maximum media volume to use at head unit startup.</item>
+        <item>Startup at 10%</item>
+        <item>Startup at 20%</item>
+    </string-array>
+    <string-array name="guide_voice_duck_media">
+        <item>Temporarily lowers media while the voice microphone is listening.</item>
+        <item>Music at its current level</item>
+        <item>Music lowered during listening</item>
+    </string-array>
+    <string-array name="guide_voice_duck_calls">
+        <item>Temporarily lowers media during calls reported by the head unit.</item>
+        <item>Music at its current level</item>
+        <item>Music lowered during a call</item>
+    </string-array>
+    <string-array name="guide_voice_duck_level">
+        <item>Sets how much of the current media volume remains while ducking is active.</item>
+        <item>Keep 35% of the current level</item>
+        <item>Keep 10% of the current level</item>
+    </string-array>
+    <string-array name="guide_ui_177">
+        <item>Manage contacts and backups for voice settings and restore a working configuration.</item>
+        <item>Current voice setup</item>
+        <item>Saved settings or restored voice setup</item>
+    </string-array>
+    <string-array name="guide_ui_181">
+        <item>Adds a contact for offline voice dialing. The command opens Android’s dialer with the saved number.</item>
+        <item>Saved name and phone</item>
+        <item>Dialer opens with the number</item>
+    </string-array>
+    <string-array name="guide_ui_193">
+        <item>Use a clear name that you can pronounce when asking Controls to call this contact.</item>
+        <item>Contact name</item>
+        <item>Name in a spoken command</item>
+    </string-array>
+    <string-array name="guide_ui_194">
+        <item>Sets the number filled into Android’s dialer when the contact command is recognized.</item>
+        <item>Contact recognized</item>
+        <item>Phone number in dialer</item>
+    </string-array>
+    <string-array name="guide_routines_name">
+        <item>Names the routine wherever it can be selected or launched.</item>
+        <item>New routine</item>
+        <item>Morning drive</item>
+    </string-array>
+    <string-array name="guide_routines_page">
+        <item>Chooses which Controls page the routine opens.</item>
+        <item>Current page</item>
+        <item>Selected Controls page</item>
+    </string-array>
+    <string-array name="guide_routines_layout">
+        <item>Optionally applies a saved desktop layout when the routine runs.</item>
+        <item>Current desktop layout</item>
+        <item>Routine layout applied</item>
+    </string-array>
+    <string-array name="guide_routines_theme">
+        <item>Optionally changes the Controls palette when the routine runs.</item>
+        <item>Current colors</item>
+        <item>Routine palette applied</item>
+    </string-array>
+    <string-array name="guide_routines_app">
+        <item>Optionally opens a chosen installed app as part of the routine.</item>
+        <item>Controls open</item>
+        <item>Chosen app opens</item>
+    </string-array>
+    <string-array name="guide_routines_pin">
+        <item>Keeps this routine in the pinned group for easier access.</item>
+        <item>Regular library entry</item>
+        <item>Pinned routine</item>
+    </string-array>
+    <string-array name="guide_routines_startup_enabled">
+        <item>Runs the selected startup routine according to its schedule when launched from the launcher.</item>
+        <item>Open normally</item>
+        <item>Apply the scheduled startup routine</item>
+    </string-array>
+    <string-array name="guide_routines_days">
+        <item>Choose on which days the launcher startup routine may run.</item>
+        <item>Any selected day</item>
+        <item>Weekdays only</item>
+    </string-array>
+    <string-array name="guide_routines_frequency">
+        <item>Sets how often an eligible launcher startup can run the routine.</item>
+        <item>Each eligible opening</item>
+        <item>At most once per day</item>
+    </string-array>
+    <string-array name="guide_routines_delay">
+        <item>Waits the selected interval after opening from the launcher before running the routine.</item>
+        <item>Run immediately</item>
+        <item>Run after a delay</item>
+    </string-array>
+    <string-array name="guide_routines_limit_hours">
+        <item>Restricts startup routine launches to the selected time window.</item>
+        <item>Any time on chosen days</item>
+        <item>Only within the time window</item>
+    </string-array>
+    <string-array name="guide_routines_time_start">
+        <item>Sets when the daily window for the startup routine begins.</item>
+        <item>Before the start time</item>
+        <item>Routine eligible from the start time</item>
+    </string-array>
+    <string-array name="guide_routines_time_end">
+        <item>Sets when the daily window for the startup routine ends.</item>
+        <item>Inside the time window</item>
+        <item>Routine held until the next window</item>
+    </string-array>
+    <string-array name="guide_rules_enabled">
+        <item>Checks this rule when supported vehicle observations change and runs its routine when the conditions are met.</item>
+        <item>Rule paused</item>
+        <item>Rule watches for its conditions</item>
+    </string-array>
+    <string-array name="guide_rules_gear">
+        <item>Requires the selected gear for the rule to match. Any gear removes this condition.</item>
+        <item>Other gear</item>
+        <item>Selected gear matches</item>
+    </string-array>
+    <string-array name="guide_rules_doors">
+        <item>Requires the chosen door condition for the rule to match. Choose Any to ignore doors.</item>
+        <item>Door condition differs</item>
+        <item>Door condition matches</item>
+    </string-array>
+    <string-array name="guide_rules_routine">
+        <item>Chooses the saved routine that runs when this rule matches.</item>
+        <item>Conditions match</item>
+        <item>Selected routine runs</item>
+    </string-array>
+    <string-array name="guide_rules_cooldown">
+        <item>Sets the minimum time between runs of this rule.</item>
+        <item>Rule just ran</item>
+        <item>Can run again after the interval</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_enabled">
+        <item>Makes the seasonal preset available when its conditions match and vehicle checks allow it.</item>
+        <item>Preset paused</item>
+        <item>Preset ready when conditions match</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_above_field">
+        <item>Sets the outdoor temperature above which the summer preset can be applied.</item>
+        <item>Below the threshold</item>
+        <item>Summer preset can become ready</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_below_field">
+        <item>Sets the outdoor temperature below which the winter preset can be applied.</item>
+        <item>Above the threshold</item>
+        <item>Winter preset can become ready</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_gear">
+        <item>Requires Park or Drive before applying this preset, according to your choice and the vehicle checks.</item>
+        <item>Other gear</item>
+        <item>Required gear selected</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_closed_doors">
+        <item>Requires all doors to be reported closed before applying the seasonal preset.</item>
+        <item>Door open or status unknown</item>
+        <item>All doors confirmed closed</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_driver">
+        <item>Sets the requested temperature for the driver’s climate zone when the preset is applied.</item>
+        <item>Current driver temperature</item>
+        <item>Driver target from the preset</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_passenger">
+        <item>Sets the requested temperature for the front passenger’s zone when the preset is applied.</item>
+        <item>Current passenger temperature</item>
+        <item>Passenger target from the preset</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_fan">
+        <item>Sets the requested fan speed for this seasonal preset.</item>
+        <item>Gentle airflow</item>
+        <item>Higher fan speed</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_driver_seat">
+        <item>Requests driver seat ventilation in summer or heating in winter. Unchanged leaves its level as is.</item>
+        <item>Current seat comfort</item>
+        <item>Driver seat level from the preset</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_passenger_seat">
+        <item>Requests passenger seat ventilation in summer or heating in winter. Unchanged leaves its level as is.</item>
+        <item>Current seat comfort</item>
+        <item>Passenger seat level from the preset</item>
+    </string-array>
+    <string-array name="guide_action_permissions_title">
+        <item>Choose whether each listed action is allowed, recorded as unverified, or blocked before dispatch.</item>
+        <item>Request permitted under its usual checks</item>
+        <item>Blocked request stops before dispatch</item>
+    </string-array>
+    <string-array name="guide_apps_grid_reorder_pins">
+        <item>Choose and reorder app shortcuts for this Favorites desktop. Each desktop keeps its own pins.</item>
+        <item>Apps in your first order</item>
+        <item>Pins in your new order</item>
+    </string-array>
+    <string-array name="guide_app_picker_show_all">
+        <item>Temporarily includes hidden, factory and service apps in this picker.</item>
+        <item>Filtered picker</item>
+        <item>Hidden apps also offered</item>
+    </string-array>
+    <string-array name="guide_app_icon_title">
+        <item>A custom image replaces this app’s icon in Controls. Reset brings back the launcher icon.</item>
+        <item>Original launcher icon</item>
+        <item>Your image in the app grid</item>
+    </string-array>
+    <string-array name="guide_apps_permissions">
+        <item>Grants or revokes the shown Android permission for this app. Options depend on the installed app and Android version.</item>
+        <item>App denied this access</item>
+        <item>App has this access</item>
+    </string-array>
+    <string-array name="guide_quick_actions_app_shortcuts">
+        <item>Adds installed apps after the Controls shortcuts. You can set their order or remove them later.</item>
+        <item>Controls shortcuts</item>
+        <item>Controls and installed app shortcuts</item>
+    </string-array>
+    <string-array name="guide_rules_name">
+        <item>Names this rule in the If–then rules list.</item>
+        <item>New rule</item>
+        <item>Your rule name</item>
+    </string-array>
+    <string-array name="guide_service_reminder_calendar_last_date">
+        <item>Sets the date from which the calendar service interval is counted.</item>
+        <item>Date of last service</item>
+        <item>Next due date calculated</item>
+    </string-array>
+    <string-array name="guide_routines_startup">
+        <item>Selects the routine that can run from the launcher when the startup schedule permits it.</item>
+        <item>No launcher routine</item>
+        <item>Selected routine at launcher startup</item>
+    </string-array>
+    <string-array name="guide_routines_sort">
+        <item>Sorts the saved routine library by name or by newest first.</item>
+        <item>Newest routines first</item>
+        <item>Routines in name order</item>
+    </string-array>
+    <string-array name="guide_text_overlays_apps_heading">
+        <item>Keeps or removes translation for the selected factory app without changing the choice for other apps.</item>
+        <item>Factory labels for this app</item>
+        <item>Translated labels for this app</item>
+    </string-array>
+    <string-array name="guide_firmware_translation_heading">
+        <item>Choose the language or dictionary used for supported factory screen text. Disable it to restore the factory labels.</item>
+        <item>Factory labels</item>
+        <item>Selected dictionary language</item>
+    </string-array>
+    <string-array name="guide_oem_steering">
+        <item>Assigns actions to supported steering wheel presses. Each listed gesture can have a different action.</item>
+        <item>Factory steering control</item>
+        <item>Action assigned to a steering gesture</item>
+    </string-array>
+    <string-array name="guide_ui_67">
+        <item>Assigns apps and actions to the supported factory panel buttons. A button without an assignment keeps its factory action.</item>
+        <item>Factory panel button</item>
+        <item>Button opens your app</item>
+    </string-array>
+    <string-array name="guide_ui_44">
+        <item>Create or edit a binding for a captured Android key. Assign separate actions for a tap and a hold.</item>
+        <item>Android key press</item>
+        <item>Assigned tap or hold action</item>
+    </string-array>
+    <string-array name="guide_display_media_access">
+        <item>Lets Controls read the active media session for track information and compatible playback or rating controls.</item>
+        <item>Track stays in its player</item>
+        <item>Track information appears in Controls</item>
+    </string-array>
+</resources>

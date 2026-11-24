@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
+import org.openvoyah.controls.presentation.theme.SettingGuideHeading
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.apps.AppGridConfiguration
 import org.openvoyah.controls.domain.apps.AppGridDesktop
@@ -118,7 +119,7 @@ internal fun PinnedAppsOrderDialog(
 ) {
     CockpitAlertDialog(
         onDismissRequest = close,
-        title = { Text(text(R.string.apps_grid_reorder_pins)) },
+        title = { SettingGuideHeading(text(R.string.apps_grid_reorder_pins), R.string.apps_grid_reorder_pins) },
         confirmButton = { CockpitTextAction(text(R.string.apps_desktop_done), close) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -229,12 +230,12 @@ internal fun FavoriteAppsPicker(
     val edit = state.gridEdit?.takeIf { it.desktop == desktop }
     CockpitAlertDialog(
         onDismissRequest = close,
-        title = { Text(desktop.desktopLabel(grid.desktopNames)) },
+        title = { SettingGuideHeading(desktop.desktopLabel(grid.desktopNames), R.string.apps_grid_reorder_pins) },
         confirmButton = { CockpitTextAction(text(R.string.apps_desktop_done), close) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 CockpitTextField(query, { query = it }, text(R.string.ui_113), Modifier.fillMaxWidth())
-                if (canShowAll) CockpitSwitch(text(R.string.app_picker_show_all), showAll) { showAll = it }
+                if (canShowAll) CockpitSwitch(R.string.app_picker_show_all, showAll) { showAll = it }
                 edit?.error?.let { CockpitFeedback(text(it), error = true) }
                 if (apps.isEmpty()) {
                     val message = when {

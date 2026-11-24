@@ -82,14 +82,19 @@ internal fun VehicleCommandsDialog(catalog: VoiceCatalog, close: () -> Unit) {
                 states = states.mapValues { ActionPermission.FORBIDDEN }
             }
         }
-        for (command in list.commands) {
-            val state = states[command.id()] ?: ActionPermission.ALLOWED
-            CockpitSwitch(command.title(), state.runs) { on ->
-                states = states + (command.id() to when {
-                    !on -> ActionPermission.FORBIDDEN
-                    list.states[command.id()] == ActionPermission.UNVERIFIED -> ActionPermission.UNVERIFIED
-                    else -> ActionPermission.ALLOWED
-                })
+        val guides = remember(list) { list.commands.map { describeVoiceCommand(it, assigned = false) } }
+        for ((category, commands) in filterVoiceGuides(guides, null, "")) {
+            VoiceCategoryHeading(category)
+            for (guide in commands) {
+                val id = guide.command.id()
+                val state = states[id] ?: ActionPermission.ALLOWED
+                CockpitSwitch(guide.command.title(), state.runs, guideId = R.string.voice_vehicle_commands) { on ->
+                    states = states + (id to when {
+                        !on -> ActionPermission.FORBIDDEN
+                        list.states[id] == ActionPermission.UNVERIFIED -> ActionPermission.UNVERIFIED
+                        else -> ActionPermission.ALLOWED
+                    })
+                }
             }
         }
     }

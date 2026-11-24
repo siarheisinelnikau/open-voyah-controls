@@ -41,25 +41,24 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.withStarted
-import java.util.Locale
 import kotlinx.coroutines.launch
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.core.voice.VoiceCommandUseCase
-import org.openvoyah.controls.core.voice.VolumePhrases
 import org.openvoyah.controls.data.settings.VoiceSettingsRepository
 import org.openvoyah.controls.platform.voice.MicrophonePermission
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAppPicker
 import org.openvoyah.controls.presentation.theme.CockpitChoice
-import org.openvoyah.controls.presentation.theme.CockpitDialogs
 import org.openvoyah.controls.presentation.theme.CockpitDetail
+import org.openvoyah.controls.presentation.theme.CockpitDialogs
 import org.openvoyah.controls.presentation.theme.CockpitModal
 import org.openvoyah.controls.presentation.theme.CockpitOptionRow
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.theme.CockpitTextField
+import org.openvoyah.controls.presentation.theme.SettingGuideHeading
 
 /** Voice configuration stays inside the app's navigation; recording uses the dedicated overlay. */
 @Composable
@@ -247,9 +246,8 @@ private fun voiceText(id: Int): String = UiText.get(id)
 
 
 @Composable
-private fun RecognitionHeading(title: String) {
-    Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.primary)
+private fun RecognitionHeading(title: Int) {
+    SettingGuideHeading(voiceText(title), title, Modifier.semantics { heading() })
 }
 
 /** Dialog drafts are composition/window-owned; every accepted change goes through the model. */
@@ -274,7 +272,7 @@ private class VoiceDestinationDialogs(
                 CockpitTextAction(voiceText(R.string.ui_172), close)
             }) {
                 val running = RecognitionEngine.effective(config.engine, config.language, downloads.installed, failures.keys)
-                RecognitionHeading(voiceText(R.string.voice_recognition_engine))
+                RecognitionHeading(R.string.voice_recognition_engine)
                 for (engine in RecognitionEngine.entries) {
                     val needed = SpeechModelCatalog.forEngine(engine.engine, config.language)
                         ?: SpeechModelCatalog.forEngine(engine.engine, "ru")?.takeIf { engine.engine == SpeechEngine.ZIPFORMER }
@@ -290,7 +288,7 @@ private class VoiceDestinationDialogs(
                 }
                 Text(voiceText(R.string.voice_recognition_engines_hint), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                RecognitionHeading(voiceText(R.string.voice_language))
+                RecognitionHeading(R.string.voice_language)
                 for (code in SpeechEngine.LANGUAGES) {
                     val needed = SpeechModelCatalog.forEngine(SpeechEngine.VOSK, code)
                     val available = needed == null || needed.id in downloads.installed
@@ -302,9 +300,9 @@ private class VoiceDestinationDialogs(
                     }
                     if (needed != null) ModelDownload(needed, downloads)
                 }
-                RecognitionHeading(voiceText(R.string.voice_online_title))
+                RecognitionHeading(R.string.voice_online_title)
                 CockpitChoice(voiceText(if (config.onlineConfigured) R.string.voice_recognition_on else R.string.voice_recognition_off),
-                    voiceText(R.string.voice_recognition_online_detail)) {
+                    voiceText(R.string.voice_recognition_online_detail), guideId = R.string.voice_online_title) {
                     close()
                     model.openOnline()
                 }
@@ -350,7 +348,7 @@ private class VoiceDestinationDialogs(
         dialogs.choices(voiceText(R.string.default_levels), labels, { index ->
             val command = defaults[index]
             dialogs.choices(command.title(), arrayOf("1", "2", "3"), { level -> model.level(command.id(), level + 1) })
-        })
+        }, guideId = R.string.default_levels)
     }
 
     fun showVehicleCommands() {
@@ -370,8 +368,8 @@ private class VoiceDestinationDialogs(
                     model.windows(smoke, ventilation)
                 }, primary = true)
             }) {
-                CockpitSwitch(voiceText(R.string.double_smoke), smoke) { smoke = it }
-                CockpitSwitch(voiceText(R.string.double_ventilation), ventilation) { ventilation = it }
+                CockpitSwitch(R.string.double_smoke, smoke) { smoke = it }
+                CockpitSwitch(R.string.double_ventilation, ventilation) { ventilation = it }
             }
         }
     }
@@ -391,14 +389,11 @@ private class VoiceDestinationDialogs(
     }
 
     fun showCommand(command: VoiceCatalog.Command) {
-        if (model.state.value.busy) return
-        val details = if (command.id() == VolumePhrases.COMMAND_ID) {
-            String.format(Locale.ROOT, voiceText(R.string.voice_volume_examples), command.title())
-        } else command.phrases().joinToString("\n")
-        if (command.id() in setOf("RestartMusic", "RestartNavigator")) {
-            dialogs.message(command.title(), details + "\n\n" + voiceText(R.string.voice_restart_assignment), voiceText(R.string.ui_172))
-        } else {
-            dialogs.message(command.title(), details, voiceText(R.string.ui_188), Runnable { chooseApp(command) }, voiceText(R.string.ui_172))
+        val state = model.state.value
+        if (state.busy) return
+        val guide = describeVoiceCommand(command, command.id() in state.configuration?.assigned.orEmpty())
+        dialogs.show { close ->
+            VoiceCommandDetails(guide, close) { close(); chooseApp(command) }
         }
     }
 
@@ -423,8 +418,8 @@ private class VoiceDestinationDialogs(
                 CockpitTextAction(voiceText(R.string.ui_89), close)
                 CockpitAction(voiceText(R.string.ui_104), { close(); model.contact(name, phone) }, primary = true)
             }) {
-                CockpitTextField(name, { name = it }, voiceText(R.string.ui_193), Modifier.fillMaxWidth())
-                CockpitTextField(phone, { phone = it }, voiceText(R.string.ui_194), Modifier.fillMaxWidth(),
+                CockpitTextField(name, { name = it }, voiceText(R.string.ui_193), Modifier.fillMaxWidth(), guideId = R.string.ui_193)
+                CockpitTextField(phone, { phone = it }, voiceText(R.string.ui_194), Modifier.fillMaxWidth(), guideId = R.string.ui_194,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
             }
         }

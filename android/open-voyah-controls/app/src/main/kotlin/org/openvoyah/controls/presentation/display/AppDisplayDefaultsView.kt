@@ -30,7 +30,7 @@ import org.openvoyah.controls.presentation.theme.CockpitOptionDialog
 @Composable
 internal fun AppDisplayDefaultsControl(model: AppDisplayDefaultsViewModel) {
     val state by model.state.collectAsStateWithLifecycle()
-    CockpitChoice(label(R.string.app_display_defaults_title), onClick = model::open)
+    CockpitChoice(R.string.app_display_defaults_title, onClick = model::open)
     if (!state.visible) return
 
     AlertDialog(
@@ -64,7 +64,7 @@ internal fun AppDisplayDefaultsControl(model: AppDisplayDefaultsViewModel) {
 @Composable
 private fun DensityPicker(title: String, dpi: Int?, choices: List<Int?>, enabled: Boolean, change: (Int?) -> Unit) {
     var choosing by remember { mutableStateOf(false) }
-    CockpitChoice(title, densityText(dpi), enabled) { choosing = true }
+    CockpitChoice(title, densityText(dpi), enabled, guideId = R.string.app_display_defaults_title) { choosing = true }
     if (choosing) CockpitOptionDialog(title, choices, dpi, ::densityText, change, { choosing = false }, enabled = enabled)
 }
 

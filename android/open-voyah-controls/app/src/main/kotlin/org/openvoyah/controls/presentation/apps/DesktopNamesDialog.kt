@@ -55,7 +55,8 @@ private fun DesktopNameField(desktop: AppGridDesktop, value: String, change: (St
     val label = desktop.desktopLabel()
     val reset = UiText.get(R.string.apps_grid_names_reset_for).format(label)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        CockpitTextField(value, { if (AppGridDesktopNames.validInput(it)) change(it) }, label, Modifier.weight(1f))
+        CockpitTextField(value, { if (AppGridDesktopNames.validInput(it)) change(it) }, label, Modifier.weight(1f),
+            guideId = R.string.apps_grid_desktop_names)
         CockpitAction(UiText.get(R.string.apps_grid_names_reset), { change("") }, Modifier.semantics { contentDescription = reset },
             enabled = value.isNotEmpty(), destructive = true)
     }

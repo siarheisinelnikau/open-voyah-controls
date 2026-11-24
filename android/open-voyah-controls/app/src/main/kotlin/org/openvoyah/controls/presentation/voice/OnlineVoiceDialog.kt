@@ -25,6 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
+import org.openvoyah.controls.presentation.theme.SettingInfo
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.voice.CloudVoiceSettings
 import org.openvoyah.controls.presentation.theme.CockpitAction
@@ -60,13 +61,14 @@ internal fun OnlineVoiceDialog(
                 CockpitReveal(!enabled || !editingKey) {
                     Text(UiText.get(R.string.voice_online_explain))
                 }
-                CockpitSwitch(UiText.get(R.string.voice_online_switch), enabled, !saving) { enabled = it }
+                CockpitSwitch(R.string.voice_online_switch, enabled, !saving) { enabled = it }
                 CockpitReveal(enabled) {
                     // The shared text field has no visual transformation, and the key must stay masked.
                     OutlinedTextField(
                         value = key, onValueChange = { if (it.length <= 220) key = it },
                         modifier = Modifier.fillMaxWidth().onFocusChanged { editingKey = it.isFocused },
                         label = { Text(UiText.get(R.string.voice_online_key)) },
+                        trailingIcon = { SettingInfo(UiText.get(R.string.voice_online_key), R.string.voice_online_key) },
                         enabled = !saving, singleLine = true, shape = MaterialTheme.shapes.medium,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),

@@ -179,10 +179,10 @@ internal fun TextOverlaysScreen(
                     CockpitAction(text(R.string.text_overlays_refresh), { select(TextOverlayAction.REFRESH) }, enabled = enabled)
                 }
             }
-            CockpitSection(text(R.string.text_overlays_language_heading), CockpitIcon.LANGUAGE) {
+            CockpitSection(text(R.string.text_overlays_language_heading), CockpitIcon.LANGUAGE, guideId = R.string.text_overlays_title) {
                 if (snapshot != null && snapshot.bundled.isEmpty()) CockpitFeedback(text(R.string.text_overlays_none_bundled))
                 val current = summary?.language
-                CockpitChoice(text(R.string.text_overlays_off), selected(summary?.phase == OverlayPhase.NONE), enabled && snapshot != null) {
+                CockpitChoice(R.string.text_overlays_off, selected(summary?.phase == OverlayPhase.NONE), enabled && snapshot != null) {
                     chooseLanguage(null)
                 }
                 snapshot?.bundled?.values?.forEach { set ->
@@ -202,7 +202,9 @@ internal fun TextOverlaysScreen(
                     // Before the first start Android does not know the overlay yet; the switch then shows the choice.
                     val checked = if (device?.known == true && !snapshot.device.installedThisBoot) device.enabled else wanted
                     val label = view.labels[overlay.target] ?: overlay.target
-                    CockpitSwitch(label, checked, enabled && device != null) { switchApp(overlay.target, it) }
+                    CockpitSwitch(label, checked, enabled && device != null, guideId = R.string.text_overlays_apps_heading) {
+                        switchApp(overlay.target, it)
+                    }
                     when {
                         device == null -> CockpitFeedback(text(R.string.text_overlays_app_skipped))
                         device.known && device.enabled && !device.active ->

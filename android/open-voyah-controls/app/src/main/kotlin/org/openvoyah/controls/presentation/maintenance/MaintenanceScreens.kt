@@ -51,7 +51,7 @@ internal fun FirmwareScreen(part: FirmwarePart, product: String, windowsSupporte
                 Text(label(R.string.settings_windows_unsupported), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             windowStatus?.let {
-                CockpitChoice(label(R.string.window_hook_title), label(it), enabled) {
+                CockpitChoice(R.string.window_hook_title, label(it), enabled) {
                     select(FirmwareAction.WINDOW_SERVICE)
                 }
             }
@@ -61,7 +61,7 @@ internal fun FirmwareScreen(part: FirmwarePart, product: String, windowsSupporte
             CockpitReveal(windowStatus != null && windowStrip != null) {
                 shownStrip[0]?.let { row ->
                     Column {
-                        CockpitSwitch(label(R.string.window_strip_title), row.checked, enabled && row.changeable) {
+                        CockpitSwitch(R.string.window_strip_title, row.checked, enabled && row.changeable) {
                             select(FirmwareAction.WINDOW_STRIP)
                         }
                         CockpitFeedback(row.status)
@@ -71,7 +71,8 @@ internal fun FirmwareScreen(part: FirmwarePart, product: String, windowsSupporte
             Progress(state)
         }
         FirmwarePart.TRANSLATION ->
-            CockpitSection(label(R.string.firmware_translation_heading), CockpitIcon.LANGUAGE, label(R.string.firmware_info)) {
+            CockpitSection(label(R.string.firmware_translation_heading), CockpitIcon.LANGUAGE, label(R.string.firmware_info),
+                guideId = R.string.firmware_translation_heading) {
                 CockpitFeedback(translationEnabled?.let { label(if (it) R.string.translation_on else R.string.translation_off) })
                 // Commands are buttons; rows are kept for the file pickers, which open another screen.
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -81,7 +82,7 @@ internal fun FirmwareScreen(part: FirmwarePart, product: String, windowsSupporte
                     CockpitAction(label(R.string.translation_disable), { select(FirmwareAction.DISABLE_TRANSLATION) }, enabled = enabled)
                     CockpitAction(label(R.string.translation_restore), { select(FirmwareAction.RESTORE_TRANSLATION) }, enabled = enabled)
                 }
-                CockpitChoice(label(R.string.translation_import), enabled = enabled) { select(FirmwareAction.IMPORT) }
+                CockpitChoice(R.string.translation_import, enabled = enabled) { select(FirmwareAction.IMPORT) }
                 CockpitChoice(label(R.string.translation_export), enabled = enabled) { select(FirmwareAction.EXPORT) }
                 Progress(state)
             }

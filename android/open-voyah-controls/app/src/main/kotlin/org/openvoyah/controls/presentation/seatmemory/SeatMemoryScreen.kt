@@ -42,7 +42,7 @@ internal fun SeatMemoryScreen(
         DriverMemoryCards(enabled, action)
         Column {
             CockpitSwitch(
-                text(R.string.seat_memory_open_factory_on_tap), state.settings?.openFactorySeatsOnTap == true,
+                R.string.seat_memory_open_factory_on_tap, state.settings?.openFactorySeatsOnTap == true,
                 enabled = enabled, change = setOpenFactorySeatsOnTap,
             )
             Text(

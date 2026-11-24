@@ -1,0 +1,1131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setting_guide_open">«%1$s» параметрі туралы</string>
+    <string name="setting_guide_example">Мысал</string>
+    <string name="setting_guide_replay">Қайталау</string>
+    <string-array name="guide_apps_grid_tile_size">
+        <item>Қолданба тақташаларының өлшемін және бір бетке қанша тақташа сыятынын өзгертеді.</item>
+        <item>Үлкен тақташалар</item>
+        <item>Ықшам тақташалар</item>
+    </string-array>
+    <string-array name="guide_apps_grid_columns">
+        <item>Қолданба бағандарының санын белгілейді. Автоматты режим қолжетімді енді ескереді.</item>
+        <item>Автоматты тор</item>
+        <item>Бағандар көбірек</item>
+    </string-array>
+    <string-array name="guide_apps_grid_icon_style">
+        <item>Тордағы қолданба белгішелерінің пішіні мен безендірілуін өзгертеді.</item>
+        <item>Түпнұсқа белгішелер</item>
+        <item>Бірыңғай мәнер</item>
+    </string-array>
+    <string-array name="guide_apps_grid_show_labels">
+        <item>Қолданба атауларын белгішелердің астында көрсетуге немесе жасыруға мүмкіндік береді.</item>
+        <item>Тек белгішелер</item>
+        <item>Белгішелер және атаулар</item>
+    </string-array>
+    <string-array name="guide_apps_grid_sort_order">
+        <item>Барлық қолданбалар торының ретін өзгертеді. Қолмен сұрыптау сақталған ретті пайдаланады.</item>
+        <item>Әліпби бойынша</item>
+        <item>Өз ретіңіз</item>
+    </string-array>
+    <string-array name="guide_apps_grid_edit_manual_order">
+        <item>Қолмен сұрыптау таңдалса, барлық қолданбаларды өз ретіңізбен орналастырыңыз.</item>
+        <item>Карта музыкадан кейін</item>
+        <item>Карта музыкадан бұрын</item>
+    </string-array>
+    <string-array name="guide_apps_grid_shortcuts">
+        <item>Қолданбалар торында көрсетілетін OVC жарлықтарын таңдаңыз.</item>
+        <item>Тек OVC тақташасы</item>
+        <item>OVC және дауыс тақташалары</item>
+    </string-array>
+    <string-array name="guide_apps_grid_hidden_apps">
+        <item>Барлық қолданбаларда не көрсетілетінін таңдаңыз. Жасырылған қолданба Таңдаулылар жарлығы арқылы әлі де ашылады.</item>
+        <item>Қолданба тізімде</item>
+        <item>Қолданба тізімнен жасырылған</item>
+    </string-array>
+    <string-array name="guide_apps_grid_show_search_field">
+        <item>Іздеу өрісін барлық қолданбалардың үстінде ұстайды. Пернетақта өрісті түрткенде ашылады.</item>
+        <item>Іздеу қажет кезде ашылады</item>
+        <item>Іздеу өрісі көрініп тұрады</item>
+    </string-array>
+    <string-array name="guide_apps_grid_hide_by_default">
+        <item>Зауыттық және қызметтік қолданбалардың әдепкі сүзгісін қосады. Жеке көріну таңдауы басым болады.</item>
+        <item>Зауыттық қолданбалар тізімде</item>
+        <item>Зауыттық қолданбалар әдепкіде жасырылған</item>
+    </string-array>
+    <string-array name="guide_apps_desktop_enable">
+        <item>Жарлықтарды бөлек топтастыру үшін Барлық қолданбаларға Таңдаулылар жұмыс үстелдерін қосады.</item>
+        <item>Барлық қолданбалар</item>
+        <item>Барлық қолданбалар және Таңдаулылар</item>
+    </string-array>
+    <string-array name="guide_apps_desktop_default">
+        <item>Қолданба торы әдепкіде қай жұмыс үстелін ашатынын таңдайды.</item>
+        <item>Алдымен барлық қолданбалар</item>
+        <item>Алдымен Таңдаулылар</item>
+    </string-array>
+    <string-array name="guide_apps_grid_desktop_names">
+        <item>Жұмыс үстелі қойындыларының атауын өзгертеді. Әр үстелдің өз атауы бар.</item>
+        <item>Таңдаулылар 1</item>
+        <item>Күнделікті сапарлар</item>
+    </string-array>
+    <string-array name="guide_apps_grid_favorites_back">
+        <item>Таңдаулылар жұмыс үстелінде Android «Артқа» батырмасы қайда апаратынын таңдайды.</item>
+        <item>Қолданба торынан шығу</item>
+        <item>Барлық қолданбаларға қайту</item>
+    </string-array>
+    <string-array name="guide_apps_grid_smooth_paging">
+        <item>Сырғытқанда немесе бет таңдағанда жұмыс үстелдерінің ауысуын реттейді.</item>
+        <item>Бет бірден ауысады</item>
+        <item>Беттер сырғып ауысады</item>
+    </string-array>
+    <string-array name="guide_apps_wallpaper_title">
+        <item>Әр жұмыс үстелінің тұсқағазын таңдаңыз. Қалпына келтіру тек таңдалған үстелге әсер етеді.</item>
+        <item>Әдепкі фон</item>
+        <item>Өз суретіңіз</item>
+    </string-array>
+    <string-array name="guide_desktop_layouts_settings">
+        <item>Жұмыс үстелдерінің орналасуын сақтап, кейін баптаулардан немесе сценарий арқылы қолданыңыз.</item>
+        <item>Ағымдағы жұмыс үстелдері</item>
+        <item>Сақталған орналасу қалпына келді</item>
+    </string-array>
+    <string-array name="guide_desktop_layouts_name">
+        <item>Сақталған орналасудың таңдағыш пен сценарий редакторындағы атауын қояды.</item>
+        <item>Жаңа орналасу</item>
+        <item>Сапарға арналған орналасу</item>
+    </string-array>
+    <string-array name="guide_desktop_info_settings">
+        <item>Әр жұмыс үстелінде қандай ақпарат карталары және қандай енмен көрсетілетінін таңдаңыз.</item>
+        <item>Тек қолданба тақташалары</item>
+        <item>Тақташалар және ақпарат карталары</item>
+    </string-array>
+    <string-array name="guide_desktop_info_desktop">
+        <item>Карталары өңделетін жұмыс үстелін таңдайды.</item>
+        <item>Барлық қолданбаларды өңдеу</item>
+        <item>Таңдаулыларды өңдеу</item>
+    </string-array>
+    <string-array name="guide_apps_grid_card_placement">
+        <item>Таңдаулыларда ақпарат карталары немесе бекітілген қолданбалар бірінші тұратынын таңдайды.</item>
+        <item>Алдымен карталар</item>
+        <item>Алдымен бекітілген қолданбалар</item>
+    </string-array>
+    <string-array name="guide_apps_grid_card_outlines">
+        <item>Карталардың шекарасы анық көрінуі үшін жиек қосады.</item>
+        <item>Жиексіз карта</item>
+        <item>Жиекті карта</item>
+    </string-array>
+    <string-array name="guide_desktop_info_clock_format">
+        <item>Сағат картасында қандай мәлімет көрсетілетінін өзгертеді.</item>
+        <item>Уақыт</item>
+        <item>Уақыт және күн</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media_style">
+        <item>Трек ақпараты мен ойнату батырмаларының орналасуын өзгертеді.</item>
+        <item>Трек және басқару</item>
+        <item>Мұқабасы бар трек</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media_open_target">
+        <item>Медиа картасын түрткенде не ашылатынын таңдайды немесе картаны тек көруге қалдырады.</item>
+        <item>Медиа алдын ала көрінісі</item>
+        <item>Белсенді ойнатқыш</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media_source">
+        <item>Жұмыс үстелінің картасына трек мәліметін жіберетін ойнатқышты таңдайды.</item>
+        <item>Ағымдағы ойнатқыш</item>
+        <item>Таңдалған медиа қолданбасы</item>
+    </string-array>
+    <string-array name="guide_desktop_info_headlights_content">
+        <item>Жұмыс үстелінің картасында қай фара көрсеткіші көрінетінін таңдайды.</item>
+        <item>Ауыстырғыштың режимі</item>
+        <item>Алыс жарық</item>
+    </string-array>
+    <string-array name="guide_desktop_info_phone_edit">
+        <item>Сақталған үш дауыс контактісіне дейін таңдап, ретін қойыңыз. Карта батырмасы нөмір енгізілген тергішті ашады.</item>
+        <item>Сақталған контактілер</item>
+        <item>Телефон картасындағы контактілер</item>
+    </string-array>
+    <string-array name="guide_desktop_info_route_content">
+        <item>Навигация картасы келесі бұрылысты ғана немесе қазіргі жолды да көрсететінін таңдайды.</item>
+        <item>Келесі бұрылыс</item>
+        <item>Бұрылыс және қазіргі жол</item>
+    </string-array>
+    <string-array name="guide_desktop_info_route_open_target">
+        <item>Навигация картасын түрткенде не ашылатынын таңдайды немесе картаны тек көруге қалдырады.</item>
+        <item>Бағыттың алдын ала көрінісі</item>
+        <item>Тағайындалған навигатор</item>
+    </string-array>
+    <string-array name="guide_home_navigator_card">
+        <item>Үйлесімді зауыттық жұмыс үстелінде Baidu картасының орнына Yandex Navigator виджетін қояды.</item>
+        <item>Зауыттық карта</item>
+        <item>Yandex Navigator картасы</item>
+    </string-array>
+    <string-array name="guide_home_navigator_widget_scale">
+        <item>Зауыттық жұмыс үстеліндегі навигатор виджетінің өлшемін өзгертеді.</item>
+        <item>Қалыпты виджет</item>
+        <item>Үлкенірек виджет</item>
+    </string-array>
+    <string-array name="guide_home_weather_card">
+        <item>Үйлесімді зауыттық жұмыс үстелінде ауа райын көрсетеді.</item>
+        <item>Ауа райы жасырылған</item>
+        <item>Ауа райы картасы көрінеді</item>
+    </string-array>
+    <string-array name="guide_home_weather_city">
+        <item>Зауыттық жұмыс үстелінің ауа райы картасы үшін қаланы қояды.</item>
+        <item>Ағымдағы қала</item>
+        <item>Сіздің қалаңыздағы ауа райы</item>
+    </string-array>
+    <string-array name="guide_apps_hide">
+        <item>Бұл қолданбаны жалпы тізімнен және оның іздеуінен жасырады. Таңдаулылардағы жарлығы жұмыс істей береді.</item>
+        <item>Барлық қолданбаларда көрінеді</item>
+        <item>Жалпы тізімнен жасырылған</item>
+    </string-array>
+    <string-array name="guide_app_icon_plain">
+        <item>Белгішенің ақ фонын алып тастауға тырысады. Нәтиже бастапқы суретке байланысты.</item>
+        <item>Ақ фон</item>
+        <item>Фон алынып тасталды</item>
+    </string-array>
+    <string-array name="guide_window_hook_title">
+        <item>Үйлесімді құрылғыда қолданбаларды өз терезе және экран баптауларымен ашатын қызметті қосады.</item>
+        <item>Әдепкі Android іске қосуы</item>
+        <item>Жеке терезе және экран баптаулары</item>
+    </string-array>
+    <string-array name="guide_window_strip_title">
+        <item>Үйлесімді микробағдарламада Android-ке зауыттық панель үшін терезе жанынан жолақ қалдыруға мүмкіндік береді.</item>
+        <item>Қолданба толық экранды алады</item>
+        <item>Панельге орын қалдырылды</item>
+    </string-array>
+    <string-array name="guide_app_window_panel_width">
+        <item>Қолданба жанындағы зауыттық панельге ең аз бос орынды қояды. Автоматты режим анықталған енді пайдаланады.</item>
+        <item>Автоматты шегініс</item>
+        <item>Панельге көбірек орын</item>
+    </string-array>
+    <string-array name="guide_app_window_width">
+        <item>Қолданба үйлесімді экранда қолжетімді еннің қанша бөлігін алатынын белгілейді.</item>
+        <item>Толық қолжетімді ен</item>
+        <item>Тарырақ қолданба терезесі</item>
+    </string-array>
+    <string-array name="guide_app_window_dpi">
+        <item>Терезе қызметі ашқан қолданбаның экран тығыздығын қояды. Жоғары DPI интерфейсті үлкейтеді.</item>
+        <item>Әдепкі масштаб</item>
+        <item>Үлкенірек мәтін мен батырмалар</item>
+    </string-array>
+    <string-array name="guide_app_display_defaults_title">
+        <item>Әр экранға қолданбалардың әдепкі DPI мәнін қояды. Қолданбаның жеке DPI баптауы басым болады.</item>
+        <item>Android экранының DPI мәні</item>
+        <item>Осы экран қолданбаларының DPI мәні</item>
+    </string-array>
+    <string-array name="guide_window_swipe_title">
+        <item>Белсенді қолданбаны үйлесімді экрандар арасында жылжытатын көп саусақты сырғытуды баптайды.</item>
+        <item>Қолданба орталық экранда</item>
+        <item>Қолданба басқа экранда</item>
+    </string-array>
+    <string-array name="guide_window_swipe_fingers">
+        <item>Терезені жылжытуға екі немесе үш саусақты таңдаңыз немесе қимылды өшіріңіз.</item>
+        <item>Сырғыту өшірілген</item>
+        <item>Екі саусақпен жылжыту</item>
+    </string-array>
+    <string-array name="guide_window_swipe_after">
+        <item>Терезе жылжытылғаннан кейін бастапқы экранда не қалатынын таңдайды.</item>
+        <item>Зауыттық жұмыс үстелі</item>
+        <item>OVC қолданбалар торы</item>
+    </string-array>
+    <string-array name="guide_display_density">
+        <item>Виртуалды дисплейдің DPI мәнін қояды. Физикалық экрандардың масштабы сақталады.</item>
+        <item>Кішірек алдын ала көрініс басқаруы</item>
+        <item>Үлкенірек басқару</item>
+    </string-array>
+    <string-array name="guide_cluster_media_share">
+        <item>Трек мәліметтерін үйлесімді аспаптар панеліне жібереді.</item>
+        <item>Орталық экрандағы ойнатқыш</item>
+        <item>Аспаптар панеліндегі трек ақпараты</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_media">
+        <item>Виртуалды дисплейде белсенді медиа бөлігін көрсетеді.</item>
+        <item>Медиа бөлігі жасырылған</item>
+        <item>Медиа бөлігі көрінеді</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_navigation">
+        <item>Навигация деректері бар кезде виртуалды дисплейде бағыт бөлігін көрсетеді.</item>
+        <item>Бағыт жасырылған</item>
+        <item>Бағыт және бұрылыс нұсқаулары</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_playback_progress">
+        <item>Медиа бөлігіне ойнатудың ағымдағы орны мен трек ұзақтығын қосады.</item>
+        <item>Тек трек ақпараты</item>
+        <item>Трек және ойнату барысы</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_album_artwork">
+        <item>Медиа бөлігінде қолжетімді альбом мұқабасын көрсетеді.</item>
+        <item>Мұқабасыз трек</item>
+        <item>Мұқабасы бар трек</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_transport_controls">
+        <item>Белсенді ойнатқыш қолдайтын ойнату батырмаларын көрсетеді.</item>
+        <item>Трек ақпараты</item>
+        <item>Трек жанындағы басқару</item>
+    </string-array>
+    <string-array name="guide_display_preview_arrangement">
+        <item>Медиа және бағыт бөліктерін қатар немесе бірінің астына бірін орналастырады.</item>
+        <item>Қатар орналасу</item>
+        <item>Тігінен орналасу</item>
+    </string-array>
+    <string-array name="guide_display_preview_pane_order">
+        <item>Медиа мен навигация екеуі де көрінгенде қай бөлік бірінші болатынын таңдаңыз.</item>
+        <item>Алдымен медиа</item>
+        <item>Алдымен бағыт</item>
+    </string-array>
+    <string-array name="guide_display_preview_media_source">
+        <item>Медиа деректерін беретін қолданбаны таңдайды немесе белсенді ойнатқышты пайдаланады.</item>
+        <item>Белсенді ойнатқыш</item>
+        <item>Қалаулы ойнатқыш</item>
+    </string-array>
+    <string-array name="guide_display_preview_media_fallback">
+        <item>Қалаулы ойнатқышта сессия болмаса, басқа белсенді ойнатқышты көрсетуге рұқсат береді.</item>
+        <item>Қалаулы ойнатқышты күту</item>
+        <item>Басқа белсенді ойнатқыш</item>
+    </string-array>
+    <string-array name="guide_display_preview_seek_step">
+        <item>Ойнатқыш қолдаса, алға және артқа өткізу батырмаларының қадамын қояды.</item>
+        <item>Қысқа қадам</item>
+        <item>Ұзағырақ қадам</item>
+    </string-array>
+    <string-array name="guide_display_preview_details">
+        <item>Орналасу, жол атауы, мәтін және түс баптауларын ашады.</item>
+        <item>Негізгі орналасу</item>
+        <item>Толық алдын ала көрініс баптаулары</item>
+    </string-array>
+    <string-array name="guide_display_preview_text_size">
+        <item>Виртуалды дисплейдегі мәтін өлшемін өзгертеді.</item>
+        <item>Қалыпты жазулар</item>
+        <item>Үлкенірек жазулар</item>
+    </string-array>
+    <string-array name="guide_display_preview_palette">
+        <item>Виртуалды дисплейдің түс схемасын негізгі қолданбадан бөлек таңдайды.</item>
+        <item>Күңгірт көрініс</item>
+        <item>Күндізгі көрініс</item>
+    </string-array>
+    <string-array name="guide_display_preview_pane_balance">
+        <item>Қатар режимінде медиамен бағыттың қолжетімді енді қалай бөлісетінін өзгертеді.</item>
+        <item>Ендері бірдей</item>
+        <item>Бір бөлікке көбірек орын</item>
+    </string-array>
+    <string-array name="guide_display_preview_hide_empty_panes">
+        <item>Медиа не бағыт деректері жоқ кезде сол бөлікке бөлінген орынды босатады.</item>
+        <item>Бос орынның белгісі қалады</item>
+        <item>Қалған бөлік орынды алады</item>
+    </string-array>
+    <string-array name="guide_display_preview_media_subtitle">
+        <item>Трек атауының астында қандай қосымша ақпарат көрсетілетінін таңдайды.</item>
+        <item>Трек атауы</item>
+        <item>Атауы және орындаушысы</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_current_road">
+        <item>Навигация дерек берсе, қазіргі жолдың атауын көрсетеді.</item>
+        <item>Тек бұрылыс</item>
+        <item>Бұрылыс және қазіргі жол</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_next_road">
+        <item>Навигация дерек берсе, келесі маневрден кейінгі жол атауын қосады.</item>
+        <item>Бұрылыс көрсеткісі</item>
+        <item>Көрсеткі және келесі жол</item>
+    </string-array>
+    <string-array name="guide_display_preview_road_names">
+        <item>Навигация берген жол атауларының жазылуын, соның ішінде қолжетімді транслитерацияны таңдайды.</item>
+        <item>Түпнұсқа атау</item>
+        <item>Латын әрпімен жазылған атау</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_turn_distance">
+        <item>Навигация дерек берсе, келесі маневрге дейінгі қашықтықты қосады.</item>
+        <item>Тек бұрылыс көрсеткісі</item>
+        <item>Көрсеткі және 300 м</item>
+    </string-array>
+    <string-array name="guide_display_preview_distance_units">
+        <item>Бұрылысқа дейінгі қашықтық бірліктерін қояды.</item>
+        <item>1 км</item>
+        <item>0,6 миль</item>
+    </string-array>
+    <string-array name="guide_appearance_palette">
+        <item>OVC фоны мен мәтінінің түстерін өзгертеді. Күңгірт немесе күндізгі палитраны таңдаңыз.</item>
+        <item>Күңгірт интерфейс</item>
+        <item>Күндізгі интерфейс</item>
+    </string-array>
+    <string-array name="guide_appearance_accent">
+        <item>Әрекеттер, таңдау, фокус және іске қосу көрінісінің екпін түсін өзгертеді.</item>
+        <item>Әдепкі екпін</item>
+        <item>Көгілдір-жасыл екпін</item>
+    </string-array>
+    <string-array name="guide_appearance_background">
+        <item>OVC беттеріне жұмсақ жарқылы бар фонды немесе біртекті фонды таңдайды.</item>
+        <item>Жарқылы бар фон</item>
+        <item>Біртекті фон</item>
+    </string-array>
+    <string-array name="guide_appearance_high_contrast">
+        <item>Мәтін, жиектер мен таңдау күйлерін фоннан анығырақ көрсетеді.</item>
+        <item>Қалыпты жиектер</item>
+        <item>Анығырақ жиектер</item>
+    </string-array>
+    <string-array name="guide_appearance_text_size">
+        <item>OVC мәтіні мен жазуларының негізгі өлшемін өзгертеді. Тақырыптар мен навигацияның бөлек өлшемдері бар.</item>
+        <item>Қалыпты мәтін</item>
+        <item>Үлкенірек мәтін</item>
+    </string-array>
+    <string-array name="guide_appearance_navigation_label_size">
+        <item>Навигация жазуларын бөлек өзгертеді немесе негізгі мәтін өлшемімен сәйкестендіреді.</item>
+        <item>Негізгі мәтінмен бірдей</item>
+        <item>Үлкенірек навигация жазулары</item>
+    </string-array>
+    <string-array name="guide_appearance_page_title_size">
+        <item>Тұрақты өлшем таңдалса, бет тақырыптарын негізгі мәтіннен бөлек өзгертеді.</item>
+        <item>Қалыпты тақырыптар</item>
+        <item>Үлкенірек тақырыптар</item>
+    </string-array>
+    <string-array name="guide_appearance_font_family">
+        <item>OVC интерфейсінде қолданылатын қаріпті таңдайды.</item>
+        <item>Android жүйелік қарпі</item>
+        <item>Golos Text</item>
+    </string-array>
+    <string-array name="guide_appearance_bold_text">
+        <item>OVC мәтінін қалыңырақ етіп, оқуды жеңілдетеді.</item>
+        <item>Қалыпты қаріп салмағы</item>
+        <item>Қалың мәтін</item>
+    </string-array>
+    <string-array name="guide_appearance_spacing">
+        <item>OVC интерфейсіндегі элементтердің ішкі және аралық бос орнын өзгертеді.</item>
+        <item>Ықшам аралықтар</item>
+        <item>Элементтер арасында көбірек орын</item>
+    </string-array>
+    <string-array name="guide_appearance_corners">
+        <item>OVC карталары, батырмалары және терезелерінің бұрыштарын жұмырлайды.</item>
+        <item>Аз жұмырланған</item>
+        <item>Көбірек жұмырланған</item>
+    </string-array>
+    <string-array name="guide_appearance_animate_routes">
+        <item>OVC экрандары арасында қысқа ауысу анимацияларын қосады.</item>
+        <item>Беттер бірден ауысады</item>
+        <item>Беттер сырғып, біртіндеп көрінеді</item>
+    </string-array>
+    <string-array name="guide_appearance_transition_speed">
+        <item>Экран анимациялары қосылса, бет ауысуының жылдамдығын өзгертеді.</item>
+        <item>Қысқа ауысу</item>
+        <item>Баяуырақ әрі біркелкі ауысу</item>
+    </string-array>
+    <string-array name="guide_appearance_wallpaper_dimming">
+        <item>Белгішелер мен карталардың астындағы жеке тұсқағаздардың күңгірттігін өзгертеді.</item>
+        <item>Сурет анығырақ</item>
+        <item>Белгішелер астындағы фон күңгірттеу</item>
+    </string-array>
+    <string-array name="guide_appearance_start_screen">
+        <item>Іске қосқыштағы «OVC ашу» жарлығы қайда апаратынын таңдайды.</item>
+        <item>Қолданбалар торы</item>
+        <item>Баптаулар немесе Көлік</item>
+    </string-array>
+    <string-array name="guide_appearance_limit_media_on_launch">
+        <item>OVC іске қосылғанда, шектен жоғары медиа дыбысын шекке дейін төмендете алады. Тынышырақ дыбыс сақталады.</item>
+        <item>Дыбыс шектен жоғары</item>
+        <item>Дыбыс шекке дейін төмендеді</item>
+    </string-array>
+    <string-array name="guide_appearance_launch_media_limit">
+        <item>Іске қосу кезіндегі шектеу қосылса, медиа дыбысының жоғарғы шегін қояды.</item>
+        <item>50 пайыздық шек</item>
+        <item>30 пайыздық шек</item>
+    </string-array>
+    <string-array name="guide_quick_actions_enabled">
+        <item>OVC терезесінің ішінде OVC және қолданба жарлықтарының жолағын көрсетеді.</item>
+        <item>Толық бет</item>
+        <item>Жылдам әрекеттері бар бет</item>
+    </string-array>
+    <string-array name="guide_quick_actions_area">
+        <item>Жылдам әрекеттер жолағы қай OVC экрандарында көрінетінін таңдайды.</item>
+        <item>Тек қолданбалар торында</item>
+        <item>Барлық OVC экрандарында</item>
+    </string-array>
+    <string-array name="guide_quick_actions_hide_on_virtual_display">
+        <item>Виртуалды дисплей бетіне және оның алдын ала көрінісіне OVC терезесінің бүкіл енін береді.</item>
+        <item>Жолақ жанындағы көрініс</item>
+        <item>Толық енді көрініс</item>
+    </string-array>
+    <string-array name="guide_quick_actions_headlight_indicator">
+        <item>Ашық жолаққа соңғы белгілі немесе ағымдағы фара көрсеткішін қосады.</item>
+        <item>Тек жарлықтар</item>
+        <item>Фара индикаторы бар</item>
+    </string-array>
+    <string-array name="guide_quick_actions_headlight_content">
+        <item>Жарық индикаторы нені көрсететінін таңдайды: ауыстырғыш режимі, фаралар немесе алыс жарық.</item>
+        <item>Ауыстырғыш режимі</item>
+        <item>Алыс жарық күйі</item>
+    </string-array>
+    <string-array name="guide_quick_actions_headlight_tap">
+        <item>Фара индикаторын түрткенде не ашылатынын таңдайды.</item>
+        <item>Көлік баптаулары</item>
+        <item>Осы беттің үстіндегі жарық дереккөздері</item>
+    </string-array>
+    <string-array name="guide_quick_actions_apps_destination">
+        <item>Қолданбалар жарлығы әдепкі жұмыс үстелін немесе барлық қолданбаларды ашатынын таңдайды.</item>
+        <item>Әдепкі жұмыс үстелі</item>
+        <item>Барлық қолданбалар</item>
+    </string-array>
+    <string-array name="guide_quick_actions_side">
+        <item>Кең экранда бүйірлік жолақты солға немесе оңға орналастырады.</item>
+        <item>Сол жақ жолақ</item>
+        <item>Оң жақ жолақ</item>
+    </string-array>
+    <string-array name="guide_quick_actions_wide_width">
+        <item>Кең экранда бүйірлік жолаққа бөлінетін енді белгілейді.</item>
+        <item>Қалыпты жолақ</item>
+        <item>Ықшам жолақ</item>
+    </string-array>
+    <string-array name="guide_quick_actions_rail_alignment">
+        <item>Ашылған жарлықтарды бүйірлік жолақтың жоғарғы, ортаңғы немесе төменгі жағына орналастырады.</item>
+        <item>Жарлықтар жоғарыда</item>
+        <item>Жарлықтар ортада</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_edge">
+        <item>Ықшам экранда жолақты жоғары немесе төмен жылжытады.</item>
+        <item>Жолақ жоғарыда</item>
+        <item>Жолақ төменде</item>
+    </string-array>
+    <string-array name="guide_quick_actions_labels">
+        <item>Жарлық белгішелеріне атаулар қосады. Ықшам экранға бөлек таңдау жасауға болады.</item>
+        <item>Тек белгішелер</item>
+        <item>Белгішелер және атаулар</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_labels">
+        <item>Ықшам экрандардағы жазуларды бөлек қояды немесе жалпы баптауды пайдаланады.</item>
+        <item>Жалпы баптауға сәйкес</item>
+        <item>Ықшам экранда тек белгішелер</item>
+    </string-array>
+    <string-array name="guide_quick_actions_start_state">
+        <item>OVC іске қосылғанда жолақ ашық па, жабық па, соны таңдайды. Әдепкі мән жарлықтан кейін жинау баптауына байланысты.</item>
+        <item>Іске қосылғанда ашық</item>
+        <item>Іске қосылғанда жиналған</item>
+    </string-array>
+    <string-array name="guide_quick_actions_collapse_after_use">
+        <item>Жарлықты түрткеннен кейін жолақты жинайды.</item>
+        <item>Жарлық ашылды, жолақ қалды</item>
+        <item>Жарлық ашылды, жолақ жиналды</item>
+    </string-array>
+    <string-array name="guide_quick_actions_idle_collapse">
+        <item>Ашық жолақты әрекетсіздіктің таңдалған уақытынан кейін жинайды.</item>
+        <item>Жолақ ашық қалады</item>
+        <item>Жолақ 10 секундтан кейін жиналады</item>
+    </string-array>
+    <string-array name="guide_quick_actions_keep_side_inset">
+        <item>Кең бүйірлік жолақ жиналғанда бет орнынан қозғалмауы үшін оның енін сақтайды.</item>
+        <item>Жолақ жиналғанда бет кеңейеді</item>
+        <item>Бет ені өзгермейді</item>
+    </string-array>
+    <string-array name="guide_quick_actions_handle_size">
+        <item>Жиналған жолақты ашатын батырманың өлшемін өзгертеді.</item>
+        <item>Қалыпты батырма</item>
+        <item>Үлкенірек түрту аймағы</item>
+    </string-array>
+    <string-array name="guide_quick_actions_side_handle_position">
+        <item>Кең экранда ашу батырмасын жиналған жолақтың жоғарғы, ортаңғы немесе төменгі жағына қояды.</item>
+        <item>Батырма жоғарыда</item>
+        <item>Батырма төменде</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_handle_side">
+        <item>Ықшам экранда ашу батырмасын солға немесе оңға жылжытады.</item>
+        <item>Батырма сол жақта</item>
+        <item>Батырма оң жақта</item>
+    </string-array>
+    <string-array name="guide_quick_actions_handle_accent">
+        <item>Ашу батырмасының екпінін тақырып түсіне, кәріптас немесе көгілдір-жасыл түске қояды.</item>
+        <item>Тақырып екпіні</item>
+        <item>Көгілдір-жасыл батырма</item>
+    </string-array>
+    <string-array name="guide_quick_actions_dim_idle_handle">
+        <item>Ашу батырмасының түсін тыныштықта бәсеңдетеді. Түрту немесе фокус толық түсті қайтарады.</item>
+        <item>Қалыпты толтыру</item>
+        <item>Тыныштықта бәсеңдетілген</item>
+    </string-array>
+    <string-array name="guide_quick_actions_contrast_handle">
+        <item>Ашу батырмасының көрсеткісі мен жиегін анығырақ етеді.</item>
+        <item>Қалыпты контраст</item>
+        <item>Көрсеткі мен жиек анығырақ</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_handle_label">
+        <item>Ықшам экранда жиналған батырманың қасына жазу көрсетеді.</item>
+        <item>Тек көрсеткі</item>
+        <item>Көрсеткі және жазу</item>
+    </string-array>
+    <string-array name="guide_quick_actions_larger_shortcuts">
+        <item>Ашық жолақтағы таңдалған OVC жарлықтарының түрту аймағын үлкейтеді.</item>
+        <item>Қалыпты жарлықтар</item>
+        <item>Таңдалған жарлықтар үлкенірек</item>
+    </string-array>
+    <string-array name="guide_quick_actions_routine_shortcut">
+        <item>Таңдалған сақтаулы сценарийді жолақтан бір түртумен іске қосады.</item>
+        <item>Сценарий кітапханасы</item>
+        <item>Бір сценарийге тікелей қол жеткізу</item>
+    </string-array>
+    <string-array name="guide_quick_actions_shortcuts">
+        <item>Жолақта көрсетілетін OVC жарлықтарын таңдап, ретін өзгертіңіз.</item>
+        <item>Бастапқы жарлық реті</item>
+        <item>Өз жарлықтарыңыз және өз ретіңіз</item>
+    </string-array>
+    <string-array name="guide_ui_69">
+        <item>Үйлесімді зауыттық панель батырмаларына өз тағайындауларыңызды қолданады.</item>
+        <item>Зауыттық панель әрекеті</item>
+        <item>Сіздің панель жарлығыңыз</item>
+    </string-array>
+    <string-array name="guide_ui_43">
+        <item>Android аппараттық батырмаларына тағайындаған әрекеттерді қосады.</item>
+        <item>Батырманың бастапқы әрекеті</item>
+        <item>Сіз тағайындаған әрекет</item>
+    </string-array>
+    <string-array name="guide_oem_short">
+        <item>Осы батырманы қысқа басқанда қандай әрекет орындалатынын таңдайды.</item>
+        <item>Қысқа басу</item>
+        <item>Қысқа басу әрекеті орындалады</item>
+    </string-array>
+    <string-array name="guide_oem_hold">
+        <item>Батырма белгіленген шектен ұзақ ұсталғанда орындалатын әрекетті таңдайды.</item>
+        <item>Батырманы ұстап тұру</item>
+        <item>Ұзақ басу әрекеті орындалады</item>
+    </string-array>
+    <string-array name="guide_ui_98">
+        <item>Осы Android перне тағайындауын коды бірдей барлық енгізу құрылғыларында қолданады.</item>
+        <item>Бір енгізу құрылғысы</item>
+        <item>Коды бірдей кез келген құрылғы</item>
+    </string-array>
+    <string-array name="guide_ui_99">
+        <item>Таңдалған әрекеттерді сақтап, осы жеке тағайындауды қосады.</item>
+        <item>Тағайындау кідіртілген</item>
+        <item>Тағайындау белсенді</item>
+    </string-array>
+    <string-array name="guide_ui_91">
+        <item>Осы тағайындау тыңдайтын Android пернесінің кодын таңдайды.</item>
+        <item>Басқа перне коды</item>
+        <item>Сәйкес код әрекетті іске қосады</item>
+    </string-array>
+    <string-array name="guide_ui_95">
+        <item>Аппараттық батырмалар тізіміндегі тағайындауға атау береді.</item>
+        <item>Перне коды</item>
+        <item>Өзіңіз қойған батырма атауы</item>
+    </string-array>
+    <string-array name="guide_ui_115">
+        <item>Ұзақ басу әрекеті үшін батырманы қанша уақыт ұстап тұру керегін белгілейді.</item>
+        <item>Шекке дейін босатылды</item>
+        <item>Жеткілікті ұзақ ұсталды</item>
+    </string-array>
+    <string-array name="guide_ui_116">
+        <item>Бір-біріне тым жақын қайталанған басуларды елемейтін аралықты қояды.</item>
+        <item>Екі жылдам сигнал</item>
+        <item>Бір басу қабылданды</item>
+    </string-array>
+    <string-array name="guide_cockpit_language">
+        <item>OVC мәзірі мен баптауларының тілін өзгертеді. Дауыс тану тілі бөлек таңдалады.</item>
+        <item>Ағылшынша интерфейс</item>
+        <item>Қазақша интерфейс</item>
+    </string-array>
+    <string-array name="guide_keyboard_choice_section">
+        <item>Үйлесімді экрандарға пернетақтаны таңдайды немесе зауыттық пернетақтаны қайтарады.</item>
+        <item>Зауыттық пернетақта</item>
+        <item>Таңдалған пернетақта</item>
+    </string-array>
+    <string-array name="guide_text_overlays_title">
+        <item>Үйлесімді микробағдарламада зауыттық қолданбалар үшін тіл пакетін орнатады. Жеке қолданбаларды алып тастауға болады.</item>
+        <item>Зауыттық қолданба мәтіні</item>
+        <item>Аударылған қолданба мәтіні</item>
+    </string-array>
+    <string-array name="guide_text_overlays_off">
+        <item>Үйлесімді қолданбаларда бастапқы зауыттық мәтінді қалпына келтіреді.</item>
+        <item>Аударылған мәзір</item>
+        <item>Бастапқы зауыттық мәзір</item>
+    </string-array>
+    <string-array name="guide_cockpit_dictionary_russian">
+        <item>Зауыттық экрандарды аудару қолжетімді жерде кірістірілген орысша сөздікті пайдаланады.</item>
+        <item>Бастапқы зауыттық жазулар</item>
+        <item>Орысша зауыттық жазулар</item>
+    </string-array>
+    <string-array name="guide_translation_import">
+        <item>Қолдау бар зауыттық экрандарға үйлесімді жеке аударма сөздігін жүктейді.</item>
+        <item>Ағымдағы сөздік</item>
+        <item>Импортталған аудармалар</item>
+    </string-array>
+    <string-array name="guide_updates_startup_toggle">
+        <item>Іске қосылғанда үйлесімді жаңа OVC нұсқасын фонда іздейді. Қолмен тексеру әрдайым қолжетімді.</item>
+        <item>Сұрау бойынша тексеру</item>
+        <item>Іске қосылғаннан кейін тексеру</item>
+    </string-array>
+    <string-array name="guide_settings_archive_export">
+        <item>Тасымалданатын OVC баптауларын сақтауға немесе көшіруге болатын файлға жазады.</item>
+        <item>Осы құрылғыдағы баптаулар</item>
+        <item>Сақтық көшірме файлы</item>
+    </string-array>
+    <string-array name="guide_settings_archive_import">
+        <item>Үйлесімді OVC сақтық көшірмесін тексеріп, тасымалданатын таңдауларды қалпына келтіреді.</item>
+        <item>Ағымдағы баптаулар</item>
+        <item>Көшірмеден қалпына келген баптаулар</item>
+    </string-array>
+    <string-array name="guide_headlight_monitoring_open">
+        <item>OVC ашық тұрғанда фаралардың қолжетімді кері байланысын тыңдап, Көлік бетіндегі және қосылған карталардағы көрсеткіштерді жаңартады.</item>
+        <item>Соңғы белгілі көрсеткіш</item>
+        <item>Қолжетімді болса, расталған ағымдағы көрсеткіш</item>
+    </string-array>
+    <string-array name="guide_seat_memory_open_factory_on_tap">
+        <item>OVC ішінен Сақтау немесе Қалпына келтіру таңдалса, зауыттық Орындықтар бетін ашады. Қалыптарды зауыттық жүйе басқарады.</item>
+        <item>OVC ішіндегі нұсқаулық</item>
+        <item>Зауыттық Орындықтар беті ашылады</item>
+    </string-array>
+    <string-array name="guide_service_reminder_show_on_vehicle">
+        <item>Көлік бетінде қызмет көрсету жоспары мен оның ағымдағы мерзімін көрсетеді.</item>
+        <item>Еске салғыш қызмет көрсету баптауында</item>
+        <item>Еске салғыш Көлік бетінде де бар</item>
+    </string-array>
+    <string-array name="guide_service_reminder_interval">
+        <item>Қызмет көрсету аралығындағы жүрісті белгілейді. OVC оны соңғы қызмет көрсетудегі одометр мәніне қосады.</item>
+        <item>Соңғы қызмет көрсету</item>
+        <item>Таңдалған жүрістен кейінгі қызмет көрсету</item>
+    </string-array>
+    <string-array name="guide_service_reminder_current">
+        <item>Қызмет көрсетуге қалған қашықтықты есептеу үшін ағымдағы одометр мәнін береді.</item>
+        <item>Ағымдағы жүріс белгісіз</item>
+        <item>Қалған қашықтық көрсетіледі</item>
+    </string-array>
+    <string-array name="guide_service_reminder_last">
+        <item>Қашықтық жоспарының бастапқы нүктесі ретінде соңғы қызмет көрсетудегі одометр мәнін жазады.</item>
+        <item>Соңғы қызмет көрсету жазылмаған</item>
+        <item>Келесі қызмет көрсету жүрісі есептелді</item>
+    </string-array>
+    <string-array name="guide_service_reminder_lead_title">
+        <item>Қызмет көрсетуге қанша шақырым қалғанда еске салғыш шығатынын белгілейді.</item>
+        <item>Қашықтық әлі бар</item>
+        <item>Жүріс бойынша ерте еске салғыш</item>
+    </string-array>
+    <string-array name="guide_service_reminder_calendar_interval">
+        <item>Келесі мерзімді есептеу үшін соңғы қызмет көрсету күніне таңдалған ай санын қосады.</item>
+        <item>Соңғы қызмет көрсету күні</item>
+        <item>Келесі қызмет көрсету мерзімі</item>
+    </string-array>
+    <string-array name="guide_service_reminder_calendar_lead_title">
+        <item>Күнтізбелік еске салғыш мерзімнен қанша күн бұрын қосылатынын белгілейді.</item>
+        <item>Тек қызмет көрсету күні</item>
+        <item>Мерзімге дейінгі еске салғыш</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_lights_enabled">
+        <item>Үйлесімді микробағдарламада беріліс өзгеріп, тексерулер өтсе, таңдалған фара сценарийін қосады.</item>
+        <item>Беріліс ауысты, жарық өзгермеді</item>
+        <item>Таңдалған жарық әрекеті сұралды</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_on_drive">
+        <item>Функция қосылып, көлік тексерулері өтсе, Drive режиміне ауысқанда сұралатын жарық әрекетін таңдайды.</item>
+        <item>Drive таңдалды</item>
+        <item>Drive үшін таңдалған жарық әрекеті</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_on_park">
+        <item>Көлік тексерулері өтсе, Park режиміне ауысқанда сұралатын жарық әрекетін таңдайды.</item>
+        <item>Park таңдалды</item>
+        <item>Park үшін таңдалған жарық әрекеті</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_memory_enabled">
+        <item>Соңғы байқалған жүріс режимін есте сақтап, үйлесімді іске қосу шарттары орындалғанда қалпына келтіре алады.</item>
+        <item>Жүріс режимі өзгереді</item>
+        <item>Соңғы расталған режим сақталды</item>
+    </string-array>
+    <string-array name="guide_voice_recognition">
+        <item>Тану тілі, офлайн қозғалтқышы және онлайн түсіндіру баптауларын ашады.</item>
+        <item>Бір тілдегі сөйлеу</item>
+        <item>Тану дауысыңызға бейімделді</item>
+    </string-array>
+    <string-array name="guide_voice_language">
+        <item>Каталогтағы тіркестер мен офлайн тану моделінің тілін таңдайды.</item>
+        <item>Ағылшын тіркестері мен моделі</item>
+        <item>Қазақша тіркестер мен модель</item>
+    </string-array>
+    <string-array name="guide_voice_recognition_engine">
+        <item>Офлайн қозғалтқышты таңдайды. Таңдалған қозғалтқыш пен тілге жергілікті сөйлеу моделі қажет.</item>
+        <item>Сөйлеу жазылды</item>
+        <item>Таңдалған қозғалтқыш сөйлеуді таниды</item>
+    </string-array>
+    <string-array name="guide_voice_online_title">
+        <item>Каталогта тіркес сәйкес келмесе, сенімді танылған жергілікті мәтінді онлайн түсіндіруге мүмкіндік береді.</item>
+        <item>Жергілікті сәйкестік жоқ</item>
+        <item>Онлайн қызмет қолдау бар пәрменді ұсына алады</item>
+    </string-array>
+    <string-array name="guide_voice_online_switch">
+        <item>Қолдау бар ниеттер үшін OpenRouter арқылы қосымша түсіндіруді қосады. Қызмет қысқа танылған мәтінді алады.</item>
+        <item>Тек жергілікті нәтиже</item>
+        <item>Сәйкестік болмаса, мәтін өңделеді</item>
+    </string-array>
+    <string-array name="guide_voice_online_key">
+        <item>Осы құрылғыда OpenRouter есептік жазбасына қосылу кілтін сақтайды.</item>
+        <item>Онлайн түсіндіру қолжетімсіз</item>
+        <item>Есептік жазба түсіндіруге дайын</item>
+    </string-array>
+    <string-array name="guide_default_levels">
+        <item>Деңгей айтылмай, жай ғана орындық функциясын қосу сұралса, қолданылатын жайлылық деңгейін белгілейді.</item>
+        <item>Орындық жылытуын қосу</item>
+        <item>Жылыту әдепкі деңгейде қосылады</item>
+    </string-array>
+    <string-array name="guide_window_options">
+        <item>Қолдау бар көлікте желдету пәрмендері терезені қанша ашатынын таңдаңыз.</item>
+        <item>Қалыпты ашылу</item>
+        <item>Терезе көбірек ашылады</item>
+    </string-array>
+    <string-array name="guide_double_smoke">
+        <item>Жүргізуші терезесін желдету пәрменінде кеңірек саңылау пайдаланылады.</item>
+        <item>Қалыпты саңылау</item>
+        <item>Жүргізуші терезесінде үлкенірек саңылау</item>
+    </string-array>
+    <string-array name="guide_double_ventilation">
+        <item>Салонды желдету пәрменінде терезелер кеңірек ашылады.</item>
+        <item>Терезелер сәл ашық</item>
+        <item>Терезелер көбірек ашық</item>
+    </string-array>
+    <string-array name="guide_voice_vehicle_commands">
+        <item>Қай көлік пәрмендерін сұрауға болатынын таңдаңыз. Микробағдарлама мен көліктің күйі әлі де тексеріледі.</item>
+        <item>Пәрменге тыйым салынған</item>
+        <item>Пәрменнің шарттары тексеріледі</item>
+    </string-array>
+    <string-array name="guide_voice_audio_settings">
+        <item>Дауыс жауабын, тыңдау сигналдарын және дауыс терезесінің көрсетілу уақытын баптаңыз.</item>
+        <item>Тыңдау басталады</item>
+        <item>Таңдалған сигналдар мен жауап естіледі</item>
+    </string-array>
+    <string-array name="guide_voice_spoken_feedback">
+        <item>Танылған пәрменнен кейін орнатылған офлайн дауыспен жауап береді.</item>
+        <item>Экрандағы нәтиже</item>
+        <item>Нәтиже және дауыс жауабы</item>
+    </string-array>
+    <string-array name="guide_voice_speech_rate">
+        <item>Дауыстық жауаптар мен дауыс үлгілерінің оқу жылдамдығын өзгертеді.</item>
+        <item>Қалыпты сөйлеу</item>
+        <item>Жылдамырақ сөйлеу</item>
+    </string-array>
+    <string-array name="guide_voice_speech_volume">
+        <item>Дауыстық жауап дыбысын таңдалған арнаға қатысты өзгертеді.</item>
+        <item>Тынышырақ жауап</item>
+        <item>Қаттырақ жауап</item>
+    </string-array>
+    <string-array name="guide_voice_feedback_style">
+        <item>Жауап танылған тіркесті қайталай ма, әлде нәтижені оқи ма, соны таңдайды.</item>
+        <item>Тіркесті қайталау</item>
+        <item>Нәтижені оқу</item>
+    </string-array>
+    <string-array name="guide_voice_reply_channel">
+        <item>Дауыс жауабы мен үлгілерді Ассистент немесе Медиа арнасына жібереді.</item>
+        <item>Ассистент арнасы</item>
+        <item>Медиа арнасы</item>
+    </string-array>
+    <string-array name="guide_voice_offline_voice">
+        <item>Ағымдағы тану тілі үшін орнатылған дауысты таңдайды. Автоматты режим үйлесімді дауысты іздейді.</item>
+        <item>Автоматты таңдалған дауыс</item>
+        <item>Өзіңіз таңдаған офлайн дауыс</item>
+    </string-array>
+    <string-array name="guide_voice_ready_cue">
+        <item>Әр жазба алдында дайындық сигналын ойнатады.</item>
+        <item>Микрофон үнсіз қосылады</item>
+        <item>Тыңдауға дейін сигнал шығады</item>
+    </string-array>
+    <string-array name="guide_voice_ready_style">
+        <item>Дайындық сигналы ретінде қысқа үнді немесе дауыс тіркесін таңдайды.</item>
+        <item>Қысқа үн</item>
+        <item>Дауыстық нұсқау</item>
+    </string-array>
+    <string-array name="guide_voice_ready_phrase">
+        <item>Ағымдағы тану тілі үшін дайындық тіркесін қояды. Кірістірілген тіркесті пайдалану үшін өрісті тазалаңыз.</item>
+        <item>Кірістірілген тіркес</item>
+        <item>Өзіңіздің дайындық тіркесіңіз</item>
+    </string-array>
+    <string-array name="guide_voice_ready_cue_volume">
+        <item>Тыңдау басталар алдындағы дайындық сигналының дыбысын қояды.</item>
+        <item>Тыныш дайындық сигналы</item>
+        <item>Қаттырақ дайындық сигналы</item>
+    </string-array>
+    <string-array name="guide_voice_end_listening_cue">
+        <item>Микрофон жабылғанда ойналатын дыбысты таңдайды немесе өшіреді.</item>
+        <item>Үнсіз аяқтау</item>
+        <item>Жұмсақ аяқтау сигналы</item>
+    </string-array>
+    <string-array name="guide_voice_end_cue_volume">
+        <item>Тек аяқтау сигналының дыбысын өзгертеді. Қалпына келтіру батырмасы сигналдың бастапқы деңгейін қайтарады.</item>
+        <item>Тыныш аяқтау сигналы</item>
+        <item>Қаттырақ аяқтау сигналы</item>
+    </string-array>
+    <string-array name="guide_voice_capture_popup">
+        <item>Тыңдау шегі, нәтиже уақыты және танылған мәтін көрсетілетін дауыс терезесінің баптауларын ашады.</item>
+        <item>Тыңдау</item>
+        <item>Нәтиже терезесі</item>
+    </string-array>
+    <string-array name="guide_voice_listening_limit">
+        <item>Микрофон бір пәрменді ең көбі қанша уақыт тыңдайтынын қояды.</item>
+        <item>3 секундқа дейін</item>
+        <item>6 секундқа дейін</item>
+    </string-array>
+    <string-array name="guide_voice_result_duration">
+        <item>Нәтиже дауыс терезесінде қанша тұратынын қояды. Дауыстық жауап оны сәл ұзағырақ ұстай алады.</item>
+        <item>Нәтиже 1 секунд</item>
+        <item>Нәтиже 4 секунд</item>
+    </string-array>
+    <string-array name="guide_voice_show_recognized_phrase">
+        <item>Танылған тіркес бар болса, оны нәтиженің үстінде көрсетеді.</item>
+        <item>Тек нәтиже</item>
+        <item>Танылған тіркес және нәтиже</item>
+    </string-array>
+    <string-array name="guide_voice_startup_volume">
+        <item>Бас құрылғы іске қосылғанда таңдаған медиа дыбысын бір рет қолданады.</item>
+        <item>Алдыңғы дыбыс деңгейі</item>
+        <item>Бастапқы дыбыс қолданылды</item>
+    </string-array>
+    <string-array name="guide_voice_startup_volume_level">
+        <item>Бас құрылғы іске қосылғанда қолданылатын медиа дыбысының ең жоғары деңгейіне қатысты үлесін қояды.</item>
+        <item>10 пайызбен іске қосу</item>
+        <item>20 пайызбен іске қосу</item>
+    </string-array>
+    <string-array name="guide_voice_duck_media">
+        <item>Дауыс микрофоны тыңдап тұрғанда медиа дыбысын уақытша бәсеңдетеді.</item>
+        <item>Музыка ағымдағы деңгейде</item>
+        <item>Тыңдағанда музыка бәсең</item>
+    </string-array>
+    <string-array name="guide_voice_duck_calls">
+        <item>Бас құрылғы хабарлаған қоңыраулар кезінде медиа дыбысын уақытша бәсеңдетеді.</item>
+        <item>Музыка ағымдағы деңгейде</item>
+        <item>Қоңырауда музыка бәсең</item>
+    </string-array>
+    <string-array name="guide_voice_duck_level">
+        <item>Дыбыс бәсеңдетіліп тұрғанда ағымдағы деңгейдің қанша үлесі қалатынын қояды.</item>
+        <item>Ағымдағы деңгейдің 35 пайызын сақтау</item>
+        <item>Ағымдағы деңгейдің 10 пайызын сақтау</item>
+    </string-array>
+    <string-array name="guide_ui_177">
+        <item>Дауыс контактілері мен сақтық көшірмелерін басқарыңыз немесе жұмыс істеген баптауларды қалпына келтіріңіз.</item>
+        <item>Ағымдағы дауыс баптауы</item>
+        <item>Сақталған немесе қалпына келген дауыс баптауы</item>
+    </string-array>
+    <string-array name="guide_ui_181">
+        <item>Офлайн дауыспен қоңырау шалуға контакт қосады. Пәрмен сақталған нөмірмен Android тергішін ашады.</item>
+        <item>Сақталған атау және телефон</item>
+        <item>Нөмірі бар тергіш ашылады</item>
+    </string-array>
+    <string-array name="guide_ui_193">
+        <item>Осы контактіге қоңырау шалуды сұрағанда анық айта алатын атауды енгізіңіз.</item>
+        <item>Контакт атауы</item>
+        <item>Дауыс пәрменіндегі атау</item>
+    </string-array>
+    <string-array name="guide_ui_194">
+        <item>Контакт пәрмені танылғанда Android тергішіне енгізілетін нөмірді қояды.</item>
+        <item>Контакт танылды</item>
+        <item>Тергіште телефон нөмірі</item>
+    </string-array>
+    <string-array name="guide_routines_name">
+        <item>Сценарийге таңдау және іске қосу тізімдерінде көрінетін атау береді.</item>
+        <item>Жаңа сценарий</item>
+        <item>Таңғы сапар</item>
+    </string-array>
+    <string-array name="guide_routines_page">
+        <item>Сценарий ашатын OVC бетін таңдайды.</item>
+        <item>Ағымдағы бет</item>
+        <item>Таңдалған OVC беті</item>
+    </string-array>
+    <string-array name="guide_routines_layout">
+        <item>Сценарий іске қосылғанда сақталған жұмыс үстелі орналасуын қолдана алады.</item>
+        <item>Ағымдағы орналасу</item>
+        <item>Сценарий орналасуы қолданылды</item>
+    </string-array>
+    <string-array name="guide_routines_theme">
+        <item>Сценарий іске қосылғанда OVC палитрасын таңдауға мүмкіндік береді.</item>
+        <item>Ағымдағы түстер</item>
+        <item>Сценарий палитрасы қолданылды</item>
+    </string-array>
+    <string-array name="guide_routines_app">
+        <item>Сценарий құрамында таңдалған орнатылған қолданбаны ашуға мүмкіндік береді.</item>
+        <item>OVC ашық</item>
+        <item>Таңдалған қолданба ашылады</item>
+    </string-array>
+    <string-array name="guide_routines_pin">
+        <item>Сценарийді тез табу үшін бекітілген топта ұстайды.</item>
+        <item>Кітапханадағы әдеттегі жазба</item>
+        <item>Бекітілген сценарий</item>
+    </string-array>
+    <string-array name="guide_routines_startup_enabled">
+        <item>Іске қосқыштан ашқанда таңдалған сценарийді оның кестесіне сай орындайды.</item>
+        <item>Әдеттегідей ашу</item>
+        <item>Жоспарланған сценарий іске қосылады</item>
+    </string-array>
+    <string-array name="guide_routines_days">
+        <item>Бастапқы сценарий іске қосылатын күндерді таңдаңыз.</item>
+        <item>Кез келген таңдалған күн</item>
+        <item>Тек жұмыс күндері</item>
+    </string-array>
+    <string-array name="guide_routines_frequency">
+        <item>Қолайлы іске қосуларда сценарий қаншалықты жиі орындалатынын қояды.</item>
+        <item>Әр қолайлы ашу</item>
+        <item>Күніне бір реттен жиі емес</item>
+    </string-array>
+    <string-array name="guide_routines_delay">
+        <item>Іске қосқыштан ашқаннан кейін сценарийді таңдалған уақытқа кешіктіреді.</item>
+        <item>Бірден орындау</item>
+        <item>Кідірістен кейін орындау</item>
+    </string-array>
+    <string-array name="guide_routines_limit_hours">
+        <item>Бастапқы сценарийді іске қосуды таңдалған уақыт аралығымен шектейді.</item>
+        <item>Таңдалған күндердің кез келген уақыты</item>
+        <item>Тек уақыт аралығында</item>
+    </string-array>
+    <string-array name="guide_routines_time_start">
+        <item>Бастапқы сценарийдің күнделікті іске қосу аралығы қашан басталатынын қояды.</item>
+        <item>Басталу уақытынан бұрын</item>
+        <item>Сценарий басталу уақытынан қолжетімді</item>
+    </string-array>
+    <string-array name="guide_routines_time_end">
+        <item>Бастапқы сценарийдің күнделікті іске қосу аралығы қашан аяқталатынын қояды.</item>
+        <item>Уақыт аралығы ішінде</item>
+        <item>Келесі аралықты күтеді</item>
+    </string-array>
+    <string-array name="guide_rules_enabled">
+        <item>Көлік туралы қолжетімді дерек өзгергенде ережені тексереді, шарттар сәйкес келсе сценарийді іске қосады.</item>
+        <item>Ереже кідіртілген</item>
+        <item>Ереже шарттарын бақылайды</item>
+    </string-array>
+    <string-array name="guide_rules_gear">
+        <item>Ереже үшін таңдалған беріліс қажет. Кез келген беріліс таңдалса, шарт алынып тасталады.</item>
+        <item>Басқа беріліс</item>
+        <item>Таңдалған беріліс сәйкес келеді</item>
+    </string-array>
+    <string-array name="guide_rules_doors">
+        <item>Ереже үшін таңдалған есік күйі қажет. Кез келген күй таңдалса, шарт еленбейді.</item>
+        <item>Есіктердің күйі басқа</item>
+        <item>Есіктердің күйі сәйкес келеді</item>
+    </string-array>
+    <string-array name="guide_rules_routine">
+        <item>Ереже шарттары сәйкес келгенде орындалатын сақталған сценарийді таңдайды.</item>
+        <item>Шарттар сәйкес келді</item>
+        <item>Таңдалған сценарий орындалады</item>
+    </string-array>
+    <string-array name="guide_rules_cooldown">
+        <item>Осы ереженің екі іске қосылуының арасындағы ең аз уақытты қояды.</item>
+        <item>Ереже жаңа ғана орындалды</item>
+        <item>Аралықтан кейін қайта іске қосыла алады</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_enabled">
+        <item>Шарттар сәйкес келіп, көлік тексерулерінен өтсе, маусымдық жиынтықты қолдануға мүмкіндік береді.</item>
+        <item>Жиынтық кідіртілген</item>
+        <item>Шарттар сәйкес келсе, жиынтық дайын</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_above_field">
+        <item>Жазғы жиынтық қолданылатын сыртқы температураның төменгі шегін қояды.</item>
+        <item>Шектен төмен</item>
+        <item>Жазғы жиынтық дайын бола алады</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_below_field">
+        <item>Қысқы жиынтық қолданылатын сыртқы температураның жоғарғы шегін қояды.</item>
+        <item>Шектен жоғары</item>
+        <item>Қысқы жиынтық дайын бола алады</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_gear">
+        <item>Жиынтықты қолданар алдында таңдалған шарт пен көлік тексерулеріне сай Park немесе Drive қажет.</item>
+        <item>Басқа беріліс</item>
+        <item>Қажетті беріліс таңдалды</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_closed_doors">
+        <item>Маусымдық жиынтық қолданылмас бұрын барлық есіктің жабылғаны расталуы керек.</item>
+        <item>Есік ашық немесе күйі белгісіз</item>
+        <item>Барлық есік жабылғаны расталды</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_driver">
+        <item>Жиынтық қолданылғанда жүргізуші аймағына сұралатын температураны қояды.</item>
+        <item>Жүргізуші аймағының ағымдағы температурасы</item>
+        <item>Жиынтықтағы мақсатты температура</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_passenger">
+        <item>Жиынтық қолданылғанда алдыңғы жолаушы аймағына сұралатын температураны қояды.</item>
+        <item>Жолаушы аймағының ағымдағы температурасы</item>
+        <item>Жиынтықтағы мақсатты температура</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_fan">
+        <item>Маусымдық жиынтық сұрайтын желдеткіш жылдамдығын қояды.</item>
+        <item>Жұмсақ ауа ағыны</item>
+        <item>Желдеткіш жылдамырақ</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_driver_seat">
+        <item>Жазда жүргізуші орындығын желдетуді, қыста жылытуды сұрайды. Өзгертпеу таңдауы ағымдағы деңгейді сақтайды.</item>
+        <item>Орындықтың ағымдағы күйі</item>
+        <item>Жиынтықтағы жүргізуші орындығының деңгейі</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_passenger_seat">
+        <item>Жазда жолаушы орындығын желдетуді, қыста жылытуды сұрайды. Өзгертпеу таңдауы ағымдағы деңгейді сақтайды.</item>
+        <item>Орындықтың ағымдағы күйі</item>
+        <item>Жиынтықтағы жолаушы орындығының деңгейі</item>
+    </string-array>
+    <string-array name="guide_action_permissions_title">
+        <item>Әр әрекетке рұқсат беріңіз, оны тексерілмеген деп белгілеңіз немесе жібермей тұрып бұғаттаңыз.</item>
+        <item>Сұрау әдеттегі тексерулерден өтеді</item>
+        <item>Бұғатталған сұрау жіберілмейді</item>
+    </string-array>
+    <string-array name="guide_apps_grid_reorder_pins">
+        <item>Осы Таңдаулылар жұмыс үстеліне қолданба жарлықтарын таңдап, ретін өзгертіңіз. Әр жұмыс үстелінің өз жарлықтары бар.</item>
+        <item>Қолданбалардың бастапқы реті</item>
+        <item>Жарлықтардың жаңа реті</item>
+    </string-array>
+    <string-array name="guide_app_picker_show_all">
+        <item>Осы таңдағышқа жасырылған, зауыттық және қызметтік қолданбаларды уақытша қосады.</item>
+        <item>Сүзілген тізім</item>
+        <item>Жасырылған қолданбалар да көрінеді</item>
+    </string-array>
+    <string-array name="guide_app_icon_title">
+        <item>Жеке сурет OVC жүйесінде осы қолданбаның белгішесін ауыстырады. Қалпына келтіру бастапқы белгішені қайтарады.</item>
+        <item>Іске қосқыштың бастапқы белгішесі</item>
+        <item>Қолданба торындағы өз суретіңіз</item>
+    </string-array>
+    <string-array name="guide_apps_permissions">
+        <item>Осы қолданбаға Android көрсеткен рұқсатты береді немесе қайтарып алады. Таңдау қолданба мен Android нұсқасына байланысты.</item>
+        <item>Қолданбаға рұқсат жоқ</item>
+        <item>Қолданбаға рұқсат берілді</item>
+    </string-array>
+    <string-array name="guide_quick_actions_app_shortcuts">
+        <item>Орнатылған қолданбалардың жарлықтарын OVC жарлықтарынан кейін қосады. Олардың ретін өзгертуге немесе алып тастауға болады.</item>
+        <item>OVC жарлықтары</item>
+        <item>OVC және орнатылған қолданба жарлықтары</item>
+    </string-array>
+    <string-array name="guide_rules_name">
+        <item>«Егер — онда» тізіміндегі ережеге атау береді.</item>
+        <item>Жаңа ереже</item>
+        <item>Өзіңіз қойған ереже атауы</item>
+    </string-array>
+    <string-array name="guide_service_reminder_calendar_last_date">
+        <item>Күнтізбелік аралық есептелетін соңғы қызмет көрсету күнін белгілейді.</item>
+        <item>Соңғы қызмет көрсету күні</item>
+        <item>Келесі мерзім есептелді</item>
+    </string-array>
+    <string-array name="guide_routines_startup">
+        <item>Кесте рұқсат етсе, іске қосқыштан ашқанда орындалатын сценарийді таңдайды.</item>
+        <item>Бастапқы сценарий жоқ</item>
+        <item>Іске қосқышта таңдалған сценарий орындалады</item>
+    </string-array>
+    <string-array name="guide_routines_sort">
+        <item>Сақталған сценарийлерді атауы бойынша немесе жаңасынан бастап сұрыптайды.</item>
+        <item>Алдымен жаңа сценарийлер</item>
+        <item>Сценарийлер атауы бойынша</item>
+    </string-array>
+    <string-array name="guide_text_overlays_apps_heading">
+        <item>Басқа қолданбалардың таңдауларын сақтап, таңдалған зауыттық қолданбаның аудармасын қосады немесе өшіреді.</item>
+        <item>Осы қолданбаның зауыттық жазулары</item>
+        <item>Осы қолданбаның аударылған жазулары</item>
+    </string-array>
+    <string-array name="guide_firmware_translation_heading">
+        <item>Үйлесімді зауыттық экрандардың тілі мен сөздігін таңдаңыз. Өшіргенде зауыттық жазулар қайтарылады.</item>
+        <item>Зауыттық жазулар</item>
+        <item>Таңдалған сөздік тілі</item>
+    </string-array>
+    <string-array name="guide_oem_steering">
+        <item>Қолдау бар руль батырмаларына әрекеттерді тағайындайды. Әр қимылға бөлек әрекет беруге болады.</item>
+        <item>Рульдің зауыттық әрекеті</item>
+        <item>Руль қимылына тағайындалған әрекет</item>
+    </string-array>
+    <string-array name="guide_ui_67">
+        <item>Қолдау бар зауыттық панель батырмаларына қолданбалар мен әрекеттерді тағайындайды. Тағайындалмаған батырманың зауыттық әрекеті сақталады.</item>
+        <item>Панельдің зауыттық батырмасы</item>
+        <item>Батырма таңдалған қолданбаны ашады</item>
+    </string-array>
+    <string-array name="guide_ui_44">
+        <item>Танылған Android пернесіне тағайындау жасаңыз немесе өңдеңіз. Қысқа және ұзақ басуға бөлек әрекеттер таңдаңыз.</item>
+        <item>Android пернесі басылды</item>
+        <item>Қысқа не ұзақ басу әрекеті орындалды</item>
+    </string-array>
+    <string-array name="guide_display_media_access">
+        <item>Трек мәліметі мен үйлесімді ойнату басқаруын не бағаларды алу үшін OVC жүйесіне белсенді медиа сессиясын оқуға рұқсат береді.</item>
+        <item>Трек ойнатқышта ғана көрінеді</item>
+        <item>Трек мәліметі OVC жүйесінде көрінеді</item>
+    </string-array>
+</resources>

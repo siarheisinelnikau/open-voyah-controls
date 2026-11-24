@@ -130,7 +130,7 @@ private fun PresetOverview(
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (preset.driverSeatLevel > 0 || preset.passengerSeatLevel > 0)
             Text(seatSummary(season, preset), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        CockpitSwitch(text(R.string.seasonal_climate_enabled), preset.enabled, !state.form.busy) { save(season, preset.copy(enabled = it)) }
+        CockpitSwitch(R.string.seasonal_climate_enabled, preset.enabled, !state.form.busy) { save(season, preset.copy(enabled = it)) }
         CockpitFeedback(condition.label())
         Row(horizontalArrangement = Arrangement.spacedBy(LocalCockpitLayout.current.spacing(8.dp))) {
             CockpitAction(text(R.string.seasonal_climate_edit), edit, enabled = !state.form.busy, primary = true)
@@ -162,19 +162,19 @@ private fun SeasonalClimateEditor(
     } catch (_: IllegalArgumentException) { null }
     CockpitColumns(first = {
         CockpitSection(text(R.string.seasonal_climate_conditions), CockpitIcon.CAR) {
-            ClimateNumberField(text(if (season == ClimateSeason.SUMMER) R.string.seasonal_climate_above_field
-                else R.string.seasonal_climate_below_field), threshold, !busy, signed = true) { threshold = it }
-            ClimateSettingChoice(text(R.string.seasonal_climate_gear), gear, ClimateGearCondition.entries,
+            ClimateNumberField(if (season == ClimateSeason.SUMMER) R.string.seasonal_climate_above_field
+                else R.string.seasonal_climate_below_field, threshold, !busy, signed = true) { threshold = it }
+            ClimateSettingChoice(R.string.seasonal_climate_gear, gear, ClimateGearCondition.entries,
                 ClimateGearCondition::label, !busy) { gear = it }
-            CockpitSwitch(text(R.string.seasonal_climate_closed_doors), doors, !busy) { doors = it }
+            CockpitSwitch(R.string.seasonal_climate_closed_doors, doors, !busy) { doors = it }
         }
     }, second = {
         CockpitSection(text(R.string.seasonal_climate_parameters), CockpitIcon.SETTINGS) {
             Row(horizontalArrangement = Arrangement.spacedBy(LocalCockpitLayout.current.spacing(8.dp))) {
-                ClimateNumberField(text(R.string.seasonal_climate_driver), driver, !busy, modifier = Modifier.weight(1f)) { driver = it }
-                ClimateNumberField(text(R.string.seasonal_climate_passenger), passenger, !busy, modifier = Modifier.weight(1f)) { passenger = it }
+                ClimateNumberField(R.string.seasonal_climate_driver, driver, !busy, modifier = Modifier.weight(1f)) { driver = it }
+                ClimateNumberField(R.string.seasonal_climate_passenger, passenger, !busy, modifier = Modifier.weight(1f)) { passenger = it }
             }
-            ClimateNumberField(text(R.string.seasonal_climate_fan), fan, !busy) { fan = it }
+            ClimateNumberField(R.string.seasonal_climate_fan, fan, !busy) { fan = it }
             Row(horizontalArrangement = Arrangement.spacedBy(LocalCockpitLayout.current.spacing(8.dp))) {
                 SeatLevelChoice(season, R.string.seasonal_climate_driver_seat, driverSeat, !busy,
                     Modifier.weight(1f)) { driverSeat = it }
@@ -192,18 +192,18 @@ private fun SeasonalClimateEditor(
 private fun SeatLevelChoice(season: ClimateSeason, title: Int, level: Int, enabled: Boolean,
                             modifier: Modifier = Modifier, change: (Int) -> Unit) {
     val format = text(if (season == ClimateSeason.SUMMER) R.string.seasonal_climate_ventilation_level else R.string.seasonal_climate_heating_level)
-    ClimateSettingChoice(text(title), level, (0..3).toList(), { format.format(seatLevel(it)) }, enabled, modifier, change)
+    ClimateSettingChoice(title, level, (0..3).toList(), { format.format(seatLevel(it)) }, enabled, modifier, change)
 }
 
 @Composable
-private fun <T> ClimateSettingChoice(title: String, value: T, options: List<T>, label: (T) -> String,
+private fun <T> ClimateSettingChoice(title: Int, value: T, options: List<T>, label: (T) -> String,
                                      enabled: Boolean, modifier: Modifier = Modifier, change: (T) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val lifecycleState by lifecycle.currentStateAsState()
     val interactive = enabled && lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
     CockpitChoice(title, label(value), interactive, modifier) { open = true }
-    if (open && interactive) CockpitOptionDialog(title, options, value, label, onDismiss = { open = false }, onSelect = { option ->
+    if (open && interactive) CockpitOptionDialog(text(title), options, value, label, onDismiss = { open = false }, onSelect = { option ->
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) change(option)
     })
 }
@@ -215,12 +215,12 @@ private fun seatSummary(season: ClimateSeason, preset: SeasonalClimatePreset): S
 private fun seatLevel(level: Int): String = if (level == 0) text(R.string.seasonal_climate_seat_unchanged) else level.toString()
 
 @Composable
-private fun ClimateNumberField(label: String, value: String, enabled: Boolean, modifier: Modifier = Modifier,
+private fun ClimateNumberField(title: Int, value: String, enabled: Boolean, modifier: Modifier = Modifier,
                                signed: Boolean = false, change: (String) -> Unit) {
     CockpitTextField(value, { input ->
         if (input.length <= 3 && input.withIndex().all { (index, character) -> character.isDigit() || signed && index == 0 && character == '-' })
             change(input)
-    }, label, modifier.fillMaxWidth(), enabled = enabled,
+    }, text(title), modifier.fillMaxWidth(), enabled = enabled, guideId = title,
         keyboardOptions = KeyboardOptions(keyboardType = if (signed) KeyboardType.Ascii else KeyboardType.Number))
 }
 

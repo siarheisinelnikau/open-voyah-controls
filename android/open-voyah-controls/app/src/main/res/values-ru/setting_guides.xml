@@ -1,0 +1,1131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setting_guide_open">О настройке «%1$s»</string>
+    <string name="setting_guide_example">Пример</string>
+    <string name="setting_guide_replay">Повторить</string>
+    <string-array name="guide_apps_grid_tile_size">
+        <item>Меняет размер плиток и количество приложений на странице рабочего стола.</item>
+        <item>Крупные плитки</item>
+        <item>Более компактные плитки</item>
+    </string-array>
+    <string-array name="guide_apps_grid_columns">
+        <item>Задаёт количество столбцов. Автоматический режим учитывает доступную ширину.</item>
+        <item>Автоматическая сетка</item>
+        <item>Больше столбцов</item>
+    </string-array>
+    <string-array name="guide_apps_grid_icon_style">
+        <item>Меняет форму и оформление значков в сетке приложений.</item>
+        <item>Исходные значки</item>
+        <item>Единый стиль значков</item>
+    </string-array>
+    <string-array name="guide_apps_grid_show_labels">
+        <item>Показывает или скрывает названия под значками приложений.</item>
+        <item>Только значки</item>
+        <item>Значки с названиями</item>
+    </string-array>
+    <string-array name="guide_apps_grid_sort_order">
+        <item>Меняет порядок в списке всех приложений. Ручной режим использует сохранённую последовательность.</item>
+        <item>По алфавиту</item>
+        <item>Свой порядок</item>
+    </string-array>
+    <string-array name="guide_apps_grid_edit_manual_order">
+        <item>Расставьте приложения в нужной последовательности при ручной сортировке.</item>
+        <item>Карты после Музыки</item>
+        <item>Карты перед Музыкой</item>
+    </string-array>
+    <string-array name="guide_apps_grid_shortcuts">
+        <item>Выберите встроенные плитки OVC для сетки приложений.</item>
+        <item>Только плитка OVC</item>
+        <item>Плитки OVC и Голоса</item>
+    </string-array>
+    <string-array name="guide_apps_grid_hidden_apps">
+        <item>Выберите, что видно в списке всех приложений. Скрытое приложение по-прежнему можно открыть из избранного.</item>
+        <item>Приложение в списке</item>
+        <item>Скрыто из общего списка</item>
+    </string-array>
+    <string-array name="guide_apps_grid_show_search_field">
+        <item>Оставляет поле поиска над всеми приложениями. Клавиатура открывается по касанию поля.</item>
+        <item>Поиск по кнопке</item>
+        <item>Поле поиска всегда на виду</item>
+    </string-array>
+    <string-array name="guide_apps_grid_hide_by_default">
+        <item>Включает фильтр штатных и служебных приложений. Индивидуальные настройки видимости важнее фильтра.</item>
+        <item>Штатные приложения в списке</item>
+        <item>Штатные приложения скрыты по умолчанию</item>
+    </string-array>
+    <string-array name="guide_apps_desktop_enable">
+        <item>Добавляет рабочие столы избранного рядом со всеми приложениями, чтобы разделить наборы ярлыков.</item>
+        <item>Все приложения</item>
+        <item>Все приложения и столы избранного</item>
+    </string-array>
+    <string-array name="guide_apps_desktop_default">
+        <item>Выбирает рабочий стол, с которого открывается сетка приложений.</item>
+        <item>Сначала все приложения</item>
+        <item>Сначала избранное</item>
+    </string-array>
+    <string-array name="guide_apps_grid_desktop_names">
+        <item>Меняет название вкладки рабочего стола. У каждого стола своё имя.</item>
+        <item>Избранное 1</item>
+        <item>На каждый день</item>
+    </string-array>
+    <string-array name="guide_apps_grid_favorites_back">
+        <item>Задаёт действие кнопки Android «Назад» на столе избранного.</item>
+        <item>Выйти из сетки</item>
+        <item>Вернуться ко всем приложениям</item>
+    </string-array>
+    <string-array name="guide_apps_grid_smooth_paging">
+        <item>Управляет переходом между страницами стола при свайпе или выборе страницы.</item>
+        <item>Мгновенное переключение</item>
+        <item>Страницы плавно сдвигаются</item>
+    </string-array>
+    <string-array name="guide_apps_wallpaper_title">
+        <item>Выберите обои для каждого рабочего стола. Сброс затрагивает выбранный стол.</item>
+        <item>Стандартный фон</item>
+        <item>Ваша картинка</item>
+    </string-array>
+    <string-array name="guide_desktop_layouts_settings">
+        <item>Сохраните раскладку рабочих столов и примените её позже через настройки или сценарий.</item>
+        <item>Текущие рабочие столы</item>
+        <item>Сохранённая раскладка восстановлена</item>
+    </string-array>
+    <string-array name="guide_desktop_layouts_name">
+        <item>Задаёт имя раскладки в списке и редакторе сценариев.</item>
+        <item>Новая раскладка</item>
+        <item>Раскладка для поездок</item>
+    </string-array>
+    <string-array name="guide_desktop_info_settings">
+        <item>Выберите информационные карточки и их ширину отдельно для каждого рабочего стола.</item>
+        <item>Только плитки приложений</item>
+        <item>Плитки и информационные карточки</item>
+    </string-array>
+    <string-array name="guide_desktop_info_desktop">
+        <item>Выбирает рабочий стол, карточки которого вы редактируете.</item>
+        <item>Редактировать все приложения</item>
+        <item>Редактировать избранное</item>
+    </string-array>
+    <string-array name="guide_apps_grid_card_placement">
+        <item>Меняет порядок карточек и закреплённых приложений на столе избранного.</item>
+        <item>Сначала карточки</item>
+        <item>Сначала закреплённые приложения</item>
+    </string-array>
+    <string-array name="guide_apps_grid_card_outlines">
+        <item>Добавляет контур к информационным карточкам, чтобы их границы были заметнее.</item>
+        <item>Обычная карточка</item>
+        <item>Карточка с контуром</item>
+    </string-array>
+    <string-array name="guide_desktop_info_clock_format">
+        <item>Меняет набор данных в карточке часов.</item>
+        <item>Время</item>
+        <item>Время и дата</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media_style">
+        <item>Меняет расположение данных трека и кнопок воспроизведения на карточке медиа.</item>
+        <item>Трек и управление</item>
+        <item>Трек с обложкой</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media_open_target">
+        <item>Выбирает, что открывает касание карточки медиа, или оставляет её только для просмотра.</item>
+        <item>Превью медиа</item>
+        <item>Активный плеер</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media_source">
+        <item>Выбирает плеер, который передаёт данные трека на карточку рабочего стола.</item>
+        <item>Текущий активный плеер</item>
+        <item>Выбранное приложение</item>
+    </string-array>
+    <string-array name="guide_desktop_info_headlights_content">
+        <item>Выбирает, какой показатель фар выводится на карточке рабочего стола.</item>
+        <item>Режим переключателя</item>
+        <item>Дальний свет</item>
+    </string-array>
+    <string-array name="guide_desktop_info_phone_edit">
+        <item>Выберите до трёх голосовых контактов и расставьте их. Кнопка на карточке открывает звонилку с подставленным номером.</item>
+        <item>Сохранённые контакты</item>
+        <item>Контакты на карточке</item>
+    </string-array>
+    <string-array name="guide_desktop_info_route_content">
+        <item>Выбирает, показывает ли карточка навигации только следующий поворот или ещё и текущую дорогу.</item>
+        <item>Следующий поворот</item>
+        <item>Поворот и текущая дорога</item>
+    </string-array>
+    <string-array name="guide_desktop_info_route_open_target">
+        <item>Выбирает, что открывает касание карточки навигации, или оставляет её только для просмотра.</item>
+        <item>Превью маршрута</item>
+        <item>Назначенный навигатор</item>
+    </string-array>
+    <string-array name="guide_home_navigator_card">
+        <item>Размещает виджет Яндекс Навигатора вместо карты Baidu на поддерживаемом штатном рабочем столе.</item>
+        <item>Штатная карточка карты</item>
+        <item>Карточка Яндекс Навигатора</item>
+    </string-array>
+    <string-array name="guide_home_navigator_widget_scale">
+        <item>Меняет размер виджета Навигатора внутри штатного рабочего стола.</item>
+        <item>Обычный виджет</item>
+        <item>Виджет крупнее</item>
+    </string-array>
+    <string-array name="guide_home_weather_card">
+        <item>Показывает погоду на поддерживаемом штатном рабочем столе.</item>
+        <item>Погода скрыта</item>
+        <item>Карточка погоды видна</item>
+    </string-array>
+    <string-array name="guide_home_weather_city">
+        <item>Задаёт город для карточки погоды на штатном рабочем столе.</item>
+        <item>Текущий город</item>
+        <item>Погода для вашего города</item>
+    </string-array>
+    <string-array name="guide_apps_hide">
+        <item>Убирает приложение из общего списка и его поиска. Сохранённый ярлык в избранном продолжит работать.</item>
+        <item>В списке всех приложений</item>
+        <item>Скрыто из общего списка</item>
+    </string-array>
+    <string-array name="guide_app_icon_plain">
+        <item>Пробует убрать белый фон вокруг значка. Результат зависит от исходной картинки.</item>
+        <item>Белая подложка</item>
+        <item>Фон убран</item>
+    </string-array>
+    <string-array name="guide_window_hook_title">
+        <item>Включает службу окон, которая на поддерживаемом устройстве применяет размеры окон и параметры экрана при запуске приложений.</item>
+        <item>Обычный запуск Android</item>
+        <item>Свои параметры окна и экрана</item>
+    </string-array>
+    <string-array name="guide_window_strip_title">
+        <item>Позволяет Android резервировать полосу рядом с окнами для штатной панели на поддерживаемой прошивке.</item>
+        <item>Приложение занимает экран</item>
+        <item>Оставлено место для панели</item>
+    </string-array>
+    <string-array name="guide_app_window_panel_width">
+        <item>Задаёт минимальный отступ для штатной панели рядом с этим приложением. Автоматический режим использует определённую ширину.</item>
+        <item>Автоматический отступ</item>
+        <item>Больше места для панели</item>
+    </string-array>
+    <string-array name="guide_app_window_width">
+        <item>Задаёт, какую долю доступной ширины занимает приложение на поддерживаемом экране.</item>
+        <item>Вся доступная ширина</item>
+        <item>Окно уже</item>
+    </string-array>
+    <string-array name="guide_app_window_dpi">
+        <item>Задаёт плотность для этого приложения, когда его открывает служба окон. Больше DPI — крупнее интерфейс приложения.</item>
+        <item>Обычный масштаб</item>
+        <item>Крупнее кнопки и текст</item>
+    </string-array>
+    <string-array name="guide_app_display_defaults_title">
+        <item>Задаёт DPI приложений отдельно для каждого экрана. Настройка отдельного приложения может его переопределить.</item>
+        <item>DPI экрана Android</item>
+        <item>Свой DPI приложений на этом экране</item>
+    </string-array>
+    <string-array name="guide_window_swipe_title">
+        <item>Настройте свайп несколькими пальцами для переноса активного приложения между поддерживаемыми экранами.</item>
+        <item>Приложение на центральном экране</item>
+        <item>Приложение на другом экране</item>
+    </string-array>
+    <string-array name="guide_window_swipe_fingers">
+        <item>Выберите перенос окон двумя или тремя пальцами либо отключите жест.</item>
+        <item>Свайп отключён</item>
+        <item>Перенос двумя пальцами</item>
+    </string-array>
+    <string-array name="guide_window_swipe_after">
+        <item>Выбирает, что останется на исходном экране после переноса окна.</item>
+        <item>Штатный рабочий стол</item>
+        <item>Сетка приложений OVC</item>
+    </string-array>
+    <string-array name="guide_display_density">
+        <item>Задаёт DPI виртуального дисплея. Масштаб физических экранов сохраняется.</item>
+        <item>Мелкое управление в превью</item>
+        <item>Крупнее управление в превью</item>
+    </string-array>
+    <string-array name="guide_cluster_media_share">
+        <item>Передаёт сведения о воспроизведении на поддерживаемую приборную панель.</item>
+        <item>Плеер на центральном экране</item>
+        <item>Сведения о треке на приборке</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_media">
+        <item>Показывает активную панель медиа на виртуальном дисплее.</item>
+        <item>Панель медиа скрыта</item>
+        <item>Панель медиа видна</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_navigation">
+        <item>Показывает панель маршрута на виртуальном дисплее, когда доступны данные навигации.</item>
+        <item>Маршрут скрыт</item>
+        <item>Маршрут и подсказки поворотов</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_playback_progress">
+        <item>Добавляет текущую позицию и длительность трека на панель медиа.</item>
+        <item>Только сведения о треке</item>
+        <item>Трек и ход воспроизведения</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_album_artwork">
+        <item>Показывает доступную обложку трека на панели медиа.</item>
+        <item>Трек без обложки</item>
+        <item>Трек с обложкой</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_transport_controls">
+        <item>Показывает кнопки воспроизведения, поддерживаемые активным плеером.</item>
+        <item>Сведения о треке</item>
+        <item>Кнопки рядом с треком</item>
+    </string-array>
+    <string-array name="guide_display_preview_arrangement">
+        <item>Располагает панели медиа и маршрута рядом или друг над другом.</item>
+        <item>Рядом</item>
+        <item>Друг над другом</item>
+    </string-array>
+    <string-array name="guide_display_preview_pane_order">
+        <item>Выбирает первую панель, когда видны и медиа, и навигация.</item>
+        <item>Сначала медиа</item>
+        <item>Сначала маршрут</item>
+    </string-array>
+    <string-array name="guide_display_preview_media_source">
+        <item>Выбирает источник данных медиа или следит за текущим активным плеером.</item>
+        <item>Активный плеер</item>
+        <item>Предпочитаемый плеер</item>
+    </string-array>
+    <string-array name="guide_display_preview_media_fallback">
+        <item>Выбирает, можно ли показывать другой активный плеер, когда у предпочтительного нет медиасессии.</item>
+        <item>Ждать выбранный плеер</item>
+        <item>Показывать другой активный плеер</item>
+    </string-array>
+    <string-array name="guide_display_preview_seek_step">
+        <item>Задаёт шаг перемотки назад и вперёд, если плеер поддерживает перемотку.</item>
+        <item>Маленький шаг</item>
+        <item>Больший шаг</item>
+    </string-array>
+    <string-array name="guide_display_preview_details">
+        <item>Открывает настройки оформления превью, подписей дорог, текста и цветов.</item>
+        <item>Основная раскладка</item>
+        <item>Детальные настройки превью</item>
+    </string-array>
+    <string-array name="guide_display_preview_text_size">
+        <item>Меняет размер текста внутри виртуального дисплея.</item>
+        <item>Обычные подписи</item>
+        <item>Подписи в превью крупнее</item>
+    </string-array>
+    <string-array name="guide_display_preview_palette">
+        <item>Выбирает цветовую схему виртуального дисплея отдельно от основного приложения.</item>
+        <item>Тёмное превью</item>
+        <item>Светлое превью</item>
+    </string-array>
+    <string-array name="guide_display_preview_pane_balance">
+        <item>Меняет доли ширины медиа и маршрута в режиме «рядом».</item>
+        <item>Равная ширина</item>
+        <item>Одной панели больше места</item>
+    </string-array>
+    <string-array name="guide_display_preview_hide_empty_panes">
+        <item>Освобождает место под панель медиа или маршрута, пока у неё нет данных.</item>
+        <item>Заглушка остаётся</item>
+        <item>Вторая панель занимает место</item>
+    </string-array>
+    <string-array name="guide_display_preview_media_subtitle">
+        <item>Выбирает дополнительные сведения под названием трека.</item>
+        <item>Название трека</item>
+        <item>Название и исполнитель</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_current_road">
+        <item>Показывает название текущей дороги, когда его передаёт навигация.</item>
+        <item>Только поворот</item>
+        <item>Поворот и текущая дорога</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_next_road">
+        <item>Добавляет название дороги после следующего манёвра, если оно передано навигацией.</item>
+        <item>Стрелка поворота</item>
+        <item>Стрелка и следующая дорога</item>
+    </string-array>
+    <string-array name="guide_display_preview_road_names">
+        <item>Выбирает написание названий из навигации, включая транслитерацию, где она доступна.</item>
+        <item>Исходное название</item>
+        <item>Название латиницей</item>
+    </string-array>
+    <string-array name="guide_display_preview_show_turn_distance">
+        <item>Добавляет расстояние до следующего манёвра, когда оно есть в данных маршрута.</item>
+        <item>Только стрелка поворота</item>
+        <item>Стрелка и 300 м</item>
+    </string-array>
+    <string-array name="guide_display_preview_distance_units">
+        <item>Задаёт единицы расстояния до поворота.</item>
+        <item>1 км</item>
+        <item>0,6 мили</item>
+    </string-array>
+    <string-array name="guide_appearance_palette">
+        <item>Меняет фон и текст интерфейса OVC. Можно выбрать тёмную или дневную палитру.</item>
+        <item>Тёмный интерфейс</item>
+        <item>Дневной интерфейс</item>
+    </string-array>
+    <string-array name="guide_appearance_accent">
+        <item>Меняет цвет действий, выделения, фокуса и стартовой заставки.</item>
+        <item>Стандартный акцент</item>
+        <item>Бирюзовый акцент</item>
+    </string-array>
+    <string-array name="guide_appearance_background">
+        <item>Выбирает фоновое свечение или однотонную подложку страниц OVC.</item>
+        <item>Фон со свечением</item>
+        <item>Однотонный фон</item>
+    </string-array>
+    <string-array name="guide_appearance_high_contrast">
+        <item>Делает текст, контуры и состояния выбора заметнее на фоне.</item>
+        <item>Обычные контуры</item>
+        <item>Контуры заметнее</item>
+    </string-array>
+    <string-array name="guide_appearance_text_size">
+        <item>Меняет базовый размер текста OVC. Для заголовков и подписей навигации доступны свои размеры.</item>
+        <item>Обычный текст</item>
+        <item>Текст крупнее</item>
+    </string-array>
+    <string-array name="guide_appearance_navigation_label_size">
+        <item>Меняет только подписи навигации или привязывает их к общему размеру текста.</item>
+        <item>Как основной текст</item>
+        <item>Подписи навигации крупнее</item>
+    </string-array>
+    <string-array name="guide_appearance_page_title_size">
+        <item>Позволяет задать отдельный размер заголовков страниц.</item>
+        <item>Стандартные заголовки</item>
+        <item>Заголовки крупнее</item>
+    </string-array>
+    <string-array name="guide_appearance_font_family">
+        <item>Выбирает шрифт интерфейса OVC.</item>
+        <item>Системный шрифт Android</item>
+        <item>Golos Text</item>
+    </string-array>
+    <string-array name="guide_appearance_bold_text">
+        <item>Делает текст интерфейса OVC заметнее за счёт более жирного начертания.</item>
+        <item>Обычное начертание</item>
+        <item>Жирный текст</item>
+    </string-array>
+    <string-array name="guide_appearance_spacing">
+        <item>Меняет отступы внутри элементов и между ними в интерфейсе OVC.</item>
+        <item>Компактные отступы</item>
+        <item>Больше места между элементами</item>
+    </string-array>
+    <string-array name="guide_appearance_corners">
+        <item>Меняет скругление карточек, кнопок и диалогов OVC.</item>
+        <item>Небольшие скругления</item>
+        <item>Более округлые углы</item>
+    </string-array>
+    <string-array name="guide_appearance_animate_routes">
+        <item>Включает короткие анимации перехода между экранами OVC.</item>
+        <item>Мгновенная смена страниц</item>
+        <item>Плавный сдвиг и появление</item>
+    </string-array>
+    <string-array name="guide_appearance_transition_speed">
+        <item>Меняет скорость перехода между страницами при включённых анимациях.</item>
+        <item>Короткий переход</item>
+        <item>Более плавный переход</item>
+    </string-array>
+    <string-array name="guide_appearance_wallpaper_dimming">
+        <item>Меняет затемнение своих обоев под значками и карточками.</item>
+        <item>Картинка ярче</item>
+        <item>Фон под значками темнее</item>
+    </string-array>
+    <string-array name="guide_appearance_start_screen">
+        <item>Выбирает, куда ведёт ярлык «Открыть OVC» в лаунчере.</item>
+        <item>Сетка приложений</item>
+        <item>Настройки или Автомобиль</item>
+    </string-array>
+    <string-array name="guide_appearance_limit_media_on_launch">
+        <item>При запуске OVC может снизить громкость медиа до лимита. Если громкость уже ниже, она сохранится.</item>
+        <item>Громкость выше лимита</item>
+        <item>Громкость снизилась до лимита</item>
+    </string-array>
+    <string-array name="guide_appearance_launch_media_limit">
+        <item>Задаёт верхнюю границу громкости медиа при включённом ограничении на запуске.</item>
+        <item>Лимит 50%</item>
+        <item>Лимит 30%</item>
+    </string-array>
+    <string-array name="guide_quick_actions_enabled">
+        <item>Добавляет панель ярлыков OVC и приложений внутри окна OVC.</item>
+        <item>Страница целиком</item>
+        <item>Страница с быстрыми действиями</item>
+    </string-array>
+    <string-array name="guide_quick_actions_area">
+        <item>Выбирает, на каких экранах OVC видна панель быстрых действий.</item>
+        <item>Только сетка приложений</item>
+        <item>Панель на всех экранах OVC</item>
+    </string-array>
+    <string-array name="guide_quick_actions_hide_on_virtual_display">
+        <item>Освобождает всё окно OVC для страницы виртуального дисплея и её превью.</item>
+        <item>Превью рядом с панелью</item>
+        <item>Превью на всю ширину</item>
+    </string-array>
+    <string-array name="guide_quick_actions_headlight_indicator">
+        <item>Добавляет текущий или последний известный статус фар на раскрытую панель.</item>
+        <item>Только ярлыки</item>
+        <item>Есть индикатор фар</item>
+    </string-array>
+    <string-array name="guide_quick_actions_headlight_content">
+        <item>Выбирает показания индикатора на панели: режим, головной или дальний свет.</item>
+        <item>Режим переключателя</item>
+        <item>Состояние дальнего света</item>
+    </string-array>
+    <string-array name="guide_quick_actions_headlight_tap">
+        <item>Выбирает, что открывается при касании индикатора фар.</item>
+        <item>Настройки автомобиля</item>
+        <item>Источники света поверх страницы</item>
+    </string-array>
+    <string-array name="guide_quick_actions_apps_destination">
+        <item>Выбирает, куда ведёт ярлык «Приложения»: на рабочий стол по умолчанию или ко всем приложениям.</item>
+        <item>Рабочий стол по умолчанию</item>
+        <item>Все приложения</item>
+    </string-array>
+    <string-array name="guide_quick_actions_side">
+        <item>Размещает боковую панель слева или справа на широких экранах.</item>
+        <item>Панель слева</item>
+        <item>Панель справа</item>
+    </string-array>
+    <string-array name="guide_quick_actions_wide_width">
+        <item>Задаёт ширину, которую занимает боковая панель на широком экране.</item>
+        <item>Обычная панель</item>
+        <item>Узкая панель</item>
+    </string-array>
+    <string-array name="guide_quick_actions_rail_alignment">
+        <item>Размещает раскрытые ярлыки вверху, по центру или внизу боковой панели.</item>
+        <item>Ярлыки вверху</item>
+        <item>Ярлыки по центру</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_edge">
+        <item>Перемещает панель между верхним и нижним краем на компактных экранах.</item>
+        <item>Панель сверху</item>
+        <item>Панель снизу</item>
+    </string-array>
+    <string-array name="guide_quick_actions_labels">
+        <item>Добавляет названия к значкам ярлыков. Для компактных экранов есть отдельная настройка.</item>
+        <item>Только значки</item>
+        <item>Значки и названия</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_labels">
+        <item>Меняет подписи на компактных экранах или использует общую настройку подписей.</item>
+        <item>Как в общей настройке</item>
+        <item>На компактном экране только значки</item>
+    </string-array>
+    <string-array name="guide_quick_actions_start_state">
+        <item>Выбирает состояние панели при запуске OVC. «По умолчанию» учитывает сворачивание после выбора ярлыка.</item>
+        <item>Раскрыта при запуске</item>
+        <item>Свёрнута при запуске</item>
+    </string-array>
+    <string-array name="guide_quick_actions_collapse_after_use">
+        <item>Сворачивает панель после касания ярлыка.</item>
+        <item>Ярлык открыт, панель видна</item>
+        <item>Ярлык открыт, панель свернулась</item>
+    </string-array>
+    <string-array name="guide_quick_actions_idle_collapse">
+        <item>Сворачивает раскрытую панель после выбранного времени без действий.</item>
+        <item>Панель остаётся открытой</item>
+        <item>Панель сворачивается через 10 секунд</item>
+    </string-array>
+    <string-array name="guide_quick_actions_keep_side_inset">
+        <item>Сохраняет ширину страницы после сворачивания боковой панели, чтобы контент оставался на месте.</item>
+        <item>Страница расширяется</item>
+        <item>Ширина страницы сохраняется</item>
+    </string-array>
+    <string-array name="guide_quick_actions_handle_size">
+        <item>Меняет размер кнопки, раскрывающей свёрнутую панель.</item>
+        <item>Обычная кнопка</item>
+        <item>Крупнее область касания</item>
+    </string-array>
+    <string-array name="guide_quick_actions_side_handle_position">
+        <item>Размещает кнопку раскрытия вверху, по центру или внизу боковой панели широкого экрана.</item>
+        <item>Кнопка вверху</item>
+        <item>Кнопка внизу</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_handle_side">
+        <item>Перемещает кнопку раскрытия влево или вправо на компактном экране.</item>
+        <item>Кнопка слева</item>
+        <item>Кнопка справа</item>
+    </string-array>
+    <string-array name="guide_quick_actions_handle_accent">
+        <item>Задаёт акцент кнопки раскрытия: из темы OVC, янтарный или бирюзовый.</item>
+        <item>Акцент темы</item>
+        <item>Бирюзовая кнопка</item>
+    </string-array>
+    <string-array name="guide_quick_actions_dim_idle_handle">
+        <item>Приглушает заливку кнопки раскрытия в покое. Касание или фокус возвращает обычный цвет.</item>
+        <item>Обычная заливка</item>
+        <item>Приглушена в покое</item>
+    </string-array>
+    <string-array name="guide_quick_actions_contrast_handle">
+        <item>Делает стрелку и контур кнопки раскрытия заметнее.</item>
+        <item>Обычный контраст</item>
+        <item>Стрелка и контур заметнее</item>
+    </string-array>
+    <string-array name="guide_quick_actions_compact_handle_label">
+        <item>Добавляет подпись рядом с кнопкой раскрытия на компактном экране.</item>
+        <item>Только стрелка</item>
+        <item>Стрелка и подпись</item>
+    </string-array>
+    <string-array name="guide_quick_actions_larger_shortcuts">
+        <item>Увеличивает область касания выбранных встроенных ярлыков на раскрытой панели.</item>
+        <item>Обычные ярлыки</item>
+        <item>Выбранные ярлыки крупнее</item>
+    </string-array>
+    <string-array name="guide_quick_actions_routine_shortcut">
+        <item>Запускает выбранный сохранённый сценарий одним касанием панели.</item>
+        <item>Библиотека сценариев</item>
+        <item>Прямой запуск одного сценария</item>
+    </string-array>
+    <string-array name="guide_quick_actions_shortcuts">
+        <item>Выберите ярлыки OVC для панели и измените их порядок.</item>
+        <item>Исходный порядок</item>
+        <item>Ваши ярлыки в нужном порядке</item>
+    </string-array>
+    <string-array name="guide_ui_69">
+        <item>Применяет ваши назначения к поддерживаемым кнопкам штатной панели.</item>
+        <item>Штатное действие кнопки</item>
+        <item>Ваше действие кнопки</item>
+    </string-array>
+    <string-array name="guide_ui_43">
+        <item>Включает ваши назначения для перехваченных аппаратных кнопок Android.</item>
+        <item>Исходное действие кнопки</item>
+        <item>Ваше назначение</item>
+    </string-array>
+    <string-array name="guide_oem_short">
+        <item>Выбирает действие при коротком нажатии этой кнопки.</item>
+        <item>Короткое нажатие</item>
+        <item>Выполняется назначенное действие</item>
+    </string-array>
+    <string-array name="guide_oem_hold">
+        <item>Выбирает действие, если кнопка удерживается дольше заданного порога.</item>
+        <item>Удержание кнопки</item>
+        <item>Выполняется назначенное действие</item>
+    </string-array>
+    <string-array name="guide_ui_98">
+        <item>Применяет привязку к одинаковому коду клавиши на всех устройствах ввода.</item>
+        <item>Одно устройство ввода</item>
+        <item>Любое устройство с этим кодом</item>
+    </string-array>
+    <string-array name="guide_ui_99">
+        <item>Включает это назначение. Выбранные действия сохраняются и при отключении.</item>
+        <item>Назначение на паузе</item>
+        <item>Назначение действует</item>
+    </string-array>
+    <string-array name="guide_ui_91">
+        <item>Выбирает код клавиши Android для этого назначения.</item>
+        <item>Другой код</item>
+        <item>Назначение срабатывает на этот код</item>
+    </string-array>
+    <string-array name="guide_ui_95">
+        <item>Задаёт имя назначения в списке аппаратных кнопок.</item>
+        <item>Код клавиши</item>
+        <item>Ваше имя кнопки</item>
+    </string-array>
+    <string-array name="guide_ui_115">
+        <item>Задаёт, сколько нужно удерживать кнопку для выполнения длительного действия.</item>
+        <item>Отпущена до порога</item>
+        <item>Удержана достаточно долго</item>
+    </string-array>
+    <string-array name="guide_ui_116">
+        <item>Задаёт интервал подавления слишком близких повторных сигналов кнопки.</item>
+        <item>Два быстрых сигнала</item>
+        <item>Принято одно нажатие</item>
+    </string-array>
+    <string-array name="guide_cockpit_language">
+        <item>Меняет язык меню и настроек OVC. Язык распознавания голоса выбирается отдельно.</item>
+        <item>Интерфейс на английском</item>
+        <item>Интерфейс на русском</item>
+    </string-array>
+    <string-array name="guide_keyboard_choice_section">
+        <item>Выбирает клавиатуру для поддерживаемых экранов или возвращает штатную.</item>
+        <item>Штатная клавиатура</item>
+        <item>Выбранная установленная клавиатура</item>
+    </string-array>
+    <string-array name="guide_text_overlays_title">
+        <item>Устанавливает языковой пакет штатных приложений на совместимой прошивке. Отдельные приложения можно исключить.</item>
+        <item>Исходный текст штатного приложения</item>
+        <item>Переведённый текст</item>
+    </string-array>
+    <string-array name="guide_text_overlays_off">
+        <item>Возвращает исходный текст поддерживаемых штатных приложений.</item>
+        <item>Переведённое меню</item>
+        <item>Исходное штатное меню</item>
+    </string-array>
+    <string-array name="guide_cockpit_dictionary_russian">
+        <item>Использует встроенный русский словарь там, где доступен перевод штатных экранов.</item>
+        <item>Исходные подписи</item>
+        <item>Штатные подписи на русском</item>
+    </string-array>
+    <string-array name="guide_translation_import">
+        <item>Загружает совместимый пользовательский словарь перевода для поддерживаемых штатных экранов.</item>
+        <item>Текущий словарь</item>
+        <item>Импортированные переводы</item>
+    </string-array>
+    <string-array name="guide_updates_startup_toggle">
+        <item>Ищет совместимое обновление OVC в фоне при запуске. Ручная проверка доступна всегда.</item>
+        <item>Проверка по запросу</item>
+        <item>Проверка после запуска</item>
+    </string-array>
+    <string-array name="guide_settings_archive_export">
+        <item>Сохраняет переносимые настройки OVC в файл для резервного копирования или переноса.</item>
+        <item>Настройки на устройстве</item>
+        <item>Файл резервной копии</item>
+    </string-array>
+    <string-array name="guide_settings_archive_import">
+        <item>Проверяет совместимый файл OVC и восстанавливает переносимые настройки.</item>
+        <item>Текущие настройки</item>
+        <item>Настройки из копии</item>
+    </string-array>
+    <string-array name="guide_headlight_monitoring_open">
+        <item>При открытом OVC слушает доступную обратную связь фар и обновляет показания в разделе «Автомобиль» и включённых карточках.</item>
+        <item>Последнее известное показание</item>
+        <item>Подтверждённое текущее показание</item>
+    </string-array>
+    <string-array name="guide_seat_memory_open_factory_on_tap">
+        <item>Открывает штатные «Сиденья» при выборе «Сохранить» или «Восстановить». Позиции хранятся в штатной системе.</item>
+        <item>Инструкция в OVC</item>
+        <item>Открываются штатные «Сиденья»</item>
+    </string-array>
+    <string-array name="guide_service_reminder_show_on_vehicle">
+        <item>Показывает план обслуживания и срок на странице «Автомобиль».</item>
+        <item>Напоминание в настройках обслуживания</item>
+        <item>Напоминание и на странице «Автомобиль»</item>
+    </string-array>
+    <string-array name="guide_service_reminder_interval">
+        <item>Задаёт пробег между ТО. OVC прибавляет его к пробегу на последнем ТО.</item>
+        <item>Последнее ТО</item>
+        <item>Следующее ТО через заданный пробег</item>
+    </string-array>
+    <string-array name="guide_service_reminder_current">
+        <item>Задаёт текущий пробег для расчёта оставшегося расстояния до ТО.</item>
+        <item>Текущий пробег неизвестен</item>
+        <item>Показано расстояние до ТО</item>
+    </string-array>
+    <string-array name="guide_service_reminder_last">
+        <item>Записывает пробег на последнем ТО как точку отсчёта плана.</item>
+        <item>Последнее ТО не записано</item>
+        <item>Рассчитан пробег до следующего ТО</item>
+    </string-array>
+    <string-array name="guide_service_reminder_lead_title">
+        <item>Задаёт, за сколько километров до ТО появляется раннее напоминание.</item>
+        <item>До ТО ещё есть запас</item>
+        <item>Раннее напоминание по пробегу</item>
+    </string-array>
+    <string-array name="guide_service_reminder_calendar_interval">
+        <item>Прибавляет выбранное количество месяцев к дате последнего ТО и вычисляет срок следующего.</item>
+        <item>Дата последнего ТО</item>
+        <item>Срок следующего ТО</item>
+    </string-array>
+    <string-array name="guide_service_reminder_calendar_lead_title">
+        <item>Задаёт, за сколько дней до даты ТО появляется календарное напоминание.</item>
+        <item>Только дата ТО</item>
+        <item>Напоминание до даты ТО</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_lights_enabled">
+        <item>Включает сценарий фар на поддерживаемой прошивке. Действие запрашивается при смене режима коробки и успешных проверках.</item>
+        <item>Режим коробки изменился, фары без изменений</item>
+        <item>Запрошено выбранное действие фар</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_on_drive">
+        <item>Выбирает действие фар при переводе в Drive, если функция включена и проверки автомобиля пройдены.</item>
+        <item>Выбран Drive</item>
+        <item>Действие фар для Drive</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_on_park">
+        <item>Выбирает действие фар при переводе в Park, если проверки автомобиля пройдены.</item>
+        <item>Выбран Park</item>
+        <item>Действие фар для Park</item>
+    </string-array>
+    <string-array name="guide_vehicle_automation_memory_enabled">
+        <item>Запоминает последнее наблюдаемое значение режима движения и может восстановить его при подходящих условиях запуска.</item>
+        <item>Режим движения меняется</item>
+        <item>Последний подтверждённый режим запомнен</item>
+    </string-array>
+    <string-array name="guide_voice_recognition">
+        <item>Открывает настройки языка распознавания, офлайн-движка и онлайн-интерпретации.</item>
+        <item>Речь на одном языке</item>
+        <item>Распознавание настроено под вас</item>
+    </string-array>
+    <string-array name="guide_voice_language">
+        <item>Выбирает язык фраз в каталоге и офлайн-модель распознавания.</item>
+        <item>Английские фразы и модель</item>
+        <item>Русские фразы и модель</item>
+    </string-array>
+    <string-array name="guide_voice_recognition_engine">
+        <item>Выбирает офлайн-движок. Для выбранного движка и языка нужна локальная модель речи.</item>
+        <item>Речь записана</item>
+        <item>Выбранный движок распознаёт речь</item>
+    </string-array>
+    <string-array name="guide_voice_online_title">
+        <item>Позволяет отправить уверенно распознанный текст на онлайн-интерпретацию, если совпадения в каталоге нет.</item>
+        <item>Нет локального совпадения</item>
+        <item>Онлайн-сервис может предложить доступную команду</item>
+    </string-array>
+    <string-array name="guide_voice_online_switch">
+        <item>Включает резервное распознавание намерений через OpenRouter. Сервис получает короткий распознанный текст.</item>
+        <item>Только локальный результат</item>
+        <item>Резервная обработка текста при несовпадении</item>
+    </string-array>
+    <string-array name="guide_voice_online_key">
+        <item>Сохраняет на этом устройстве ключ подключения к вашему аккаунту OpenRouter.</item>
+        <item>Онлайн-обработка недоступна</item>
+        <item>Аккаунт готов к интерпретации</item>
+    </string-array>
+    <string-array name="guide_default_levels">
+        <item>Задаёт уровни комфорта сидений для голосовых команд включения без указания уровня.</item>
+        <item>Включить подогрев сиденья</item>
+        <item>Подогрев использует ваш уровень по умолчанию</item>
+    </string-array>
+    <string-array name="guide_window_options">
+        <item>Выберите величину открытия окон для команд курения и проветривания на поддерживаемых автомобилях.</item>
+        <item>Обычное открытие</item>
+        <item>Окна открываются сильнее</item>
+    </string-array>
+    <string-array name="guide_double_smoke">
+        <item>Использует увеличенное открытие окна водителя по команде курения.</item>
+        <item>Обычная щель окна водителя</item>
+        <item>Щель окна водителя больше</item>
+    </string-array>
+    <string-array name="guide_double_ventilation">
+        <item>Использует увеличенное открытие окон по команде проветривания салона.</item>
+        <item>Окна приоткрыты</item>
+        <item>Окна открыты сильнее</item>
+    </string-array>
+    <string-array name="guide_voice_vehicle_commands">
+        <item>Выберите, какие команды автомобиля можно запрашивать. Проверки прошивки и состояния автомобиля сохраняются.</item>
+        <item>Команда запрещена</item>
+        <item>Разрешена проверка условий команды</item>
+    </string-array>
+    <string-array name="guide_voice_audio_settings">
+        <item>Настройте озвучку, сигналы прослушивания и длительность голосового окна.</item>
+        <item>Начинается прослушивание</item>
+        <item>Звучат выбранные сигналы и ответ</item>
+    </string-array>
+    <string-array name="guide_voice_spoken_feedback">
+        <item>Озвучивает ответ после распознанной команды установленным офлайн-голосом.</item>
+        <item>Результат на экране</item>
+        <item>Результат и голосовой ответ</item>
+    </string-array>
+    <string-array name="guide_voice_speech_rate">
+        <item>Меняет скорость озвучки ответов и образцов голоса.</item>
+        <item>Обычная скорость</item>
+        <item>Речь быстрее</item>
+    </string-array>
+    <string-array name="guide_voice_speech_volume">
+        <item>Меняет уровень голосовых ответов относительно выбранного аудиоканала.</item>
+        <item>Ответ тише</item>
+        <item>Ответ громче</item>
+    </string-array>
+    <string-array name="guide_voice_feedback_style">
+        <item>Выбирает, что озвучить: распознанную фразу или результат выполнения.</item>
+        <item>Повторить фразу</item>
+        <item>Произнести результат</item>
+    </string-array>
+    <string-array name="guide_voice_reply_channel">
+        <item>Направляет голосовые ответы и образцы в аудиоканал Ассистента или Медиа.</item>
+        <item>Канал Ассистента</item>
+        <item>Канал Медиа</item>
+    </string-array>
+    <string-array name="guide_voice_offline_voice">
+        <item>Выбирает установленный голос для ответов на текущем языке распознавания. Автовыбор ищет совместимый голос.</item>
+        <item>Автоматический голос</item>
+        <item>Ваш офлайн-голос</item>
+    </string-array>
+    <string-array name="guide_voice_ready_cue">
+        <item>Воспроизводит сигнал готовности перед началом записи.</item>
+        <item>Микрофон включается без сигнала</item>
+        <item>Сигнал перед прослушиванием</item>
+    </string-array>
+    <string-array name="guide_voice_ready_style">
+        <item>Выбирает короткий тон или голосовую подсказку для сигнала готовности.</item>
+        <item>Короткий тон</item>
+        <item>Голосовая подсказка</item>
+    </string-array>
+    <string-array name="guide_voice_ready_phrase">
+        <item>Задаёт свою фразу готовности для текущего языка распознавания. Очистите поле для стандартной фразы.</item>
+        <item>Стандартная фраза</item>
+        <item>Своя фраза готовности</item>
+    </string-array>
+    <string-array name="guide_voice_ready_cue_volume">
+        <item>Задаёт громкость сигнала готовности перед прослушиванием.</item>
+        <item>Тихий сигнал</item>
+        <item>Сигнал громче</item>
+    </string-array>
+    <string-array name="guide_voice_end_listening_cue">
+        <item>Выбирает звук после отключения микрофона или отключает его.</item>
+        <item>Конец без сигнала</item>
+        <item>Тихий сигнал завершения</item>
+    </string-array>
+    <string-array name="guide_voice_end_cue_volume">
+        <item>Меняет громкость только сигнала завершения. Сброс возвращает стандартный уровень выбранного звука.</item>
+        <item>Тихий конечный сигнал</item>
+        <item>Конечный сигнал громче</item>
+    </string-array>
+    <string-array name="guide_voice_capture_popup">
+        <item>Открывает настройки лимита записи, времени показа результата и распознанной фразы.</item>
+        <item>Прослушивание</item>
+        <item>Окно результата</item>
+    </string-array>
+    <string-array name="guide_voice_listening_limit">
+        <item>Задаёт максимальное время прослушивания одной команды.</item>
+        <item>До 3 секунд</item>
+        <item>До 6 секунд</item>
+    </string-array>
+    <string-array name="guide_voice_result_duration">
+        <item>Задаёт время показа результата. Озвучка может ненадолго задержать закрытие окна.</item>
+        <item>Результат 1 секунду</item>
+        <item>Результат 4 секунды</item>
+    </string-array>
+    <string-array name="guide_voice_show_recognized_phrase">
+        <item>Показывает распознанную фразу над результатом, если она доступна.</item>
+        <item>Только результат</item>
+        <item>Распознанная фраза и результат</item>
+    </string-array>
+    <string-array name="guide_voice_startup_volume">
+        <item>Применяет выбранную громкость медиа один раз при запуске головного устройства.</item>
+        <item>Прежняя громкость</item>
+        <item>Стартовая громкость применена</item>
+    </string-array>
+    <string-array name="guide_voice_startup_volume_level">
+        <item>Задаёт долю максимальной громкости медиа при запуске головного устройства.</item>
+        <item>Запуск на 10%</item>
+        <item>Запуск на 20%</item>
+    </string-array>
+    <string-array name="guide_voice_duck_media">
+        <item>Временно приглушает медиа, пока микрофон слушает голосовую команду.</item>
+        <item>Музыка на текущем уровне</item>
+        <item>Музыка тише во время записи</item>
+    </string-array>
+    <string-array name="guide_voice_duck_calls">
+        <item>Временно приглушает медиа во время звонка, о котором сообщило головное устройство.</item>
+        <item>Музыка на текущем уровне</item>
+        <item>Музыка тише во время звонка</item>
+    </string-array>
+    <string-array name="guide_voice_duck_level">
+        <item>Задаёт, какая доля текущей громкости медиа сохраняется при приглушении.</item>
+        <item>Сохранить 35% текущего уровня</item>
+        <item>Сохранить 10% текущего уровня</item>
+    </string-array>
+    <string-array name="guide_ui_177">
+        <item>Управляйте контактами и копиями голосовых настроек или восстановите рабочую конфигурацию.</item>
+        <item>Текущие голосовые настройки</item>
+        <item>Копия или восстановленные настройки</item>
+    </string-array>
+    <string-array name="guide_ui_181">
+        <item>Добавляет контакт для офлайн-команды звонка. Команда открывает звонилку с сохранённым номером.</item>
+        <item>Сохранённое имя и номер</item>
+        <item>Звонилка с подставленным номером</item>
+    </string-array>
+    <string-array name="guide_ui_193">
+        <item>Введите имя, которое удобно произносить в голосовой команде звонка.</item>
+        <item>Имя контакта</item>
+        <item>Имя в голосовой команде</item>
+    </string-array>
+    <string-array name="guide_ui_194">
+        <item>Задаёт номер, который появляется в звонилке при распознавании команды контакта.</item>
+        <item>Контакт распознан</item>
+        <item>Номер в звонилке</item>
+    </string-array>
+    <string-array name="guide_routines_name">
+        <item>Задаёт имя сценария во всех списках и местах запуска.</item>
+        <item>Новый сценарий</item>
+        <item>Утренняя поездка</item>
+    </string-array>
+    <string-array name="guide_routines_page">
+        <item>Выбирает страницу OVC, которую открывает сценарий.</item>
+        <item>Текущая страница</item>
+        <item>Выбранная страница OVC</item>
+    </string-array>
+    <string-array name="guide_routines_layout">
+        <item>Позволяет применить сохранённую раскладку рабочих столов при запуске сценария.</item>
+        <item>Текущая раскладка</item>
+        <item>Применена раскладка сценария</item>
+    </string-array>
+    <string-array name="guide_routines_theme">
+        <item>Позволяет изменить палитру OVC при запуске сценария.</item>
+        <item>Текущие цвета</item>
+        <item>Применена палитра сценария</item>
+    </string-array>
+    <string-array name="guide_routines_app">
+        <item>Позволяет открывать выбранное установленное приложение в этом сценарии.</item>
+        <item>Открыт OVC</item>
+        <item>Открывается выбранное приложение</item>
+    </string-array>
+    <string-array name="guide_routines_pin">
+        <item>Закрепляет сценарий, чтобы его было проще найти.</item>
+        <item>Обычная запись в библиотеке</item>
+        <item>Закреплённый сценарий</item>
+    </string-array>
+    <string-array name="guide_routines_startup_enabled">
+        <item>Включает запуск выбранного стартового сценария по его расписанию при открытии из лаунчера.</item>
+        <item>Обычное открытие</item>
+        <item>Выполняется стартовый сценарий по расписанию</item>
+    </string-array>
+    <string-array name="guide_routines_days">
+        <item>Выберите дни, в которые разрешён запуск стартового сценария из лаунчера.</item>
+        <item>Любой выбранный день</item>
+        <item>Только рабочие дни</item>
+    </string-array>
+    <string-array name="guide_routines_frequency">
+        <item>Задаёт частоту выполнения сценария при подходящем запуске из лаунчера.</item>
+        <item>Каждое подходящее открытие</item>
+        <item>Не чаще раза в день</item>
+    </string-array>
+    <string-array name="guide_routines_delay">
+        <item>Откладывает выполнение сценария на выбранное время после открытия из лаунчера.</item>
+        <item>Выполнить сразу</item>
+        <item>Выполнить после задержки</item>
+    </string-array>
+    <string-array name="guide_routines_limit_hours">
+        <item>Ограничивает запуск стартового сценария выбранными часами.</item>
+        <item>В любое время выбранных дней</item>
+        <item>Только в заданное время</item>
+    </string-array>
+    <string-array name="guide_routines_time_start">
+        <item>Задаёт начало ежедневного окна запуска стартового сценария.</item>
+        <item>До времени начала</item>
+        <item>Сценарий доступен с начала окна</item>
+    </string-array>
+    <string-array name="guide_routines_time_end">
+        <item>Задаёт конец ежедневного окна запуска стартового сценария.</item>
+        <item>Внутри временного окна</item>
+        <item>Сценарий ждёт следующего окна</item>
+    </string-array>
+    <string-array name="guide_rules_enabled">
+        <item>Проверяет правило при изменении доступных показаний автомобиля и запускает сценарий при совпадении условий.</item>
+        <item>Правило на паузе</item>
+        <item>Правило отслеживает условия</item>
+    </string-array>
+    <string-array name="guide_rules_gear">
+        <item>Требует выбранное положение коробки. «Любая передача» убирает это условие.</item>
+        <item>Другое положение коробки</item>
+        <item>Выбранное положение совпало</item>
+    </string-array>
+    <string-array name="guide_rules_doors">
+        <item>Требует выбранное состояние дверей. «Любое» убирает это условие.</item>
+        <item>Состояние дверей отличается</item>
+        <item>Состояние дверей совпало</item>
+    </string-array>
+    <string-array name="guide_rules_routine">
+        <item>Выбирает сохранённый сценарий, который выполняется при совпадении условий правила.</item>
+        <item>Условия совпали</item>
+        <item>Запускается выбранный сценарий</item>
+    </string-array>
+    <string-array name="guide_rules_cooldown">
+        <item>Задаёт минимальное время между запусками этого правила.</item>
+        <item>Правило только что сработало</item>
+        <item>Снова доступно после интервала</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_enabled">
+        <item>Делает сезонный набор доступным при совпадении условий и успешных проверках автомобиля.</item>
+        <item>Набор на паузе</item>
+        <item>Набор готов при совпадении условий</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_above_field">
+        <item>Задаёт уличную температуру, выше которой можно применить летний набор.</item>
+        <item>Ниже порога</item>
+        <item>Летний набор может стать доступным</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_below_field">
+        <item>Задаёт уличную температуру, ниже которой можно применить зимний набор.</item>
+        <item>Выше порога</item>
+        <item>Зимний набор может стать доступным</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_gear">
+        <item>Требует Park или Drive перед применением набора согласно выбранному условию и проверкам автомобиля.</item>
+        <item>Другое положение коробки</item>
+        <item>Выбрано нужное положение</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_closed_doors">
+        <item>Требует подтверждённого закрытия всех дверей перед применением сезонного набора.</item>
+        <item>Дверь открыта или состояние неизвестно</item>
+        <item>Все двери подтверждённо закрыты</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_driver">
+        <item>Задаёт температуру водительской зоны при применении набора.</item>
+        <item>Текущая температура водителя</item>
+        <item>Целевая температура из набора</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_passenger">
+        <item>Задаёт температуру передней пассажирской зоны при применении набора.</item>
+        <item>Текущая температура пассажира</item>
+        <item>Целевая температура из набора</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_fan">
+        <item>Задаёт скорость вентилятора, которую запрашивает сезонный набор.</item>
+        <item>Слабый поток воздуха</item>
+        <item>Вентилятор быстрее</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_driver_seat">
+        <item>Запрашивает вентиляцию сиденья водителя летом или подогрев зимой. «Без изменений» сохраняет текущий уровень.</item>
+        <item>Текущий режим сиденья</item>
+        <item>Уровень сиденья водителя из набора</item>
+    </string-array>
+    <string-array name="guide_seasonal_climate_passenger_seat">
+        <item>Запрашивает вентиляцию пассажирского сиденья летом или подогрев зимой. «Без изменений» сохраняет текущий уровень.</item>
+        <item>Текущий режим сиденья</item>
+        <item>Уровень сиденья пассажира из набора</item>
+    </string-array>
+    <string-array name="guide_action_permissions_title">
+        <item>Выберите, разрешить действие, пометить его непроверенным или блокировать до отправки.</item>
+        <item>Запрос проходит обычные проверки</item>
+        <item>Запрещённый запрос остановлен до отправки</item>
+    </string-array>
+    <string-array name="guide_apps_grid_reorder_pins">
+        <item>Выберите и расставьте ярлыки на этом столе избранного. У каждого стола свой набор.</item>
+        <item>Приложения в прежнем порядке</item>
+        <item>Ярлыки в новом порядке</item>
+    </string-array>
+    <string-array name="guide_app_picker_show_all">
+        <item>Временно добавляет скрытые, штатные и служебные приложения в этот список выбора.</item>
+        <item>Список с фильтром</item>
+        <item>Также видны скрытые приложения</item>
+    </string-array>
+    <string-array name="guide_app_icon_title">
+        <item>Своя картинка заменяет значок приложения в OVC. Сброс возвращает исходный значок лаунчера.</item>
+        <item>Исходный значок лаунчера</item>
+        <item>Ваша картинка в сетке</item>
+    </string-array>
+    <string-array name="guide_apps_permissions">
+        <item>Разрешает или запрещает выбранный доступ Android для приложения. Варианты зависят от приложения и версии Android.</item>
+        <item>У приложения нет доступа</item>
+        <item>Приложению дан доступ</item>
+    </string-array>
+    <string-array name="guide_quick_actions_app_shortcuts">
+        <item>Добавляет ярлыки установленных приложений после ярлыков OVC. Их можно переставить или убрать.</item>
+        <item>Ярлыки OVC</item>
+        <item>Ярлыки OVC и установленных приложений</item>
+    </string-array>
+    <string-array name="guide_rules_name">
+        <item>Задаёт название правила в списке «Если — то».</item>
+        <item>Новое правило</item>
+        <item>Ваше имя правила</item>
+    </string-array>
+    <string-array name="guide_service_reminder_calendar_last_date">
+        <item>Задаёт дату, от которой считается календарный интервал обслуживания.</item>
+        <item>Дата последнего ТО</item>
+        <item>Рассчитана дата следующего ТО</item>
+    </string-array>
+    <string-array name="guide_routines_startup">
+        <item>Выбирает сценарий при открытии из лаунчера, если разрешает расписание.</item>
+        <item>Нет стартового сценария</item>
+        <item>Выбранный сценарий при запуске из лаунчера</item>
+    </string-array>
+    <string-array name="guide_routines_sort">
+        <item>Сортирует библиотеку сценариев по имени или дате добавления.</item>
+        <item>Сначала новые сценарии</item>
+        <item>Сценарии по имени</item>
+    </string-array>
+    <string-array name="guide_text_overlays_apps_heading">
+        <item>Включает или убирает перевод выбранного штатного приложения. Остальные приложения сохраняют свой выбор.</item>
+        <item>Исходные подписи этого приложения</item>
+        <item>Переведённые подписи этого приложения</item>
+    </string-array>
+    <string-array name="guide_firmware_translation_heading">
+        <item>Выберите язык или словарь для текста поддерживаемых штатных экранов. Отключение возвращает штатные подписи.</item>
+        <item>Штатные подписи</item>
+        <item>Язык выбранного словаря</item>
+    </string-array>
+    <string-array name="guide_oem_steering">
+        <item>Назначает действия на поддерживаемые нажатия кнопок руля. У каждого жеста может быть своё действие.</item>
+        <item>Штатное действие кнопки руля</item>
+        <item>Действие, назначенное на жест</item>
+    </string-array>
+    <string-array name="guide_ui_67">
+        <item>Назначает приложения и действия кнопкам штатной панели. Кнопка без назначения сохраняет штатное действие.</item>
+        <item>Штатная кнопка панели</item>
+        <item>Кнопка открывает ваше приложение</item>
+    </string-array>
+    <string-array name="guide_ui_44">
+        <item>Создайте или измените назначение для аппаратной клавиши Android. Короткое и долгое нажатия настраиваются отдельно.</item>
+        <item>Нажатие клавиши Android</item>
+        <item>Назначенное короткое или длинное действие</item>
+    </string-array>
+    <string-array name="guide_display_media_access">
+        <item>Разрешает OVC читать активную медиасессию для сведений о треке и доступного управления плеером или оценками.</item>
+        <item>Трек виден в плеере</item>
+        <item>Сведения о треке появляются в OVC</item>
+    </string-array>
+</resources>

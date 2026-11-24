@@ -59,6 +59,8 @@ import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.theme.CockpitTextField
 import org.openvoyah.controls.presentation.theme.CockpitTouch
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
+import org.openvoyah.controls.presentation.theme.SettingGuideHeading
+import org.openvoyah.controls.presentation.theme.SettingInfo
 
 @Composable
 internal fun VoiceAudioDialog(
@@ -121,7 +123,7 @@ internal fun VoiceAudioDialog(
                     }
                     Text(UiText.get(R.string.voice_result_speech_grace), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    CockpitSwitch(UiText.get(R.string.voice_show_recognized_phrase), showPhrase) { showPhrase = it }
+                    CockpitSwitch(R.string.voice_show_recognized_phrase, showPhrase) { showPhrase = it }
                 }
             },
             confirmButton = { CockpitAction(UiText.get(R.string.ui_104), saveDraft, primary = true) },
@@ -133,14 +135,14 @@ internal fun VoiceAudioDialog(
     val columnsMinimum = LocalCockpitLayout.current.columnsMinimum(580.dp, LocalDensity.current.fontScale)
     val spokenSettings: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            CockpitSwitch(UiText.get(R.string.voice_spoken_feedback), feedback) { feedback = it }
+            CockpitSwitch(R.string.voice_spoken_feedback, feedback) { feedback = it }
             CockpitReveal(feedback) {
                 Column {
                     VoiceAudioLevel(R.string.voice_speech_rate, rate, VoiceAudioOptions.MIN_RATE..VoiceAudioOptions.MAX_RATE) { rate = it }
                     VoiceAudioLevel(R.string.voice_speech_volume, speechVolume, VOICE_VOLUME) { speechVolume = it }
                     VoiceAudioChoice(R.string.voice_feedback_style, FEEDBACK_STYLES, feedbackStyle) { feedbackStyle = it }
                     VoiceAudioChoice(R.string.voice_reply_channel, REPLY_CHANNELS, replyChannel, announceGroup = true) { replyChannel = it }
-                    CockpitChoice(UiText.get(R.string.voice_offline_voice),
+                    CockpitChoice(R.string.voice_offline_voice,
                         voiceName.ifEmpty { UiText.get(R.string.voice_offline_automatic) }) { choosingVoice = true }
                 }
             }
@@ -149,7 +151,7 @@ internal fun VoiceAudioDialog(
     val captureSettings: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             // Media ducking and the startup volume are in Settings → Sound and media.
-            CockpitSwitch(UiText.get(R.string.voice_ready_cue), readyCue) { readyCue = it }
+            CockpitSwitch(R.string.voice_ready_cue, readyCue) { readyCue = it }
             CockpitReveal(readyCue) {
                 Column {
                     VoiceAudioChoice(R.string.voice_ready_style, READY_STYLES, readyStyle, announceGroup = true) { readyStyle = it }
@@ -179,7 +181,7 @@ internal fun VoiceAudioDialog(
                     }
                 }) { endCueVolume = it }
             }
-            CockpitChoice(UiText.get(R.string.voice_capture_popup),
+            CockpitChoice(R.string.voice_capture_popup,
                 UiText.get(R.string.voice_capture_popup_summary).format(listeningWindow.seconds(), resultDuration.seconds())) {
                 editingPopup = true
             }
@@ -219,6 +221,7 @@ private fun ReadyPromptField(language: String, prompt: String, valid: Boolean, c
     CockpitTextField(
         value = prompt, onValueChange = change, label = UiText.get(R.string.voice_ready_phrase), modifier = Modifier.fillMaxWidth(),
         error = !valid,
+        guideId = R.string.voice_ready_phrase,
         supporting = if (valid) UiText.get(R.string.voice_ready_phrase_hint).format(limit, default)
             else UiText.get(R.string.voice_ready_phrase_invalid).format(limit),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -240,7 +243,7 @@ internal fun <T> VoiceAudioChoice(label: Int, choices: List<Pair<T, Int>>, selec
     )
     Column(Modifier.fillMaxWidth()) {
         val group = UiText.get(label)
-        Text(group, color = palette.onSurfaceVariant)
+        SettingGuideHeading(group, label)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for ((choice, title) in choices) {
                 val text = UiText.get(title)
@@ -258,9 +261,10 @@ internal fun VoiceAudioLevel(label: Int, value: Int, range: IntRange, steps: Int
     val percentage = "$value%"
     val palette = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f), color = palette.onSurfaceVariant)
             Text(percentage, color = palette.primary)
+            SettingInfo(title, label)
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Slider(

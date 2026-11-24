@@ -49,6 +49,7 @@ import org.openvoyah.controls.presentation.theme.CockpitReveal
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 import org.openvoyah.controls.presentation.theme.LocalControlsAccentOverlay
+import org.openvoyah.controls.presentation.theme.SettingGuideHeading
 
 private fun weekInDisplayOrder(locale: Locale): List<DayOfWeek> {
     val first = WeekFields.of(locale).firstDayOfWeek
@@ -100,7 +101,7 @@ internal fun RoutineScheduleEditor(draft: RoutineScheduleDraft, state: RoutinesU
     CockpitDetail(UiText.get(R.string.routines_schedule), UiText.get(R.string.routines_schedule_for).format(draft.routine.name), model::closeEditor,
         nested = true) {
         CockpitColumns(first = {
-            Text(UiText.get(R.string.routines_days), style = MaterialTheme.typography.titleMedium)
+            SettingGuideHeading(UiText.get(R.string.routines_days), R.string.routines_days)
             FlowRow(horizontalArrangement = spacing, verticalArrangement = spacing) {
                 dayOrder.forEach { day ->
                     val selected = day in draft.days
@@ -111,14 +112,14 @@ internal fun RoutineScheduleEditor(draft: RoutineScheduleDraft, state: RoutinesU
                         label = { Text(day.getDisplayName(TextStyle.SHORT_STANDALONE, locale)) })
                 }
             }
-            CockpitChoice(UiText.get(R.string.routines_frequency), draft.frequency.label(), enabled) { choosingFrequency = true }
-            CockpitChoice(UiText.get(R.string.routines_delay), draft.delay.label(), enabled) { choosingDelay = true }
+            CockpitChoice(R.string.routines_frequency, draft.frequency.label(), enabled) { choosingFrequency = true }
+            CockpitChoice(R.string.routines_delay, draft.delay.label(), enabled) { choosingDelay = true }
         }, second = {
-            CockpitSwitch(UiText.get(R.string.routines_limit_hours), draft.limited, enabled, model::limitTime)
+            CockpitSwitch(R.string.routines_limit_hours, draft.limited, enabled, model::limitTime)
             CockpitReveal(draft.limited) {
                 Column(verticalArrangement = Arrangement.spacedBy(LocalCockpitLayout.current.spacing(14.dp))) {
-                    CockpitChoice(UiText.get(R.string.routines_time_start), clock.minute(draft.start), enabled) { editingStart = true }
-                    CockpitChoice(UiText.get(R.string.routines_time_end), clock.minute(draft.end), enabled) { editingStart = false }
+                    CockpitChoice(R.string.routines_time_start, clock.minute(draft.start), enabled) { editingStart = true }
+                    CockpitChoice(R.string.routines_time_end, clock.minute(draft.end), enabled) { editingStart = false }
                     Text(UiText.get(if (draft.start > draft.end) R.string.routines_overnight else R.string.routines_local_clock),
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

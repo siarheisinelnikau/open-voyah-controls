@@ -125,7 +125,7 @@ private fun ServiceReminderOverview(
         if (calendar != null) {
             CockpitFeedback(calendar.serviceSummary(), error = calendar.urgency == ServiceUrgency.OVERDUE)
         }
-        CockpitSwitch(UiText.get(R.string.service_reminder_show_on_vehicle), settings.enabled, !saving, setEnabled)
+        CockpitSwitch(R.string.service_reminder_show_on_vehicle, settings.enabled, !saving, setEnabled)
         ServiceReminderChoice(R.string.service_reminder_lead_title, settings.leadDistance, ServiceReminderLead.entries,
             settings.leadDistance.summary(settings.schedule.intervalKm), ServiceReminderLead::label, !saving, setLeadDistance)
     }
@@ -145,7 +145,7 @@ private fun <T> ServiceReminderChoice(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val state by lifecycle.currentStateAsState()
     val interactive = enabled && state.isAtLeast(Lifecycle.State.RESUMED)
-    CockpitChoice(UiText.get(title), summary, enabled = interactive) {
+    CockpitChoice(title, summary, enabled = interactive) {
         open = true
     }
     if (open && interactive) CockpitOptionDialog(UiText.get(title), options, value, optionLabel, onDismiss = { open = false },
@@ -194,7 +194,7 @@ private fun ServiceNumberField(
 ) {
     CockpitTextField(text, { input ->
         if (input.length <= maxDigits && input.all(Char::isDigit)) change(input)
-    }, UiText.get(title), Modifier.fillMaxWidth(), enabled = enabled,
+    }, UiText.get(title), Modifier.fillMaxWidth(), enabled = enabled, guideId = title,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
 }
 
@@ -213,6 +213,7 @@ private fun ServiceReminderCalendarEditor(
         CockpitTextField(lastDate, { input ->
             if (input.length <= 10 && input.all { it in '0'..'9' || it == '-' }) lastDate = input
         }, UiText.get(R.string.service_reminder_calendar_last_date), Modifier.fillMaxWidth(), enabled = !saving,
+            guideId = R.string.service_reminder_calendar_last_date,
             supporting = UiText.get(R.string.service_reminder_calendar_date_format),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii))
         if (plan == null) CockpitFeedback(UiText.get(R.string.service_reminder_calendar_invalid), error = true)

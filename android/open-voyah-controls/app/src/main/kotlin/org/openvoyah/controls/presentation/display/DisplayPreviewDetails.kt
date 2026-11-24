@@ -33,6 +33,7 @@ import org.openvoyah.controls.presentation.theme.CockpitModal
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.theme.CockpitTouch
+import org.openvoyah.controls.presentation.theme.SettingGuideHeading
 
 @Composable
 internal fun DisplayPreviewDetails(
@@ -63,17 +64,17 @@ internal fun DisplayPreviewDetails(
             PreviewChoices(R.string.display_preview_pane_balance, DisplayPreviewPaneBalance.entries, options.paneBalance,
                 mediaEnabled && routeEnabled && options.arrangement != DisplayPreviewArrangement.STACKED,
                 ::previewPaneBalanceText, paneBalance)
-            CockpitSwitch(UiText.get(R.string.display_preview_hide_empty_panes), options.hideEmptyPanes,
+            CockpitSwitch(R.string.display_preview_hide_empty_panes, options.hideEmptyPanes,
                 !state.savingPreview, hideEmptyPanes)
         }, second = {
             PreviewChoices(R.string.display_preview_media_subtitle, DisplayPreviewMediaSubtitle.entries,
                 options.mediaSubtitle, mediaEnabled, ::previewMediaSubtitleText, mediaSubtitle)
-            CockpitSwitch(UiText.get(R.string.display_preview_show_current_road), options.showCurrentRoad,
+            CockpitSwitch(R.string.display_preview_show_current_road, options.showCurrentRoad,
                 routeEnabled, showCurrentRoad)
-            CockpitSwitch(UiText.get(R.string.display_preview_show_next_road), options.showNextRoad, routeEnabled, showNextRoad)
+            CockpitSwitch(R.string.display_preview_show_next_road, options.showNextRoad, routeEnabled, showNextRoad)
             PreviewChoices(R.string.display_preview_road_names, DisplayPreviewRoadNames.entries, options.roadNames,
                 routeEnabled && (options.showCurrentRoad || options.showNextRoad), ::previewRoadNamesText, roadNames)
-            CockpitSwitch(UiText.get(R.string.display_preview_show_turn_distance), options.showTurnDistance,
+            CockpitSwitch(R.string.display_preview_show_turn_distance, options.showTurnDistance,
                 routeEnabled, showTurnDistance)
             PreviewChoices(R.string.display_preview_distance_units, DisplayPreviewDistanceUnits.entries, options.distanceUnits,
                 routeEnabled && options.showTurnDistance, ::previewDistanceUnitsText, distanceUnits)
@@ -92,7 +93,7 @@ private fun <T> PreviewChoices(
     choose: (T) -> Unit,
 ) {
     Column {
-        Text(UiText.get(title), style = MaterialTheme.typography.titleMedium)
+        SettingGuideHeading(UiText.get(title), title)
         FlowRow(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (option in options) {
                 val selected = current == option

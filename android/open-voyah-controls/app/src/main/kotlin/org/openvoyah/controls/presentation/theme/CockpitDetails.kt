@@ -140,6 +140,7 @@ internal fun CockpitSection(
     title: String,
     icon: CockpitIcon,
     subtitle: String? = null,
+    guideId: Int? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -159,6 +160,7 @@ internal fun CockpitSection(
                         Text(subtitle, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
+                SettingInfo(title, guideId)
             }
             CockpitGrid(Modifier.fillMaxWidth(), spacing = layout.spacing(11.dp), content = content)
         }
@@ -214,10 +216,14 @@ internal fun CockpitTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     trailingIcon: (@Composable () -> Unit)? = null,
+    guideId: Int? = null,
 ) {
     OutlinedTextField(value, onValueChange, modifier.heightIn(min = CockpitTouch), enabled = enabled,
         label = { Text(label) }, isError = error, singleLine = singleLine, shape = MaterialTheme.shapes.medium,
-        supportingText = supporting?.let { message -> { Text(message) } }, trailingIcon = trailingIcon,
+        supportingText = supporting?.let { message -> { Text(message) } },
+        trailingIcon = if (guideId == null) trailingIcon else {
+            { Row(verticalAlignment = Alignment.CenterVertically) { trailingIcon?.invoke(); SettingInfo(label, guideId) } }
+        },
         keyboardOptions = keyboardOptions, keyboardActions = keyboardActions)
 }
 

@@ -78,6 +78,10 @@ The agent decides which commands need Park (`MOTION_COMMANDS` in `hooks/voice-sa
 
 ## Apps and media
 
+In **Settings → Voice**, browse **Voice commands** by category or search for a phrase or its effect. Open a command to see what to say, what Controls requests, any requirements, and other accepted phrases. The phrases follow the selected recognition language. Descriptions follow the interface language. An assigned app appears as the command’s current effect.
+
+![Voice command details showing the primary phrase, result and an alternate phrase on a 1920 × 720 Android emulator](screenshots/voice-command-details.png)
+
 To assign an installed app, select a command and choose **App…**. Music, navigation, radio, and camera use your assignments. Without an app chosen here, music and its restart open the app of the central music panel button (`navbar02`), navigation and its restart the app of the central navigation button (`navbar01`), and radio the app of the passenger radio position (`navbar14`, standard layout), when that button has an app assigned. Otherwise the command asks you to assign an app, as before. **Open assistant** uses the Android assistant unless you choose another app for that command. **Controls settings** opens this app's settings.
 
 Playback keys and volume use Android media controls. Say “volume fifty percent” in English or “громкость пятьдесят процентов” in Russian to set a percentage from 0 to 100. Ratings require media session access and a supported rating type in the active player.

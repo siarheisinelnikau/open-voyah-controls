@@ -126,7 +126,7 @@ internal class WindowSwipeViewModel(private val windows: AppWindowConfiguration)
 @Composable
 internal fun WindowSwipeControl(model: WindowSwipeViewModel) {
     val state by model.state.collectAsStateWithLifecycle()
-    CockpitChoice(label(R.string.window_swipe_title), onClick = model::open)
+    CockpitChoice(R.string.window_swipe_title, onClick = model::open)
     if (!state.visible) return
 
     AlertDialog(
@@ -161,7 +161,7 @@ internal fun WindowSwipeControl(model: WindowSwipeViewModel) {
 private fun FingerPicker(fingers: Int, enabled: Boolean, change: (Int) -> Unit) {
     var choosing by remember { mutableStateOf(false) }
     val title = label(R.string.window_swipe_fingers)
-    CockpitChoice(title, fingerText(fingers), enabled) { choosing = true }
+    CockpitChoice(R.string.window_swipe_fingers, fingerText(fingers), enabled) { choosing = true }
     if (choosing) {
         CockpitOptionDialog(title, AppDisplayDefaults.moveFingerChoices, fingers, ::fingerText, change,
             { choosing = false }, enabled = enabled)
@@ -172,7 +172,7 @@ private fun FingerPicker(fingers: Int, enabled: Boolean, change: (Int) -> Unit) 
 private fun TargetPicker(showsApps: Boolean, enabled: Boolean, change: (Boolean) -> Unit) {
     var choosing by remember { mutableStateOf(false) }
     val title = label(R.string.window_swipe_after)
-    CockpitChoice(title, targetText(showsApps), enabled) { choosing = true }
+    CockpitChoice(R.string.window_swipe_after, targetText(showsApps), enabled) { choosing = true }
     if (choosing) {
         CockpitOptionDialog(title, listOf(false, true), showsApps, ::targetText, change, { choosing = false }, enabled = enabled)
     }

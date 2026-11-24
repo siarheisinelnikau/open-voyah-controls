@@ -52,7 +52,7 @@ internal fun DockShortcutEditor(model: QuickActionsViewModel, components: List<S
     val hasRoom = components.size < MAX_DOCK_APP_SHORTCUTS
     var picking by rememberSaveable(hasRoom) { mutableStateOf(false) }
     CockpitSection(UiText.get(R.string.quick_actions_app_shortcuts), CockpitIcon.APPS,
-        UiText.get(R.string.quick_actions_app_shortcuts_hint).format(MAX_DOCK_APP_SHORTCUTS)) {
+        UiText.get(R.string.quick_actions_app_shortcuts_hint).format(MAX_DOCK_APP_SHORTCUTS), guideId = R.string.quick_actions_app_shortcuts) {
         if (components.isNotEmpty()) {
             val resolved by model.appShortcuts.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
             components.forEachIndexed { index, component -> key(component) {

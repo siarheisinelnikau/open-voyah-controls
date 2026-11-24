@@ -102,7 +102,7 @@ internal fun HeadlightStatusSection(
             }
         }
         monitoring.whileControlsOpen?.let { enabled ->
-            CockpitSwitch(UiText.get(R.string.headlight_monitoring_open), enabled, !monitoring.saving, setMonitoring)
+            CockpitSwitch(R.string.headlight_monitoring_open, enabled, !monitoring.saving, setMonitoring)
         }
         if (monitoring.saveFailed) Text(UiText.get(R.string.headlight_monitoring_save_failed), color = colors.error)
         if (openFactory != null) CockpitAction(UiText.get(R.string.headlight_mode_open_factory), openFactory)

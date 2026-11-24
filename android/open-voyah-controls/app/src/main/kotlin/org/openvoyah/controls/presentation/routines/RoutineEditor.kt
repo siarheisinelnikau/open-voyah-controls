@@ -54,18 +54,18 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
     }
     val title = if (draft.original == null) R.string.routines_create else R.string.routines_edit_title
     CockpitDetail(UiText.get(title), null, model::closeEditor, nested = true) {
-        CockpitTextField(draft.name, model::name, UiText.get(R.string.routines_name), Modifier.fillMaxWidth(), enabled = enabled,
+        CockpitTextField(draft.name, model::name, UiText.get(R.string.routines_name), Modifier.fillMaxWidth(), enabled = enabled, guideId = R.string.routines_name,
             error = draft.name.isNotEmpty() && !draft.validName || state.form.error == R.string.routines_duplicate_name,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }))
         CockpitColumns(first = {
-            CockpitChoice(UiText.get(R.string.routines_page), draft.target.label(state.names), enabled) {
+            CockpitChoice(R.string.routines_page, draft.target.label(state.names), enabled) {
                 focus.clearFocus()
                 dialog = EditorDialog.PAGE
             }
             if (draft.target.isFavorite && !state.favoritesEnabled)
                 Text(UiText.get(R.string.routines_favorites_off), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            CockpitChoice(UiText.get(R.string.routines_layout), currentLayout, enabled) {
+            CockpitChoice(R.string.routines_layout, currentLayout, enabled) {
                 focus.clearFocus()
                 dialog = EditorDialog.LAYOUT
             }
@@ -74,21 +74,21 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
                     style = MaterialTheme.typography.bodyMedium)
             }
         }, second = {
-            CockpitChoice(UiText.get(R.string.routines_theme), routineTheme(draft.palette), enabled) {
+            CockpitChoice(R.string.routines_theme, routineTheme(draft.palette), enabled) {
                 focus.clearFocus()
                 dialog = EditorDialog.THEME
             }
             if (draft.palette != null)
                 Text(UiText.get(R.string.routines_theme_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
             val app = draft.installedApp?.let { routineAppLabel(it, appLabels) } ?: UiText.get(R.string.routines_app_none)
-            CockpitChoice(UiText.get(R.string.routines_app), app, enabled) {
+            CockpitChoice(R.string.routines_app, app, enabled) {
                 focus.clearFocus()
                 dialog = EditorDialog.APP
             }
         }, minimumWidth = 570.dp)
         problem?.let { CockpitFeedback(UiText.get(it), error = true) }
         CockpitColumns(first = {
-            CockpitSwitch(UiText.get(R.string.routines_pin), draft.pinned, enabled, model::pin)
+            CockpitSwitch(R.string.routines_pin, draft.pinned, enabled, model::pin)
         }, second = {
             val gap = LocalCockpitLayout.current.spacing(8.dp)
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap, Alignment.End),
@@ -154,5 +154,5 @@ internal fun <T> RoutinePicker(
     choose: (T) -> Unit,
 ) {
     CockpitOptionDialog(UiText.get(title), choices, selected, label, onSelect = choose, onDismiss = dismiss,
-        description = hint?.let(UiText::get))
+        description = hint?.let(UiText::get), guideId = title)
 }

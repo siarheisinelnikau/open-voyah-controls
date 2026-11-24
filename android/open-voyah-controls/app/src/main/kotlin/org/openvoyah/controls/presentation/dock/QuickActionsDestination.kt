@@ -75,18 +75,18 @@ internal fun QuickActionsDestination(model: QuickActionsViewModel, state: QuickA
     CockpitDetail(UiText.get(R.string.quick_actions_title), UiText.get(R.string.quick_actions_summary), back) {
         val options: @Composable () -> Unit = {
             CockpitSection(UiText.get(R.string.quick_actions_bar), CockpitIcon.SETTINGS) {
-                CockpitSwitch(UiText.get(R.string.quick_actions_enabled), current.enabled, editable) { show ->
+                CockpitSwitch(R.string.quick_actions_enabled, current.enabled, editable) { show ->
                     edit { model.setEnabled(show) }
                 }
                 if (current.enabled) {
                     DockChoice(R.string.quick_actions_area, current.area, QuickActionArea.entries, editable,
                         { it.title }) { area -> edit { model.setArea(area) } }
                     CockpitReveal(current.area.includes(apps = false)) {
-                        CockpitSwitch(UiText.get(R.string.quick_actions_hide_on_virtual_display), current.hideOnVirtualDisplay, editable) { hide ->
+                        CockpitSwitch(R.string.quick_actions_hide_on_virtual_display, current.hideOnVirtualDisplay, editable) { hide ->
                             edit { model.setHideOnVirtualDisplay(hide) }
                         }
                     }
-                    CockpitSwitch(UiText.get(R.string.quick_actions_headlight_indicator), current.showHeadlightMode, editable) { show ->
+                    CockpitSwitch(R.string.quick_actions_headlight_indicator, current.showHeadlightMode, editable) { show ->
                         edit { model.setShowHeadlightMode(show) }
                     }
                     RevealedRows(current.showHeadlightMode) {
@@ -107,20 +107,20 @@ internal fun QuickActionsDestination(model: QuickActionsViewModel, state: QuickA
                         { it.title }) { alignment -> edit { model.setRailAlignment(alignment) } }
                     DockChoice(R.string.quick_actions_compact_edge, current.compactEdge, QuickActionCompactEdge.entries, editable,
                         { it.title }) { edge -> edit { model.setCompactEdge(edge) } }
-                    CockpitSwitch(UiText.get(R.string.quick_actions_labels), current.showLabels, editable) { labels ->
+                    CockpitSwitch(R.string.quick_actions_labels, current.showLabels, editable) { labels ->
                         edit { model.setLabels(labels) }
                     }
                     DockChoice(R.string.quick_actions_compact_labels, current.compactLabels, QuickActionCompactLabels.entries, editable,
                         { it.title }) { labels -> edit { model.setCompactLabels(labels) } }
                     DockChoice(R.string.quick_actions_start_state, current.startState, QuickActionStartState.entries, editable,
                         { it.title }) { start -> edit { model.setStartState(start) } }
-                    CockpitSwitch(UiText.get(R.string.quick_actions_collapse_after_use), current.collapseAfterUse, editable) { collapse ->
+                    CockpitSwitch(R.string.quick_actions_collapse_after_use, current.collapseAfterUse, editable) { collapse ->
                         edit { model.setCollapseAfterUse(collapse) }
                     }
                     DockChoice(R.string.quick_actions_idle_collapse, current.idleCollapse, QuickActionIdleCollapse.entries, editable,
                         { it.title }) { timeout -> edit { model.setIdleCollapse(timeout) } }
                     RevealedRows(current.canCollapse) {
-                        CockpitSwitch(UiText.get(R.string.quick_actions_keep_side_inset), current.keepSideInset, editable) { keep ->
+                        CockpitSwitch(R.string.quick_actions_keep_side_inset, current.keepSideInset, editable) { keep ->
                             edit { model.setKeepSideInset(keep) }
                         }
                         DockChoice(R.string.quick_actions_handle_size, current.handleSize, QuickActionHandleSize.entries, editable,
@@ -133,13 +133,13 @@ internal fun QuickActionsDestination(model: QuickActionsViewModel, state: QuickA
                             { it.title }) { side -> edit { model.setCompactHandleSide(side) } }
                         DockChoice(R.string.quick_actions_handle_accent, current.handleAccent, QuickActionHandleAccent.entries, editable,
                             { it.title }) { accent -> edit { model.setHandleAccent(accent) } }
-                        CockpitSwitch(UiText.get(R.string.quick_actions_dim_idle_handle), current.dimIdleHandle, editable) { dim ->
+                        CockpitSwitch(R.string.quick_actions_dim_idle_handle, current.dimIdleHandle, editable) { dim ->
                             edit { model.setDimIdleHandle(dim) }
                         }
-                        CockpitSwitch(UiText.get(R.string.quick_actions_contrast_handle), current.highContrastHandle, editable) { contrast ->
+                        CockpitSwitch(R.string.quick_actions_contrast_handle, current.highContrastHandle, editable) { contrast ->
                             edit { model.setHighContrastHandle(contrast) }
                         }
-                        CockpitSwitch(UiText.get(R.string.quick_actions_compact_handle_label), current.showCompactHandleLabel, editable) { show ->
+                        CockpitSwitch(R.string.quick_actions_compact_handle_label, current.showCompactHandleLabel, editable) { show ->
                             edit { model.setCompactHandleLabel(show) }
                         }
                     }
@@ -166,7 +166,8 @@ internal fun QuickActionsDestination(model: QuickActionsViewModel, state: QuickA
 private fun ShortcutOrder(actions: List<QuickAction>, editable: Boolean, select: (QuickAction, Boolean) -> Unit,
                           move: (QuickAction, Boolean) -> Unit, options: @Composable () -> Unit) {
     val minimumInline = LocalCockpitLayout.current.columnsMinimum(146.dp, LocalDensity.current.fontScale) + 96.dp
-    CockpitSection(UiText.get(R.string.quick_actions_shortcuts), CockpitIcon.APPS, UiText.get(R.string.quick_actions_order_hint)) {
+    CockpitSection(UiText.get(R.string.quick_actions_shortcuts), CockpitIcon.APPS, UiText.get(R.string.quick_actions_order_hint),
+        guideId = R.string.quick_actions_shortcuts) {
         options()
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val stacked = maxWidth < minimumInline
@@ -213,7 +214,7 @@ private fun LargerShortcutsChoice(settings: QuickActionSettings, editable: Boole
     val title = UiText.get(R.string.quick_actions_larger_shortcuts)
     val value = if (current.isEmpty()) UiText.get(R.string.quick_actions_larger_shortcuts_none)
         else UiText.get(R.string.quick_actions_larger_shortcuts_selected).format(current.size)
-    CockpitChoice(title, value, editable) { draft = ArrayList(current) }
+    CockpitChoice(R.string.quick_actions_larger_shortcuts, value, editable) { draft = ArrayList(current) }
     val choices = draft ?: return
     val close = { draft = null }
     CockpitAlertDialog(
@@ -249,7 +250,7 @@ private fun RoutineShortcutChoice(state: QuickActionsUiState, editable: Boolean,
     val current = state.settings?.routineShortcutId
     val routines = state.routines?.getOrNull().orEmpty()
     val choices = listOf(null) + routines.map { it.id }
-    DockChoice(UiText.get(R.string.quick_actions_routine_shortcut), current, choices,
+    DockTextChoice(R.string.quick_actions_routine_shortcut, current, choices,
         editable && (current != null || routines.isNotEmpty()), { id ->
             when (id) {
                 null -> UiText.get(R.string.quick_actions_routine_none)
@@ -291,14 +292,14 @@ private fun RevealedRows(visible: Boolean, rows: @Composable ColumnScope.() -> U
 
 @Composable
 private fun <T> DockChoice(title: Int, current: T, choices: List<T>, enabled: Boolean, label: (T) -> Int, choose: (T) -> Unit) {
-    DockChoice(UiText.get(title), current, choices, enabled, { UiText.get(label(it)) }, choose)
+    DockTextChoice(title, current, choices, enabled, { UiText.get(label(it)) }, choose)
 }
 
 @Composable
-private fun <T> DockChoice(heading: String, current: T, choices: List<T>, enabled: Boolean, label: (T) -> String, choose: (T) -> Unit) {
+private fun <T> DockTextChoice(title: Int, current: T, choices: List<T>, enabled: Boolean, label: (T) -> String, choose: (T) -> Unit) {
     var opened by rememberSaveable { mutableStateOf(false) }
-    CockpitChoice(heading, label(current), enabled) { opened = true }
-    if (opened) CockpitOptionDialog(heading, choices, current, label, onSelect = choose, onDismiss = { opened = false }, enabled = enabled)
+    CockpitChoice(title, label(current), enabled) { opened = true }
+    if (opened) CockpitOptionDialog(UiText.get(title), choices, current, label, onSelect = choose, onDismiss = { opened = false }, enabled = enabled)
 }
 
 private val QuickActionSide.title: Int get() = when (this) {

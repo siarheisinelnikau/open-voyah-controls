@@ -211,7 +211,7 @@ internal class HomeSettingsCoordinator(
         }, text(R.string.oem_restore_keys), Runnable {
             if (active) dialogs.message(text(R.string.oem_restore_keys), text(R.string.oem_restore_keys_info), text(R.string.ui_187),
                 Runnable { if (active) model.clearSteering() }, text(R.string.ui_89))
-        })
+        }, guideId = R.string.oem_steering)
     }
 
     private fun learn() {

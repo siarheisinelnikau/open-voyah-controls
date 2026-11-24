@@ -44,6 +44,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
+import org.openvoyah.controls.presentation.theme.SettingInfo
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.apps.AppControlRefusal
 import org.openvoyah.controls.domain.display.WindowConnection
@@ -111,7 +112,7 @@ internal fun AppSettingsScreen(
                     val hidden = shortcut.hidden
                     // The shared switch row fills its parent; among these actions it keeps the width of its own content.
                     Box(Modifier.width(IntrinsicSize.Max)) {
-                        CockpitSwitch(text(R.string.apps_hide), hidden, !busy && !shortcut.working, setHidden)
+                        CockpitSwitch(R.string.apps_hide, hidden, !busy && !shortcut.working, setHidden)
                     }
                 }
                 if (shortcut?.pinned != null) {
@@ -255,7 +256,8 @@ private fun SettingsPane(
         Column(body.padding(layout.spacing(16.dp)), verticalArrangement = Arrangement.spacedBy(layout.spacing(11.dp))) {
             Row(horizontalArrangement = Arrangement.spacedBy(layout.spacing(12.dp)), verticalAlignment = Alignment.CenterVertically) {
                 CockpitGlyph(icon, Modifier.size(23.dp))
-                Text(text(title), Modifier.semantics { heading() }, style = MaterialTheme.typography.titleLarge)
+                Text(text(title), Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.titleLarge)
+                SettingInfo(text(title), title)
             }
             content()
         }
@@ -328,7 +330,7 @@ private fun PermissionSettings(
     details.permissions.forEach { item ->
         HorizontalDivider(color = colors.outlineVariant)
         if (item.changeable) {
-            CockpitSwitch(item.label, item.granted, !panel.busy) { set(item.name, it) }
+            CockpitSwitch(item.label, item.granted, !panel.busy, guideId = R.string.apps_permissions) { set(item.name, it) }
         } else StatusRow(item.label, if (item.granted) R.string.apps_permission_granted else R.string.apps_permission_not_granted)
     }
     if (details.specialAccess.isNotEmpty()) {
@@ -340,7 +342,8 @@ private fun PermissionSettings(
             val label = text(item.access.label())
             val handoff = handoffs[item.access]
             when {
-                item.changeable -> CockpitSwitch(label, item.allowed == true, !panel.busy) { setAccess(item.access, it) }
+                item.changeable -> CockpitSwitch(label, item.allowed == true, !panel.busy,
+                    guideId = R.string.apps_permissions) { setAccess(item.access, it) }
                 handoff != null -> CockpitAction(label, handoff, enabled = !busy)
                 else -> StatusRow(label, when (item.allowed) {
                     true -> R.string.apps_permission_granted

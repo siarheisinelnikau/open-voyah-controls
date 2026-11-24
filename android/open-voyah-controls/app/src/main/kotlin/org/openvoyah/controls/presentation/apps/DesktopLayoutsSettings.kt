@@ -156,7 +156,7 @@ internal fun DesktopLayoutsSettings(editable: Boolean) {
     val lifecycle by owner.lifecycle.currentStateAsState()
     val resumed = lifecycle.isAtLeast(Lifecycle.State.RESUMED)
     var show by rememberSaveable { mutableStateOf(false) }
-    CockpitChoice(UiText.get(R.string.desktop_layouts_settings), enabled = editable && resumed) {
+    CockpitChoice(R.string.desktop_layouts_settings, enabled = editable && resumed) {
         if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) show = true
     }
     if (!show || !resumed) return
@@ -269,7 +269,7 @@ private fun DesktopLayoutsDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         is LayoutPage.Name -> CockpitTextField(page.value, model::name, UiText.get(R.string.desktop_layouts_name),
-                            Modifier.fillMaxWidth(), enabled = available, error = state.form.error)
+                            Modifier.fillMaxWidth(), enabled = available, error = state.form.error, guideId = R.string.desktop_layouts_name)
                         is LayoutPage.Confirm -> Text(UiText.get(page.action.description).format(page.preset.name),
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }

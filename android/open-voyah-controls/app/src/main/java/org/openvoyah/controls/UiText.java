@@ -71,6 +71,14 @@ public final class UiText {
     }
 
     public static String get(int resource) {
+        return resources().getString(resource);
+    }
+
+    public static String[] getArray(int resource) {
+        return resources().getStringArray(resource);
+    }
+
+    private static Resources resources() {
         // The stored value is compared on every lookup because a settings restore writes the store directly.
         String language = language();
         Localized current = localized;
@@ -80,6 +88,6 @@ public final class UiText {
             current = new Localized(language, application.createConfigurationContext(config).getResources());
             localized = current;
         }
-        return current.resources.getString(resource);
+        return current.resources;
     }
 }

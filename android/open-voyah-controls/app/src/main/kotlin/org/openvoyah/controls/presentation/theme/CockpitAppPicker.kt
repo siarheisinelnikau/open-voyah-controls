@@ -72,7 +72,7 @@ internal fun CockpitAppPicker(title: String, back: () -> Unit, select: (Installe
         val canShowAll = remember(candidates, ready) {
             AppPickerChoices.hidesAny(candidates, component, hiddenByDefault, ready?.grid)
         }
-        if (canShowAll) CockpitSwitch(UiText.get(R.string.app_picker_show_all), showAll) { showAll = it }
+        if (canShowAll) CockpitSwitch(R.string.app_picker_show_all, showAll) { showAll = it }
         val labelCounts = remember(choices) { choices.groupingBy { it.label() to it.component().packageName }.eachCount() }
         val search = query.trim()
         val visible = remember(choices, search) {

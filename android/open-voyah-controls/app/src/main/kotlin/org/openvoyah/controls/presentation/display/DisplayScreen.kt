@@ -51,7 +51,7 @@ internal fun DisplayScreen(
     CockpitDetail(label(R.string.virtual_display), label(R.string.display_screen_description), back) {
         CockpitColumns(firstWeight = .8f, first = {
             CockpitSection(label(R.string.display_scale_heading), CockpitIcon.DISPLAY) {
-                CockpitChoice(label(R.string.display_density), previewDensityText(state.density), onClick = chooseDensity)
+                CockpitChoice(R.string.display_density, previewDensityText(state.density), onClick = chooseDensity)
             }
             CockpitSection(label(R.string.display_sources_heading), CockpitIcon.SETTINGS) {
                 val message = when {
@@ -68,7 +68,7 @@ internal fun DisplayScreen(
                 if (needsMediaAccess && state.previewContent.showMedia) {
                     CockpitFeedback(label(R.string.display_preview_media_access_required))
                 }
-                CockpitSwitch(label(R.string.cluster_media_share), state.clusterMedia, change = clusterMedia)
+                CockpitSwitch(R.string.cluster_media_share, state.clusterMedia, change = clusterMedia)
             }
         }, second = {
             CockpitSection(label(R.string.virtual_display), CockpitIcon.DISPLAY, label(R.string.display_preview_description)) {
@@ -78,10 +78,10 @@ internal fun DisplayScreen(
                 val bothPanes = options.showMedia && options.showNavigation
                 val allowedPlayer = media?.takeIf { options.mediaFallback.permits(options.preferredMediaPackage, it.packageName) }
                 // One switch per row: side by side, a label could be read as belonging to the neighbouring switch.
-                CockpitSwitch(label(R.string.display_preview_show_media), options.showMedia, !state.savingPreview, previewMedia)
-                CockpitSwitch(label(R.string.display_preview_show_playback_progress),
+                CockpitSwitch(R.string.display_preview_show_media, options.showMedia, !state.savingPreview, previewMedia)
+                CockpitSwitch(R.string.display_preview_show_playback_progress,
                     options.showPlaybackProgress, mediaOptionsEnabled, playbackProgress)
-                CockpitSwitch(label(R.string.display_preview_show_navigation), options.showNavigation, !state.savingPreview, previewNavigation)
+                CockpitSwitch(R.string.display_preview_show_navigation, options.showNavigation, !state.savingPreview, previewNavigation)
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     val normalHeight = (maxWidth / 2.65f).coerceIn(145.dp, if (showControls) 166.dp else 218.dp)
                     val previewHeight = if (options.showMedia || options.showNavigation) {
@@ -108,21 +108,21 @@ internal fun DisplayScreen(
                     is Status.Ready -> "${status.width} × ${status.height} · ${status.dpi} DPI"
                 }
                 CockpitFeedback(text)
-                CockpitChoice(label(R.string.display_preview_details), enabled = !state.savingPreview, onClick = previewDetails)
+                CockpitChoice(R.string.display_preview_details, enabled = !state.savingPreview, onClick = previewDetails)
                 CockpitReveal(bothPanes) {
                     FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CockpitChoice(label(R.string.display_preview_arrangement), previewArrangementText(options.arrangement),
+                        CockpitChoice(R.string.display_preview_arrangement, previewArrangementText(options.arrangement),
                             enabled = !state.savingPreview, modifier = Modifier.widthIn(min = 196.dp).weight(1f),
                             onClick = chooseArrangement)
-                        CockpitChoice(label(R.string.display_preview_pane_order), previewPaneOrderText(options.paneOrder),
+                        CockpitChoice(R.string.display_preview_pane_order, previewPaneOrderText(options.paneOrder),
                             enabled = !state.savingPreview, modifier = Modifier.widthIn(min = 196.dp).weight(1f),
                             onClick = choosePaneOrder)
                     }
                 }
-                CockpitSwitch(label(R.string.display_preview_show_album_artwork),
+                CockpitSwitch(R.string.display_preview_show_album_artwork,
                     options.showAlbumArtwork, mediaOptionsEnabled, albumArtwork)
-                CockpitSwitch(label(R.string.display_preview_show_transport_controls),
+                CockpitSwitch(R.string.display_preview_show_transport_controls,
                     options.showTransportControls, mediaOptionsEnabled, transportControls)
                 val sourceLabel = when {
                     options.preferredMediaPackage.isEmpty() -> label(R.string.display_preview_automatic_source)
@@ -131,14 +131,14 @@ internal fun DisplayScreen(
                         "$preferredMediaLabel · ${label(R.string.display_preview_preferred_player_unavailable)}"
                     else -> "$preferredMediaLabel · ${label(R.string.display_preview_automatic_source_fallback)}"
                 }
-                CockpitChoice(label(R.string.display_preview_media_source), sourceLabel,
+                CockpitChoice(R.string.display_preview_media_source, sourceLabel,
                     mediaOptionsEnabled, onClick = chooseSource)
                 CockpitReveal(options.preferredMediaPackage.isNotEmpty()) {
-                    CockpitChoice(label(R.string.display_preview_media_fallback), previewFallbackText(options.mediaFallback),
+                    CockpitChoice(R.string.display_preview_media_fallback, previewFallbackText(options.mediaFallback),
                         mediaOptionsEnabled, onClick = chooseMediaFallback)
                 }
                 CockpitReveal(showControls) {
-                    CockpitChoice(label(R.string.display_preview_seek_step), previewSeekStepText(options.seekStep),
+                    CockpitChoice(R.string.display_preview_seek_step, previewSeekStepText(options.seekStep),
                         mediaOptionsEnabled, onClick = chooseSeekStep)
                 }
                 if (state.previewSaveFailed) CockpitFeedback(label(R.string.display_preview_save_failed), error = true)

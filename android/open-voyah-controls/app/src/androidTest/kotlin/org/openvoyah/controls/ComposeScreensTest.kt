@@ -169,7 +169,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
             awaitRoute(activity, route)
             assertComposeContent(activity)
             if (route == ControlsRoute.APPS) assertAppGrid(activity)
-            if (route == ControlsRoute.VOICE) awaitText(UiText.get(R.string.ui_185), 10_000)
+            if (route == ControlsRoute.VOICE) awaitText(UiText.get(R.string.ui_34), 10_000)
             if (route == ControlsRoute.DISPLAY) {
                 val deadline = SystemClock.uptimeMillis() + 8_000
                 fun ready() = nodes().any { it.text?.toString()?.matches(Regex("[0-9]+ × [0-9]+ · [0-9]+ DPI")) == true }
@@ -201,6 +201,75 @@ class ComposeScreensTest : InstrumentationTestCase() {
         assertTrue("The protected same-UID entry did not open its real activity", voice is QuickVoiceActivity)
         assertComposeContent(voice)
         capture("quick-voice")
+    }
+
+    fun testSettingGuideShowsAnExampleAndKeepsTheSettingUnchanged() {
+        val preferences = AppearancePreferences(app)
+        val saved = preferences.load()
+        val uiLanguage = UiText.language()
+        try {
+            UiText.language("ru")
+            val activity = launch(ControlsNavigation.intent(app, ControlsRoute.APPEARANCE)) as MainActivity
+            openSettingsPart(activity, SettingsPartId.APPEARANCE_THEME)
+            val title = UiText.get(R.string.appearance_accent)
+            val guide = UiText.get(R.string.setting_guide_open).format(title)
+            capture("settings-guide-appearance")
+            clickText(guide, contentDescription = true)
+            val (explanation, before, after) = UiText.getArray(R.array.guide_appearance_accent).toList()
+            awaitText(explanation)
+            awaitText(before)
+            awaitText(after)
+            capture("setting-guide-accent")
+            if (saved.animateRoutes) tapCurrentText(UiText.get(R.string.setting_guide_replay))
+            tapCurrentText(UiText.get(R.string.ui_172))
+            assertEquals(saved, preferences.load())
+            awaitText(title)
+            clickButton(title)
+            awaitText(UiText.get(R.string.appearance_accent_teal))
+        } finally {
+            UiText.language(uiLanguage)
+        }
+    }
+
+    fun testVoiceCatalogFiltersPhrasesAndShowsTheirOutcome() {
+        val voice = VoiceSettings(app)
+        val uiLanguage = UiText.language()
+        val voiceLanguage = voice.language()
+        try {
+            UiText.language("ru")
+            voice.language("ru")
+            val catalog = voice.withContacts()
+            launch(ControlsNavigation.intent(app, ControlsRoute.VOICE))
+            val media = UiText.get(R.string.voice_guide_group_media)
+            val commands = UiText.get(R.string.ui_34)
+            awaitText(commands, 10_000)
+            if (nodes().none { it.isVisibleToUser && it.text?.toString() == media }) {
+                clickButton(commands)
+                clickButton(UiText.get(R.string.voice_guide_all))
+            }
+            awaitText(media, 10_000)
+            clickButton(media)
+            val initialPhrase = catalog.byId("MediaPlay").title()
+            awaitText(initialPhrase)
+            awaitText(UiText.get(R.string.voice_effect_media_play))
+            capture("voice-catalog-categories")
+
+            val field = nodes().first { it.isVisibleToUser && it.isEditable }
+            val command = catalog.byId("VolumeUp")
+            assertTrue(field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
+                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, command.phrases().last())
+            }))
+            awaitText(command.title())
+            clickButton(command.title())
+            awaitText(UiText.get(R.string.voice_guide_say))
+            awaitText(UiText.get(R.string.voice_effect_volume_up))
+            awaitText(UiText.get(R.string.voice_guide_variants))
+            capture("voice-command-details")
+            clickButton(UiText.get(R.string.ui_172))
+        } finally {
+            voice.language(voiceLanguage)
+            UiText.language(uiLanguage)
+        }
     }
 
     fun testAppGridOpensControlsOnceAndKeepsAndroidSettingsInsideIt() {
@@ -281,7 +350,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
         scrollTo(UiText.get(R.string.settings_section_voice), towardsStart = true)
         clickText(UiText.get(R.string.settings_section_voice))
         awaitRoute(recreated, ControlsRoute.VOICE)
-        awaitText(UiText.get(R.string.ui_185), 10_000)
+        awaitText(UiText.get(R.string.ui_34), 10_000)
         awaitText(UiText.get(R.string.cockpit_back))
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         awaitRoute(recreated, ControlsRoute.SETTINGS)

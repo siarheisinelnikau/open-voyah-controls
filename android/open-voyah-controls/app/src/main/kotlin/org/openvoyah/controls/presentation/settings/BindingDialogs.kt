@@ -55,7 +55,7 @@ class BindingDialogs(private val dialogs: CockpitDialogs) {
                 else { close(); next.accept(key) }
             }, primary = true)
         }) {
-            NumberField(label(R.string.ui_91), code, invalid) { code = it; invalid = false }
+            NumberField(R.string.ui_91, code, invalid) { code = it; invalid = false }
             if (invalid) CockpitFeedback(label(R.string.ui_94), error = true)
         }
     }
@@ -73,8 +73,8 @@ class BindingDialogs(private val dialogs: CockpitDialogs) {
                 else if (save.test(h, d)) close()
             }, primary = true)
         }) {
-            NumberField(label(R.string.ui_115), hold, invalid) { hold = it; invalid = false }
-            NumberField(label(R.string.ui_116), debounce, invalid) { debounce = it; invalid = false }
+            NumberField(R.string.ui_115, hold, invalid) { hold = it; invalid = false }
+            NumberField(R.string.ui_116, debounce, invalid) { debounce = it; invalid = false }
             if (invalid) CockpitFeedback(label(R.string.ui_118), error = true)
         }
     }
@@ -121,15 +121,15 @@ private fun BindingEditor(code: Int, descriptor: String, initialName: String, ex
                     }
                 }, primary = true)
             }) {
-                CockpitTextField(name, { name = it; error = null }, label(R.string.ui_95), Modifier.fillMaxWidth(), error = error != null)
+                CockpitTextField(name, { name = it; error = null }, label(R.string.ui_95), Modifier.fillMaxWidth(), error = error != null, guideId = R.string.ui_95)
                 CockpitFeedback(error ?: label(R.string.ui_96) + code, error != null)
                 CockpitColumns(first = {
-                    CockpitChoice(label(R.string.oem_short), actionLabel(shortPress)) { page = BindingPage.SHORT }
+                    CockpitChoice(R.string.oem_short, actionLabel(shortPress)) { page = BindingPage.SHORT }
                 }, second = {
-                    CockpitChoice(label(R.string.oem_hold), actionLabel(longPress)) { page = BindingPage.LONG }
+                    CockpitChoice(R.string.oem_hold, actionLabel(longPress)) { page = BindingPage.LONG }
                 }, minimumWidth = 480.dp)
-                CockpitSwitch(label(R.string.ui_98), allDevices, descriptor.isNotEmpty()) { allDevices = it; error = null }
-                CockpitSwitch(label(R.string.ui_99), enabled) { enabled = it }
+                CockpitSwitch(R.string.ui_98, allDevices, descriptor.isNotEmpty()) { allDevices = it; error = null }
+                CockpitSwitch(R.string.ui_99, enabled) { enabled = it }
                 CockpitFeedback(label(R.string.ui_100))
             }
             BindingPage.SHORT, BindingPage.LONG -> ActionPicker({ page = BindingPage.FORM }, active = current == page) { action ->
@@ -170,8 +170,8 @@ private fun stepTransition(motion: CockpitMotionSettings): ContentTransform = if
 } else ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
 
 @Composable
-private fun NumberField(title: String, value: String, invalid: Boolean, change: (String) -> Unit) {
-    CockpitTextField(value, change, title, Modifier.fillMaxWidth(), error = invalid,
+private fun NumberField(title: Int, value: String, invalid: Boolean, change: (String) -> Unit) {
+    CockpitTextField(value, change, label(title), Modifier.fillMaxWidth(), error = invalid, guideId = title,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
 }
 

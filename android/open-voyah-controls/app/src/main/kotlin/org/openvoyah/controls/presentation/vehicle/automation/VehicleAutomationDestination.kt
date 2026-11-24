@@ -102,13 +102,13 @@ internal fun VehicleAutomationScreen(
         VehicleStatusSection(state.telemetry)
         CockpitColumns(first = {
             CockpitSection(text(R.string.vehicle_automation_lights), CockpitIcon.LIGHT) {
-                CockpitSwitch(text(R.string.vehicle_automation_lights_enabled), state.settings?.headlights?.enabled == true,
+                CockpitSwitch(R.string.vehicle_automation_lights_enabled, state.settings?.headlights?.enabled == true,
                     enabled = enabled, change = setHeadlightsEnabled)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CockpitChoice(text(R.string.vehicle_automation_on_drive),
+                    CockpitChoice(R.string.vehicle_automation_on_drive,
                         actionLabel(state.settings?.headlights?.onDrive ?: HeadlightGearAction.AUTOMATIC),
                         enabled = enabled, modifier = Modifier.weight(1f), onClick = chooseDrive)
-                    CockpitChoice(text(R.string.vehicle_automation_on_park),
+                    CockpitChoice(R.string.vehicle_automation_on_park,
                         actionLabel(state.settings?.headlights?.onPark ?: HeadlightGearAction.KEEP),
                         enabled = enabled, modifier = Modifier.weight(1f), onClick = choosePark)
                 }
@@ -151,7 +151,7 @@ internal fun VehicleAutomationScreen(
                         error = message.notice == DrivingModeMemoryNotice.RESTORE_FAILED ||
                             message.notice == DrivingModeMemoryNotice.RESTORE_NEEDS_PARK)
                 }
-                CockpitSwitch(text(R.string.vehicle_automation_memory_enabled), state.settings?.drivingMode?.enabled == true,
+                CockpitSwitch(R.string.vehicle_automation_memory_enabled, state.settings?.drivingMode?.enabled == true,
                     enabled = enabled, change = setDrivingMemoryEnabled)
                 factoryDriving?.let { CockpitAction(text(R.string.vehicle_automation_open_driving), it) }
             }

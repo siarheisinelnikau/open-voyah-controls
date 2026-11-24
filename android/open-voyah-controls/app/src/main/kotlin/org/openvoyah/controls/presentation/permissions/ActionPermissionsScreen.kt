@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
+import org.openvoyah.controls.presentation.theme.SettingGuideHeading
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.frida.ReviewedFirmware
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
@@ -110,7 +111,7 @@ private fun ActionPermissionRow(row: ActionRow, state: ActionPermission, change:
     val palette = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).testTag("action_${row.item.key}"),
         verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(row.title, style = MaterialTheme.typography.titleMedium)
+        SettingGuideHeading(row.title, R.string.action_permissions_title)
         row.summary?.let { Text(it, color = palette.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium) }
         if (row.verified) Text(text(R.string.action_permissions_verified), color = palette.primary,
             style = MaterialTheme.typography.labelMedium)

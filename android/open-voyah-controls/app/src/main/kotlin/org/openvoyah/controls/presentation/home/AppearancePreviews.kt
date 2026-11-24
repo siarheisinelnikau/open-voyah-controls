@@ -1,10 +1,7 @@
 package org.openvoyah.controls.presentation.home
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,7 +20,8 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -159,16 +157,15 @@ internal fun CornersSample(corners: AppCorners) {
 internal fun TransitionSample(speed: RouteTransitionSpeed) {
     val colors = MaterialTheme.colorScheme
     val travel = SampleWidth - 16.dp
-    val position = if (LocalCockpitMotion.current.enabled) {
-        val duration = CockpitMotion.routeDurations(speed).enterMillis
-        val loop = rememberInfiniteTransition(label = "transition sample")
-        val value by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(duration, PAUSE_MILLIS, CockpitMotion.Settle),
-            RepeatMode.Reverse), label = "transition sample")
-        value
-    } else 1f
+    val motion = LocalCockpitMotion.current.enabled
+    val position = remember { Animatable(if (motion) 0f else 1f) }
+    LaunchedEffect(speed, motion) {
+        position.snapTo(if (motion) 0f else 1f)
+        if (motion) position.animateTo(1f, tween(CockpitMotion.routeDurations(speed).enterMillis, easing = CockpitMotion.Settle))
+    }
     Box(Modifier.size(SampleWidth, SampleHeight), contentAlignment = Alignment.CenterStart) {
         Box(Modifier.size(SampleWidth, 4.dp).background(colors.outlineVariant, CircleShape))
-        Box(Modifier.offset(x = travel * position).size(16.dp).background(colors.primary, CircleShape))
+        Box(Modifier.offset(x = travel * position.value).size(16.dp).background(colors.primary, CircleShape))
     }
 }
 
@@ -198,5 +195,3 @@ private fun SampleFrame(background: Color, colors: ColorScheme, content: @Compos
     Box(Modifier.size(SampleWidth, SampleHeight).background(animated(background), SampleShape)
         .border(1.dp, colors.outlineVariant, SampleShape)) { content() }
 }
-
-private const val PAUSE_MILLIS = 700
