@@ -121,6 +121,10 @@ internal class HomeSettingsCoordinator(
 
     fun systemSettings() { if (active) external(Intent(Settings.ACTION_SETTINGS)) }
 
+    fun openCompanionPage(url: String) {
+        if (active) external(Intent(Intent.ACTION_VIEW, Uri.parse(url)), R.string.companion_apps_open_failed)
+    }
+
     fun language() {
         if (!active) return
         val languages = listOf("ru", "en", "kk")
@@ -254,8 +258,8 @@ internal class HomeSettingsCoordinator(
         try { if (launch == null) error(text(R.string.ui_122)) else launch() }
         catch (_: RuntimeException) { error(text(R.string.ui_122)) }
     }
-    private fun external(intent: Intent) {
-        try { activity.startActivity(intent) } catch (_: RuntimeException) { error(text(R.string.ui_85)) }
+    private fun external(intent: Intent, failureMessage: Int = R.string.ui_85) {
+        try { activity.startActivity(intent) } catch (_: RuntimeException) { error(text(failureMessage)) }
     }
     private fun error(message: String) { if (active) dialogs.message(text(R.string.ui_84), message, text(R.string.ui_83)) }
     private fun text(id: Int): String = UiText.get(id)

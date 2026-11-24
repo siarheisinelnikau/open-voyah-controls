@@ -47,7 +47,7 @@ internal object SpeechModelDownloads {
     fun download(context: Context, model: SpeechModel) {
         val app = context.applicationContext
         synchronized(jobs) {
-            if (jobs[model.id]?.isActive == true) return
+            if (model.id in jobs || SpeechModels.store(app).installed(model)) return
             mutable.update { it.copy(active = it.active + (model.id to Progress(0, model.downloadSize)), failed = it.failed - model.id) }
             jobs[model.id] = scope.launch {
                 val started = SystemClock.elapsedRealtime()
@@ -79,10 +79,7 @@ internal object SpeechModelDownloads {
                 mutable.update { it.copy(active = it.active - model.id) }
                 refresh(app)
                 synchronized(jobs) { jobs.remove(model.id) }
-                if (outcome == "installed") {
-                    SpeechModels.clearFailure(model.engine)
-                    SpeechModels.warmUp(app, "download")
-                }
+                if (outcome == "installed") SpeechModels.warmUp(app, "download")
             }
         }
     }

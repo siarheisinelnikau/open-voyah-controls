@@ -2,11 +2,11 @@
 <resources>
     <string name="voice_recognition">"Тану"</string>
     <string name="voice_recognition_engine">"Тану жүйесі"</string>
-    <string name="voice_recognition_engines_hint">"Zipformer тек орысша таниды. Ағылшын және қазақ тілдеріне Vosk қолданылады."</string>
+    <string name="voice_recognition_engines_hint">"Zipformer үйлесімді 64 биттік ARM құрылғыларында орыс тілін интернетсіз таниды. Ағылшын, қазақ тілдері үшін немесе орыс тілінің қосалқы нұсқасы ретінде Vosk моделін жүктеп алыңыз."</string>
     <string name="speech_engine_vosk">"Vosk"</string>
-    <string name="speech_engine_vosk_detail">"Интернетсіз, бас құрылғыда жұмыс істейді. Тізімдегі пәрмендерді таниды."</string>
+    <string name="speech_engine_vosk_detail">"Модель жүктелген соң интернетсіз жұмыс істейді."</string>
     <string name="speech_engine_zipformer">"Zipformer"</string>
-    <string name="speech_engine_zipformer_detail">"Интернетсіз, бас құрылғыда жұмыс істейді. Ұқсас сөз тіркестеріне сирек жауап береді. Тек орыс тілін таниды."</string>
+    <string name="speech_engine_zipformer_detail">"Қолданбаға кіріктірілген. Үйлесімді 64 биттік ARM құрылғыларында орыс тілін таниды."</string>
     <string name="voice_recognition_online_detail">"Интернет арқылы жұмыс істейді. Тізімде жоқ пәрменнің мәтіні ғана жіберіледі. Дыбыс жіберілмейді."</string>
     <string name="voice_recognition_on">"Қосулы"</string>
     <string name="voice_recognition_off">"Өшірулі"</string>
@@ -21,5 +21,5 @@
     <string name="voice_model_failed_verification">"Жүктелген файл күтілген файлға сәйкес келмеді. Ештеңе орнатылмады."</string>
     <string name="voice_model_megabytes">"%1$d МБ"</string>
     <string name="voice_listening_fallback">"Vosk тыңдап тұр: Zipformer іске қосылмады"</string>
-    <string name="voice_engine_failed">"Бұл бас құрылғыда іске қосылмады (%1$s). Vosk жұмыс істеп тұр. Қайталап көру үшін Zipformer-ді қайта таңдаңыз."</string>
+    <string name="voice_engine_failed">"Іске қосылмады (%1$s). Қайталап көру үшін Zipformer-ді таңдаңыз немесе осы тілге арналған Vosk моделін қолданыңыз."</string>
 </resources>

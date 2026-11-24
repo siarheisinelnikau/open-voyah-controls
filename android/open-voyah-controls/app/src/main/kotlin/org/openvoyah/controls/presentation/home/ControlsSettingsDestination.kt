@@ -208,6 +208,20 @@ internal fun ControlsSettingsDestination(
                 }
             },
             settingsPart(SettingsPartId.SYSTEM_ABOUT) { SystemMaintenanceSection() },
+            settingsPart(SettingsPartId.SYSTEM_COMPANIONS) {
+                CockpitSection(UiText.get(R.string.companion_apps_title), CockpitIcon.APPS,
+                    subtitle = UiText.get(R.string.companion_apps_github)) {
+                    CockpitChoice(R.string.companion_youtube, UiText.get(R.string.companion_youtube_summary)) {
+                        coordinator.openCompanionPage("https://github.com/siarheisinelnikau/youtube-web")
+                    }
+                    CockpitChoice(R.string.companion_music, UiText.get(R.string.companion_music_summary)) {
+                        coordinator.openCompanionPage("https://github.com/siarheisinelnikau/voyah-music")
+                    }
+                    CockpitChoice(R.string.companion_radio, UiText.get(R.string.companion_radio_summary)) {
+                        coordinator.openCompanionPage("https://github.com/siarheisinelnikau/voyah-radio")
+                    }
+                }
+            },
             settingsPart(SettingsPartId.SYSTEM_BACKUP) { HomeBackup(coordinator) },
             settingsPart(SettingsPartId.SYSTEM_START) { AppearanceSettings(look, AppearancePart.START, changeLook) },
             settingsPart(SettingsPartId.SYSTEM_CONNECTION) { HomeConnection(state, coordinator) },

@@ -2,11 +2,11 @@
 <resources>
     <string name="voice_recognition">Распознавание</string>
     <string name="voice_recognition_engine">Движок</string>
-    <string name="voice_recognition_engines_hint">Zipformer распознаёт только русский. Для английского и казахского работает Vosk.</string>
+    <string name="voice_recognition_engines_hint">Zipformer распознаёт русский без интернета на совместимых 64-битных ARM-устройствах. Скачайте Vosk для английского, казахского или как запасной вариант для русского.</string>
     <string name="speech_engine_vosk">Vosk</string>
-    <string name="speech_engine_vosk_detail">На магнитоле, без интернета. Узнаёт фразы из списка команд.</string>
+    <string name="speech_engine_vosk_detail">Работает без интернета после загрузки модели.</string>
     <string name="speech_engine_zipformer">Zipformer</string>
-    <string name="speech_engine_zipformer_detail">На магнитоле, без интернета. Реже срабатывает на похожих фразах. Только русский.</string>
+    <string name="speech_engine_zipformer_detail">Встроен в приложение. Распознаёт русский на совместимых 64-битных ARM-устройствах.</string>
     <string name="voice_recognition_online_detail">Через интернет. Отправляется только текст фразы, которой нет в списке команд, звук не отправляется.</string>
     <string name="voice_recognition_on">Включено</string>
     <string name="voice_recognition_off">Выключено</string>
@@ -21,5 +21,5 @@
     <string name="voice_model_failed_verification">Скачанный файл не совпал с ожидаемым. Ничего не установлено.</string>
     <string name="voice_model_megabytes">%1$d МБ</string>
     <string name="voice_listening_fallback">Слушаю через Vosk: Zipformer не запустился</string>
-    <string name="voice_engine_failed">Не запустился на этой магнитоле (%1$s). Работает Vosk; выберите Zipformer снова, чтобы повторить.</string>
+    <string name="voice_engine_failed">Не удалось запустить (%1$s). Выберите Zipformer для повторной попытки или используйте модель Vosk для этого языка.</string>
 </resources>

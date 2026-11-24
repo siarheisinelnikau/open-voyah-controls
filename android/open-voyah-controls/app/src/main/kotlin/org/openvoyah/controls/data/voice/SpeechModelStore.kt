@@ -19,6 +19,7 @@ internal class SpeechModelStore(
     private val root: File,
     private val fetch: (String) -> InputStream = ::httpsFetch,
     private val usableSpace: (File) -> Long = File::getUsableSpace,
+    private val legacyRoot: File? = null,
 ) {
     class StorageFull : IOException("Not enough free storage for the speech model")
     class Cancelled : IOException("Speech model download cancelled")
@@ -26,11 +27,26 @@ internal class SpeechModelStore(
 
     fun directory(model: SpeechModel) = File(root, model.id)
 
-    fun installed(model: SpeechModel) = File(directory(model), READY).isFile
+    fun installed(model: SpeechModel) = installedDirectory(model) != null
+
+    fun installedDirectory(model: SpeechModel): File? =
+        directory(model).takeIf { File(it, READY).isFile }
+            ?: legacyDirectory(model)?.takeIf { File(it, READY).isFile && File(it, "am/final.mdl").isFile }
+
+    /** An earlier APK could already have extracted the unchanged Vosk model into the app's files directory. */
+    private fun legacyDirectory(model: SpeechModel): File? {
+        val name = when (model.id) {
+            SpeechModelCatalog.VOSK_RU.id -> "speech-model-ru-0.22"
+            SpeechModelCatalog.VOSK_EN.id -> "speech-model-en-0.15"
+            else -> return null
+        }
+        return legacyRoot?.let { File(it, name) }
+    }
 
     fun delete(model: SpeechModel) {
-        directory(model).deleteRecursively()
-        staging(model).deleteRecursively()
+        for (folder in listOfNotNull(directory(model), staging(model), legacyDirectory(model))) {
+            if (!folder.deleteRecursively()) throw IOException("Cannot delete ${model.id}")
+        }
     }
 
     /**
@@ -60,9 +76,14 @@ internal class SpeechModelStore(
                     }
                 }
             }
+            if (!current()) throw Cancelled()
             File(staging, READY).writeText(model.id)
             val target = directory(model)
-            target.deleteRecursively()
+            if (File(target, READY).isFile) {
+                staging.deleteRecursively()
+                return
+            }
+            if (!target.deleteRecursively()) throw IOException("Cannot replace ${model.id}")
             if (!staging.renameTo(target)) throw IOException("Cannot install ${model.id}")
         } catch (failure: Throwable) {
             staging.deleteRecursively()

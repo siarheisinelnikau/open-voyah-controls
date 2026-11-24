@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="companion_apps_title">Серіктес қолданбалар</string>
+    <string name="companion_apps_github">GitHub бетін ашу үшін қолданбаны таңдаңыз.</string>
+    <string name="companion_apps_open_failed">GitHub бетін ашу мүмкін болмады. Браузердің орнатылғанын тексеріңіз.</string>
+    <string name="companion_youtube_summary">YouTube бейнелерін көлік экранынан көріңіз.</string>
+    <string name="companion_music_summary">Музыканы телефоннан Wi-Fi арқылы жіберіп, интернетсіз тыңдаңыз.</string>
+    <string name="companion_radio_summary">Интернет-радионы тыңдап, сүйікті станцияларыңызды сақтаңыз.</string>
+</resources>

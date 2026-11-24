@@ -63,7 +63,7 @@ public final class VoiceSettings {
         return LANGUAGES.contains(stored) ? stored : "ru";
     }
     public void language(String value) { update("language", value); }
-    public String engine() { return prefs.getString(ENGINE, SpeechEngine.VOSK.getKey()); }
+    public String engine() { return prefs.getString(ENGINE, SpeechEngine.DEFAULT.getKey()); }
     public void engine(String value) {
         if (SpeechEngine.Companion.fromKey(value) == null) throw new IllegalArgumentException("Invalid speech engine");
         update(ENGINE, value);

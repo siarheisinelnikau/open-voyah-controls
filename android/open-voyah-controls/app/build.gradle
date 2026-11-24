@@ -19,6 +19,18 @@ def releasePin = releaseSigner.certificate?.toLowerCase(Locale.ROOT)
 def validReleasePin = releasePin != null && (releasePin ==~ /[0-9a-f]{64}/)
 def emulatorFixture = providers.gradleProperty('ovc.emulatorFixture').getOrElse('false') == 'true'
 def runtimeAssets = layout.buildDirectory.dir('generated/runtime-assets')
+def bundledSpeechAssets = layout.buildDirectory.dir('generated/bundled-speech-assets')
+def sherpaAar = rootProject.file('dist/sherpa-onnx-2.0.2.aar')
+def stageBundledVoiceModel = tasks.register('stageBundledVoiceModel', Exec) {
+    description = 'Stage the pinned Zipformer model and sherpa-onnx Android runtime.'
+    workingDir rootProject.projectDir
+    inputs.file(rootProject.file('tools/prepare_voice_model.py'))
+    outputs.dir(bundledSpeechAssets)
+    outputs.file(sherpaAar)
+    def command = ['python', 'tools/prepare_voice_model.py', '--assets', bundledSpeechAssets.get().asFile.absolutePath]
+    if (gradle.startParameter.offline) command += '--offline'
+    commandLine command
+}
 // Text overlays for the 32-bit factory apps (docs/FIRMWARE.md, "Resource overlays for 32-bit apps"). The device script
 // is always bundled; the overlay APKs only when the build is pointed at decoded copies of the factory APKs
 // (ovc.oemResources) and the APKs themselves (ovc.oemApks). ovc.overlayFingerprint and ovc.overlayBuildDate pin them to
@@ -124,6 +136,12 @@ android {
         buildConfig = true
     }
     sourceSets.main.assets.srcDir(runtimeAssets)
+    sourceSets.main.assets.srcDir(bundledSpeechAssets)
+    // Worktrees prepared for older versions can still have the unpacked Vosk assets locally.
+    androidResources {
+        ignoreAssetsPatterns.addAll(['!.svn', '!.git', '!.ds_store', '!*.scc', '.*', '<dir>_*',
+            '!CVS', '!thumbs.db', '!picasa.ini', '!*~', '<dir>speech-model-ru', '<dir>speech-model-en'])
+    }
     sourceSets.main.assets.srcDir(textOverlayScript)
     if (!oemResourcesPath.isEmpty()) sourceSets.main.assets.srcDir(textOverlayApks)
     if (localTextOverlays != null) sourceSets.debug.assets.srcDir(localTextOverlayApks)
@@ -147,11 +165,6 @@ kotlin {
     compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 }
 }
 
-// sherpa-onnx runs the downloadable Zipformer recognizer. The AAR is not on Maven Central; it is pinned like the
-// Vosk model archives and kept in dist/ (see docs/VOICE.md).
-def sherpaAar = rootProject.file('dist/sherpa-onnx-2.0.2.aar')
-def sherpaAarSha256 = '6420cfb86c2ef8462dadd77b2202b7430487bdfb2bc715e9ce2864871209a80e'
-
 android {
     packaging {
         jniLibs {
@@ -166,7 +179,7 @@ android {
 }
 
 dependencies {
-    implementation files(sherpaAar)
+    implementation files(sherpaAar).builtBy(stageBundledVoiceModel)
     implementation project(':core')
     implementation platform('androidx.compose:compose-bom:2025.05.01')
     implementation 'androidx.activity:activity-compose:1.10.1'
@@ -240,24 +253,6 @@ def stageRuntimeMetadata = tasks.register('stageRuntimeMetadata', Sync) {
     }
     into runtimeAssets
 }
-def verifyVoiceAssets = tasks.register('verifyVoiceAssets', Exec) {
-    group = 'verification'
-    description = 'Verify both complete offline speech models against pinned archives.'
-    workingDir rootProject.projectDir
-    commandLine 'python', 'tools/verify_voice_assets.py'
-}
-def verifySherpaRuntime = tasks.register('verifySherpaRuntime') {
-    group = 'verification'
-    description = 'Check the pinned sherpa-onnx Android runtime in dist/.'
-    inputs.file(sherpaAar).optional()
-    doLast {
-        if (!sherpaAar.isFile()) {
-            throw new GradleException('Put sherpa-onnx-2.0.2.aar from https://github.com/k2-fsa/sherpa-onnx/releases/tag/v2.0.2 into android/open-voyah-controls/dist.')
-        }
-        def actual = java.security.MessageDigest.getInstance('SHA-256').digest(sherpaAar.bytes).encodeHex().toString()
-        if (actual != sherpaAarSha256) throw new GradleException('dist/sherpa-onnx-2.0.2.aar does not match its pinned SHA-256.')
-    }
-}
 def stageTextOverlayScript = tasks.register('stageTextOverlayScript', Sync) {
     from(rootProject.file('tools/text-overlays.sh')) { into 'text-overlays' }
     into textOverlayScript
@@ -287,6 +282,6 @@ def stageLocalTextOverlays = tasks.register('stageLocalTextOverlays', Sync) {
     into localTextOverlayApks
 }
 tasks.named('preBuild').configure {
-    dependsOn 'compileFridaHook', stageRuntimeMetadata, verifyVoiceAssets, verifySherpaRuntime, stageTextOverlayScript, buildTextOverlays,
+    dependsOn 'compileFridaHook', stageRuntimeMetadata, stageBundledVoiceModel, stageTextOverlayScript, buildTextOverlays,
         stageLocalTextOverlays
 }

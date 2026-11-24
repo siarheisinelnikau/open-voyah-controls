@@ -96,7 +96,7 @@ internal class VoskDecoder(private val model: Model, private val recognizer: Rec
     override fun close() = recognizer.close()
 }
 
-/** The offline Russian Zipformer with its Silero voice activity detector, as downloaded into [directory]. */
+/** The offline Russian Zipformer with its Silero voice activity detector. */
 internal class ZipformerSpeechModel private constructor(val recognizer: OfflineRecognizer, val vad: Vad) :
     LoadedSpeechModel, AutoCloseable {
     override fun close() {
@@ -110,7 +110,7 @@ internal class ZipformerSpeechModel private constructor(val recognizer: OfflineR
 
         fun open(directory: File): ZipformerSpeechModel {
             fun file(name: String) = File(directory, name).also {
-                if (!it.isFile) throw IOException(UiText.get(R.string.voice_model_not_downloaded))
+                if (!it.isFile) throw IOException("Bundled speech model file is missing: $name")
             }
             val vocab = File(directory, "bpe.vocab")
             if (!vocab.isFile) {

@@ -2,11 +2,11 @@
 <resources>
     <string name="voice_recognition">Recognition</string>
     <string name="voice_recognition_engine">Engine</string>
-    <string name="voice_recognition_engines_hint">Zipformer recognizes Russian only. For English and Kazakh, Vosk is used.</string>
+    <string name="voice_recognition_engines_hint">Zipformer works offline in Russian on supported 64-bit ARM devices. Download a Vosk model for English, Kazakh or Russian fallback.</string>
     <string name="speech_engine_vosk">Vosk</string>
-    <string name="speech_engine_vosk_detail">On the head unit, without internet. Recognizes the phrases of the command list.</string>
+    <string name="speech_engine_vosk_detail">Works offline after the model is downloaded.</string>
     <string name="speech_engine_zipformer">Zipformer</string>
-    <string name="speech_engine_zipformer_detail">On the head unit, without internet. Fewer false commands on similar phrases. Russian only.</string>
+    <string name="speech_engine_zipformer_detail">Included with the app. Recognizes Russian on supported 64-bit ARM devices.</string>
     <string name="voice_recognition_online_detail">Online. Only the text of a phrase that is not in the command list is sent, never the sound.</string>
     <string name="voice_recognition_on">On</string>
     <string name="voice_recognition_off">Off</string>
@@ -22,5 +22,5 @@
     <string name="voice_model_failed_verification">The downloaded file did not match. Nothing was installed.</string>
     <string name="voice_model_megabytes">%1$d MB</string>
     <string name="voice_listening_fallback">Listening with Vosk: Zipformer did not start</string>
-    <string name="voice_engine_failed">Did not start on this head unit (%1$s). Vosk is used; choose Zipformer again to retry.</string>
+    <string name="voice_engine_failed">Could not start (%1$s). Select Zipformer to retry, or use the Vosk model for this language.</string>
 </resources>

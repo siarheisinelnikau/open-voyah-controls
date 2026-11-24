@@ -193,7 +193,6 @@ internal fun VoiceDestination(back: () -> Unit, tryVoice: () -> Unit) {
             load = { systemAction { loadVoice.launch(arrayOf("*/*")) } },
             app = activity.applicationContext)
     }
-    val downloads by SpeechModelDownloads.state.collectAsState()
     val engineFailures by SpeechModels.engineFailures.collectAsState()
     LaunchedEffect(activity) { withContext(Dispatchers.IO) { SpeechModelDownloads.refresh(activity) } }
     val config = state.configuration
@@ -210,7 +209,7 @@ internal fun VoiceDestination(back: () -> Unit, tryVoice: () -> Unit) {
 
     val status = state.message?.let { (it.resource?.let(::voiceText).orEmpty() + it.detail.orEmpty()) }
     VoiceSettingsScreen(config.catalog, config.language,
-        RecognitionEngine.effective(config.engine, config.language, downloads.installed, engineFailures.keys),
+        RecognitionEngine.effective(config.engine, config.language, SpeechModels.zipformerSupported(), engineFailures.keys),
         config.vehicleCommandsReviewed, config.assigned, status,
         microphoneState, { pendingTry = false; recoverMicrophone() }, { command ->
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) actions.showCommand(command)
@@ -267,38 +266,40 @@ private class VoiceDestinationDialogs(
         dialogs.show { close ->
             val downloads by SpeechModelDownloads.state.collectAsState()
             val failures by SpeechModels.engineFailures.collectAsState()
-            val zipformer = SpeechModelCatalog.ZIPFORMER_RU
+            val zipformerSupported = SpeechModels.zipformerSupported()
             CockpitModal(voiceText(R.string.voice_recognition), footer = {
                 CockpitTextAction(voiceText(R.string.ui_172), close)
             }) {
-                val running = RecognitionEngine.effective(config.engine, config.language, downloads.installed, failures.keys)
+                val running = RecognitionEngine.effective(config.engine, config.language, zipformerSupported, failures.keys)
                 RecognitionHeading(R.string.voice_recognition_engine)
-                for (engine in RecognitionEngine.entries) {
+                for (engine in listOf(RecognitionEngine.ZIPFORMER, RecognitionEngine.VOSK)) {
                     val needed = SpeechModelCatalog.forEngine(engine.engine, config.language)
-                        ?: SpeechModelCatalog.forEngine(engine.engine, "ru")?.takeIf { engine.engine == SpeechEngine.ZIPFORMER }
-                    val available = engine.engine.supports(config.language) &&
-                        (needed == null || needed.id in downloads.installed)
+                    val available = when (engine) {
+                        RecognitionEngine.ZIPFORMER -> zipformerSupported && engine.engine.supports(config.language)
+                        RecognitionEngine.VOSK -> needed?.id in downloads.installed
+                    }
                     val detail = failures[engine.engine]?.let { voiceText(R.string.voice_engine_failed).format(it) }
                         ?: voiceText(engine.detail)
                     CockpitOptionRow(voiceText(engine.label), detail, engine == running, enabled = available) {
                         close()
-                        if (engine.engine.key != config.engine) model.engine(engine.engine.key)
+                        if (engine.engine.key != config.engine || engine.engine in failures) model.engine(engine.engine.key)
                     }
-                    if (engine.engine == SpeechEngine.ZIPFORMER) ModelDownload(zipformer, downloads)
                 }
                 Text(voiceText(R.string.voice_recognition_engines_hint), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 RecognitionHeading(R.string.voice_language)
                 for (code in SpeechEngine.LANGUAGES) {
-                    val needed = SpeechModelCatalog.forEngine(SpeechEngine.VOSK, code)
-                    val available = needed == null || needed.id in downloads.installed
+                    val needed = checkNotNull(SpeechModelCatalog.forEngine(SpeechEngine.VOSK, code))
+                    val available = needed.id in downloads.installed ||
+                        SpeechEngine.forLanguage(SpeechEngine.fromKey(config.engine), code,
+                            zipformerSupported && SpeechEngine.ZIPFORMER !in failures) == SpeechEngine.ZIPFORMER
                     CockpitOptionRow(voiceText(recognitionLanguageName(code)),
-                        if (available) null else voiceText(R.string.voice_model_needed).format(megabytes(needed!!)),
+                        if (available) null else voiceText(R.string.voice_model_needed).format(megabytes(needed)),
                         config.language == code, enabled = available) {
                         close()
                         if (config.language != code) model.language(code)
                     }
-                    if (needed != null) ModelDownload(needed, downloads)
+                    ModelDownload(needed, downloads)
                 }
                 RecognitionHeading(R.string.voice_online_title)
                 CockpitChoice(voiceText(if (config.onlineConfigured) R.string.voice_recognition_on else R.string.voice_recognition_off),

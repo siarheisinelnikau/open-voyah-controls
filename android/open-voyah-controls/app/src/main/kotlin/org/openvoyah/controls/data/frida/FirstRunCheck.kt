@@ -15,7 +15,7 @@ import org.openvoyah.controls.ButtonAccessibilityService
 import org.openvoyah.controls.R
 import org.openvoyah.controls.data.settings.SettingsStore
 import org.openvoyah.controls.data.settings.VoiceSettings
-import org.openvoyah.controls.data.voice.VoskModels
+import org.openvoyah.controls.data.voice.BundledVoiceModel
 import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.setup.AgentReadiness
 import org.openvoyah.controls.domain.setup.SetupProgress
@@ -117,7 +117,11 @@ internal class FirstRunCheck(private val context: Context) {
             if (error !is StepTimeout) ControlsLog.warn("first_run_check", error, "phase", phase)
             result = when (phase) {
                 "root" -> R.string.setup_root_failed
-                "voice" -> if (error is VoskModels.StorageUnavailable) R.string.setup_space_failed else R.string.setup_voice_failed
+                "voice" -> when (error) {
+                    is BundledVoiceModel.StorageUnavailable -> R.string.setup_space_failed
+                    is SpeechModels.ModelNotDownloaded -> R.string.voice_model_not_downloaded
+                    else -> R.string.setup_voice_failed
+                }
                 else -> R.string.setup_handlers_failed
             }
             update { current -> current.settleUnfinished { _, _ -> StepState.Skipped(StepNote(R.string.setup_note_not_reached)) } }

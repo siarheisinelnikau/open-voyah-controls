@@ -3,36 +3,34 @@ package org.openvoyah.controls.data.voice
 import android.content.ContextWrapper
 import android.test.AndroidTestCase
 import java.io.File
-import java.util.concurrent.atomic.AtomicLong
 
 @Suppress("DEPRECATION")
 class VoiceModelStorageTest : AndroidTestCase() {
-    fun testLowSpaceStopsBeforeCopyAndRetryLoadsTheNativeModel() {
+    fun testLowSpaceStopsBeforeCopyAndRetryStagesTheBundledModel() {
         val root = File.createTempFile("voice-space-", "", context.cacheDir)
         check(root.delete() && root.mkdir())
         val scoped = object : ContextWrapper(context) {
             override fun getFilesDir(): File = root
         }
-        val free = AtomicLong(0)
-        val models = VoskModels { free.get() }
+        var free = 0L
+        val model = BundledVoiceModel { free }
         val existing = File(root, "existing-settings")
         existing.writeText("keep")
         try {
             try {
-                models.load(scoped, "en") { true }
+                model.prepare(scoped) { true }
                 fail("Insufficient space must stop before model extraction")
-            } catch (_: VoskModels.StorageUnavailable) { }
-            assertFalse(File(root, "speech-model-en-0.15").exists())
+            } catch (_: BundledVoiceModel.StorageUnavailable) { }
+            assertEquals(listOf("existing-settings"), root.list()?.toList())
             assertEquals("keep", existing.readText())
-            free.set(256L * 1024 * 1024)
-            assertNotNull(models.load(scoped, "en") { true })
-            assertTrue(File(root, "speech-model-en-0.15/ready").isFile)
-            models.release()
-            free.set(0)
-            assertNotNull(models.load(scoped, "en") { true })
+            free = 256L * 1024 * 1024
+            val ready = model.prepare(scoped) { true }
+            assertEquals(70_876_638L, File(ready, "encoder.int8.onnx").length())
+            assertTrue(File(ready, "ready").isFile)
+            free = 0
+            assertEquals(ready, model.prepare(scoped) { true })
             assertEquals("keep", existing.readText())
         } finally {
-            models.release()
             check(root.canonicalPath.startsWith(context.cacheDir.canonicalPath + File.separator))
             root.walkBottomUp().forEach { check(it.delete()) }
         }

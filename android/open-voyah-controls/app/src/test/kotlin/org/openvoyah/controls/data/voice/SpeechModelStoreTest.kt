@@ -142,8 +142,22 @@ class SpeechModelStoreTest {
                 assertTrue(source.url, hash != null && Regex("[0-9a-f]{64}").matches(hash))
             }
         }
-        assertEquals(SpeechModelCatalog.ZIPFORMER_RU, SpeechModelCatalog.forEngine(SpeechEngine.ZIPFORMER, "ru"))
+        assertEquals(null, SpeechModelCatalog.forEngine(SpeechEngine.ZIPFORMER, "ru"))
+        assertEquals(SpeechModelCatalog.VOSK_RU, SpeechModelCatalog.forEngine(SpeechEngine.VOSK, "ru"))
+        assertEquals(SpeechModelCatalog.VOSK_EN, SpeechModelCatalog.forEngine(SpeechEngine.VOSK, "en"))
         assertEquals(SpeechModelCatalog.VOSK_KK, SpeechModelCatalog.forEngine(SpeechEngine.VOSK, "kk"))
-        assertEquals(null, SpeechModelCatalog.forEngine(SpeechEngine.VOSK, "ru"))
+    }
+
+    @Test fun anAlreadyExtractedVoskModelIsReusedAfterUpgrade() {
+        val legacy = temporary.newFolder("speech-model-ru-0.22")
+        val model = SpeechModelCatalog.VOSK_RU
+        val store = SpeechModelStore(File(temporary.root, "speech-models"), legacyRoot = temporary.root)
+        File(legacy, "am").mkdir()
+        File(legacy, "am/final.mdl").writeText("legacy model")
+        assertFalse(store.installed(model))
+        File(legacy, "ready").writeText("1")
+        assertEquals(legacy, store.installedDirectory(model))
+        store.delete(model)
+        assertFalse(store.installed(model))
     }
 }
