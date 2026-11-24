@@ -9,6 +9,7 @@
     <string name="voice_vehicle_blocked">"Автокөлікке жіберілетін сұрау бұғатталды."</string>
     <string name="voice_requires_stationary">"Бұл пәрменді орындау үшін автокөлік тоқтап тұруы керек."</string>
     <string name="voice_vehicle_state_unavailable">"Автокөліктің күйі қолжетімсіз. Пәрмен бұғатталды."</string>
+    <string name="voice_brightness_display_hot">"Экран тым қызып кетті, жарықтығы бұғатталды. Салқындағаннан кейін қайталап көріңіз."</string>
     <string name="voice_vehicle_switched_off">"Бұл пәрменге «Баптаулар → Жүйе → Рұқсат етілген әрекеттер» бөлімінде тыйым салынған."</string>
     <string name="voice_vehicle_commands">"Автокөлік пәрмендері"</string>
     <string name="voice_vehicle_commands_hint">"Әдепкіде барлық пәрменге рұқсат берілген. Өшірілген пәрмен дауыс, сценарий және автоматика арқылы орындалмайды. «Баптаулар → Жүйе → Рұқсат етілген әрекеттер» бөлімінде оны тексерілмеген деп те белгілеуге болады."</string>

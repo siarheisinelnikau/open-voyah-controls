@@ -50,7 +50,7 @@ export class VoiceCommandFailure extends Error {
 // the Park and zero-speed check. A new command needs Park until it is added here on purpose.
 export const MOTION_COMMANDS = new Set([
     'LowBeam', 'AutoMode', 'RearFog', 'AdaptiveLightOn', 'AdaptiveLightOff',
-    'BackLightModeNight', 'BackLightModeDay', 'BackLightModeAuto',
+    'BackLightModeNight', 'BackLightModeDay', 'BackLightModeAuto', 'SetBrightness',
     'DecreaseTemperature', 'FastDecreaseTemperature', 'IncreaseTemperature', 'FastIncreaseTemperature',
     'FlowBody', 'FlowBodyLegs', 'FlowLegs', 'FlowWindow', 'FlowWindowLegs',
     'SetDriverTemperature', 'SetPassengerTemperature', 'SetFanSpeed',

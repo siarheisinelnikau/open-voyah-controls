@@ -3,15 +3,14 @@ package org.openvoyah.controls.presentation.voice
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.openvoyah.controls.core.VoiceCatalog
-import org.openvoyah.controls.core.voice.ClimatePhrases
-import org.openvoyah.controls.core.voice.VolumePhrases
+import org.openvoyah.controls.core.voice.SpokenValueCommands
 
 class VoiceCommandGuideTest {
     @Test
     fun eachBuiltInCommandHasADescriptionInEveryRecognitionCatalog() {
         for ((language, resource) in mapOf("en" to "voice-catalog-en", "ru" to "voice-catalog", "kk" to "voice-catalog-kk")) {
             val input = checkNotNull(VoiceCatalog::class.java.getResourceAsStream("/$resource.tsv"))
-            val catalog = VoiceCatalog(input, listOf(VolumePhrases.command(language)) + ClimatePhrases.commands(language))
+            val catalog = VoiceCatalog(input, SpokenValueCommands.commands(language))
             assertEquals(language, catalog.all().map { it.id() }.toSet(), guidedVoiceCommandIds)
         }
     }

@@ -26,6 +26,7 @@ internal fun VoiceFeedback.speechText(recognitionContext: Context): String = whe
         VoiceOutcome.PARK_REQUIRED -> R.string.voice_requires_park
         VoiceOutcome.STANDSTILL_REQUIRED -> R.string.voice_requires_stationary
         VoiceOutcome.VEHICLE_STATE_UNAVAILABLE -> R.string.voice_vehicle_state_unavailable
+        VoiceOutcome.DISPLAY_TOO_HOT -> R.string.voice_brightness_display_hot
         VoiceOutcome.VEHICLE_UPDATE_REQUIRED -> R.string.voice_refresh_bridge
         VoiceOutcome.VEHICLE_CONNECT_REQUIRED -> R.string.ui_19
         VoiceOutcome.VEHICLE_SETUP_REQUIRED -> R.string.production_broker_unavailable

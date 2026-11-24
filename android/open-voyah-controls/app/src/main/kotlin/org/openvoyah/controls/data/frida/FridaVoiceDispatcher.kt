@@ -13,6 +13,7 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.voice.ClimatePhrases
 import org.openvoyah.controls.core.voice.AgentPhrases
+import org.openvoyah.controls.core.voice.BrightnessPhrases
 import org.openvoyah.controls.core.voice.VoiceCommandUseCase.Destination
 import org.openvoyah.controls.core.voice.VoiceCommandUseCase.Request
 import org.openvoyah.controls.data.settings.VoiceSettings
@@ -63,6 +64,7 @@ internal class FridaVoiceDispatcher(
         val planPhrase = request.phrase().takeIf { id in phraseDrivenPlans }?.let { AgentPhrases.forAgent(id, it) }.orEmpty()
         val options = settings.options(planPhrase).put("profile", profile)
         if (ClimatePhrases.supports(id)) options.put("climateValue", ClimatePhrases.value(id, request.phrase()))
+        if (id == BrightnessPhrases.COMMAND_ID) options.put("brightness", BrightnessPhrases.percentage(request.phrase()))
         val reply = try {
             if (stillAllowed == null) bridge.sendRecognizedVoice(id, options)
             else bridge.sendRecognizedVoice(id, options) { stillAllowed() }
@@ -110,6 +112,7 @@ internal class FridaVoiceDispatcher(
         "requires Parking gear" in message -> refused(R.string.voice_requires_park)
         "requires zero vehicle speed" in message -> refused(R.string.voice_requires_stationary)
         "Vehicle state unavailable" in message -> refused(R.string.voice_vehicle_state_unavailable)
+        "display is too hot" in message -> refused(R.string.voice_brightness_display_hot)
         "not approved for this head unit" in message -> refused(R.string.voice_vehicle_approval_required)
         message == UiText.get(R.string.voice_refresh_bridge) -> refused(R.string.voice_refresh_bridge)
         message == UiText.get(R.string.ui_19) || message == UiText.get(R.string.production_connect_required) -> refused(R.string.ui_19)
@@ -124,6 +127,7 @@ internal class FridaVoiceDispatcher(
         R.string.voice_requires_park -> VoiceOutcome.PARK_REQUIRED
         R.string.voice_requires_stationary -> VoiceOutcome.STANDSTILL_REQUIRED
         R.string.voice_vehicle_state_unavailable -> VoiceOutcome.VEHICLE_STATE_UNAVAILABLE
+        R.string.voice_brightness_display_hot -> VoiceOutcome.DISPLAY_TOO_HOT
         R.string.voice_vehicle_approval_required -> VoiceOutcome.VEHICLE_APPROVAL_REQUIRED
         R.string.voice_refresh_bridge -> VoiceOutcome.VEHICLE_UPDATE_REQUIRED
         R.string.ui_19 -> VoiceOutcome.VEHICLE_CONNECT_REQUIRED

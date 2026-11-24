@@ -39,6 +39,18 @@ export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR
             function reviewed(command) {
                 return approval !== null;
             }
+            // Factory Settings locks its brightness sliders while the display reports a high temperature level
+            // (1–3). Without a reading (-1, or no power service in this launcher) the request goes on, as the
+            // launcher's own slider does.
+            function displayTooHot() {
+                let level;
+                try {
+                    const power = Java.use('com.qinggan.launcher.base.manager.PowerManagerWrapper').getPowerManager();
+                    if (power === null) return false;
+                    level = power.getLCDTemp();
+                } catch (_) { return false; }
+                return level === 1 || level === 2 || level === 3;
+            }
             function guard(manager, expires, command = '') {
                 if (now() >= expires) throw new VoiceCommandFailure('blocked', 'Vehicle command expired');
                 requireSafeState(command, manager, now);
@@ -111,6 +123,24 @@ export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR
                         attempted = true;
                         if(!light.setDimmer.overload('int','int').call(light,mode,0)) throw Error('Brightness service rejected the command');
                         report(request.id,'accepted','Brightness mode requested'); return;
+                    }
+                    if (request.command === 'SetBrightness') {
+                        const level = request.options?.brightness;
+                        if (!Number.isInteger(level) || level < 1 || level > 100)
+                            throw Error('Brightness is outside the supported range');
+                        const Backlight = Java.use('com.qinggan.system.BackLightManager');
+                        const light = Backlight.getInstance(application, null);
+                        guard(canManager(), request.expires, request.command);
+                        if (displayTooHot()) throw new VoiceCommandFailure('blocked', 'The display is too hot');
+                        attempted = true;
+                        // The launcher's own brightness slider: level 1–100, flags 1, the main screen.
+                        if (!light.setBackLight.overload('int','int','int').call(light, level, 1, 1))
+                            throw Error('Brightness service rejected the command');
+                        let current = null;
+                        try { current = light.getBackLight.overload('int').call(light, 1); } catch (_) { /* Unconfirmed. */ }
+                        if (current === level) report(request.id, 'verified', 'Vehicle reported the target state');
+                        else report(request.id, 'accepted', 'Brightness requested');
+                        return;
                     }
                     if(request.command==='Sentry') {
                         const Intent=Java.use('android.content.Intent');

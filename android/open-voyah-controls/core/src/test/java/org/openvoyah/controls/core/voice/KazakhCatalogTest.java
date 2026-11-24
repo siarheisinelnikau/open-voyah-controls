@@ -2,16 +2,12 @@ package org.openvoyah.controls.core.voice;
 
 import static org.junit.Assert.*;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.junit.Test;
 import org.openvoyah.controls.core.VoiceCatalog;
 
 public class KazakhCatalogTest {
     private VoiceCatalog catalog(String resource, String language) throws Exception {
-        List<VoiceCatalog.Command> extra = new ArrayList<>(ClimatePhrases.commands(language));
-        extra.add(VolumePhrases.command(language));
-        return new VoiceCatalog(getClass().getResourceAsStream(resource), extra);
+        return new VoiceCatalog(getClass().getResourceAsStream(resource), SpokenValueCommands.commands(language));
     }
 
     @Test public void theKazakhCatalogHasEveryCommandWithItsBuiltInPhrases() throws Exception {

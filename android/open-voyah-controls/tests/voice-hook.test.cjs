@@ -12,7 +12,7 @@ const commands=['EnableHeatDriverLevelOne','EnableHeatRearLeftLevelOne','OpenTru
 const releasedCatalog=require('../app/src/main/assets/voice/verified-commands.json');
 function harness(options={}) {
     let raw=options.initialRaw ?? '',poll,now=100000,sequence=0,roofReads=0,canRequests=0;
-    const logs=[],writes=[],retained=[],bundles=[],queries=[],events=[];
+    const logs=[],writes=[],retained=[],bundles=[],queries=[],events=[],backlight=[];
     const device={...identity,...options.device};
     const catalog=options.catalog ?? {schema:1,headUnits:[{...identity,profile:'FREE',commands}]};
     const target={argumentTypes:[{className:'VehicleState'},{className:'int'}],call(m,p,v){writes.push([p.name,v]);return options.reject?-1:0;}};
@@ -48,6 +48,15 @@ function harness(options={}) {
         'android.os.Build$VERSION':{SDK_INT:{value:device.sdk}},
         'com.qinggan.launcher.base.manager.CanBusManagerWrapper':{getCanBusManager(){canRequests++;return options.noManager?null:manager;}},
         'com.qinggan.launcher.base.config.AppConfig':{isH97:()=>options.h97 === true},
+        'com.qinggan.system.BackLightManager':{getInstance(){return {
+            setBackLight:{overload(...types){assert.deepEqual(types,['int','int','int']);return {call(_light,...args){
+                backlight.push(args);return options.backlightRejected !== true;}};}},
+            getBackLight:{overload(...types){assert.deepEqual(types,['int']);return {call(_light,screen){
+                if(options.backlightReadback === 'throw')throw Error('service restarting');
+                return options.backlightReadback ?? (screen === 1 ? backlight.at(-1)?.[0] : -1);}};}},
+        };}},
+        'com.qinggan.launcher.base.manager.PowerManagerWrapper':{getPowerManager(){
+            return options.lcdTemp === null ? null : {getLCDTemp(){return options.lcdTemp ?? 0;}};}},
         'com.qinggan.os.SystemProperties':{get(){return '10000001';}},
         'android.net.Uri':{parse:x=>x},
         'android.os.Bundle':{$new(){return {values:{},putInt(k,v){this.values[k]=v;},putLong(k,v){this.values[k]=v;},putBoolean(k,v){this.values[k]=v;}};}},
@@ -58,9 +67,10 @@ function harness(options={}) {
     };
     const Java={array:(type,values)=>values,perform:fn=>fn(),performNow:fn=>fn(),use:name=>{if(!classes[name])throw Error('missing '+name);return classes[name];},
         retain:o=>{const r=Object.assign({},o,{$dispose(){r.disposed=true;}});retained.push(r);return r;}};
+    if(options.noPowerWrapper)delete classes['com.qinggan.launcher.base.manager.PowerManagerWrapper'];
     vm.runInNewContext(modules+'\ninstallVoice(Java);',{catalog,plans:require('../hooks/voice-plans.json'),Java,console:{log:s=>logs.push(s)},
         setInterval:fn=>poll=fn,setTimeout:(fn,ms)=>{now+=ms;queueMicrotask(fn);},Date:{now:()=>now+(options.wallOffset ?? 0)}});
-    return {logs,writes,retained,bundles,queries,events,get canRequests(){return canRequests;},
+    return {logs,writes,retained,bundles,queries,events,backlight,get canRequests(){return canRequests;},
         send(command,extra={}){raw=JSON.stringify({schema:3,id:(++sequence).toString(16).padStart(32,'0'),command,
             expires:now+12000,confirmed:true,...extra});poll();},poll:()=>poll()};
 }
@@ -351,7 +361,7 @@ test('every command allowed in motion exists in the voice catalog', () => {
     vm.runInNewContext(source('voice-safety.js') + '\nthis.ids = [...MOTION_COMMANDS];', context);
     const catalog = fs.readFileSync(path.join(__dirname, '../core/src/main/resources/voice-catalog-en.tsv'), 'utf8')
         .split(/\r?\n/).filter(line => line && !line.startsWith('#')).map(line => line.split('\t')[0]);
-    const known = new Set([...catalog, 'SetDriverTemperature', 'SetPassengerTemperature', 'SetFanSpeed']);
+    const known = new Set([...catalog, 'SetDriverTemperature', 'SetPassengerTemperature', 'SetFanSpeed', 'SetBrightness']);
     assert.equal(JSON.stringify(context.ids.filter(id => !known.has(id))), '[]');
     assert.ok(context.ids.length > 60);
     for (const parked of ['LampOff', 'PositionLamp', 'OpenTrunkCommand', 'CloseTrunkCommand', 'EnableTrunkCommand',
@@ -367,4 +377,58 @@ test('the agent product profiles match core Firmware.java', () => {
     vm.runInContext(source('voice-safety.js').replace(/^.*catalog.*from.*$/m,'') + '\nthis.profiles = PRODUCT_PROFILES;', context);
     assert.ok(Object.keys(expected).length >= 10);
     assert.deepEqual({...context.profiles}, expected);
+});
+
+test('spoken brightness moves the main screen like the launcher slider and confirms it from the service', async () => {
+    const h = harness({gear:'Drive', speed:60});
+    h.send('SetBrightness', {options:{brightness:30}});
+    await settle();
+    assert.deepEqual(h.backlight, [[30, 1, 1]]);
+    assert.equal(h.writes.length, 0);
+    assert.ok(h.logs.some(line => line.includes('"status":"verified"')));
+    const lagging = harness({backlightReadback:55});
+    lagging.send('SetBrightness', {options:{brightness:1}});
+    await settle();
+    assert.deepEqual(lagging.backlight, [[1, 1, 1]]);
+    assert.ok(lagging.logs.some(line => line.includes('"status":"accepted"')));
+    const unreadable = harness({backlightReadback:'throw'});
+    unreadable.send('SetBrightness', {options:{brightness:100}});
+    await settle();
+    assert.deepEqual(unreadable.backlight, [[100, 1, 1]]);
+    assert.ok(unreadable.logs.some(line => line.includes('"status":"accepted"')));
+});
+
+test('brightness outside 1-100 or without a level never reaches the service', async () => {
+    for (const extra of [{options:{brightness:0}}, {options:{brightness:101}}, {options:{brightness:'30'}},
+        {options:{brightness:30.5}}, {options:{}}, {}]) {
+        const h = harness();
+        h.send('SetBrightness', extra);
+        await settle();
+        assert.equal(h.backlight.length, 0, JSON.stringify(extra));
+        assert.ok(h.logs.some(line => line.includes('"status":"blocked"')), JSON.stringify(extra));
+    }
+});
+
+test('a hot display keeps its brightness as factory Settings does; no reading lets the request through', async () => {
+    for (const lcdTemp of [1, 2, 3]) {
+        const hot = harness({lcdTemp});
+        hot.send('SetBrightness', {options:{brightness:80}});
+        await settle();
+        assert.equal(hot.backlight.length, 0);
+        assert.ok(hot.logs.some(line => line.includes('"status":"blocked"') && line.includes('The display is too hot')));
+    }
+    for (const options of [{lcdTemp:-1}, {lcdTemp:0}, {lcdTemp:null}, {noPowerWrapper:true}]) {
+        const h = harness(options);
+        h.send('SetBrightness', {options:{brightness:80}});
+        await settle();
+        assert.deepEqual(h.backlight, [[80, 1, 1]], JSON.stringify(options));
+    }
+});
+
+test('a rejected brightness write is reported as unknown, not as applied', async () => {
+    const h = harness({backlightRejected:true});
+    h.send('SetBrightness', {options:{brightness:40}});
+    await settle();
+    assert.deepEqual(h.backlight, [[40, 1, 1]]);
+    assert.ok(h.logs.some(line => line.includes('"status":"unknown"') && line.includes('rejected')));
 });

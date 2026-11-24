@@ -10,9 +10,8 @@ import org.json.JSONObject;
 import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
 import org.openvoyah.controls.core.VoiceCatalog;
-import org.openvoyah.controls.core.voice.ClimatePhrases;
+import org.openvoyah.controls.core.voice.SpokenValueCommands;
 import org.openvoyah.controls.core.voice.VoiceAudioOptions;
-import org.openvoyah.controls.core.voice.VolumePhrases;
 import org.openvoyah.controls.diagnostics.ControlsLog;
 import org.openvoyah.controls.domain.audio.DuckSettings;
 import org.openvoyah.controls.domain.audio.StartupVolume;
@@ -57,12 +56,7 @@ public final class VoiceSettings {
     private final SharedPreferences prefs;
     public VoiceSettings(Context context) { prefs = context.getSharedPreferences("voice", Context.MODE_PRIVATE); }
     public static VoiceCatalog catalog() throws IOException {
-        return new VoiceCatalog(VoiceSettings.class.getResourceAsStream("/voice-catalog.tsv"), builtIns("ru"));
-    }
-    private static List<VoiceCatalog.Command> builtIns(String language) {
-        List<VoiceCatalog.Command> commands = new ArrayList<>(ClimatePhrases.commands(language));
-        commands.add(VolumePhrases.command(language));
-        return commands;
+        return new VoiceCatalog(VoiceSettings.class.getResourceAsStream("/voice-catalog.tsv"), SpokenValueCommands.commands("ru"));
     }
     public String language() {
         String stored = prefs.getString("language", "ru");
@@ -328,7 +322,7 @@ public final class VoiceSettings {
     }
 
     public VoiceCatalog withContacts() throws IOException {
-        List<VoiceCatalog.Command> extra = builtIns(language());
+        List<VoiceCatalog.Command> extra = SpokenValueCommands.commands(language());
         for(var entry:prefs.getAll().entrySet()) if(entry.getKey().startsWith(CONTACT_PREFIX)) {
             try {
                 JSONObject contact=new JSONObject((String)entry.getValue()); String name=contact.getString("name");
