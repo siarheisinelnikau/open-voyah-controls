@@ -43,18 +43,18 @@
     <string name="library">Медиатека</string>
     <string name="search_library">Музыка іздеу</string>
     <string name="empty_library">Әзірге трек жоқ</string>
-    <string name="empty_library_hint">Телефоннан файл қосу үшін «Музыка қабылдау» түймесін басыңыз.</string>
+    <string name="empty_library_hint">Wi-Fi арқылы музыка қосу үшін телефонды қосыңыз.</string>
     <string name="no_matches">Іздеу бойынша трек табылмады.</string>
     <string name="loading_library">Медиатека жүктелуде…</string>
     <string name="track_options">Трек әрекеттері</string>
     <string name="delete_track">Тректі жою</string>
     <string name="delete_hint">«%1$s» трегін осы құрылғыдан жою керек пе?</string>
     <string name="delete_failed">Тректі жою мүмкін болмады.</string>
-    <string name="receive">Музыка қабылдау</string>
-    <string name="receive_instructions">Телефонды көліктің Wi-Fi желісіне қосыңыз. Voyah Music Transfer қолданбасын ашып, төмендегі мекенжай мен кодты енгізіңіз.</string>
+    <string name="receive">Телефонды қосу</string>
+    <string name="receive_instructions">Бұл QR кодын Voyah Music Transfer қолданбасында сканерлеңіз. Қолмен қосу үшін төмендегі IP мекенжай мен кодты пайдаланыңыз.</string>
     <string name="car_address">Көліктің IP мекенжайы</string>
     <string name="pairing_code">Жұптастыру коды</string>
-    <string name="receive_active">Файлдар күтілуде. Осы экранды ашық ұстаңыз.</string>
+    <string name="receive_active">Жаңа телефонды осы экранда растаңыз.</string>
     <string name="receive_no_wifi">Мультимедиа жүйесін Wi-Fi желісіне қосыңыз немесе кіру нүктесін қосып, қайталап көріңіз.</string>
     <string name="receive_expired">Қабылдау тоқтады. Жаңа код алу үшін жаңа сеансты бастаңыз.</string>
     <string name="receive_failed">Бұл желіде қабылдауды бастау мүмкін болмады. Қайталап көріңіз.</string>
@@ -62,7 +62,7 @@
     <string name="opening_receiver">Қабылдау терезесі ашылуда…</string>
     <string name="received_track">Медиатекаға қосылды: %1$s</string>
     <string name="transfer_connection">Көлікке қосылу</string>
-    <string name="transfer_instructions">Көлік экранында Voyah Music қолданбасын ашып, «Музыка қабылдау» түймесін басыңыз. Сол Wi-Fi желісіне қосылып, көрсетілген мекенжай мен кодты енгізіңіз.</string>
+    <string name="transfer_instructions">Көліктің Wi-Fi желісіне қосылыңыз. Voyah Music қолданбасында «Телефонды қосу» түймесін басып, көрсетілген QR кодын сканерлеңіз.</string>
     <string name="address_example">192.168.1.20</string>
     <string name="code_hint">8 цифр</string>
     <string name="files">Жіберілетін файлдар</string>
@@ -80,10 +80,10 @@
     <string name="bad_code">Voyah Music көрсеткен 8 цифрды енгізіңіз.</string>
     <string name="wrong_code">Код сәйкес келмеді. Көлік экранындағы кодты тексеріңіз.</string>
     <string name="phone_no_wifi">Көліктің Wi-Fi желісіне қосылып, IP мекенжайын тексеріңіз.</string>
-    <string name="connection_lost">Көлікке қосылу мүмкін болмады. «Музыка қабылдау» экранын ашық қалдырып, қайталап көріңіз.</string>
+    <string name="connection_lost">Көлікке қосылу мүмкін болмады. Voyah Music қолданбасын ашып, қайталап көріңіз.</string>
     <string name="format_error">Файл оқылмайды немесе аудио пішімі қолдау таппайды.</string>
     <string name="size_error">Файл 2 ГБ шегінен асады.</string>
     <string name="storage_error">Көлікте бос орын жеткіліксіз. Қажетсіз файлдарды жойып, қайталап көріңіз.</string>
     <string name="transfer_error">Файлды оқу немесе сақтау мүмкін болмады. Қайталап көріңіз немесе оны таңдаудан алып тастаңыз.</string>
-    <string name="session_expired">Қабылдау терезесі жабылды. Жаңа код алу үшін қайта ашыңыз.</string>
+    <string name="session_expired">Күту уақыты аяқталды. Көлік экранында «Телефонды қосу» түймесін басып, қайталап көріңіз.</string>
 </resources>

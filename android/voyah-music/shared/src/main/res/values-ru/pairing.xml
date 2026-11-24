@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pair_phone">Подключить телефон</string>
+    <string name="pair_qr">QR-код подключения к Voyah Music</string>
+    <string name="scan_qr">Сканировать QR-код</string>
+    <string name="scan_hint">Наведите камеру на QR-код на экране машины.</string>
+    <string name="camera_unavailable">Камера недоступна. Адрес и код можно ввести вручную.</string>
+    <string name="invalid_qr">Отсканируйте QR-код с экрана Voyah Music.</string>
+    <string name="approve_phone">Разрешить телефону %1$s отправлять музыку? Код подтверждения: %2$s</string>
+    <string name="allow">Разрешить</string>
+    <string name="deny">Отклонить</string>
+    <string name="trusted_phones">Доверенные телефоны</string>
+    <string name="forget_phone">Отозвать доступ</string>
+    <string name="forget_phone_prompt">Отозвать доступ для %1$s? При следующем подключении нужно будет подтвердить телефон.</string>
+    <string name="forget_failed">Не удалось отозвать доступ телефона.</string>
+    <string name="manual_pair">Ввести IP и код</string>
+    <string name="hide_manual">Скрыть ручной ввод</string>
+    <string name="connect_car">Подключиться</string>
+    <string name="disconnect">Отключиться</string>
+    <string name="forget_car">Забыть машину</string>
+    <string name="forget_car_prompt">Забыть эту машину на телефоне? При следующем сопряжении машина снова запросит подтверждение.</string>
+    <string name="no_car">Машина не подключена</string>
+    <string name="waiting_approval">Ожидаем подтверждения</string>
+    <string name="match_confirmation">Сверьте код %1$s на экране машины.</string>
+    <string name="car_connected">Voyah Music подключён</string>
+    <string name="car_offline">Машина недоступна</string>
+    <string name="car_disconnected">Отключено</string>
+    <string name="pair_denied">Запрос отклонён на экране машины.</string>
+    <string name="car_forgot_phone">Машина отозвала доступ. Для отправки файлов подключитесь заново.</string>
+    <string name="car_busy">Машина уже ждёт подтверждения для другого телефона. Повторите попытку.</string>
+    <string name="folder_unavailable">Папка недоступна. Выберите, куда отправить файлы, и повторите попытку.</string>
+    <string name="new_folder">Новая папка</string>
+    <string name="folder_name">Название папки</string>
+    <string name="create_folder">Создать</string>
+    <string name="invalid_folder">Введите название папки без косых черт.</string>
+    <string name="folder_failed">Не удалось создать папку. Укажите другое название.</string>
+    <string name="empty_folder">В этой папке пока нет треков</string>
+    <string name="library_root">Корень медиатеки</string>
+    <string name="move_track">Переместить в папку</string>
+    <string name="move_failed">Не удалось переместить трек.</string>
+    <string name="destination">Папка назначения</string>
+    <string name="destination_value">Отправить в: %1$s</string>
+</resources>

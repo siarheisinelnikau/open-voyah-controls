@@ -46,4 +46,20 @@ public class MusicWireTest {
         assertEquals("00001234", in.readUTF());
         assertEquals(MusicWire.Status.DUPLICATE, MusicWire.Status.read(in));
     }
+
+    @Test
+    public void derivesFixedWidthManualCodeFromPinnedIdentity() {
+        String identity = "00000000002a" + "0".repeat(52);
+        assertTrue(MusicWire.fingerprint(identity));
+        assertEquals("00000042", MusicWire.pairingCode(identity));
+        assertFalse(MusicWire.fingerprint("00000042"));
+    }
+
+    @Test
+    public void folderNamesAreDisplayNamesRatherThanPaths() {
+        assertTrue(MusicWire.validFolder("Дорога — Қазақша"));
+        assertFalse(MusicWire.validFolder(".."));
+        assertFalse(MusicWire.validFolder("root/album"));
+        assertFalse(MusicWire.validFolder("   "));
+    }
 }

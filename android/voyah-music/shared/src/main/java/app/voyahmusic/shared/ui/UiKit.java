@@ -37,7 +37,8 @@ public final class UiKit {
     public static final int MUTED = 0xffadbace;
     public static final int ERROR = 0xffffbaaa;
 
-    public enum Icon { NOTE, SEND, SETTINGS, BACK, PREVIOUS, NEXT, PLAY, PAUSE, SHUFFLE, REPEAT, REPEAT_ONE, MORE, CLOSE, SEARCH }
+    public enum Icon { NOTE, SEND, SETTINGS, BACK, PREVIOUS, NEXT, PLAY, PAUSE, SHUFFLE, REPEAT, REPEAT_ONE, MORE,
+        CLOSE, SEARCH, FOLDER, FOLDER_ADD }
 
     public final int accent;
     public final int onAccent;
@@ -286,6 +287,13 @@ public final class UiKit {
                 case SEARCH -> {
                     canvas.drawCircle(10, 10, 5.5f, paint);
                     lines(canvas, 14.2f, 14.2f, 20, 20);
+                }
+                case FOLDER, FOLDER_ADD -> {
+                    lines(canvas, 3, 5, 10, 5, 12.4f, 8, 21, 8, 21, 20, 3, 20, 3, 5);
+                    if (icon == Icon.FOLDER_ADD) {
+                        canvas.drawLine(12, 10.5f, 12, 17.5f, paint);
+                        canvas.drawLine(8.5f, 14, 15.5f, 14, paint);
+                    }
                 }
             }
             canvas.restore();

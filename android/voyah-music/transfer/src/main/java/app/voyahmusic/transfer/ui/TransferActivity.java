@@ -1,8 +1,11 @@
 package app.voyahmusic.transfer.ui;
 
+import android.Manifest;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.net.Uri;
 import android.os.Bundle;
@@ -24,6 +27,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import app.voyahmusic.shared.R;
+import app.voyahmusic.shared.lan.MusicWire.Folder;
+import app.voyahmusic.shared.lan.PairQr;
 import app.voyahmusic.shared.ui.MusicActivity;
 import app.voyahmusic.shared.ui.UiKit;
 import app.voyahmusic.transfer.data.SelectedFile;
@@ -36,15 +41,19 @@ import static app.voyahmusic.shared.ui.UiKit.WRAP;
 
 public final class TransferActivity extends MusicActivity {
     private static final int PICK_AUDIO = 612;
+    private static final int SCAN_QR = 615;
+    private static final int CAMERA = 616;
     private TransferViewModel model;
     private EditText address, code;
     private String lastAddress = "", lastCode = "";
-    private LinearLayout fileRows;
-    private TextView status;
-    private Button choose, send, cancel;
+    private LinearLayout fileRows, setup, manualForm;
+    private TextView status, connection, connectionDetails;
+    private Button choose, send, cancel, destination, connectionAction, forgetCar, scan, manualToggle, pair;
     private ProgressBar progress;
     private List<SelectedFile> renderedFiles;
     private boolean renderedBusy;
+    private boolean manual;
+    private TransferViewModel.Screen current;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -54,7 +63,26 @@ public final class TransferActivity extends MusicActivity {
         lastAddress = saved == null ? getPreferences(MODE_PRIVATE).getString("car_address", "")
                 : saved.getString("car_address", "");
         lastCode = saved == null ? "" : saved.getString("pairing_code", "");
+        manual = saved != null && saved.getBoolean("manual");
         renderRoute();
+        if (saved == null) handlePairLink(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handlePairLink(intent);
+    }
+
+    private void handlePairLink(Intent intent) {
+        if (Intent.ACTION_VIEW.equals(intent.getAction())) {
+            PairQr qr = PairQr.parse(intent.getDataString());
+            if (qr != null) {
+                if (settings) onBackPressed();
+                model.pair(qr.host(), qr.fingerprint());
+            }
+        }
     }
 
     @Override
@@ -85,6 +113,7 @@ public final class TransferActivity extends MusicActivity {
         saveConnection();
         output.putString("car_address", lastAddress);
         output.putString("pairing_code", lastCode);
+        output.putBoolean("manual", manual);
         super.onSaveInstanceState(output);
     }
 
@@ -107,6 +136,21 @@ public final class TransferActivity extends MusicActivity {
         settingsButton(header);
         ui.add(root, header, MATCH, WRAP, 0);
 
+        LinearLayout bar = ui.card(12);
+        LinearLayout barRow = ui.row();
+        LinearLayout labels = ui.column();
+        connection = ui.text("", 17, UiKit.TEXT, true);
+        connection.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        connectionDetails = ui.text("", 14, UiKit.MUTED, false);
+        ui.add(labels, connection, MATCH, WRAP, 0);
+        ui.add(labels, connectionDetails, MATCH, WRAP, 5);
+        barRow.addView(labels, ui.weighted());
+        ui.gap(barRow, 8);
+        connectionAction = ui.button("", false, this::connectionAction);
+        barRow.addView(connectionAction, WRAP, WRAP);
+        ui.add(bar, barRow, MATCH, WRAP, 0);
+        ui.add(root, bar, MATCH, WRAP, 10);
+
         ScrollView scroll = new ScrollView(this);
         scroll.setClipToPadding(false);
         LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(MATCH, 0, 1f);
@@ -119,20 +163,35 @@ public final class TransferActivity extends MusicActivity {
         frame.addView(content, new FrameLayout.LayoutParams(width >= 616 ? ui.dp(560) : MATCH, WRAP, Gravity.CENTER_HORIZONTAL));
         content.setPadding(0, 0, 0, ui.dp(8));
 
-        LinearLayout connection = ui.card(16);
-        ui.add(content, connection, MATCH, WRAP, 0);
-        section(connection, UiKit.Icon.SEND, R.string.transfer_connection);
+        setup = ui.card(16);
+        ui.add(content, setup, MATCH, WRAP, 0);
         TextView instructions = ui.text(getText(R.string.transfer_instructions), 15, UiKit.MUTED, false);
         instructions.setLineSpacing(ui.dp(3), 1f);
-        ui.add(connection, instructions, MATCH, WRAP, 13);
+        ui.add(setup, instructions, MATCH, WRAP, 0);
+        scan = ui.button(getText(R.string.scan_qr), true, this::scan);
+        ui.add(setup, scan, MATCH, WRAP, 12);
+        manualToggle = ui.button(getText(R.string.manual_pair), false, () -> {
+            manual = !manual;
+            updateConnection(current);
+        });
+        ui.add(setup, manualToggle, MATCH, WRAP, 8);
+        manualForm = ui.column();
+        ui.add(setup, manualForm, MATCH, WRAP, 0);
         address = input(lastAddress, R.string.address_example, false);
-        addInput(connection, address, R.string.car_address, 18);
+        addInput(manualForm, address, R.string.car_address, 14);
         code = input(lastCode, R.string.code_hint, true);
-        addInput(connection, code, R.string.pairing_code, 14);
+        addInput(manualForm, code, R.string.pairing_code, 12);
+        pair = ui.button(getText(R.string.connect_car), true, this::pair);
+        ui.add(manualForm, pair, MATCH, WRAP, 10);
+
+        forgetCar = ui.button(getText(R.string.forget_car), false, this::forget);
+        ui.add(content, forgetCar, MATCH, WRAP, 0);
 
         LinearLayout files = ui.card(16);
         ui.add(content, files, MATCH, WRAP, 12);
         section(files, UiKit.Icon.NOTE, R.string.files);
+        destination = ui.button(getText(R.string.library_root), false, this::chooseFolder);
+        ui.add(files, destination, MATCH, WRAP, 9);
         fileRows = ui.column();
         ui.add(files, fileRows, MATCH, WRAP, 8);
         choose = ui.button(getText(R.string.add_files), false, this::pick);
@@ -216,6 +275,11 @@ public final class TransferActivity extends MusicActivity {
     @Override
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
+        if (request == SCAN_QR && result == RESULT_OK && data != null) {
+            PairQr invite = PairQr.parse(data.getStringExtra(ScanActivity.QR_RESULT));
+            if (invite != null) model.pair(invite.host(), invite.fingerprint());
+            return;
+        }
         if (request != PICK_AUDIO || result != RESULT_OK || data == null) return;
         List<Uri> files = new ArrayList<>();
         ClipData clip = data.getClipData();
@@ -230,17 +294,78 @@ public final class TransferActivity extends MusicActivity {
         if (!files.isEmpty()) model.choose(files);
     }
 
-    private void send() {
+    private void pair() {
         saveConnection();
-        getPreferences(MODE_PRIVATE).edit().putString("car_address", lastAddress).apply();
         getSystemService(InputMethodManager.class).hideSoftInputFromWindow(code.getWindowToken(), 0);
-        model.send(lastAddress, lastCode);
+        model.pair(lastAddress, lastCode);
+    }
+
+    private void send() {
+        model.send();
+    }
+
+    private void scan() {
+        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
+            Toast.makeText(this, R.string.camera_unavailable, Toast.LENGTH_LONG).show();
+        } else if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchScanner();
+        } else {
+            requestPermissions(new String[] {Manifest.permission.CAMERA}, CAMERA);
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void launchScanner() {
+        startActivityForResult(new Intent(this, ScanActivity.class), SCAN_QR);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode != CAMERA) return;
+        if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) launchScanner();
+        else Toast.makeText(this, R.string.camera_unavailable, Toast.LENGTH_LONG).show();
+    }
+
+    private void connectionAction() {
+        if (current == null) return;
+        switch (current.connection().state()) {
+            case PAIRING -> model.cancel();
+            case CONNECTED, CHECKING -> model.disconnect();
+            case DISCONNECTED, OFFLINE -> model.reconnect();
+            case UNPAIRED -> scan();
+        }
+    }
+
+    private void forget() {
+        new AlertDialog.Builder(this).setMessage(R.string.forget_car_prompt)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.forget_car, (dialog, which) -> model.forget()).show();
+    }
+
+    private void chooseFolder() {
+        if (current == null) return;
+        List<Folder> choices = new ArrayList<>();
+        choices.add(new Folder(0, getString(R.string.library_root)));
+        choices.addAll(current.connection().folders());
+        int selected = 0;
+        for (int i = 0; i < choices.size(); i++) {
+            if (choices.get(i).id() == current.connection().destination()) selected = i;
+        }
+        CharSequence[] names = choices.stream().map(Folder::name).toArray(CharSequence[]::new);
+        new AlertDialog.Builder(this).setTitle(R.string.destination)
+                .setSingleChoiceItems(names, selected, (dialog, index) -> {
+                    model.target(choices.get(index).id());
+                    dialog.dismiss();
+                }).setNegativeButton(R.string.cancel, null).show();
     }
 
     private void render(TransferViewModel.Screen screen) {
+        current = screen;
         if (screen.busy()) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (settings || fileRows == null) return;
+        updateConnection(screen);
         boolean busy = screen.busy();
         boolean sending = screen.state() == TransferViewModel.State.SENDING;
         if (renderedFiles != screen.files() || renderedBusy != busy) {
@@ -253,7 +378,7 @@ public final class TransferActivity extends MusicActivity {
             choose.setText(empty ? R.string.add_files : R.string.add_more);
         }
         ui.enabled(choose, !busy);
-        ui.enabled(send, !busy && !screen.files().isEmpty());
+        ui.enabled(send, !busy && !screen.files().isEmpty() && screen.connection().state() == TransferViewModel.Link.CONNECTED);
         address.setEnabled(!busy);
         code.setEnabled(!busy);
         cancel.setVisibility(sending || screen.state() == TransferViewModel.State.CONNECTING ? View.VISIBLE : View.GONE);
@@ -271,6 +396,49 @@ public final class TransferActivity extends MusicActivity {
             default -> false;
         };
         status.setTextColor(failed ? UiKit.ERROR : screen.state() == TransferViewModel.State.DONE ? ui.accent : UiKit.MUTED);
+    }
+
+    private void updateConnection(TransferViewModel.Screen screen) {
+        if (screen == null) return;
+        TransferViewModel.Connection link = screen.connection();
+        int title = switch (link.state()) {
+            case UNPAIRED -> R.string.no_car;
+            case PAIRING -> R.string.waiting_approval;
+            case CHECKING -> R.string.connecting;
+            case CONNECTED -> R.string.car_connected;
+            case OFFLINE -> R.string.car_offline;
+            case DISCONNECTED -> R.string.car_disconnected;
+        };
+        set(connection, getString(title));
+        connection.setTextColor(link.state() == TransferViewModel.Link.CONNECTED ? ui.accent : UiKit.TEXT);
+        String detail = link.state() == TransferViewModel.Link.PAIRING
+                ? getString(R.string.match_confirmation, link.confirmation()) : link.address();
+        set(connectionDetails, detail);
+        connectionDetails.setVisibility(detail.isEmpty() ? View.GONE : View.VISIBLE);
+        connectionAction.setVisibility(link.state() == TransferViewModel.Link.UNPAIRED ? View.GONE : View.VISIBLE);
+        int action = switch (link.state()) {
+            case UNPAIRED -> R.string.scan_qr;
+            case PAIRING -> R.string.cancel;
+            case CONNECTED, CHECKING -> R.string.disconnect;
+            case OFFLINE, DISCONNECTED -> R.string.connect_car;
+        };
+        if (!getText(action).equals(connectionAction.getText())) connectionAction.setText(action);
+        setup.setVisibility(link.state() == TransferViewModel.Link.UNPAIRED ? View.VISIBLE : View.GONE);
+        manualForm.setVisibility(manual ? View.VISIBLE : View.GONE);
+        manualToggle.setText(manual ? R.string.hide_manual : R.string.manual_pair);
+        forgetCar.setVisibility(link.state() == TransferViewModel.Link.OFFLINE
+                || link.state() == TransferViewModel.Link.DISCONNECTED ? View.VISIBLE : View.GONE);
+        destination.setVisibility(link.state() == TransferViewModel.Link.CONNECTED ? View.VISIBLE : View.GONE);
+        String target = getString(R.string.library_root);
+        for (Folder folder : link.folders()) {
+            if (folder.id() == link.destination()) target = folder.name();
+        }
+        set(destination, getString(R.string.destination_value, target));
+        ui.enabled(destination, !screen.busy());
+    }
+
+    private static void set(TextView view, String text) {
+        if (!text.contentEquals(view.getText())) view.setText(text);
     }
 
     private void addFile(SelectedFile file, boolean busy) {
@@ -313,6 +481,10 @@ public final class TransferActivity extends MusicActivity {
                     case TOO_LARGE -> R.string.size_error;
                     case STORAGE -> R.string.storage_error;
                     case EXPIRED -> R.string.session_expired;
+                    case DECLINED -> R.string.pair_denied;
+                    case UNPAIRED -> R.string.car_forgot_phone;
+                    case FOLDER -> R.string.folder_unavailable;
+                    case BUSY -> R.string.car_busy;
                     default -> R.string.transfer_error;
                 };
                 String name = item.current() == null ? "" : item.current().name() + "\n";

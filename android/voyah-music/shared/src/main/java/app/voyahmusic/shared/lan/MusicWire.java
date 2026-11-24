@@ -10,7 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public final class MusicWire {
-    private static final int VERSION = 0x564D0001;
+    private static final int VERSION = 0x564D0002;
     public static final int PORT = 47477;
     public static final int CHUNK = 64 * 1024;
     public static final long MAX_BYTES = 2L * 1024 * 1024 * 1024;
@@ -19,9 +19,14 @@ public final class MusicWire {
 
     public static final int CHECK = 1;
     public static final int UPLOAD = 2;
+    public static final int PAIR = 3;
+    public static final int MAX_FOLDERS = 256;
+
+    public record Folder(long id, String name) {}
 
     public enum Status {
-        OK(1), DUPLICATE(2), CODE(3), FORMAT(4), TOO_LARGE(5), STORAGE(6), IO(7), EXPIRED(8);
+        OK(1), DUPLICATE(2), CODE(3), FORMAT(4), TOO_LARGE(5), STORAGE(6), IO(7), EXPIRED(8),
+        DECLINED(9), UNPAIRED(10), FOLDER(11), BUSY(12);
 
         private final int value;
 
@@ -54,8 +59,31 @@ public final class MusicWire {
     public static int command(DataInputStream in) throws IOException {
         if (in.readInt() != VERSION) throw new IOException("Unsupported transfer protocol");
         int command = in.readUnsignedByte();
-        if (command != CHECK && command != UPLOAD) throw new IOException("Unknown transfer command");
+        if (command != CHECK && command != UPLOAD && command != PAIR) throw new IOException("Unknown transfer command");
         return command;
+    }
+
+    public static boolean validFolder(String name) {
+        return !name.trim().isEmpty() && name.length() <= 60 && !name.equals(".") && !name.equals("..")
+                && name.codePoints().noneMatch(c -> c == '/' || c == '\\' || Character.isISOControl(c));
+    }
+
+    public static boolean fingerprint(String value) {
+        return value.matches("[0-9a-f]{64}");
+    }
+
+    public static String pairingCode(String fingerprint) {
+        long prefix = Long.parseLong(fingerprint.substring(0, 12), 16);
+        return String.format(Locale.ROOT, "%08d", prefix % 100_000_000L);
+    }
+
+    public static String hex(byte[] bytes) {
+        StringBuilder output = new StringBuilder(bytes.length * 2);
+        for (byte value : bytes) {
+            output.append(Character.forDigit((value & 255) >>> 4, 16));
+            output.append(Character.forDigit(value & 15, 16));
+        }
+        return output.toString();
     }
 
     public static Inet4Address address(String value) {

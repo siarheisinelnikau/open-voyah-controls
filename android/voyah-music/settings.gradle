@@ -9,6 +9,10 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        exclusiveContent {
+            forRepository { mavenCentral() }
+            filter { includeGroup 'com.google.zxing' }
+        }
         google()
         mavenCentral()
     }

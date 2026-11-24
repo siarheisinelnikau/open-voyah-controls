@@ -5,12 +5,18 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
 import android.graphics.Typeface;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.text.Editable;
+import android.text.InputFilter;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
@@ -21,6 +27,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.PopupMenu;
@@ -33,9 +40,14 @@ import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
 
 import app.voyahmusic.player.PlayerApp;
+import app.voyahmusic.player.data.MusicLibrary;
+import app.voyahmusic.player.data.TrustedPhones;
 import app.voyahmusic.player.domain.Track;
 import app.voyahmusic.player.playback.PlaybackService;
 import app.voyahmusic.shared.R;
+import app.voyahmusic.shared.lan.MusicWire;
+import app.voyahmusic.shared.lan.MusicWire.Folder;
+import app.voyahmusic.shared.lan.PairQr;
 import app.voyahmusic.shared.lan.WifiLink;
 import app.voyahmusic.shared.ui.MusicActivity;
 import app.voyahmusic.shared.ui.UiKit;
@@ -53,6 +65,10 @@ public final class PlayerActivity extends MusicActivity {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Runnable playbackChanged = this::renderPlayback;
     private final Runnable tick = this::tick;
+    private final ConnectivityManager.NetworkCallback wifi = new ConnectivityManager.NetworkCallback() {
+        @Override public void onAvailable(Network network) { if (visible) model.wifiChanged(); }
+        @Override public void onLost(Network network) { if (visible) model.wifiChanged(); }
+    };
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder binder) {
@@ -71,14 +87,18 @@ public final class PlayerActivity extends MusicActivity {
     private PlayerViewModel model;
     private PlaybackService playback;
     private List<Track> tracks;
+    private MusicLibrary.Snapshot librarySnapshot;
+    private long folderId;
     private boolean bound, visible, receiving, dragging;
     private LinearLayout receiveBody;
-    private TextView title, artist, elapsed, total, problem, emptyTitle, emptyHint;
+    private TextView title, artist, elapsed, total, problem, emptyTitle, emptyHint, libraryTitle;
     private ImageButton previous, play, next, shuffle, repeat;
     private Button receiveButton;
     private SeekBar seek;
     private TrackAdapter adapter;
     private String query = "", highlighted = "";
+    private PairQr lastQr;
+    private Bitmap qrBitmap;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -88,6 +108,7 @@ public final class PlayerActivity extends MusicActivity {
         if (saved != null) {
             query = saved.getString("query", "");
             receiving = saved.getBoolean("receiving");
+            folderId = saved.getLong("folder");
         }
         renderRoute();
     }
@@ -102,6 +123,7 @@ public final class PlayerActivity extends MusicActivity {
     protected void onSaveInstanceState(Bundle state) {
         state.putBoolean("receiving", receiving);
         state.putString("query", query);
+        state.putLong("folder", folderId);
         super.onSaveInstanceState(state);
     }
 
@@ -111,12 +133,17 @@ public final class PlayerActivity extends MusicActivity {
         visible = true;
         model.observe(this::tracks, this::renderReceiver);
         model.refresh();
+        model.setPairingVisible(receiving);
+        model.startReceiving(null);
+        getSystemService(ConnectivityManager.class).registerNetworkCallback(
+                new NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build(), wifi, main);
         bound = bindService(new Intent(this, PlaybackService.class), connection, BIND_AUTO_CREATE);
     }
 
     @Override
     protected void onStop() {
         visible = false;
+        getSystemService(ConnectivityManager.class).unregisterNetworkCallback(wifi);
         main.removeCallbacks(tick);
         model.observe(null, null);
         model.stopReceiving();
@@ -144,8 +171,10 @@ public final class PlayerActivity extends MusicActivity {
     public void onBackPressed() {
         if (receiving) {
             receiving = false;
-            model.stopReceiving();
+            model.setPairingVisible(false);
             showMain();
+        } else if (!settings && folderId != 0) {
+            openFolder(0);
         } else {
             super.onBackPressed();
         }
@@ -155,7 +184,7 @@ public final class PlayerActivity extends MusicActivity {
         main.removeCallbacks(tick);
         receiving = true;
         showReceiver();
-        model.startReceiving(null);
+        model.setPairingVisible(true);
     }
 
     @Override
@@ -276,9 +305,20 @@ public final class PlayerActivity extends MusicActivity {
     private LinearLayout libraryCard(boolean wide) {
         LinearLayout library = ui.card(wide ? 16 : 12);
         LinearLayout header = ui.row();
-        TextView label = ui.text(getText(R.string.library), wide ? 24 : 20, UiKit.TEXT, true);
-        header.addView(label, ui.weighted());
+        if (folderId != 0) {
+            header.addView(ui.iconButton(UiKit.Icon.BACK, getText(R.string.library), false, () -> openFolder(0)),
+                    ui.dp(48), ui.dp(48));
+            ui.gap(header, 8);
+        }
+        libraryTitle = ui.text(getText(R.string.library), wide ? 24 : 20, UiKit.TEXT, true);
+        ui.truncate(libraryTitle, 1);
+        header.addView(libraryTitle, ui.weighted());
         ui.gap(header, 6);
+        if (folderId == 0) {
+            header.addView(ui.iconButton(UiKit.Icon.FOLDER_ADD, getText(R.string.new_folder), false, this::createFolder),
+                    ui.dp(48), ui.dp(48));
+            ui.gap(header, 8);
+        }
         receiveButton = ui.button(getText(R.string.receive), false, this::openReceiver);
         header.addView(receiveButton, WRAP, WRAP);
         ui.add(library, header, MATCH, WRAP, 0);
@@ -331,25 +371,31 @@ public final class PlayerActivity extends MusicActivity {
         return library;
     }
 
-    private void tracks(List<Track> value) {
-        tracks = value;
-        if (playback != null) playback.setTracks(value);
+    private void tracks(MusicLibrary.Snapshot value) {
+        librarySnapshot = value;
+        tracks = value.tracks();
+        if (playback != null) playback.setTracks(tracks);
         if (!settings && !receiving) filter();
         renderPlayback();
     }
 
     private void filter() {
         if (adapter == null) return;
-        List<Track> result = new ArrayList<>();
+        List<Object> result = new ArrayList<>();
         String term = query.trim().toLowerCase(Locale.ROOT);
-        if (tracks != null) {
+        if (librarySnapshot != null) {
+            for (Folder folder : librarySnapshot.folders()) {
+                if (folderId == folder.id()) libraryTitle.setText(folder.name());
+                if (folderId == 0 && folder.name().toLowerCase(Locale.ROOT).contains(term)) result.add(folder);
+            }
             for (Track track : tracks) {
-                if (term.isEmpty() || track.matches(term)) result.add(track);
+                boolean inFolder = librarySnapshot.folderOf(track) == folderId || (folderId == 0 && !term.isEmpty());
+                if (inFolder && (term.isEmpty() || track.matches(term))) result.add(track);
             }
         }
         emptyTitle.setText(tracks == null ? R.string.loading_library
-                : term.isEmpty() ? R.string.empty_library : R.string.no_matches);
-        emptyHint.setVisibility(tracks != null && term.isEmpty() ? View.VISIBLE : View.GONE);
+                : term.isEmpty() ? (folderId == 0 ? R.string.empty_library : R.string.empty_folder) : R.string.no_matches);
+        emptyHint.setVisibility(tracks != null && term.isEmpty() && folderId == 0 ? View.VISIBLE : View.GONE);
         emptyHint.setText(R.string.empty_library_hint);
         boolean emphasizeReceive = tracks != null && tracks.isEmpty();
         if (receiveButton.isSelected() != emphasizeReceive) {
@@ -358,6 +404,46 @@ public final class PlayerActivity extends MusicActivity {
         }
         adapter.rows = result;
         adapter.notifyDataSetChanged();
+    }
+
+    private void openFolder(long id) {
+        folderId = id;
+        query = "";
+        showMain();
+    }
+
+    private void createFolder() {
+        EditText name = new EditText(this);
+        name.setSingleLine();
+        name.setHint(R.string.folder_name);
+        name.setFilters(new InputFilter[] {new InputFilter.LengthFilter(60)});
+        LinearLayout input = ui.column();
+        input.setPadding(ui.dp(22), ui.dp(8), ui.dp(22), 0);
+        input.addView(name, MATCH, WRAP);
+        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(R.string.new_folder).setView(input)
+                .setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.create_folder, null).create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(button -> {
+            String value = name.getText().toString().trim();
+            if (!MusicWire.validFolder(value)) {
+                name.setError(getString(R.string.invalid_folder));
+                return;
+            }
+            model.createFolder(value, () -> Toast.makeText(this, R.string.folder_failed, Toast.LENGTH_LONG).show());
+            dialog.dismiss();
+        }));
+        dialog.show();
+    }
+
+    private void move(Track track) {
+        if (librarySnapshot == null) return;
+        List<Folder> choices = new ArrayList<>();
+        choices.add(new Folder(0, getString(R.string.library_root)));
+        choices.addAll(librarySnapshot.folders());
+        CharSequence[] labels = choices.stream().map(Folder::name).toArray(CharSequence[]::new);
+        new AlertDialog.Builder(this).setTitle(R.string.move_track).setItems(labels, (dialog, index) ->
+                model.moveTrack(track, choices.get(index).id(),
+                        () -> Toast.makeText(this, R.string.move_failed, Toast.LENGTH_LONG).show()))
+                .setNegativeButton(R.string.cancel, null).show();
     }
 
     private void renderPlayback() {
@@ -451,7 +537,7 @@ public final class PlayerActivity extends MusicActivity {
 
     private void showReceiver() {
         LinearLayout root = page();
-        ui.add(root, heading(getString(R.string.receive), true), MATCH, WRAP, 0);
+        ui.add(root, heading(getString(R.string.pair_phone), true), MATCH, WRAP, 0);
         ScrollView scroll = new ScrollView(this);
         ui.add(root, scroll, MATCH, MATCH, 12);
         FrameLayout frame = new FrameLayout(this);
@@ -474,22 +560,8 @@ public final class PlayerActivity extends MusicActivity {
         instructions.setLineSpacing(ui.dp(4), 1f);
         ui.add(receiveBody, instructions, MATCH, WRAP, 0);
         if (waiting) {
-            LinearLayout values = getResources().getConfiguration().screenWidthDp >= 650 ? ui.row() : ui.column();
-            LinearLayout address = receiveValue(R.string.car_address, state.link().address().getHostAddress());
-            LinearLayout code = receiveValue(R.string.pairing_code, state.code());
-            if (values.getOrientation() == LinearLayout.HORIZONTAL) {
-                values.addView(address, ui.weighted());
-                ui.gap(values, 12);
-                values.addView(code, ui.weighted());
-            } else {
-                ui.add(values, address, MATCH, WRAP, 0);
-                ui.add(values, code, MATCH, WRAP, 10);
-            }
-            ui.add(receiveBody, values, MATCH, WRAP, 18);
-            if (state.networks().size() > 1) {
-                ui.add(receiveBody, ui.button(getText(R.string.car_address), false, () -> chooseLink(state)),
-                        WRAP, WRAP, 12);
-            }
+            if (state.request() != null) approval(state);
+            qr(state);
         }
         int notice = switch (state.state()) {
             case INACTIVE, STOPPED -> R.string.receive_expired;
@@ -508,6 +580,65 @@ public final class PlayerActivity extends MusicActivity {
             ui.add(receiveBody, ui.button(getText(R.string.start_receiving), true,
                     () -> model.startReceiving(state.link())), WRAP, WRAP, 16);
         }
+        if (!state.phones().isEmpty()) {
+            ui.add(receiveBody, ui.text(getText(R.string.trusted_phones), 17, UiKit.TEXT, true), MATCH, WRAP, 18);
+            for (TrustedPhones.Phone phone : state.phones()) {
+                LinearLayout row = ui.row();
+                row.addView(ui.text(phone.name(), 15, UiKit.MUTED, true), ui.weighted());
+                ui.gap(row, 8);
+                row.addView(ui.button(getText(R.string.forget_phone), false, () -> forget(phone)), WRAP, WRAP);
+                ui.add(receiveBody, row, MATCH, WRAP, 6);
+            }
+        }
+    }
+
+    private void approval(PlayerViewModel.Receiver state) {
+        LinearLayout card = ui.card(14);
+        card.setBackground(ui.box(ui.selected, ui.selectedEdge, 14));
+        ui.add(card, ui.text(getString(R.string.approve_phone, state.request().name(), state.request().digits()),
+                18, UiKit.TEXT, true), MATCH, WRAP, 0);
+        LinearLayout actions = ui.row();
+        actions.addView(ui.button(getText(R.string.deny), false, () -> model.decide(state.request(), false)), ui.weighted());
+        ui.gap(actions, 8);
+        actions.addView(ui.button(getText(R.string.allow), true, () -> model.decide(state.request(), true)), ui.weighted());
+        ui.add(card, actions, MATCH, WRAP, 12);
+        ui.add(receiveBody, card, MATCH, WRAP, 12);
+    }
+
+    private void qr(PlayerViewModel.Receiver state) {
+        String host = state.link().address().getHostAddress();
+        PairQr current = new PairQr(host, state.fingerprint());
+        if (!current.equals(lastQr)) {
+            lastQr = current;
+            qrBitmap = current.bitmap(ui.dp(202));
+        }
+        ImageView qr = new ImageView(this);
+        qr.setImageBitmap(qrBitmap);
+        qr.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        qr.setContentDescription(getText(R.string.pair_qr));
+        LinearLayout details = ui.column();
+        ui.add(details, receiveValue(R.string.car_address, host), MATCH, WRAP, 0);
+        ui.add(details, receiveValue(R.string.pairing_code, MusicWire.pairingCode(state.fingerprint())), MATCH, WRAP, 8);
+        if (state.networks().size() > 1) {
+            ui.add(details, ui.button(getText(R.string.car_address), false, () -> chooseLink(state)), WRAP, WRAP, 8);
+        }
+        if (getResources().getConfiguration().screenWidthDp >= 650) {
+            LinearLayout row = ui.row();
+            row.addView(qr, ui.dp(202), ui.dp(202));
+            ui.gap(row, 18);
+            row.addView(details, ui.weighted());
+            ui.add(receiveBody, row, MATCH, WRAP, 16);
+        } else {
+            ui.center(receiveBody, qr, ui.dp(202), ui.dp(202), 16);
+            ui.add(receiveBody, details, MATCH, WRAP, 12);
+        }
+    }
+
+    private void forget(TrustedPhones.Phone phone) {
+        new AlertDialog.Builder(this).setMessage(getString(R.string.forget_phone_prompt, phone.name()))
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.forget_phone, (dialog, which) -> model.forgetPhone(phone,
+                        () -> Toast.makeText(this, R.string.forget_failed, Toast.LENGTH_LONG).show())).show();
     }
 
     private void chooseLink(PlayerViewModel.Receiver state) {
@@ -540,16 +671,29 @@ public final class PlayerActivity extends MusicActivity {
     }
 
     private final class TrackAdapter extends BaseAdapter {
-        private List<Track> rows = Collections.emptyList();
+        private List<Object> rows = Collections.emptyList();
 
         @Override public int getCount() { return rows.size(); }
-        @Override public Track getItem(int position) { return rows.get(position); }
+        @Override public Object getItem(int position) { return rows.get(position); }
         @Override public long getItemId(int position) { return position; }
+        @Override public int getViewTypeCount() { return 2; }
+        @Override public int getItemViewType(int position) { return getItem(position) instanceof Folder ? 1 : 0; }
 
         @Override
         public View getView(int position, View reusable, ViewGroup parent) {
+            Object entry = getItem(position);
+            if (entry instanceof Folder folder) {
+                Button button = ui.button(folder.name(), false, () -> openFolder(folder.id()));
+                button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+                button.setCompoundDrawablesRelativeWithIntrinsicBounds(ui.glyph(UiKit.Icon.FOLDER, ui.accent, 22), null, null, null);
+                button.setCompoundDrawablePadding(ui.dp(14));
+                LinearLayout holder = ui.column();
+                holder.setPadding(0, 0, 0, ui.dp(7));
+                holder.addView(button, MATCH, ui.dp(55));
+                return holder;
+            }
             TrackRow item = reusable instanceof TrackRow row ? row : new TrackRow();
-            item.bind(getItem(position));
+            item.bind((Track) entry);
             return item;
         }
     }
@@ -592,10 +736,12 @@ public final class PlayerActivity extends MusicActivity {
 
         private void openOptions() {
             PopupMenu popup = new PopupMenu(PlayerActivity.this, options);
-            popup.getMenu().add(R.string.delete_track);
+            popup.getMenu().add(0, R.string.move_track, 0, R.string.move_track);
+            popup.getMenu().add(0, R.string.delete_track, 1, R.string.delete_track);
             Track target = track;
             popup.setOnMenuItemClickListener(option -> {
-                delete(target);
+                if (option.getItemId() == R.string.move_track) move(target);
+                else delete(target);
                 return true;
             });
             popup.show();

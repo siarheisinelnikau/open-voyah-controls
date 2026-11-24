@@ -19,12 +19,20 @@ import java.util.List;
 import java.util.Map;
 
 public final class MusicLibrary {
+    public record Snapshot(List<Track> tracks, List<MusicWire.Folder> folders, Map<String, Long> locations) {
+        public long folderOf(Track track) {
+            return locations.getOrDefault(track.id(), 0L);
+        }
+    }
+
     private static final long RESERVE_BYTES = 32L * 1024 * 1024;
     private final File directory;
+    private final FolderStore folders;
     private final Map<String, Track> metadata = new HashMap<>();
 
     public MusicLibrary(Context context) {
         directory = new File(context.getFilesDir(), "music");
+        folders = new FolderStore(context.getApplicationContext());
         directory.mkdirs();
         File[] interrupted = directory.listFiles(file -> file.getName().startsWith(".incoming"));
         if (interrupted != null) {
@@ -40,7 +48,8 @@ public final class MusicLibrary {
         return new StatFs(directory.getPath()).getAvailableBytes() - RESERVE_BYTES >= bytes;
     }
 
-    public synchronized MusicWire.Status publish(File staging, String id, String name) throws IOException {
+    public synchronized MusicWire.Status publish(File staging, String id, String name, long destination) throws IOException {
+        if (!folders.exists(destination)) return MusicWire.Status.FOLDER;
         File folder = new File(directory, id);
         if (folder.isDirectory()) {
             File[] files = folder.listFiles();
@@ -48,7 +57,8 @@ public final class MusicLibrary {
         } else if (!folder.mkdir()) {
             throw new IOException("Could not create track directory");
         }
-        if (!staging.renameTo(new File(folder, name))) {
+        if (!folders.move(id, destination) || !staging.renameTo(new File(folder, name))) {
+            folders.move(id, 0);
             discard(folder);
             throw new IOException("Could not publish track");
         }
@@ -57,12 +67,33 @@ public final class MusicLibrary {
 
     public synchronized boolean remove(Track track) {
         if (!track.file().delete() && track.file().exists()) return false;
+        folders.move(track.id(), 0);
         metadata.remove(track.id());
         discard(track.file().getParentFile());
         return true;
     }
 
-    public List<Track> tracks() {
+    public List<MusicWire.Folder> folders() {
+        return Collections.unmodifiableList(folders.folders());
+    }
+
+    public boolean hasFolder(long id) {
+        return folders.exists(id);
+    }
+
+    public synchronized long createFolder(String name) {
+        return folders.create(name);
+    }
+
+    public synchronized boolean moveTrack(Track track, long folder) {
+        return track.file().isFile() && folders.move(track.id(), folder);
+    }
+
+    public Snapshot snapshot() {
+        return new Snapshot(tracks(), folders(), Collections.unmodifiableMap(folders.locations()));
+    }
+
+    private List<Track> tracks() {
         List<Track> result = new ArrayList<>();
         File[] folders = directory.listFiles(file -> file.isDirectory() && file.getName().matches("[a-f0-9]{64}"));
         if (folders == null) return Collections.emptyList();
