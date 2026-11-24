@@ -256,6 +256,23 @@ public class SettingsStoreTest extends AndroidTestCase {
         assertFalse(noData.isEmpty());
         assertTrue(noData.length() <= 40);
     }
+    public void testMediaCardAppsAreOnUntilTurnedOffAndNameTheirBrowserServices() throws Exception {
+        assertTrue(new SettingsStore.State().mediaCardApps);
+        String old = "{\"schema\":1,\"enabled\":true,\"holdMs\":650,\"debounceMs\":100,\"bindings\":[]}";
+        assertTrue(SettingsStore.decode(old).mediaCardApps);
+        org.json.JSONArray sources = new JSONObject(FridaBridge.config(new SettingsStore.State()))
+            .getJSONObject("mediaCard").getJSONArray("sources");
+        assertEquals(2, sources.length());
+        assertEquals("app.voyahmusic.player", sources.getJSONObject(0).getString("package"));
+        assertEquals("app.voyahmusic.player.playback.MusicBrowserService", sources.getJSONObject(0).getString("service"));
+        assertEquals("app.voyahradio", sources.getJSONObject(1).getString("package"));
+        assertEquals("app.voyahradio.playback.RadioBrowserService", sources.getJSONObject(1).getString("service"));
+        SettingsStore.State state = sample(); state.mediaCardApps = false;
+        store.save(state);
+        SettingsStore.State loaded = new SettingsStore(getContext()).load();
+        assertFalse(loaded.mediaCardApps);
+        assertFalse(new JSONObject(FridaBridge.config(loaded)).has("mediaCard"));
+    }
     public void testDisabledConfigAndResetRemoveCustomActions() throws Exception {
         store.save(sample()); store.save(new SettingsStore.State());
         JSONObject config = new JSONObject(FridaBridge.config(store.load()));

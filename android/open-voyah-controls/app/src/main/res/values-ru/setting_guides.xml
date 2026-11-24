@@ -168,6 +168,11 @@
         <item>Погода скрыта</item>
         <item>Карточка погоды видна</item>
     </string-array>
+    <string-array name="guide_home_media_card_apps">
+        <item>Добавляет Voyah Music и Voyah Radio, если они установлены, в список источников медиакарточки штатного рабочего стола.</item>
+        <item>Только штатные источники</item>
+        <item>Ваши плееры в списке</item>
+    </string-array>
     <string-array name="guide_home_weather_city">
         <item>Задаёт город для карточки погоды на штатном рабочем столе.</item>
         <item>Текущий город</item>

@@ -1,5 +1,6 @@
 import { installHomeNavigationCard } from './home-navi-card.js';
 import { installHomeWeatherCard } from './home-weather-card.js';
+import { installHomeMediaCard } from './home-media-card.js';
 import { installPanelState } from './panel-state.js';
 import { installScreenLift } from './screen-lift.js';
 import { createReporter } from './report.js';
@@ -96,7 +97,7 @@ export function install(Java, onNavigation = () => {}, startup, report = createR
 Java.perform(function () {
     let clickHook, initHook, initDownHook, selectionHook;
     const holdHooks = [];
-    let panelState, homeCard = null, weatherCard = null, screenLift = null;
+    let panelState, homeCard = null, weatherCard = null, mediaCard = null, screenLift = null;
     try {
     const Nav = Java.use('com.qinggan.mainlauncher.navigation.NavigationBar');
     const Global = Java.use('android.provider.Settings$Global');
@@ -273,6 +274,8 @@ Java.perform(function () {
     homeCard = installHomeNavigationCard(Java, {readConfig, onNavigation,
         launch: (context, component) => launch(context, 0, {kind: 'LAUNCH_APP', component})});
     weatherCard = installHomeWeatherCard(Java, {readConfig, readWeather});
+    mediaCard = installHomeMediaCard(Java, {readConfig,
+        launch: (context, component) => launch(context, 0, {kind: 'LAUNCH_APP', component})});
     // Controls lays its app grid out for the visible part of a lowered display; a failure leaves it at full height.
     try { screenLift = installScreenLift(Java, Nav, report); }
     catch (error) { report('screen_lift', error); }
@@ -284,6 +287,8 @@ Java.perform(function () {
             catch (error) { report('home_card', error); }
             try { if (weatherCard !== null && !weatherCard.restoreAll()) restored = false; }
             catch (error) { restored = false; report('home_weather', error); }
+            try { if (mediaCard !== null && !mediaCard.restoreAll()) restored = false; }
+            catch (error) { restored = false; report('home_media', error); }
             if (restored) console.log('OVC_PANEL_ICONS_RESTORED ' + token);
         }});
     // Injection normally occurs after launcher has already constructed the bars.
@@ -316,6 +321,7 @@ Java.perform(function () {
         try { panelState?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
         try { homeCard?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
         try { weatherCard?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
+        try { mediaCard?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
         try { screenLift?.dispose(); } catch (disposeError) { report('rollback', disposeError); }
         setTimeout(() => install(Java, onNavigation, startup, report), 30000);
     }

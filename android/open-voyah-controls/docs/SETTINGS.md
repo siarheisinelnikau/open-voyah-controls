@@ -4,7 +4,7 @@ The inventory counts independently adjustable choices across supported firmware 
 
 | Area | Saved choices counted | Local | Portable archive section |
 | --- | --- | ---: | --- |
-| Buttons | Bindings enabled, hold time, debounce time, Android key assignments, panel assignments enabled, panel assignments, Yandex Navigator instead of the Baidu map on the home screen, Navigator widget scale, weather on the home screen, city for the home screen weather, steering assignments | 11 | `buttons` (10). The weather city is local. |
+| Buttons | Bindings enabled, hold time, debounce time, Android key assignments, panel assignments enabled, panel assignments, Yandex Navigator instead of the Baidu map on the home screen, Navigator widget scale, weather on the home screen, city for the home screen weather, Voyah Music and Voyah Radio in the media card, steering assignments | 12 | `buttons` (11). The weather city is local. |
 | Voice | Voice language, speech engine, default seat levels, extended driver window venting, extended cabin venting, media ducking while listening, media ducking during calls, media level while lowered, media volume at startup, media volume at startup level, spoken feedback, feedback style, speech rate, speech volume, ready sound, ready sound volume, end-of-listening sound, end-of-listening volume, offline voice, app assignments, voice contacts, optional online fallback, maximum listening time, result popup duration, recognized phrase visibility, ready signal style, spoken ready phrase, spoken reply channel | 28 | `voice` (27). Online fallback uses device-bound storage. |
 | Windows and displays | Per-app width, per-app DPI, per-app minimum panel margin, per-display default DPI, window swipe between screens, screen shown after a window swipe, virtual display DPI, cluster media, navigation feed, window service, panel strip reserved by Android (experimental) | 11 | `appWindows`, `appDisplayDpi`, `display` (8). The navigation feed, window-service and reserved-strip choices are local. |
 | Language | App language, factory screen translation, factory apps language (text overlays), factory apps with the overlay switched off | 4 | `language`, `localization` (2). The two overlay choices are local: they belong to this head unit's /vendor/overlay. |
@@ -34,7 +34,7 @@ Tap the information button beside a setting to see its effect and a before-and-a
 
 | Section | Parts |
 | --- | --- |
-| Home screen and apps | App grid; Desktops (desktops, wallpapers, wallpaper dimming, desktop layouts); Desktop cards; Factory home screen (Yandex Navigator card, widget scale, weather) |
+| Home screen and apps | App grid; Desktops (desktops, wallpapers, wallpaper dimming, desktop layouts); Desktop cards; Factory home screen (Yandex Navigator card, widget scale, weather, Voyah Music and Voyah Radio in the media card) |
 | Windows and screens | App windows (window service, Android panel strip, App DPI defaults, Move windows with a swipe; one app's scale stays in its **App settings**); Virtual display and cluster (the virtual display page, drawn in the section) |
 | Buttons and quick access | Launcher panel; Steering wheel; Hardware buttons (service, assignments, press timings, reset); Quick action bar (drawn in the section) |
 | Voice | The voice settings page |

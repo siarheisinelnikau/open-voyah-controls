@@ -1,6 +1,6 @@
 # Factory launcher home screen
 
-This maps the home screen of the factory launcher on the central display so that overrides of its cards, tiles and panels can be planned and tested without the car. Two cards have overrides so far, each behind a setting that is off by default: the navigation card (see [Navigation card replacement](#navigation-card-replacement)) and the weather card's data (see [Home weather card](FRIDA_AGENTS.md#home-weather-card)). Nothing else here is implemented, and none of it is a reviewed injection target. The panel buttons that Controls already replaces are in [Injection targets and controls](INJECTION_MAP.md).
+This maps the home screen of the factory launcher on the central display so that overrides of its cards, tiles and panels can be planned and tested without the car. Three cards have overrides so far, each behind a setting: the navigation card (see [Navigation card replacement](#navigation-card-replacement)) and the weather card's data (see [Home weather card](FRIDA_AGENTS.md#home-weather-card)), both off by default, and the media card's sources (see [Media card sources](#media-card-sources)), on by default. Nothing else here is implemented, and none of it is a reviewed injection target. The panel buttons that Controls already replaces are in [Injection targets and controls](INJECTION_MAP.md).
 
 **Source.** Captured on 2026-11-21 from one H97C head unit:
 
@@ -147,6 +147,21 @@ It then adds `FLAG_ACTIVITY_NEW_TASK` and calls `ActivityAnimUtils.startActivity
 | Show the navigator's own state from its notification | Fallback when the navigator has no widget or binding fails. Without a route the navigator had no notification (checked on the unit). |
 
 **Not established.** What the navigator's notification holds during guidance. The traffic widget draws without its configuration screen and fills the tall card once it is told the card's size and asked to update (see [Home navigation card](FRIDA_AGENTS.md#home-navigation-card)).
+
+## Media card sources
+
+**Setting.** **Voyah Music and Voyah Radio in the media card**, under Factory home screen, on by default. The agent side is described in [Home media card](FRIDA_AGENTS.md#home-media-card).
+
+**Where the list comes from.** Not from Android's media sessions, a package query, an intent or a content provider:
+
+- `BigMediaView97cV2.initMedia()` builds it in code: WeCar Flow (`hm_name_wechat_car`, shown as "Funn Audio") when `persist.app.kuwo.support` is false, else Kuwo, then Bluetooth, USB, Ximalaya and Yunting. On this unit the property is false. The OEM FM radio is no tab.
+- Each tab is a `MediaResEnum97C` entry (name and icon are launcher resources) that names a `com.qinggan.media.helper.MediaEnum`. That enum holds the source's media browser service (all in `com.qinggan.media`), audio stream and focus client id.
+- `MediaManager` connects to the services in `AsgardMediaConfigImpl.getControlMedias()` through `MediaControlManager` and `MediaBrowserHelper` (`MediaBrowserCompat`), and keeps each source's metadata and state.
+- The card shows the source of the latest media audio focus: `AudioPolicyHelper` compares the OEM audio policy's last media entry (stream type and client id) with each `MediaEnum`. A card helper only takes sources in its own `supportSet` (`BaseWidgetHelper.initSupport`).
+
+**Checked on the unit (2026-11-24).** Launcher 1.0.6; the view tree shows `BigMediaView97cV2` with five tabs in `media_tab`; `persist.app.kuwo.support` false; no FM antenna property; Yandex Music held an active media session while the card showed Bluetooth music. The OEM audio policy logs a focus request of Voyah Radio as `request[app.voyahradio] … Cid:android.media.AudioManager@…app.voyahradio.playback.RadioService$$ExternalSyntheticLambda5@…`.
+
+**Lowered screen.** `screen_down_media` (`HomeMediaView97c` → `DropMediaCard`) builds its own list in `HomeBaseView.getMediaEnums()` and is not extended.
 
 ## Lowered-screen layout
 

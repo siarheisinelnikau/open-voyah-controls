@@ -39,7 +39,10 @@ private fun unavailable(state: HomeControlsState): Boolean {
     return !state.available
 }
 
-/** Settings → Home screen → Factory home screen: the Navigator map card and the weather of the factory launcher. */
+/**
+ * Settings → Home screen → Factory home screen: the Navigator map card, the weather and the media card's sources of the
+ * factory launcher.
+ */
 @Composable
 internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
     CockpitSection(UiText.get(R.string.settings_part_factory_home), CockpitIcon.HOME, UiText.get(R.string.settings_factory_home_summary)) {
@@ -58,6 +61,7 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
             CockpitTextField(state.weatherCity, actions::weatherCity,
                 label = UiText.get(R.string.home_weather_city), modifier = Modifier.fillMaxWidth(), guideId = R.string.home_weather_city)
         }
+        CockpitSwitch(R.string.home_media_card_apps, state.mediaCardApps, change = actions::mediaCardApps)
     }
 }
 

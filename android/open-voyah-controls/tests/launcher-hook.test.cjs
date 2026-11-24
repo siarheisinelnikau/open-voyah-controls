@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const source = ['report.js', 'panel-icons.js', 'panel-state.js', 'home-navi-card.js', 'home-weather-card.js', 'screen-lift.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+const source = ['report.js', 'panel-icons.js', 'panel-state.js', 'home-navi-card.js', 'home-weather-card.js', 'home-media-card.js', 'screen-lift.js', 'launcher-buttons.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import .*;$/gm, '').replaceAll('export function', 'function')).join('\n') + '\ninstall(Java);';
 
 // Launcher resource ids of the keyed tags the OEM click reads.
@@ -315,6 +315,8 @@ function harness(config, options = {}) {
                 if (options.noButtonClass && name.endsWith('NoToggleRadioButton')) throw Error('java.lang.ClassNotFoundException: ' + name);
                 // A launcher without the factory navigation card: the home card reports it and stays off.
                 if (name.startsWith('com.qinggan.app.launcher.homecard.')) throw Error('java.lang.ClassNotFoundException: ' + name);
+                // Nor its media framework: the media card reports it and stays off.
+                if (name.startsWith('com.qinggan.media.helper.')) throw Error('java.lang.ClassNotFoundException: ' + name);
                 assert.ok(classes[name], name); return classes[name];
             }
         },
@@ -1008,6 +1010,7 @@ test('a failed installation resets every hook even when dispose throws and retri
     assert.deepEqual(h.logs.filter(line => line.startsWith('OVC_')), [
         'OVC_HOME_CARD_ERROR stage=install kind=ClassNotFoundException',
         'OVC_HOME_WEATHER_ERROR stage=install kind=ClassNotFoundException',
+        'OVC_HOME_MEDIA_ERROR stage=install kind=ClassNotFoundException',
         'OVC_PANEL_ERROR stage=install kind=IllegalStateException',
         'OVC_PANEL_ERROR stage=rollback kind=IllegalStateException',
     ]);

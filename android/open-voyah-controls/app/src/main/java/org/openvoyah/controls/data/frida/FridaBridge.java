@@ -165,6 +165,12 @@ public final class FridaBridge {
                 .put("scale", SettingsStore.navigatorWidgetScale(state.navigatorWidgetScale)));
             // The launcher agent shows Controls' weather (HOME_WEATHER) in the factory weather card, or this text without it.
             if (state.weatherCard) root.put("weatherCard", new JSONObject().put("noData", UiText.get(R.string.home_weather_no_data)));
+            // The launcher agent adds these apps to the factory media card's sources when they are installed.
+            if (state.mediaCardApps) {
+                JSONArray sources = new JSONArray();
+                for (String[] app : SettingsStore.MEDIA_CARD_APPS) sources.put(new JSONObject().put("package", app[0]).put("service", app[1]));
+                root.put("mediaCard", new JSONObject().put("sources", sources));
+            }
             return root
                 .put("steeringEnabled", state.enabled).put("steering", hookActions(state.steeringActions))
                 .put("steeringHoldMs", state.holdMs).put("steeringDebounceMs", state.debounceMs).toString();

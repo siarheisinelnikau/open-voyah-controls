@@ -168,6 +168,11 @@
         <item>Weather hidden</item>
         <item>Weather card visible</item>
     </string-array>
+    <string-array name="guide_home_media_card_apps">
+        <item>Adds Voyah Music and Voyah Radio, when installed, to the sources of the factory home screen’s media card.</item>
+        <item>Factory sources only</item>
+        <item>Your players in the list</item>
+    </string-array>
     <string-array name="guide_home_weather_city">
         <item>Sets the city used by the factory home screen’s weather card.</item>
         <item>Current city</item>

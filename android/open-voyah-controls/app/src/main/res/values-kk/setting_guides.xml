@@ -168,6 +168,11 @@
         <item>Ауа райы жасырылған</item>
         <item>Ауа райы картасы көрінеді</item>
     </string-array>
+    <string-array name="guide_home_media_card_apps">
+        <item>Орнатылған болса, Voyah Music пен Voyah Radio қолданбаларын зауыттық жұмыс үстеліндегі медиа картасының көздеріне қосады.</item>
+        <item>Тек зауыттық көздер</item>
+        <item>Сіздің ойнатқыштарыңыз тізімде</item>
+    </string-array>
     <string-array name="guide_home_weather_city">
         <item>Зауыттық жұмыс үстелінің ауа райы картасы үшін қаланы қояды.</item>
         <item>Ағымдағы қала</item>

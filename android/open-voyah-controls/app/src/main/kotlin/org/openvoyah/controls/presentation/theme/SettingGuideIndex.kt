@@ -37,6 +37,7 @@ internal val settingGuides: Map<Int, SettingGuide> = mapOf(
     R.string.home_navigator_widget_scale to SettingGuide(R.array.guide_home_navigator_widget_scale, GuidePicture.WINDOW),
     R.string.home_weather_card to SettingGuide(R.array.guide_home_weather_card, GuidePicture.DESKTOP),
     R.string.home_weather_city to SettingGuide(R.array.guide_home_weather_city, GuidePicture.TEXT),
+    R.string.home_media_card_apps to SettingGuide(R.array.guide_home_media_card_apps, GuidePicture.SOUND),
     R.string.apps_hide to SettingGuide(R.array.guide_apps_hide, GuidePicture.GRID),
     R.string.app_icon_plain to SettingGuide(R.array.guide_app_icon_plain, GuidePicture.THEME),
     R.string.window_hook_title to SettingGuide(R.array.guide_window_hook_title, GuidePicture.WINDOW),
