@@ -48,6 +48,11 @@ public final class SettingsStore {
         {"app.voyahmusic.player", "app.voyahmusic.player.playback.MusicBrowserService"},
         {"app.voyahradio", "app.voyahradio.playback.RadioBrowserService"}
     };
+    /**
+     * The factory media card's Chinese online services, which do not work outside China: Tencent WeCar Flow ("Funn
+     * Audio"), Kuwo, Ximalaya and Yunting, by the launcher's source names. Bluetooth and USB music stay.
+     */
+    public static final String[] MEDIA_CARD_ONLINE_SOURCES = {"WECAR_FLOW", "KW_MUSIC", "XMLA_MUSIC", "RADIO_YUNTING"};
     public static int navigatorWidgetScale(int value) {
         if (value >= 50 && value < NAVIGATOR_WIDGET_SCALE_MIN) return NAVIGATOR_WIDGET_SCALE_MIN;
         return value >= NAVIGATOR_WIDGET_SCALE_MIN && value <= 200 ? value : NAVIGATOR_WIDGET_SCALE;
@@ -66,6 +71,8 @@ public final class SettingsStore {
         public boolean weatherCard = false;
         /** Offer Voyah Music and Voyah Radio (MEDIA_CARD_APPS) in the factory home screen's media card. On unless turned off. */
         public boolean mediaCardApps = true;
+        /** Hide the Chinese online services (MEDIA_CARD_ONLINE_SOURCES) in that card. On unless turned off. */
+        public boolean mediaCardHideOnline = true;
         public final java.util.Map<String, Action> panelActions = new java.util.LinkedHashMap<>();
         public final java.util.Map<String, Action> steeringActions = new java.util.LinkedHashMap<>();
         public State() {
@@ -107,6 +114,7 @@ public final class SettingsStore {
         state.navigatorWidgetScale = navigatorWidgetScale(root.optInt("navigatorWidgetScale", legacyScale));
         state.weatherCard = root.optBoolean("weatherCard", false);
         state.mediaCardApps = root.optBoolean("mediaCardApps", true);
+        state.mediaCardHideOnline = root.optBoolean("mediaCardHideOnline", true);
         JSONObject panel = root.optJSONObject("panelActions");
         if (panel != null) {
             java.util.Iterator<String> slots = panel.keys();
@@ -164,6 +172,7 @@ public final class SettingsStore {
             .put("navigatorWidgetScale", state.navigatorWidgetScale)
             .put("weatherCard", state.weatherCard)
             .put("mediaCardApps", state.mediaCardApps)
+            .put("mediaCardHideOnline", state.mediaCardHideOnline)
             .put("panelActions", panel).put("steeringActions", steering).toString(2);
     }
 }

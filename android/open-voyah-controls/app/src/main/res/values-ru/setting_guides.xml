@@ -173,6 +173,11 @@
         <item>Только штатные источники</item>
         <item>Ваши плееры в списке</item>
     </string-array>
+    <string-array name="guide_home_media_card_hide_online">
+        <item>Убирает из медиакарточки штатного рабочего стола китайские онлайн-сервисы, которые не работают за пределами Китая. Музыка по Bluetooth и с USB остаётся.</item>
+        <item>Все штатные источники</item>
+        <item>Только рабочие источники</item>
+    </string-array>
     <string-array name="guide_home_weather_city">
         <item>Задаёт город для карточки погоды на штатном рабочем столе.</item>
         <item>Текущий город</item>

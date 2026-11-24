@@ -1,6 +1,6 @@
 # Factory launcher home screen
 
-This maps the home screen of the factory launcher on the central display so that overrides of its cards, tiles and panels can be planned and tested without the car. Three cards have overrides so far, each behind a setting: the navigation card (see [Navigation card replacement](#navigation-card-replacement)) and the weather card's data (see [Home weather card](FRIDA_AGENTS.md#home-weather-card)), both off by default, and the media card's sources (see [Media card sources](#media-card-sources)), on by default. Nothing else here is implemented, and none of it is a reviewed injection target. The panel buttons that Controls already replaces are in [Injection targets and controls](INJECTION_MAP.md).
+This maps the home screen of the factory launcher on the central display so that overrides of its cards, tiles and panels can be planned and tested without the car. Three cards have overrides so far, each behind a setting: the navigation card (see [Navigation card replacement](#navigation-card-replacement)) and the weather card's data (see [Home weather card](FRIDA_AGENTS.md#home-weather-card)), both off by default, and the media card's sources (see [Media card sources](#media-card-sources)), whose two settings are on by default. Nothing else here is implemented, and none of it is a reviewed injection target. The panel buttons that Controls already replaces are in [Injection targets and controls](INJECTION_MAP.md).
 
 **Source.** Captured on 2026-11-21 from one H97C head unit:
 
@@ -150,7 +150,7 @@ It then adds `FLAG_ACTIVITY_NEW_TASK` and calls `ActivityAnimUtils.startActivity
 
 ## Media card sources
 
-**Setting.** **Voyah Music and Voyah Radio in the media card**, under Factory home screen, on by default. The agent side is described in [Home media card](FRIDA_AGENTS.md#home-media-card).
+**Settings.** **Voyah Music and Voyah Radio in the media card** and **Hide Funn Audio, Ximalaya and Yunting in the media card**, under Factory home screen, both on by default. The agent side is described in [Home media card](FRIDA_AGENTS.md#home-media-card).
 
 **Where the list comes from.** Not from Android's media sessions, a package query, an intent or a content provider:
 

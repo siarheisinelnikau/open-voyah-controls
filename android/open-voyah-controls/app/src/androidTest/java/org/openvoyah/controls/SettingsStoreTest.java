@@ -271,6 +271,22 @@ public class SettingsStoreTest extends AndroidTestCase {
         store.save(state);
         SettingsStore.State loaded = new SettingsStore(getContext()).load();
         assertFalse(loaded.mediaCardApps);
+        assertFalse(new JSONObject(FridaBridge.config(loaded)).getJSONObject("mediaCard").has("sources"));
+    }
+    public void testMediaCardHidesTheChineseOnlineServicesUntilTurnedOff() throws Exception {
+        assertTrue(new SettingsStore.State().mediaCardHideOnline);
+        String old = "{\"schema\":1,\"enabled\":true,\"holdMs\":650,\"debounceMs\":100,\"bindings\":[]}";
+        assertTrue(SettingsStore.decode(old).mediaCardHideOnline);
+        org.json.JSONArray hide = new JSONObject(FridaBridge.config(new SettingsStore.State()))
+            .getJSONObject("mediaCard").getJSONArray("hide");
+        assertEquals("[\"WECAR_FLOW\",\"KW_MUSIC\",\"XMLA_MUSIC\",\"RADIO_YUNTING\"]", hide.toString());
+        SettingsStore.State state = sample(); state.mediaCardHideOnline = false;
+        store.save(state);
+        SettingsStore.State loaded = new SettingsStore(getContext()).load();
+        assertFalse(loaded.mediaCardHideOnline);
+        assertFalse(new JSONObject(FridaBridge.config(loaded)).getJSONObject("mediaCard").has("hide"));
+        // Both off: the factory media card.
+        loaded.mediaCardApps = false;
         assertFalse(new JSONObject(FridaBridge.config(loaded)).has("mediaCard"));
     }
     public void testDisabledConfigAndResetRemoveCustomActions() throws Exception {

@@ -173,6 +173,11 @@
         <item>Factory sources only</item>
         <item>Your players in the list</item>
     </string-array>
+    <string-array name="guide_home_media_card_hide_online">
+        <item>Removes the Chinese online services, which do not work outside China, from the factory home screen’s media card. Bluetooth and USB music stay.</item>
+        <item>All factory sources</item>
+        <item>Working sources only</item>
+    </string-array>
     <string-array name="guide_home_weather_city">
         <item>Sets the city used by the factory home screen’s weather card.</item>
         <item>Current city</item>

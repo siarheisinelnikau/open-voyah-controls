@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_media_card_apps">"Медиа картасындағы Voyah Music және Voyah Radio"</string>
+    <string name="home_media_card_hide_online">"Медиа картасында Funn Audio, Ximalaya және Yunting жасыру"</string>
 </resources>

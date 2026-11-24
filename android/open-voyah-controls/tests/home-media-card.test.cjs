@@ -9,29 +9,37 @@ const source = ['report.js', 'home-media-card.js'].map(file => fs.readFileSync(p
 
 function load(extra = {}) {
     const logs = [];
-    const context = {console: {log: line => logs.push(line)}, setInterval: () => 1, clearInterval() {}, JSON, ...extra};
-    const api = vm.runInNewContext(source + '\n({mediaSources, assignSlots, focusOwner, installHomeMediaCard, MEDIA_SLOTS})', context);
+    const context = {console: {log: line => logs.push(line)}, setInterval: () => 1, clearInterval() {}, JSON, Date, ...extra};
+    const api = vm.runInNewContext(source + '\n({mediaSetting, assignSlots, focusOwner, installHomeMediaCard, MEDIA_SLOTS})', context);
     return {api, logs};
 }
 
 const MUSIC = {package: 'app.voyahmusic.player', service: 'app.voyahmusic.player.playback.MusicBrowserService'};
 const RADIO = {package: 'app.voyahradio', service: 'app.voyahradio.playback.RadioBrowserService'};
+const ONLINE = ['WECAR_FLOW', 'KW_MUSIC', 'XMLA_MUSIC', 'RADIO_YUNTING'];
 const ON = {schema: 1, mediaCard: {sources: [MUSIC, RADIO]}};
+const HIDE = {schema: 1, mediaCard: {sources: [MUSIC, RADIO], hide: ONLINE}};
+const FACTORY_TABS = ['tab:WE_CAR', 'tab:BT_MUSIC', 'tab:USB_MUSIC', 'tab:XMLY', 'tab:ONLINE_RADIO'];
 const plain = value => JSON.parse(JSON.stringify(value));
 
-test('the setting lists valid, distinct sources and is off during a restore request', () => {
-    const {mediaSources} = load().api;
-    assert.deepEqual(plain(mediaSources(ON)), [MUSIC, RADIO]);
-    assert.equal(mediaSources({...ON, restoreIcons: 'a'.repeat(32)}), null);
-    assert.equal(mediaSources({schema: 1}), null);
-    assert.equal(mediaSources({schema: 2, mediaCard: ON.mediaCard}), null);
-    assert.equal(mediaSources(null), null);
+test('the setting lists valid, distinct sources and hideable factory sources, and is off during a restore request', () => {
+    const {mediaSetting} = load().api;
+    assert.deepEqual(plain(mediaSetting(ON)), {sources: [MUSIC, RADIO], hide: []});
+    assert.deepEqual(plain(mediaSetting(HIDE)), {sources: [MUSIC, RADIO], hide: ONLINE});
+    // Bluetooth and USB music never hide, nor does anything unknown.
+    assert.deepEqual(plain(mediaSetting({schema: 1, mediaCard: {hide: ['BT_MUSIC', 'USB_MUSIC', 'XMLA_MUSIC', 'DAB', 7]}})),
+        {sources: [], hide: ['XMLA_MUSIC']});
+    assert.equal(mediaSetting({...HIDE, restoreIcons: 'a'.repeat(32)}), null);
+    assert.equal(mediaSetting({schema: 1}), null);
+    assert.equal(mediaSetting({schema: 1, mediaCard: {}}), null);
+    assert.equal(mediaSetting({schema: 2, mediaCard: HIDE.mediaCard}), null);
+    assert.equal(mediaSetting(null), null);
     const bad = [{package: 'app', service: 'app.X'}, {package: 'app.x;rm', service: 'app.x.S'}, {package: 'app.x', service: ''},
         {package: 'app.x', service: 'S'}, {package: 'a.' + 'b'.repeat(130), service: 'a.b.S'}, null, 'app.x'];
-    assert.equal(mediaSources({schema: 1, mediaCard: {sources: bad}}), null);
+    assert.equal(mediaSetting({schema: 1, mediaCard: {sources: bad}}), null);
     // A repeated package keeps its first entry, and there are no more sources than borrowed slots.
     const third = {package: 'org.example.player', service: 'org.example.player.Browser'};
-    assert.deepEqual(plain(mediaSources({schema: 1, mediaCard: {sources: [MUSIC, {...MUSIC, service: 'app.voyahmusic.Other'}, RADIO, third]}})),
+    assert.deepEqual(plain(mediaSetting({schema: 1, mediaCard: {sources: [MUSIC, {...MUSIC, service: 'app.voyahmusic.Other'}, RADIO, third]}})).sources,
         [MUSIC, RADIO]);
 });
 
@@ -85,7 +93,7 @@ function harness(options = {}) {
     const timers = [];
     const calls = [];
     const state = {config: options.config ?? ON, installed: new Set(options.installed ?? [MUSIC.package, RADIO.package]),
-        locale: 'ru-RU'};
+        locale: 'ru-RU', memory: options.memory ?? 'BT_MUSIC', failMemory: options.failMemory ?? 0};
     const hooks = {};
     const hook = (name, original = () => undefined) => (hooks[name] = {implementation: null,
         call(self, ...args) { calls.push([name, ...args]); return original(self, ...args); }});
@@ -124,12 +132,19 @@ function harness(options = {}) {
     const manager = {controlMap: {value: javaMap()}, mediaInfoMap: {value: javaMap()}, playMap: {value: javaMap()},
         playStateMap: {value: javaMap()}, linkedList: {value: {items: [], remove(x) { this.items = this.items.filter(i => i !== x); }}},
         curMediaEnum: {value: E('NO')},
-        addMediaControl(control) { this.controlMap.value.put(control.value, control); }};
-    const listener = {onNoMediaEnum() { calls.push(['onNoMediaEnum']); }};
-    const helper = {supportSet: {value: javaSet(supported.map(E))}, cur: E('NO'), listener: {value: listener}, imageUrl: {value: ''},
+        addMediaControl(control) { this.controlMap.value.put(control.value, control); },
+        // The most recent source of the list, as MediaManager.getMyMediaEnum.
+        getMyMediaEnum(list) { return [...this.linkedList.value.items].reverse().find(x => list.items.includes(x)) ?? E('NO'); }};
+    const memory = {getString: (key, fallback) => (key === 'key_media_type' ? state.memory : fallback),
+        putString(key, value) {
+            if (state.failMemory > 0) { state.failMemory--; throw new Error('java.lang.IllegalStateException: private prefs'); }
+            if (key === 'key_media_type') state.memory = value;
+        }};
+    const helper = {supportSet: {value: javaSet(supported.map(E))}, cur: E('NO'), imageUrl: {value: ''},
         getCurMediaEnum() { return this.cur; }, setCurMediaEnum(value) { this.cur = value; },
-        updateMediaEnum(value) { calls.push(['updateMediaEnum', value.name]); this.cur = value; },
-        clearMediaInfo() { calls.push(['clearMediaInfo']); }};
+        // Hooked in the launcher (BaseWidgetHelper.getDefaultMediaEnum); the factory default here is WeCar Flow.
+        getDefaultMediaEnum() { return hooks.defaultSource.implementation ? hooks.defaultSource.implementation.call(this) : E('WECAR_FLOW'); },
+        updateMediaEnum(value) { calls.push(['updateMediaEnum', value.name]); this.cur = value; }};
     const view = name => ({name, text: null, drawable: null, visibility: 0,
         setImageDrawable(drawable) { this.drawable = drawable; }, setVisibility(v) { this.visibility = v; }});
     const tabView = {adapter: {data: {value: javaList()}}, filled: [],
@@ -139,14 +154,16 @@ function harness(options = {}) {
         flRcy: {value: view('rcy')}};
     const context = {name: 'card-context', getPackageManager: () => pm};
     const card = {binding: {value: binding}, mediaInfoHelper: {value: helper}, equals(other) { return other === this; },
-        getContext: () => context, $dispose() {},
+        getContext: () => context, $dispose() {}, upArrow() { calls.push(['upArrow']); },
         initMedia() { return hooks.initMedia.implementation ? hooks.initMedia.implementation.call(card) : factoryInit(card); }};
     function factoryInit(target) {
         target.binding.value.mediaTab.value.fillData({items: factoryTabs.map(T)});
     }
     const icon = pkg => ({getConstantState: () => ({newDrawable: () => ({icon: pkg})})});
+    let packageChecks = 0;
     const pm = {
         getServiceInfo(component) {
+            packageChecks++;
             if (!state.installed.has(component.pkg)) throw new Error('android.content.pm.PackageManager$NameNotFoundException: ' + component.pkg);
             return {};
         },
@@ -163,15 +180,15 @@ function harness(options = {}) {
         'com.qinggan.media.helper.MediaConfig': {getInstance: () => ({getMediaConfigInter: () => settings})},
         'com.qinggan.media.helper.impl.BaseConfigImpl': {},
         'com.qinggan.app.mediaCentre.MediaManager': {getInstance: () => manager},
+        'com.qinggan.app.mediaCentre.manager.MediaMemoryManager': {getInstance: () => ({spUtil: {value: memory}})},
         'com.qinggan.app.mediaCentre.manager.MediaControlManager': {$new(ctx, value) {
             const browser = {connected: options.connected ?? true, stopped: false, isConnected() { return this.connected; },
                 onStop() { this.stopped = true; }, reConnect() { calls.push(['reConnect']); }};
             const control = {value, listeners: [], browser, addQinMediaListener(l) { this.listeners.push(l); },
-                getMediaBrowserHelper: () => browser};
+                getMediaBrowserHelper: () => browser, equals(other) { return other === this; }, $dispose() {}};
             controls.push(control);
             return control;
         }},
-        'com.qinggan.app.mediaCentre.inter.QinMediaListener': {},
         'com.qinggan.media.helper.AudioPolicyHelper': {
             isMediaFocus: {overload: (...types) => (types.length === 2 ? hook('focusWith', () => 'oem') : hook('focusLatest', () => 'oem'))},
             getInstance: () => ({getLatestMediaInfo: () => latest.info})
@@ -183,11 +200,14 @@ function harness(options = {}) {
             onItemClick: {overload: () => hook('itemClick')}
         },
         'com.pateo.voyah.mediaCard.home.h97c.MediaInfoHelper97C': {updateCoverUrl: {overload: () => hook('cover')}},
+        'com.qinggan.app.mediaCentre.widget.BaseWidgetHelper': {getDefaultMediaEnum: {overload: () => hook('defaultSource', () => E('WECAR_FLOW'))}},
         'com.pateo.voyah.mediaCard.home.view.mediaTab97c.MediaTabAdapter97c$MediaTabHolder': {bindView: {overload: () => hook('bindTab')}},
         'com.pateo.voyah.mediaCard.home.inter.MediaBeanInter': {},
         'com.pateo.voyah.mediaCard.home.enums.MediaResEnum97C': tabs,
-        'java.util.ArrayList': {$new: (list) => ({items: list ? [...list.items] : []}),
-            add: {overload: () => ({call(list, x) { list.items.push(x); }})}},
+        'java.util.ArrayList': {$new: Object.assign(() => ({items: []}),
+            {overload: () => ({call: (cls, set) => ({items: [...set.values]})})}),
+            add: {overload: () => ({call(list, x) { list.items.push(x); }})},
+            remove: {overload: () => ({call(list, x) { list.items = list.items.filter(i => i !== x); }})}},
         'java.util.LinkedList': {remove: {overload: () => ({call(list, x) { list.remove(x); }})}},
         'java.lang.ref.WeakReference': {$new: referent => ({get: () => referent, $dispose() {}})},
         'android.app.ActivityThread': {currentApplication: () => application},
@@ -206,6 +226,7 @@ function harness(options = {}) {
     };
     // The card as the launcher built it before the agent attached.
     factoryInit(card);
+    if (options.current) helper.cur = E(options.current);
     let stale = null;
     if (options.leftover) {
         // As an agent that vanished without restoring left the launcher: a borrowed slot, entry, control and tab.
@@ -220,20 +241,21 @@ function harness(options = {}) {
         tabView.adapter.data.value.items.push(T('KW_MUSIC'));
     }
     const launched = [];
-    const {api, logs} = load({setInterval: (fn, ms) => { timers.push({fn, ms}); return timers.length; }});
+    let now = 1_700_000_000_000;
+    const {api, logs} = load({setInterval: (fn, ms) => { timers.push({fn, ms}); return timers.length; },
+        Date: {now: () => now}});
     const result = api.installHomeMediaCard(Java, {readConfig: () => state.config,
         launch: (ctx, component) => { launched.push([ctx.name, component]); return true; }});
-    const tick = () => timers[0].fn();
+    const tick = (ms = 2000) => { now += ms; timers[0].fn(); };
     const shownTabs = () => tabView.adapter.data.value.items.map(t => t.name);
     return {api, result, logs, calls, hooks, state, card, helper, manager, settings, controls, media: E, tab: T, binding,
-        tick, shownTabs, launched, latest, tabView, factory, stale};
+        tick, shownTabs, launched, latest, tabView, factory, stale, packageChecks: () => packageChecks};
 }
 
 test('the card offers both apps after its factory sources, each through a borrowed slot and free tab entry', () => {
     const h = harness();
     assert.deepEqual(h.logs, ['OVC_HOME_MEDIA_READY']);
-    assert.deepEqual(h.shownTabs(), ['tab:WE_CAR', 'tab:BT_MUSIC', 'tab:USB_MUSIC', 'tab:XMLY', 'tab:ONLINE_RADIO',
-        'tab:LOCAL_RADIO', 'tab:KW_MUSIC']);
+    assert.deepEqual(h.shownTabs(), [...FACTORY_TABS, 'tab:LOCAL_RADIO', 'tab:KW_MUSIC']);
     const music = h.media('SYSTEM_BT_MUSIC'), radio = h.media('DAB');
     assert.deepEqual([music.mediaId.value, music.serviceName.value, music.servicePageName.value, music.clientId.value, music.streamType.value],
         [9001, MUSIC.service, MUSIC.package, MUSIC.package + '.', 3]);
@@ -250,10 +272,34 @@ test('the card offers both apps after its factory sources, each through a borrow
     assert.deepEqual(h.controls.map(control => control.value.name), ['SYSTEM_BT_MUSIC', 'DAB']);
     assert.ok(h.controls.every(control => control.listeners[0] === h.manager));
     assert.equal(h.manager.controlMap.value.get(radio), h.controls[1]);
-    // Polling the unchanged setting changes nothing.
+    // Polling the unchanged setting changes nothing, and asks the package manager only now and then.
     h.tabView.filled.length = 0;
+    const checks = h.packageChecks();
     h.tick();
     assert.deepEqual(h.tabView.filled, []);
+    assert.equal(h.packageChecks(), checks);
+    h.tick(15000);
+    assert.equal(h.packageChecks(), checks + 2);
+});
+
+test('hidden factory sources leave the tabs, and a card showing one moves to Bluetooth music', () => {
+    const h = harness({config: HIDE, current: 'WECAR_FLOW'});
+    assert.deepEqual(h.shownTabs(), ['tab:BT_MUSIC', 'tab:USB_MUSIC', 'tab:LOCAL_RADIO', 'tab:KW_MUSIC']);
+    assert.equal(h.helper.cur, h.media('BT_MUSIC'));
+    // The card's default without media is Bluetooth music while WeCar Flow is hidden.
+    assert.equal(h.helper.getDefaultMediaEnum(), h.media('BT_MUSIC'));
+    // Showing the factory sources again needs no restart.
+    h.state.config = ON;
+    h.tick();
+    assert.deepEqual(h.shownTabs(), [...FACTORY_TABS, 'tab:LOCAL_RADIO', 'tab:KW_MUSIC']);
+    assert.equal(h.helper.getDefaultMediaEnum(), h.media('WECAR_FLOW'));
+});
+
+test('hiding works without the apps installed', () => {
+    const h = harness({config: HIDE, installed: []});
+    assert.deepEqual(h.shownTabs(), ['tab:BT_MUSIC', 'tab:USB_MUSIC']);
+    assert.deepEqual(h.controls, []);
+    assert.equal(h.media('DAB').servicePageName.value, 'com.qinggan.media');
 });
 
 test('tabs and the title show the app name and icon, and the cover shows the app icon', () => {
@@ -307,7 +353,7 @@ test('a tap on the card opens the playing app, and a tab of an app not connected
     assert.deepEqual(h.calls.map(call => call[0]), ['openPage']);
     h.calls.length = 0;
     h.hooks.itemClick.implementation.call(h.card, h.tab('LOCAL_RADIO'));
-    assert.deepEqual(h.calls, [['reConnect']]);
+    assert.deepEqual(h.calls, [['reConnect'], ['upArrow']]);
     assert.equal(h.binding.flRcy.value.visibility, 8);
     assert.deepEqual(h.launched.at(-1), ['card-context', MUSIC.package + '/.Main']);
     // A factory tab plays as the launcher does.
@@ -323,10 +369,13 @@ test('a connected app tab plays through the launcher itself', () => {
     assert.deepEqual(h.launched, []);
 });
 
-test('off puts the factory slots, entries, sources and tabs back', () => {
-    const h = harness();
+test('off puts the factory slots, entries, sources and tabs back, and the card moves to a factory source', () => {
+    const h = harness({config: HIDE});
     h.helper.cur = h.media('SYSTEM_BT_MUSIC');
     h.manager.curMediaEnum.value = h.media('SYSTEM_BT_MUSIC');
+    // The launcher remembered the app as its last source while it played, and USB before it.
+    h.manager.linkedList.value.items.push(h.media('USB_MUSIC'), h.media('SYSTEM_BT_MUSIC'));
+    h.state.memory = 'SYSTEM_BT_MUSIC';
     h.state.config = {schema: 1};
     h.calls.length = 0;
     h.tick();
@@ -341,22 +390,43 @@ test('off puts the factory slots, entries, sources and tabs back', () => {
     assert.equal(h.tab('LOCAL_RADIO').mediaEnum.value, h.media('LOCAL_RADIO'));
     assert.equal(h.tab('KW_MUSIC').mediaEnum.value, h.media('KW_MUSIC'));
     assert.ok(h.controls.every(control => control.browser.stopped));
-    assert.deepEqual(h.shownTabs(), ['tab:WE_CAR', 'tab:BT_MUSIC', 'tab:USB_MUSIC', 'tab:XMLY', 'tab:ONLINE_RADIO']);
-    // The card showed an app: it goes back to the last factory source, as after a start without media.
+    assert.deepEqual(h.shownTabs(), FACTORY_TABS);
     assert.equal(h.manager.curMediaEnum.value, h.media('NO'));
-    assert.deepEqual(h.calls.filter(call => call[0] !== 'initMedia'), [['clearMediaInfo'], ['onNoMediaEnum']]);
+    assert.deepEqual(h.manager.linkedList.value.items, [h.media('USB_MUSIC')]);
+    // The card shows the factory source heard last, and the launcher no longer remembers the slot.
+    assert.deepEqual(h.calls.filter(call => call[0] === 'updateMediaEnum'), [['updateMediaEnum', 'USB_MUSIC']]);
+    assert.equal(h.state.memory, 'BT_MUSIC');
     // The hooks are inert now.
     assert.equal(h.hooks.focusWith.implementation.call({}, h.media('DAB'), null), 'oem');
+    assert.equal(h.helper.getDefaultMediaEnum(), h.media('WECAR_FLOW'));
+});
+
+test('without a factory source heard, the card falls back to its default', () => {
+    const h = harness();
+    h.helper.cur = h.media('DAB');
+    h.calls.length = 0;
+    assert.equal(h.result.restoreAll(), true);
+    assert.deepEqual(h.calls.filter(call => call[0] === 'updateMediaEnum'), [['updateMediaEnum', 'WECAR_FLOW']]);
+});
+
+test('a restore that failed is tried again on the next poll', () => {
+    // The install-time cleanup and the first poll right after it both fail.
+    const h = harness({memory: 'DAB', failMemory: 2, config: {schema: 1}});
+    assert.deepEqual(h.logs, ['OVC_HOME_MEDIA_ERROR stage=memory kind=IllegalStateException', 'OVC_HOME_MEDIA_READY']);
+    assert.equal(h.state.memory, 'DAB');
+    h.tick();
+    assert.equal(h.state.memory, 'BT_MUSIC');
+    assert.equal(h.result.restoreAll(), true);
 });
 
 test('the restore handshake restores; without the setting nothing is touched', () => {
-    const h = harness();
+    const h = harness({config: HIDE});
     assert.equal(h.result.restoreAll(), true);
     assert.equal(h.media('DAB').servicePageName.value, 'com.qinggan.media');
-    assert.deepEqual(h.shownTabs(), ['tab:WE_CAR', 'tab:BT_MUSIC', 'tab:USB_MUSIC', 'tab:XMLY', 'tab:ONLINE_RADIO']);
+    assert.deepEqual(h.shownTabs(), FACTORY_TABS);
     const off = harness({config: {schema: 1, enabled: true}});
     assert.deepEqual(off.controls, []);
-    assert.equal(off.shownTabs().length, 5);
+    assert.deepEqual(off.shownTabs(), FACTORY_TABS);
     assert.equal(off.result.restoreAll(), true);
 });
 
@@ -366,7 +436,7 @@ test('an app that is not installed gets no tab; it appears once installed', () =
     assert.equal(h.tab('LOCAL_RADIO').mediaEnum.value, h.media('SYSTEM_BT_MUSIC'));
     assert.equal(h.media('SYSTEM_BT_MUSIC').servicePageName.value, RADIO.package);
     h.state.installed.add(MUSIC.package);
-    h.tick();
+    h.tick(15000);
     assert.deepEqual(h.shownTabs().slice(5), ['tab:LOCAL_RADIO', 'tab:KW_MUSIC']);
     assert.equal(h.media('SYSTEM_BT_MUSIC').servicePageName.value, MUSIC.package);
 });
@@ -404,7 +474,7 @@ test('slots a vanished agent borrowed go back before the new agent borrows them'
     assert.equal(off.manager.controlMap.value.get(off.media('DAB')), null);
     assert.equal(off.helper.supportSet.value.contains(off.media('DAB')), false);
     assert.equal(off.settings.mediaEnums.value.contains(off.media('DAB')), false);
-    assert.deepEqual(off.shownTabs(), ['tab:WE_CAR', 'tab:BT_MUSIC', 'tab:USB_MUSIC', 'tab:XMLY', 'tab:ONLINE_RADIO']);
+    assert.deepEqual(off.shownTabs(), FACTORY_TABS);
     // With the setting on, the new agent borrows the slots afresh: one tab per app, not a copy of the stale one.
     const on = harness({leftover: true});
     assert.deepEqual(on.shownTabs().slice(5), ['tab:LOCAL_RADIO', 'tab:KW_MUSIC']);
@@ -428,12 +498,12 @@ test('a launcher without the media card reports it and installs nothing', () => 
     assert.deepEqual(h.logs, ['OVC_HOME_MEDIA_ERROR stage=install kind=ClassNotFoundException']);
 });
 
-test('dispose unhooks and puts the factory card back', () => {
-    const h = harness();
+test('dispose puts the factory card back, then unhooks', () => {
+    const h = harness({config: HIDE});
     h.result.dispose();
-    for (const name of ['initMedia', 'titleUi', 'openPage', 'itemClick', 'bindTab', 'cover', 'focusWith', 'focusLatest']) {
+    for (const name of ['initMedia', 'titleUi', 'openPage', 'itemClick', 'bindTab', 'cover', 'defaultSource', 'focusWith', 'focusLatest']) {
         assert.equal(h.hooks[name].implementation, null, name);
     }
     assert.equal(h.media('DAB').servicePageName.value, 'com.qinggan.media');
-    assert.deepEqual(h.shownTabs().length, 5);
+    assert.deepEqual(h.shownTabs(), FACTORY_TABS);
 });

@@ -62,6 +62,7 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
                 label = UiText.get(R.string.home_weather_city), modifier = Modifier.fillMaxWidth(), guideId = R.string.home_weather_city)
         }
         CockpitSwitch(R.string.home_media_card_apps, state.mediaCardApps, change = actions::mediaCardApps)
+        CockpitSwitch(R.string.home_media_card_hide_online, state.mediaCardHideOnline, change = actions::mediaCardHideOnline)
     }
 }
 
