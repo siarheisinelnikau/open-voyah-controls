@@ -68,7 +68,8 @@ internal enum class SettingsPartId(val section: SettingsSection, val title: Int,
     SYSTEM_FACTORY(SettingsSection.SYSTEM, R.string.settings_part_factory_profiles, CockpitIcon.LOCK),
     SYSTEM_DIAGNOSTICS(SettingsSection.SYSTEM, R.string.settings_part_diagnostics, CockpitIcon.SEARCH),
     SYSTEM_PERMISSIONS(SettingsSection.SYSTEM, R.string.action_permissions_title, CockpitIcon.LOCK),
-    SYSTEM_ABOUT(SettingsSection.SYSTEM, R.string.settings_part_about, CockpitIcon.SYSTEM);
+    SYSTEM_ABOUT(SettingsSection.SYSTEM, R.string.settings_part_about, CockpitIcon.SYSTEM),
+    SYSTEM_COMPANIONS(SettingsSection.SYSTEM, R.string.companion_apps_title, CockpitIcon.APPS);
 
     companion object {
         fun of(key: String?): SettingsPartId? = entries.firstOrNull { it.name == key }
@@ -152,6 +153,7 @@ internal val SETTINGS_INDEX: List<SettingsEntry> = buildList {
     addAll(entries(SettingsPartId.SYSTEM_ABOUT, R.string.system_version_copy, R.string.system_restart_app, R.string.system_restart_media,
         R.string.system_reboot,
         R.string.activation_restore))
+    addAll(entries(SettingsPartId.SYSTEM_COMPANIONS, R.string.companion_youtube, R.string.companion_music, R.string.companion_radio))
 }
 
 /** Settings whose label, part or section contains every word of [query], in the order of the Settings page. */

@@ -50,7 +50,7 @@ class OfflineVoiceInput(
     private val readyCue: (suspend () -> Unit)? = null,
     private val endCue: (suspend () -> Unit)? = null,
     private val listeningWindow: ListeningWindow = ListeningWindow.FOUR_SECONDS,
-    /** Null uses the engine chosen in Recognition when its model is on the device, otherwise Vosk. */
+    /** Null uses the engine selected in Recognition, adjusted for the device and language. */
     private val engine: SpeechEngine? = null,
 ) : VoiceInput {
     private val context = context.applicationContext
@@ -99,9 +99,9 @@ class OfflineVoiceInput(
         val captureContext = currentCoroutineContext()
         stage("model_load")
         // Usually prepared at process start; a warm-up still running is awaited through the lock, never repeated.
-        val engine = engine ?: SpeechModels.engineFor(context, VoiceSettings(context), language)
+        val engine = engine ?: SpeechModels.engineFor(VoiceSettings(context), language)
         val recognition = speechGrammar(grammar)
-        // An optional engine that cannot start falls back to Vosk for this request and is skipped until chosen again.
+        // If Zipformer cannot start, try the installed Vosk fallback for this language.
         val (prepared, fallback) = withVoskFallback(engine, { candidate ->
             speech.prepare(SpeechModels.key(candidate, language), recognition, "request") { captureContext.isActive }
         }, SpeechModels::recordFailure)

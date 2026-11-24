@@ -2,7 +2,7 @@ package org.openvoyah.controls.domain.voice
 
 /**
  * A speech recognizer the app can run, with the recognition languages it has a model for. [key] is the stored value.
- * Vosk keeps a bundled model for Russian and English; Zipformer always uses a downloaded model.
+ * Zipformer uses the bundled Russian model; Vosk uses separately installed models.
  */
 enum class SpeechEngine(val key: String, val languages: Set<String>) {
     VOSK("vosk", setOf("ru", "en", "kk")),
@@ -16,8 +16,10 @@ enum class SpeechEngine(val key: String, val languages: Set<String>) {
 
         fun fromKey(key: String?): SpeechEngine? = entries.firstOrNull { it.key == key }
 
-        /** The stored engine when it supports [language], otherwise Vosk. */
-        fun forLanguage(stored: SpeechEngine?, language: String): SpeechEngine =
-            stored?.takeIf { it.supports(language) } ?: VOSK
+        @JvmField val DEFAULT = ZIPFORMER
+
+        /** Resolve the preference against the language and whether the Zipformer runtime is usable. */
+        fun forLanguage(stored: SpeechEngine?, language: String, zipformerAvailable: Boolean): SpeechEngine =
+            if ((stored ?: DEFAULT) == ZIPFORMER && ZIPFORMER.supports(language) && zipformerAvailable) ZIPFORMER else VOSK
     }
 }

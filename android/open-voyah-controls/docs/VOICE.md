@@ -10,20 +10,19 @@ The app recognizes 139 command IDs in English, Russian and Kazakh. The recogniti
 
 ## Engines, languages and models
 
-Both engines run on the head unit without internet.
+Zipformer is the default for Russian on supported 64-bit ARM head units. Vosk works offline once its model is installed.
 
 | Engine | Languages | Model | How it recognizes a command |
 | --- | --- | --- | --- |
-| Vosk | Russian, English, Kazakh | Russian and English ship in the APK; Kazakh `vosk-model-small-kz-0.42` is downloaded (60 MB) | Decodes only the catalog phrases and accepts a phrase when every word reaches 0.65 confidence |
-| Zipformer | Russian | `sherpa-onnx-zipformer-ru-int8-2025-04-20` with the Silero voice activity detector, downloaded (74 MB) | Silero ends the phrase after 0.5 s of silence. The Zipformer decodes it with the catalog phrases as hotwords, and the text must be at least 85% similar to one catalog phrase, closer to it than to any other |
+| Zipformer | Russian | `sherpa-onnx-zipformer-ru-int8-2025-04-20` and Silero VAD ship in the APK | Silero ends the phrase after 0.5 s of silence. The Zipformer decodes it with the catalog phrases as hotwords, and the text must be at least 85% similar to one catalog phrase, closer to it than to any other |
+| Vosk | Russian, English, Kazakh | Separate downloads in Recognition (47 MB, 42 MB and 60 MB) | Decodes only the catalog phrases and accepts a phrase when every word reaches 0.65 confidence |
 
-In an offline comparison on synthetic Russian speech with cabin noise, both recognized about nine commands in ten. Vosk acted on about a quarter of phrases that only resemble a command, and the Zipformer on none. The comparison is a ranking, not the accuracy to expect in the car. A choice of Zipformer applies to Russian; English and Kazakh keep Vosk. Without its model on the device, the app uses Vosk. If the Zipformer cannot start on the head unit, the same request continues with Vosk and the popup says **Listening with Vosk: Zipformer did not start**. Recognition then names the error under Zipformer, and the diagnostic journal records `event=voice_engine_fallback`. Voice keeps using Vosk until Zipformer is chosen again or its model is downloaded again. On the supported Android 11 unit, loading the Zipformer takes about 13 s the first time; afterwards it is prepared in the background at start like Vosk.
+In an offline comparison on synthetic Russian speech with cabin noise, both recognized about nine commands in ten. Vosk acted on about a quarter of phrases that only resemble a command, and the Zipformer on none. The comparison used synthetic speech. If Zipformer cannot start, the app tries the installed Vosk model for Russian. If that model is missing, the message directs you to **Settings → Voice → Recognition**. Select Zipformer again in Recognition to retry it. A previously selected Vosk preference and models already installed on the device carry over after an update.
 
-**Download** fetches a model from its publisher at a fixed revision: Hugging Face and the sherpa-onnx releases on GitHub for the Zipformer, Alpha Cephei for Vosk Kazakh. Every file must match its pinned SHA-256 and size before the model is installed; a cancelled, interrupted or changed download installs nothing. The download continues when the section closes and needs free space for the unpacked model. **Delete the model** removes it; the app then returns to Vosk for that language. The diagnostic journal records `event=voice_model_download` with the model, its outcome, the bytes received and the elapsed time.
+**Download** fetches the Vosk model for the selected language from Alpha Cephei. The archive must match its pinned SHA-256 and size before the app installs it. Downloads continue when the section closes and require space for the unpacked model. **Delete the model** removes that language's Vosk files. The diagnostic journal records `event=voice_model_download` with the model, outcome, byte count and elapsed time.
 
 The Kazakh catalog was written for this app and still needs a review by a native speaker. Download the Vosk model beside **Қазақша** under **Settings → Voice → Recognition**, then select that language. It works offline after the download. The Controls interface language is a separate choice under **Settings → Language and input**. Kazakh number words are passed to the vehicle agent in their Russian form for the sunroof, sunshade and charge-level commands. Spoken feedback in Kazakh needs an installed Kazakh text-to-speech voice.
 
-Building the APK needs `dist/sherpa-onnx-2.0.2.aar` from the [sherpa-onnx v2.0.2 release](https://github.com/k2-fsa/sherpa-onnx/releases/tag/v2.0.2) (Apache-2.0). Gradle checks its pinned SHA-256. Only its arm64-v8a JNI library and onnxruntime are packaged (about 28 MB), so the Zipformer runs on arm64 head units only.
 
 ![Voice settings and command catalog on Android 9](screenshots/voice.png)
 

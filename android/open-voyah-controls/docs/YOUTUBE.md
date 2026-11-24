@@ -1,6 +1,6 @@
 # YouTube on the head unit
 
-The head unit has no Google Play and no Google services, so the official YouTube app cannot run there. The `youtube-web` module builds a small separate app, **YouTube** (`org.openvoyah.youtube`), that shows YouTube's touch site (`m.youtube.com`) in the system WebView.
+The head unit has no Google Play and no Google services, so the official YouTube app cannot run there. The [YouTube Web companion repository](https://github.com/siarheisinelnikau/youtube-web) builds a separate app, **YouTube** (`org.openvoyah.youtube`), that shows YouTube's touch site (`m.youtube.com`) in the system WebView.
 
 ## Why a separate WebView app
 
@@ -33,7 +33,7 @@ The head unit has no Google Play and no Google services, so the official YouTube
 
 ## Build and install
 
-From `android/youtube-web`, with the same JDK and Android SDK as the Controls build:
+From the root of the YouTube Web checkout, with the same JDK and Android SDK as the Controls build:
 
 ```powershell
 .\gradlew.bat assembleDebug testDebugUnitTest lintDebug

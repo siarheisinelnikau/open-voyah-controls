@@ -3,6 +3,8 @@ package org.openvoyah.controls.platform.voice
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Process
 import android.os.SystemClock
 import java.io.File
 import java.io.IOException
@@ -20,14 +22,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.openvoyah.controls.data.settings.VoiceSettings
+import org.openvoyah.controls.data.voice.BundledVoiceModel
 import org.openvoyah.controls.data.voice.SpeechModel
 import org.openvoyah.controls.data.voice.SpeechModelCatalog
 import org.openvoyah.controls.data.voice.SpeechModelStore
-import org.openvoyah.controls.data.voice.VoskModels
 import org.openvoyah.controls.domain.voice.SpeechEngine
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.diagnostics.ControlsLog
+import org.vosk.Model
 import org.vosk.Recognizer
 
 /**
@@ -128,19 +131,19 @@ internal class PreparedSpeech<M : Any, R : AutoCloseable>(
 
 /**
  * The [PreparedSpeech] of this process for every engine, keyed `engine:language`, and its warm-up after start and
- * settings changes. Vosk Russian and English come from the APK; other models must be downloaded first.
+ * settings changes. Zipformer ships in the APK; Vosk uses local models obtained separately.
  */
 internal object SpeechModels {
     const val SAMPLE_RATE = 16_000
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val vosk = VoskModels()
+    private val bundled = BundledVoiceModel()
     @Volatile private var instance: PreparedSpeech<LoadedSpeechModel, SpeechDecoder>? = null
     @Volatile private var modelStore: SpeechModelStore? = null
     private val failures = MutableStateFlow<Map<SpeechEngine, String>>(emptyMap())
 
     /**
      * Engines that could not start in this process, with the name of the error. Voice uses Vosk for them until the
-     * engine is chosen again in Recognition or its model is downloaded again.
+     * engine is chosen again in Recognition or the bundled model is repaired.
      */
     val engineFailures: StateFlow<Map<SpeechEngine, String>> = failures.asStateFlow()
 
@@ -156,21 +159,19 @@ internal object SpeechModels {
     }
 
     fun store(context: Context): SpeechModelStore = modelStore ?: synchronized(this) {
-        modelStore ?: SpeechModelStore(File(context.applicationContext.filesDir, "speech-models")).also { modelStore = it }
+        val files = context.applicationContext.filesDir
+        modelStore ?: SpeechModelStore(File(files, "speech-models"), legacyRoot = files).also { modelStore = it }
     }
 
     fun key(engine: SpeechEngine, language: String) = "${engine.key}:$language"
 
-    /**
-     * The engine that runs for [language]: the stored choice when it supports the language and its model is on the
-     * device, otherwise Vosk.
-     */
-    fun engineFor(context: Context, settings: VoiceSettings, language: String): SpeechEngine {
-        val chosen = SpeechEngine.forLanguage(SpeechEngine.fromKey(settings.engine()), language)
-        if (chosen == SpeechEngine.VOSK || chosen in failures.value) return SpeechEngine.VOSK
-        val model = SpeechModelCatalog.forEngine(chosen, language)
-        return if (model == null || !store(context).installed(model)) SpeechEngine.VOSK else chosen
-    }
+    fun zipformerSupported(): Boolean = Process.is64Bit() && Build.SUPPORTED_64_BIT_ABIS.firstOrNull() == "arm64-v8a"
+
+    fun engineFor(settings: VoiceSettings, language: String): SpeechEngine =
+        SpeechEngine.forLanguage(SpeechEngine.fromKey(settings.engine()), language,
+            zipformerSupported() && SpeechEngine.ZIPFORMER !in failures.value)
+
+    class ModelNotDownloaded : IOException(UiText.get(R.string.voice_model_not_downloaded))
 
     /**
      * Loads the selected engine's model and command recognizer in the background, so the first voice key press
@@ -186,7 +187,7 @@ internal object SpeechModels {
             try {
                 val settings = VoiceSettings(app)
                 val language = settings.language()
-                val engine = engineFor(app, settings, language)
+                val engine = engineFor(settings, language)
                 val model = SpeechModelCatalog.forEngine(engine, language)
                 if (model != null && !store(app).installed(model)) {
                     ControlsLog.info("voice_model_prepare", "trigger", trigger, "outcome", "skipped",
@@ -205,17 +206,24 @@ internal object SpeechModels {
     /** First-run check: the same model as voice requests, so setup never holds a second copy in memory. */
     suspend fun prepareForSetup(context: Context, language: String) {
         val app = context.applicationContext
-        withVoskFallback(engineFor(app, VoiceSettings(app), language),
+        withVoskFallback(engineFor(VoiceSettings(app), language),
             { candidate -> of(app).warm(key(candidate, language), null, "setup") }, ::recordFailure)
     }
 
-    /** Forgets the unpacked bundled model of [language], so the next preparation copies it again from the APK. */
+    /** Releases the recognizer and resets a bundled model so the next preparation copies it from the APK. */
     suspend fun repair(context: Context, language: String) {
-        // A downloaded model is removed and downloaded again from Recognition instead.
-        if (language != "ru" && language != "en") return
         val app = context.applicationContext
         val speech = of(app)
-        speech.lock.withLock { runInterruptible(Dispatchers.IO) { speech.invalidate { vosk.invalidate(app, language) } } }
+        speech.lock.withLock {
+            runInterruptible(Dispatchers.IO) {
+                speech.invalidate {
+                    if (zipformerSupported() && SpeechEngine.ZIPFORMER.supports(language)) {
+                        bundled.invalidate(app)
+                        clearFailure(SpeechEngine.ZIPFORMER)
+                    }
+                }
+            }
+        }
     }
 
     /** Releases a downloaded model before its files are deleted. */
@@ -229,7 +237,7 @@ internal object SpeechModels {
         loadModel = { key, current -> load(app, key, current) },
         releaseModel = { model ->
             when (model) {
-                is VoskSpeechModel -> vosk.release()
+                is VoskSpeechModel -> model.model.close()
                 is ZipformerSpeechModel -> model.close()
             }
         },
@@ -252,21 +260,22 @@ internal object SpeechModels {
     private fun load(app: Context, key: String, current: () -> Boolean): LoadedSpeechModel {
         val engine = SpeechEngine.fromKey(key.substringBefore(':')) ?: throw IOException("Unknown speech engine")
         val language = key.substringAfter(':')
-        val downloaded = SpeechModelCatalog.forEngine(engine, language)?.let { model ->
-            val store = store(app)
-            if (!store.installed(model)) throw IOException(UiText.get(R.string.voice_model_not_downloaded))
-            store.directory(model)
-        }
+        if (!current()) throw CancellationException("Speech model preparation cancelled")
         return when (engine) {
-            SpeechEngine.VOSK -> VoskSpeechModel(vosk.load(app, language, downloaded) { current() })
-            SpeechEngine.ZIPFORMER -> ZipformerSpeechModel.open(checkNotNull(downloaded))
+            SpeechEngine.VOSK -> {
+                val model = SpeechModelCatalog.forEngine(engine, language)
+                    ?: throw IOException("No Vosk speech model for $language")
+                val directory = store(app).installedDirectory(model) ?: throw ModelNotDownloaded()
+                VoskSpeechModel(Model(directory.absolutePath))
+            }
+            SpeechEngine.ZIPFORMER -> ZipformerSpeechModel.open(bundled.prepare(app, current))
         }
     }
 }
 
 /**
- * Prepares [engine]; when an engine other than Vosk fails to start, reports it to [failed] and prepares Vosk instead,
- * so a broken optional engine never leaves voice input without recognition. The second value is true after a fallback.
+ * Prepares [engine]. If Zipformer cannot start, reports it to [failed] and tries Vosk for the same language.
+ * The second value is true after a successful fallback.
  */
 internal inline fun <T> withVoskFallback(
     engine: SpeechEngine,

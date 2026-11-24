@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="companion_apps_title">Приложения-компаньоны</string>
+    <string name="companion_apps_github">Выберите приложение, чтобы открыть его страницу на GitHub.</string>
+    <string name="companion_apps_open_failed">Не удалось открыть страницу GitHub. Проверьте, установлен ли браузер.</string>
+    <string name="companion_youtube_summary">Смотрите YouTube на экране автомобиля.</string>
+    <string name="companion_music_summary">Передавайте музыку с телефона по Wi-Fi и слушайте без интернета.</string>
+    <string name="companion_radio_summary">Слушайте интернет-радио и сохраняйте любимые станции.</string>
+</resources>

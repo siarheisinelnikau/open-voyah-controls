@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <attr name="radio_accent_role" format="color" />
-    <attr name="radio_on_accent_role" format="color" />
-    <attr name="radio_selected_role" format="color" />
-    <attr name="radio_selected_edge_role" format="color" />
-    <attr name="radio_edge_role" format="color" />
-</resources>

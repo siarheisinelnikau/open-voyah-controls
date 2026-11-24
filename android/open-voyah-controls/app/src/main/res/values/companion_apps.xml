@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="companion_apps_title">Companion apps</string>
+    <string name="companion_apps_github">Select an app to open its GitHub page.</string>
+    <string name="companion_apps_open_failed">Could not open the GitHub page. Check that a web browser is installed.</string>
+    <string name="companion_youtube" translatable="false">YouTube Web</string>
+    <string name="companion_youtube_summary">Watch YouTube on the head unit.</string>
+    <string name="companion_music" translatable="false">Voyah Music</string>
+    <string name="companion_music_summary">Send tracks from your phone over Wi-Fi and play them offline.</string>
+    <string name="companion_radio" translatable="false">Voyah Radio</string>
+    <string name="companion_radio_summary">Listen to internet radio and save favorite stations.</string>
+</resources>
