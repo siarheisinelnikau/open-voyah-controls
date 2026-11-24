@@ -1,0 +1,11 @@
+/.analysis/
+/inputs/
+/dist/
+/.signing/
+/.gradle/
+/.gradle-local/
+/local.properties
+/build/
+**/build/
+*.jks
+*.p12

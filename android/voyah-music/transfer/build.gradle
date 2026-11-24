@@ -1,0 +1,14 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'app.voyahmusic.transfer'
+    defaultConfig {
+        applicationId 'app.voyahmusic.transfer'
+    }
+}
+
+dependencies {
+    implementation project(':shared')
+}

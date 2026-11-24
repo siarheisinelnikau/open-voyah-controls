@@ -10,6 +10,7 @@ The app has been tested on a Voyah Free 318 head unit with firmware 6.1.0, in gu
 
 - [Open Voyah Controls for Android](android/open-voyah-controls/README.md) — source, build instructions, and feature guides.
 - [Voyah Radio](android/voyah-radio/README.md) for internet radio.
+- [Voyah Music and Voyah Music Transfer](android/voyah-music/README.md) for sending music from an Android phone to the car over local Wi-Fi and playing it offline.
 - [YouTube Web for Android](android/open-voyah-controls/docs/YOUTUBE.md) for the head unit's system WebView.
 - [Windows installer](installer/README.md) — USB and Wi-Fi setup, one-button installation with the restarts and the final check, other apps, head unit maintenance, and diagnostics. [How Install works](installer/README.md#how-install-works) shows each setup step and what it writes where.
 

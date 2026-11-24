@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application' version '8.9.2' apply false
+}
+
+def configureAndroid = { module ->
+    module.android {
+        compileSdk 35
+        defaultConfig {
+            minSdk 28
+        }
+        compileOptions {
+            sourceCompatibility JavaVersion.VERSION_17
+            targetCompatibility JavaVersion.VERSION_17
+        }
+    }
+}
+
+subprojects { module ->
+    plugins.withId('com.android.library') { configureAndroid(module) }
+    plugins.withId('com.android.application') {
+        configureAndroid(module)
+        android {
+            defaultConfig {
+                targetSdk 34
+                versionCode 1
+                versionName '0.1.0'
+            }
+            if (providers.environmentVariable('VOYAH_MUSIC_KEYSTORE').isPresent()) {
+                signingConfigs {
+                    localRelease {
+                        storeFile rootProject.file(providers.environmentVariable('VOYAH_MUSIC_KEYSTORE').get())
+                        storePassword providers.environmentVariable('VOYAH_MUSIC_STORE_PASSWORD').get()
+                        keyAlias providers.environmentVariable('VOYAH_MUSIC_KEY_ALIAS').getOrElse('voyah-music')
+                        keyPassword providers.environmentVariable('VOYAH_MUSIC_KEY_PASSWORD').getOrElse(storePassword)
+                    }
+                }
+                buildTypes.release.signingConfig signingConfigs.localRelease
+            }
+        }
+    }
+}

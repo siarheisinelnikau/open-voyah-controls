@@ -1,0 +1,26 @@
+<resources>
+    <attr name="music_accent" format="color" />
+    <attr name="music_on_accent" format="color" />
+    <attr name="music_selected" format="color" />
+    <attr name="music_selected_edge" format="color" />
+    <attr name="music_edge" format="color" />
+    <style name="MusicTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">#0F141C</item>
+        <item name="android:statusBarColor">#0F141C</item>
+        <item name="android:navigationBarColor">#0F141C</item>
+        <item name="android:colorAccent">?attr/music_accent</item>
+        <item name="music_accent">#B5CFFF</item>
+        <item name="music_on_accent">#182842</item>
+        <item name="music_selected">#253752</item>
+        <item name="music_selected_edge">#506E9C</item>
+        <item name="music_edge">#2D3A4E</item>
+    </style>
+    <style name="MusicTheme.Amber" parent="MusicTheme">
+        <item name="music_accent">#F5CF71</item>
+        <item name="music_on_accent">#362400</item>
+        <item name="music_selected">#4F3913</item>
+        <item name="music_selected_edge">#785E36</item>
+        <item name="music_edge">#3F3B38</item>
+    </style>
+</resources>
