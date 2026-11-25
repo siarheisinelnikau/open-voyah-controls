@@ -299,8 +299,8 @@ export function systemTasks(Java, sdk, panelWidth) {
                 const bounds = canPlace ? boundsFor(profile, 0, ...api.minimum(task)) : null;
                 if (canPlace && bounds === null) throw error('no_space');
                 rollback ??= before;
-                // Launches start in freeform, the only mode that takes launch bounds; the placed task then moves to
-                // the mode that keeps its bounds without a caption bar where the release has one.
+                // The mode that keeps the bounds without a caption bar where the release has one. A launch reaches it
+                // from Android's fullscreen placement there, and from its freeform launch bounds elsewhere.
                 const placed = canPlace ? placedMode() : framework.freeform;
                 // Multi-window would size the app's resources like a fullscreen task; they are fixed to the bounds.
                 const pinned = bounds !== null && placed === framework.multiWindow ? bounds
@@ -455,6 +455,7 @@ export function systemTasks(Java, sdk, panelWidth) {
 
     return {
         Rect, framework, boundsFor, apply, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf, prepareMove, placeBelowBar,
+        placedMode,
         freeformAvailable: () => api.supportsFreeform() && !api.isLocked(),
         /** After a start of home: hides the tasks that home, now on top of display 0, covers. */
         revealHome: () => api.lock(() => api.revealHome()),

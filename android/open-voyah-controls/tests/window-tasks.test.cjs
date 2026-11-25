@@ -10,6 +10,7 @@ const profile = {component:'org.example.app/org.example.app.Main', width:80, dpi
 const field = value => ({value});
 const rect = (left, top, right, bottom) => ({left:field(left),top:field(top),right:field(right),bottom:field(bottom),
     isEmpty:()=>right <= left || bottom <= top});
+const rectList = value => [value.left.value, value.top.value, value.right.value, value.bottom.value];
 const conf = dpi => ({densityDpi:field(dpi)});
 const fill = (out, values) => ['left', 'top', 'right', 'bottom'].forEach((side, index) => { out[side].value = values[index]; });
 
@@ -383,9 +384,12 @@ function livePolicy(sdk, h, options = {}) {
     const owner = sdk === 28 ? 'com.android.server.am' : 'com.android.server.wm';
     const types = [owner + '.ActivityRecord', owner + '.ActivityRecord', '', '', '', '',
         'android.app.ActivityOptions', owner + (sdk === 28 ? '.TaskRecord' : '.Task')];
+    // What Android was asked for at each start, after the policy's early hook.
+    const starts = [];
     const early = {argumentTypes:types.slice(0, 6).map((_, index)=>({className:index === 5 ? owner + '.ActivityRecord' : ''})),
         call(_receiver, _record, options) {
             const value = options?.getLaunchBounds();
+            starts.push({mode:options?.getLaunchWindowingMode() ?? 0, bounds:value ? rectList(value) : null});
             if (value && options.getLaunchWindowingMode() === 5) {
                 h.launchAt([value.left.value, value.top.value, value.right.value, value.bottom.value]);
             }
@@ -439,7 +443,7 @@ function livePolicy(sdk, h, options = {}) {
         },
     });
     return {
-        queue, logs, hooks, late, strip, settings, moves,
+        queue, logs, hooks, late, strip, settings, moves, starts,
         setClear:value=>{ acceptClear = value; }, setProfiles:value=>settings.set(prefix + 'windowProfiles', value),
         tick:()=>tick(),
         launch(nativeMode = 0, nativeBounds = null, sourceMode = 1) {
@@ -529,6 +533,45 @@ test('back-to-back starts schedule one layout and disabling before delivery rest
         assert.equal(h.density(), 180);
         assert.equal(h.placements(), 1);
     }
+});
+
+test('where placed tasks use multi-window a launch starts full screen, never in freeform', () => {
+    // From a fullscreen screen (the app grid, Home), with no launch options of its own. A freeform start would let an
+    // app whose process runs draw a caption bar that the later move to multi-window does not remove.
+    const h = harness(30, {displayId:0, dpi:180, cold:true, multiWindow:true});
+    const service = livePolicy(30, h);
+    service.launch();
+    assert.deepEqual(service.starts, [{mode:1, bounds:null}]);
+    assert.equal(h.mode(), 1);
+    service.queue.shift()();
+    assert.equal(h.mode(), 6);
+    const placed = h.bounds();
+    assert.notDeepEqual(placed, [0, 0, 1920, 720]);
+    assert.equal(service.request('release').status, 'applied');
+    assert.equal(h.mode(), 1);
+    assert.deepEqual(h.bounds(), [0, 0, 1920, 720]);
+    assert.equal(h.density(), 180);
+
+    // A caller's own freeform request is placed the same way and gets its window back on release.
+    const native = [240, 24, 1790, 710];
+    const requested = harness(30, {displayId:0, cold:true, multiWindow:true});
+    const other = livePolicy(30, requested);
+    other.launch(5, native);
+    assert.deepEqual(other.starts, [{mode:1, bounds:null}]);
+    other.queue.shift()();
+    assert.equal(requested.mode(), 6);
+    assert.deepEqual(requested.bounds(), placed);
+    other.request('release');
+    assert.equal(requested.mode(), 5);
+    assert.deepEqual(requested.bounds(), native);
+
+    // Without a usable multi-window mode placed tasks stay freeform, so the launch takes their bounds at once.
+    const older = harness(30, {displayId:0, cold:true});
+    const freeform = livePolicy(30, older);
+    freeform.launch();
+    assert.equal(freeform.starts[0].mode, 5);
+    assert.deepEqual(freeform.starts[0].bounds, placed);
+    assert.equal(older.mode(), 5);
 });
 
 test('on Android 11 a desktop wallpaper picker opened from Controls is placed beside the panel', () => {

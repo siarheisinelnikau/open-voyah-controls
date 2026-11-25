@@ -381,8 +381,21 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
                 if (cold && bounds) {
                     const target = options ?? Options.makeBasic();
                     target.setLaunchDisplayId(0);
-                    target.setLaunchBounds(tasks.Rect.$new(...bounds));
-                    target.setLaunchWindowingMode(tasks.framework.freeform);
+                    if (tasks.placedMode() === tasks.framework.freeform) {
+                        target.setLaunchBounds(tasks.Rect.$new(...bounds));
+                        target.setLaunchWindowingMode(tasks.framework.freeform);
+                    } else {
+                        // Multi-window takes no launch bounds, and freeform first would leave a caption bar. A freeform
+                        // task does not cover the screen that started it, so Android does not pause that screen and
+                        // starts an app whose process runs at once, in freeform, where its window adds the bar
+                        // (maximize and close). Moved on to multi-window with the same resource sizes, the app sees no
+                        // public configuration change, Android 11's ActivityThread drops it and the bar stays. A
+                        // fullscreen task covers that screen: Android pauses it first, and the task is normally
+                        // placed before its activity starts. An activity that does start first leaves fullscreen
+                        // with a new size, which it is told about. Only a new task takes this mode.
+                        target.setLaunchBounds(null);
+                        target.setLaunchWindowingMode(tasks.framework.fullscreen);
+                    }
                     args[1] = target;
                     start.cold = cold;
                 }
