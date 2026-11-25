@@ -39,9 +39,9 @@
     <string name="voice_effect_adaptive_light_on">Запрашивает включение адаптивного света для совместимых фар.</string>
     <string name="voice_effect_assistant">Открывает ассистента Android или приложение, назначенное на фразу.</string>
     <string name="voice_effect_auto_mode">Запрашивает автоматическое управление наружным светом.</string>
-    <string name="voice_effect_back_light_mode_auto">Запрашивает автоматический выбор дневной и ночной подсветки.</string>
-    <string name="voice_effect_back_light_mode_day">Запрашивает дневной режим подсветки штатных экранов.</string>
-    <string name="voice_effect_back_light_mode_night">Запрашивает ночной режим подсветки штатных экранов.</string>
+    <string name="voice_effect_back_light_mode_auto">Запрашивает автоматический выбор дневной и ночной подсветки экранов водителя, пассажира и панели приборов.</string>
+    <string name="voice_effect_back_light_mode_day">Запрашивает дневной режим подсветки экранов водителя, пассажира и панели приборов.</string>
+    <string name="voice_effect_back_light_mode_night">Запрашивает ночной режим подсветки экранов водителя, пассажира и панели приборов.</string>
     <string name="voice_effect_camera">Открывает приложение, назначенное на команду «Камера».</string>
     <string name="voice_effect_car_wash_mode">Запрашивает штатный режим мойки.</string>
     <string name="voice_effect_close_all_window_command">Запрашивает закрытие всех боковых стёкол.</string>
@@ -158,7 +158,7 @@
     <string name="voice_effect_save_mode">Запрашивает режим сохранения заряда.</string>
     <string name="voice_effect_save_mode_with_soc" formatted="false">Запрашивает сохранение заряда на произнесённом уровне от 25 до 80% с шагом 5%.</string>
     <string name="voice_effect_sentry">Отправляет запрос режима охраны штатной службе. Результат можно проверить на штатном экране.</string>
-    <string name="voice_effect_set_brightness" formatted="false">Запрашивает произнесённую яркость основного экрана от 1 до 100%, как заводской ползунок яркости.</string>
+    <string name="voice_effect_set_brightness" formatted="false">Запрашивает произнесённую яркость от 1 до 100% сразу для экранов водителя, пассажира и панели приборов, как заводские ползунки при синхронной регулировке.</string>
     <string name="voice_effect_set_driver_temperature">Запрашивает произнесённую температуру от 16 до 30 °C в зоне водителя.</string>
     <string name="voice_effect_set_fan_speed">Запрашивает произнесённую скорость переднего вентилятора от 1 до 8.</string>
     <string name="voice_effect_set_passenger_temperature">Запрашивает произнесённую температуру от 16 до 30 °C в зоне переднего пассажира.</string>

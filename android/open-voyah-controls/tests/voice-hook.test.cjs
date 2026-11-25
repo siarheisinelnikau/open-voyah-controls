@@ -12,7 +12,11 @@ const commands=['EnableHeatDriverLevelOne','EnableHeatRearLeftLevelOne','OpenTru
 const releasedCatalog=require('../app/src/main/assets/voice/verified-commands.json');
 function harness(options={}) {
     let raw=options.initialRaw ?? '',poll,now=100000,sequence=0,roofReads=0,canRequests=0;
-    const logs=[],writes=[],retained=[],bundles=[],queries=[],events=[],backlight=[];
+    const logs=[],writes=[],retained=[],bundles=[],queries=[],events=[],backlight=[],dimmer=[];
+    // The system policy service per screen: brightness 21 and day mode, as on the head unit.
+    const policyScreens=[1,2,4,16],screenLight={},screenMode={};
+    for(const screen of policyScreens){screenLight[screen]=21;screenMode[screen]=options.initialMode ?? 1;}
+    const stuck=screen=>(options.stuckScreens ?? []).includes(screen);
     const device={...identity,...options.device};
     const catalog=options.catalog ?? {schema:1,headUnits:[{...identity,profile:'FREE',commands}]};
     const target={argumentTypes:[{className:'VehicleState'},{className:'int'}],call(m,p,v){writes.push([p.name,v]);return options.reject?-1:0;}};
@@ -48,12 +52,32 @@ function harness(options={}) {
         'android.os.Build$VERSION':{SDK_INT:{value:device.sdk}},
         'com.qinggan.launcher.base.manager.CanBusManagerWrapper':{getCanBusManager(){canRequests++;return options.noManager?null:manager;}},
         'com.qinggan.launcher.base.config.AppConfig':{isH97:()=>options.h97 === true},
-        'com.qinggan.system.BackLightManager':{getInstance(){return {
+        'com.qinggan.system.BackLightManager':{
+            SUPPORT_SCREENS:{get value(){
+                if(options.supportScreens === 'throw')throw Error('field missing');
+                return options.supportScreens ?? policyScreens;}},
+            getInstance(){return {
+            // BackLightPolicy.setBackLight: every screen in the mask; true only when all of them took the level.
             setBackLight:{overload(...types){assert.deepEqual(types,['int','int','int']);return {call(_light,...args){
-                backlight.push(args);return options.backlightRejected !== true;}};}},
+                backlight.push(args);
+                if(options.backlightRejected === true)return false;
+                let done=0;
+                for(const screen of policyScreens)if((args[2] & screen)!==0 && !stuck(screen)){screenLight[screen]=args[0];done|=screen;}
+                return done===args[2];}};}},
             getBackLight:{overload(...types){assert.deepEqual(types,['int']);return {call(_light,screen){
                 if(options.backlightReadback === 'throw')throw Error('service restarting');
-                return options.backlightReadback ?? (screen === 1 ? backlight.at(-1)?.[0] : -1);}};}},
+                return options.backlightReadback ?? screenLight[screen] ?? -1;}};}},
+            // BackLightPolicy.setDimmer: every screen whatever the mask; a screen already in the mode counts as
+            // failed, and the answer is true only when the changed screens equal the mask.
+            setDimmer:{overload(...types){assert.deepEqual(types,['int','int','int']);return {call(_light,...args){
+                dimmer.push(args);
+                if(options.dimmerRejected === true)return false;
+                let changed=0;
+                for(const screen of policyScreens)if(screenMode[screen]!==args[0] && !stuck(screen)){screenMode[screen]=args[0];changed|=screen;}
+                return changed===args[2];}};}},
+            getDimmer:{overload(...types){assert.deepEqual(types,['int']);return {call(_light,screen){
+                if(options.dimmerReadback === 'throw')throw Error('service restarting');
+                return screenMode[screen] ?? -1;}};}},
         };}},
         'com.qinggan.launcher.base.manager.PowerManagerWrapper':{getPowerManager(){
             return options.lcdTemp === null ? null : {getLCDTemp(){return options.lcdTemp ?? 0;}};}},
@@ -70,7 +94,7 @@ function harness(options={}) {
     if(options.noPowerWrapper)delete classes['com.qinggan.launcher.base.manager.PowerManagerWrapper'];
     vm.runInNewContext(modules+'\ninstallVoice(Java);',{catalog,plans:require('../hooks/voice-plans.json'),Java,console:{log:s=>logs.push(s)},
         setInterval:fn=>poll=fn,setTimeout:(fn,ms)=>{now+=ms;queueMicrotask(fn);},Date:{now:()=>now+(options.wallOffset ?? 0)}});
-    return {logs,writes,retained,bundles,queries,events,backlight,get canRequests(){return canRequests;},
+    return {logs,writes,retained,bundles,queries,events,backlight,dimmer,screenLight,screenMode,get canRequests(){return canRequests;},
         send(command,extra={}){raw=JSON.stringify({schema:3,id:(++sequence).toString(16).padStart(32,'0'),command,
             expires:now+12000,confirmed:true,...extra});poll();},poll:()=>poll()};
 }
@@ -379,22 +403,78 @@ test('the agent product profiles match core Firmware.java', () => {
     assert.deepEqual({...context.profiles}, expected);
 });
 
-test('spoken brightness moves the main screen like the launcher slider and confirms it from the service', async () => {
+test('spoken brightness moves the driver, passenger and cluster screens together like synced factory sliders', async () => {
     const h = harness({gear:'Drive', speed:60});
     h.send('SetBrightness', {options:{brightness:30}});
     await settle();
-    assert.deepEqual(h.backlight, [[30, 1, 1]]);
+    assert.deepEqual(h.backlight, [[30, 1, 19]]);
+    assert.deepEqual({...h.screenLight}, {1:30, 2:30, 4:21, 16:30});
     assert.equal(h.writes.length, 0);
     assert.ok(h.logs.some(line => line.includes('"status":"verified"')));
     const lagging = harness({backlightReadback:55});
     lagging.send('SetBrightness', {options:{brightness:1}});
     await settle();
-    assert.deepEqual(lagging.backlight, [[1, 1, 1]]);
+    assert.deepEqual(lagging.backlight, [[1, 1, 19]]);
     assert.ok(lagging.logs.some(line => line.includes('"status":"accepted"')));
     const unreadable = harness({backlightReadback:'throw'});
     unreadable.send('SetBrightness', {options:{brightness:100}});
     await settle();
-    assert.deepEqual(unreadable.backlight, [[100, 1, 1]]);
+    assert.deepEqual(unreadable.backlight, [[100, 1, 19]]);
+    assert.ok(unreadable.logs.some(line => line.includes('"status":"accepted"')));
+});
+
+test('brightness follows the screens the product supports and is confirmed only when every one reads back', async () => {
+    const twoScreens = harness({supportScreens:[1, 16]});
+    twoScreens.send('SetBrightness', {options:{brightness:45}});
+    await settle();
+    assert.deepEqual(twoScreens.backlight, [[45, 1, 17]]);
+    assert.ok(twoScreens.logs.some(line => line.includes('"status":"verified"')));
+    const unknownList = harness({supportScreens:'throw'});
+    unknownList.send('SetBrightness', {options:{brightness:45}});
+    await settle();
+    assert.deepEqual(unknownList.backlight, [[45, 1, 19]]);
+    const noSyncedScreen = harness({supportScreens:[4]});
+    noSyncedScreen.send('SetBrightness', {options:{brightness:45}});
+    await settle();
+    assert.deepEqual(noSyncedScreen.backlight, [[45, 1, 1]]);
+    // The cluster keeps its old level: the driver screen alone is no confirmation.
+    const cluster = harness({stuckScreens:[16]});
+    cluster.send('SetBrightness', {options:{brightness:60}});
+    await settle();
+    assert.ok(cluster.logs.some(line => line.includes('"status":"unknown"') && line.includes('rejected')));
+    assert.ok(!cluster.logs.some(line => line.includes('"status":"verified"')));
+});
+
+test('day, night and auto switch every synced screen like the factory buttons and are confirmed by read-back', async () => {
+    const h = harness({gear:'Drive', speed:60});
+    h.send('BackLightModeAuto');
+    await settle();
+    // The service answers false here (it also switched the third screen), yet every screen reads auto.
+    assert.deepEqual(h.dimmer, [[2, 1, 19]]);
+    assert.deepEqual({...h.screenMode}, {1:2, 2:2, 4:2, 16:2});
+    assert.equal(h.writes.length, 0);
+    assert.ok(h.logs.some(line => line.includes('"status":"verified"')));
+    const already = harness({initialMode:0});
+    already.send('BackLightModeNight');
+    await settle();
+    assert.deepEqual(already.dimmer, [[0, 1, 19]]);
+    assert.ok(already.logs.some(line => line.includes('"status":"verified"')));
+    const day = harness({initialMode:2});
+    day.send('BackLightModeDay');
+    await settle();
+    assert.deepEqual(day.dimmer, [[1, 1, 19]]);
+    assert.ok(day.logs.some(line => line.includes('"status":"verified"')));
+    const rejected = harness({dimmerRejected:true});
+    rejected.send('BackLightModeNight');
+    await settle();
+    assert.ok(rejected.logs.some(line => line.includes('"status":"unknown"') && line.includes('rejected')));
+    const passenger = harness({stuckScreens:[2]});
+    passenger.send('BackLightModeAuto');
+    await settle();
+    assert.ok(passenger.logs.some(line => line.includes('"status":"unknown"')));
+    const unreadable = harness({stuckScreens:[4], dimmerReadback:'throw'});
+    unreadable.send('BackLightModeAuto');
+    await settle();
     assert.ok(unreadable.logs.some(line => line.includes('"status":"accepted"')));
 });
 
@@ -409,19 +489,22 @@ test('brightness outside 1-100 or without a level never reaches the service', as
     }
 });
 
-test('a hot display keeps its brightness as factory Settings does; no reading lets the request through', async () => {
+test('a hot display keeps its brightness and mode as factory Settings does; no reading lets the request through', async () => {
     for (const lcdTemp of [1, 2, 3]) {
         const hot = harness({lcdTemp});
         hot.send('SetBrightness', {options:{brightness:80}});
+        hot.send('BackLightModeNight');
         await settle();
         assert.equal(hot.backlight.length, 0);
-        assert.ok(hot.logs.some(line => line.includes('"status":"blocked"') && line.includes('The display is too hot')));
+        assert.equal(hot.dimmer.length, 0);
+        assert.equal(hot.logs.filter(line => line.includes('"status":"blocked"') &&
+            line.includes('The display is too hot')).length, 2);
     }
     for (const options of [{lcdTemp:-1}, {lcdTemp:0}, {lcdTemp:null}, {noPowerWrapper:true}]) {
         const h = harness(options);
         h.send('SetBrightness', {options:{brightness:80}});
         await settle();
-        assert.deepEqual(h.backlight, [[80, 1, 1]], JSON.stringify(options));
+        assert.deepEqual(h.backlight, [[80, 1, 19]], JSON.stringify(options));
     }
 });
 
@@ -429,6 +512,6 @@ test('a rejected brightness write is reported as unknown, not as applied', async
     const h = harness({backlightRejected:true});
     h.send('SetBrightness', {options:{brightness:40}});
     await settle();
-    assert.deepEqual(h.backlight, [[40, 1, 1]]);
+    assert.deepEqual(h.backlight, [[40, 1, 19]]);
     assert.ok(h.logs.some(line => line.includes('"status":"unknown"') && line.includes('rejected')));
 });

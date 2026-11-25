@@ -51,6 +51,32 @@ export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR
                 } catch (_) { return false; }
                 return level === 1 || level === 2 || level === 3;
             }
+            // Factory Settings with "Synchronous adjustment" on: the driver (1), passenger (2) and instrument
+            // cluster (16) screens move together; the system policy service hands the cluster value to the
+            // cluster itself. BackLightManager narrows SUPPORT_SCREENS to the product's screens when it is
+            // created; the third screen (4) has a setting of its own there and stays out.
+            const SYNCED_SCREENS = [1, 2, 16];
+            function backlight() {
+                const Backlight = Java.use('com.qinggan.system.BackLightManager');
+                const light = Backlight.getInstance(application, null);
+                let supported = null;
+                try {
+                    const value = Backlight.SUPPORT_SCREENS.value;
+                    supported = [];
+                    for (let i = 0; i < value.length; i++) supported.push(Number(value[i]));
+                } catch (_) { /* The class default covers the driver, passenger and cluster screens. */ }
+                const listed = supported === null ? SYNCED_SCREENS
+                    : SYNCED_SCREENS.filter(screen => supported.includes(screen));
+                const screens = listed.length > 0 ? listed : [1];
+                return {light, screens, mask: screens.reduce((mask, screen) => mask | screen, 0)};
+            }
+            // True only when every screen reads back the value; a failed read leaves the result unconfirmed.
+            function everyScreen(light, screens, method, value) {
+                try {
+                    const read = light[method].overload('int');
+                    return screens.every(screen => read.call(light, screen) === value);
+                } catch (_) { return false; }
+            }
             function guard(manager, expires, command = '') {
                 if (now() >= expires) throw new VoiceCommandFailure('blocked', 'Vehicle command expired');
                 requireSafeState(command, manager, now);
@@ -114,32 +140,36 @@ export function installVoice(Java, reportError = createReporter('OVC_VOICE_ERROR
                         bus.openPowerHold();
                         report(request.id,'accepted','OEM Power Hold confirmation requested'); return;
                     }
-                    if(request.command.startsWith('BackLightMode')) {
-                        const mode={BackLightModeNight:0,BackLightModeDay:1,BackLightModeAuto:2}[request.command];
-                        if(mode===undefined) throw Error('Unknown brightness mode');
-                        const Backlight=Java.use('com.qinggan.system.BackLightManager');
-                        const light=Backlight.getInstance(ActivityThread.currentApplication(),null);
+                    if (request.command.startsWith('BackLightMode')) {
+                        const mode = {BackLightModeNight:0, BackLightModeDay:1, BackLightModeAuto:2}[request.command];
+                        if (mode === undefined) throw Error('Unknown brightness mode');
+                        const {light, screens, mask} = backlight();
                         guard(canManager(), request.expires, request.command);
+                        if (displayTooHot()) throw new VoiceCommandFailure('blocked', 'The display is too hot');
                         attempted = true;
-                        if(!light.setDimmer.overload('int','int').call(light,mode,0)) throw Error('Brightness service rejected the command');
-                        report(request.id,'accepted','Brightness mode requested'); return;
+                        // The factory day/night/auto buttons: mode, flags 1, every synced screen. The service
+                        // answers false for a screen that already had the mode, so the read-back decides.
+                        const sent = light.setDimmer.overload('int','int','int').call(light, mode, 1, mask);
+                        if (everyScreen(light, screens, 'getDimmer', mode))
+                            report(request.id, 'verified', 'Vehicle reported the target state');
+                        else if (sent) report(request.id, 'accepted', 'Brightness mode requested');
+                        else throw Error('Brightness service rejected the command');
+                        return;
                     }
                     if (request.command === 'SetBrightness') {
                         const level = request.options?.brightness;
                         if (!Number.isInteger(level) || level < 1 || level > 100)
                             throw Error('Brightness is outside the supported range');
-                        const Backlight = Java.use('com.qinggan.system.BackLightManager');
-                        const light = Backlight.getInstance(application, null);
+                        const {light, screens, mask} = backlight();
                         guard(canManager(), request.expires, request.command);
                         if (displayTooHot()) throw new VoiceCommandFailure('blocked', 'The display is too hot');
                         attempted = true;
-                        // The launcher's own brightness slider: level 1–100, flags 1, the main screen.
-                        if (!light.setBackLight.overload('int','int','int').call(light, level, 1, 1))
-                            throw Error('Brightness service rejected the command');
-                        let current = null;
-                        try { current = light.getBackLight.overload('int').call(light, 1); } catch (_) { /* Unconfirmed. */ }
-                        if (current === level) report(request.id, 'verified', 'Vehicle reported the target state');
-                        else report(request.id, 'accepted', 'Brightness requested');
+                        // The factory slider with synchronous adjustment: level 1–100, flags 1, every synced screen.
+                        const sent = light.setBackLight.overload('int','int','int').call(light, level, 1, mask);
+                        if (everyScreen(light, screens, 'getBackLight', level))
+                            report(request.id, 'verified', 'Vehicle reported the target state');
+                        else if (sent) report(request.id, 'accepted', 'Brightness requested');
+                        else throw Error('Brightness service rejected the command');
                         return;
                     }
                     if(request.command==='Sentry') {

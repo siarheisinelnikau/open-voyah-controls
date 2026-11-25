@@ -39,9 +39,9 @@
     <string name="voice_effect_adaptive_light_on">Requests adaptive lighting on compatible headlight systems.</string>
     <string name="voice_effect_assistant">Opens the Android assistant, or the app you assign to this phrase.</string>
     <string name="voice_effect_auto_mode">Requests automatic exterior light control.</string>
-    <string name="voice_effect_back_light_mode_auto">Requests automatic day and night backlight selection.</string>
-    <string name="voice_effect_back_light_mode_day">Requests the factory display’s daytime backlight mode.</string>
-    <string name="voice_effect_back_light_mode_night">Requests the factory display’s night backlight mode.</string>
+    <string name="voice_effect_back_light_mode_auto">Requests automatic day and night backlight selection on the driver, passenger and instrument cluster screens.</string>
+    <string name="voice_effect_back_light_mode_day">Requests the daytime backlight mode on the driver, passenger and instrument cluster screens.</string>
+    <string name="voice_effect_back_light_mode_night">Requests the night backlight mode on the driver, passenger and instrument cluster screens.</string>
     <string name="voice_effect_camera">Opens the app assigned to Camera.</string>
     <string name="voice_effect_car_wash_mode">Requests the factory car wash mode.</string>
     <string name="voice_effect_close_all_window_command">Requests that all side windows close.</string>
@@ -158,7 +158,7 @@
     <string name="voice_effect_save_mode">Requests battery charge preservation mode.</string>
     <string name="voice_effect_save_mode_with_soc" formatted="false">Requests charge preservation at the percentage you say, from 25 to 80% in steps of 5%.</string>
     <string name="voice_effect_sentry">Passes a sentry-mode request to the factory service. Check the result on the factory screen.</string>
-    <string name="voice_effect_set_brightness" formatted="false">Requests the main screen brightness you say, from 1 to 100%, as the factory brightness slider does.</string>
+    <string name="voice_effect_set_brightness" formatted="false">Requests the brightness you say, from 1 to 100%, on the driver, passenger and instrument cluster screens together, as the factory sliders do with synchronous adjustment on.</string>
     <string name="voice_effect_set_driver_temperature">Requests the temperature you say for the driver’s zone, from 16 to 30 °C.</string>
     <string name="voice_effect_set_fan_speed">Requests the front fan speed you say, from 1 to 8.</string>
     <string name="voice_effect_set_passenger_temperature">Requests the temperature you say for the front passenger’s zone, from 16 to 30 °C.</string>
