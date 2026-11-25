@@ -63,6 +63,7 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
         }
         CockpitSwitch(R.string.home_media_card_apps, state.mediaCardApps, change = actions::mediaCardApps)
         CockpitSwitch(R.string.home_media_card_hide_online, state.mediaCardHideOnline, change = actions::mediaCardHideOnline)
+        CockpitSwitch(R.string.home_cluster_card_apps, state.clusterCardApps, change = actions::clusterCardApps)
     }
 }
 

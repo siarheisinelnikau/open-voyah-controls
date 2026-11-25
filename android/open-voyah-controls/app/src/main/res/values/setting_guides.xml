@@ -178,6 +178,11 @@
         <item>All factory sources</item>
         <item>Working sources only</item>
     </string-array>
+    <string-array name="guide_home_cluster_card_apps">
+        <item>Lets the factory media card on the instrument cluster show Voyah Music and Voyah Radio, when installed, while they play.</item>
+        <item>Factory sources only</item>
+        <item>Your players on the cluster</item>
+    </string-array>
     <string-array name="guide_home_weather_city">
         <item>Sets the city used by the factory home screen’s weather card.</item>
         <item>Current city</item>

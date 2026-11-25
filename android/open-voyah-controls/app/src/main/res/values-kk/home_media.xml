@@ -2,4 +2,5 @@
 <resources>
     <string name="home_media_card_apps">"Медиа картасындағы Voyah Music және Voyah Radio"</string>
     <string name="home_media_card_hide_online">"Медиа картасында Funn Audio, Ximalaya және Yunting жасыру"</string>
+    <string name="home_cluster_card_apps">"Құрылғы панельіндегі Voyah Music және Voyah Radio"</string>
 </resources>

@@ -2,4 +2,5 @@
 <resources>
     <string name="home_media_card_apps">Voyah Music и Voyah Radio в медиакарточке</string>
     <string name="home_media_card_hide_online">Скрыть Funn Audio, Ximalaya и Yunting в медиакарточке</string>
+    <string name="home_cluster_card_apps">Voyah Music и Voyah Radio на приборной панели</string>
 </resources>

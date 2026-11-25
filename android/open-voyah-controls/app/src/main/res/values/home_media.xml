@@ -2,4 +2,5 @@
 <resources>
     <string name="home_media_card_apps">Voyah Music and Voyah Radio in the media card</string>
     <string name="home_media_card_hide_online">Hide Funn Audio, Ximalaya and Yunting in the media card</string>
+    <string name="home_cluster_card_apps">Voyah Music and Voyah Radio on the instrument cluster</string>
 </resources>

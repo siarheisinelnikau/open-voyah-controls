@@ -36,10 +36,12 @@ class SupervisorTest(unittest.TestCase):
         self.launcher = self.root / "launcher.apk"
         self.can = self.root / "can.apk"
         self.vehiclesetting = self.root / "vehiclesetting.apk"
+        self.instrumentcard = self.root / "instrumentcard.apk"
         self.app.write_bytes(b"approved app")
         self.launcher.write_bytes(b"approved OEM launcher")
         self.can.write_bytes(b"approved CAN service")
         self.vehiclesetting.write_bytes(b"approved factory settings")
+        self.instrumentcard.write_bytes(b"approved instrument card")
         self.injector = self.base / RUNTIME
         self.injector.write_text(
             "#!/usr/bin/env bash\nprintf 'started\\n' > '" + posix_path(self.root / "started") + "'\n",
@@ -108,6 +110,7 @@ pm() {{
         com.qinggan.app.launcher) echo 'package:{posix_path(self.launcher)}';;
         com.qinggan.canbus.service) echo 'package:{posix_path(self.can)}';;
         com.qinggan.app.vehiclesetting) echo 'package:{posix_path(self.vehiclesetting)}';;
+        com.qinggan.instrumentcard) echo 'package:{posix_path(self.instrumentcard)}';;
         *) return 1;;
     esac
 }}
@@ -266,9 +269,33 @@ sleep() {{
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("com.qinggan.app.vehiclesetting apollo/launcher-buttons.js", result.stdout)
 
+    def test_cluster_card_worker_checks_the_instrument_card_and_its_agent(self):
+        channel = self.base / "cluster-card"
+        channel.mkdir(mode=0o700)
+        agent = channel / "launcher-buttons.js"
+        agent.write_text("// instrument cluster media card agent\n", newline="\n")
+        agent.chmod(0o600)
+        self.write_receipt()
+        rows = self.record.read_text().splitlines()
+        lifetime = next(row for row in rows if row.startswith("lifetime\t"))
+        rows[rows.index(lifetime):rows.index(lifetime)] = [
+            f"package\tcom.qinggan.instrumentcard\t{posix_path(self.instrumentcard)}\t{digest(self.instrumentcard)}",
+            f"artifact\tcluster-card/launcher-buttons.js\t{digest(agent)}",
+        ]
+        self.record.write_text("\n".join(rows) + "\n", newline="\n")
+        prefix = self.sources["supervise.sh"].split('if [ "$channel" = --verify-boot ]; then', 1)[0]
+        script = prefix + 'check_runtime && printf "%s %s\\n" "$target $relative" "$pattern"\n'
+        def verify():
+            return subprocess.run([BASH, "-s", "--", "cluster-card"], input=script, capture_output=True, text=True, timeout=15)
+        result = verify()
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("com.qinggan.instrumentcard cluster-card/launcher-buttons.js ^OVC_CLUSTER_CARD_READY", result.stdout)
+        self.instrumentcard.write_bytes(b"changed instrument card")
+        self.assertNotEqual(0, verify().returncode)
+        self.assertFalse((self.root / "started").exists())
 
     def test_unlocked_clear_data_revokes_the_deployment_before_cleanup(self):
-        for suffix in ("", "window", "navigation", "apollo"):
+        for suffix in ("", "window", "navigation", "apollo", "cluster-card"):
             directory = self.base / suffix
             directory.mkdir(mode=0o700, exist_ok=True)
             (directory / "enabled").touch()
@@ -282,6 +309,7 @@ for marker in recovery.visual-pending recovery.blocked; do
     [ -f "$root/$marker" ] || exit 4
 done
 [ ! -e "$root/enabled" ] && [ ! -e "$root/window/enabled" ] && [ ! -e "$root/navigation/enabled" ] && [ ! -e "$root/apollo/enabled" ] || exit 5
+[ ! -e "$root/cluster-card/enabled" ] || exit 6
 printf 'revoked before owned cleanup\\n'
 ''')
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)

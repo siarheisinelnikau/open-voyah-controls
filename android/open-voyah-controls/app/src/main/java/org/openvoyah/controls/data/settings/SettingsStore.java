@@ -73,6 +73,8 @@ public final class SettingsStore {
         public boolean mediaCardApps = true;
         /** Hide the Chinese online services (MEDIA_CARD_ONLINE_SOURCES) in that card. On unless turned off. */
         public boolean mediaCardHideOnline = true;
+        /** Offer the same apps in the factory media card on the instrument cluster. On unless turned off. */
+        public boolean clusterCardApps = true;
         public final java.util.Map<String, Action> panelActions = new java.util.LinkedHashMap<>();
         public final java.util.Map<String, Action> steeringActions = new java.util.LinkedHashMap<>();
         public State() {
@@ -115,6 +117,7 @@ public final class SettingsStore {
         state.weatherCard = root.optBoolean("weatherCard", false);
         state.mediaCardApps = root.optBoolean("mediaCardApps", true);
         state.mediaCardHideOnline = root.optBoolean("mediaCardHideOnline", true);
+        state.clusterCardApps = root.optBoolean("clusterCardApps", true);
         JSONObject panel = root.optJSONObject("panelActions");
         if (panel != null) {
             java.util.Iterator<String> slots = panel.keys();
@@ -173,6 +176,7 @@ public final class SettingsStore {
             .put("weatherCard", state.weatherCard)
             .put("mediaCardApps", state.mediaCardApps)
             .put("mediaCardHideOnline", state.mediaCardHideOnline)
+            .put("clusterCardApps", state.clusterCardApps)
             .put("panelActions", panel).put("steeringActions", steering).toString(2);
     }
 }

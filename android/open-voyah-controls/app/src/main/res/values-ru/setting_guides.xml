@@ -178,6 +178,11 @@
         <item>Все штатные источники</item>
         <item>Только рабочие источники</item>
     </string-array>
+    <string-array name="guide_home_cluster_card_apps">
+        <item>Штатная медиакарточка приборной панели показывает Voyah Music и Voyah Radio, если они установлены, пока они играют.</item>
+        <item>Только штатные источники</item>
+        <item>Ваши плееры на приборной панели</item>
+    </string-array>
     <string-array name="guide_home_weather_city">
         <item>Задаёт город для карточки погоды на штатном рабочем столе.</item>
         <item>Текущий город</item>

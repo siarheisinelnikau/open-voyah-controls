@@ -45,6 +45,8 @@
     <string name="action_navigation_summary">The cluster agent: the navigation card and the playing track.</string>
     <string name="action_apollo">Factory assistance answers</string>
     <string name="action_apollo_summary">The factory settings agent: the Apollo answer for the assistance page and only the sends the driver switched on.</string>
+    <string name="action_cluster_card">Cluster media card</string>
+    <string name="action_cluster_card_summary">The instrument card agent: Voyah Music and Voyah Radio among the sources of the factory media card on the instrument cluster.</string>
     <string name="action_locale_setting">Translation: Settings</string>
     <string name="action_locale_vehicle">Translation: Vehicle</string>
     <string name="action_locale_bluetooth">Translation: Phone</string>

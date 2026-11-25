@@ -69,7 +69,8 @@ public final class FridaBridge {
     private static final String APOLLO_STATE = "org.openvoyah.controls.apolloFactoryState";
     /** The request id carried by the config document, so a stale agent report is never shown as current. */
     private static final String APOLLO_REQUEST = "apolloRequest";
-    private static final String[] CHANNELS = {"", "/locale-setting", "/locale-vehicle", "/locale-bluetooth", "/locale-hiboard", "/window", "/navigation", "/can", "/apollo"};
+    private static final String[] CHANNELS = {"", "/locale-setting", "/locale-vehicle", "/locale-bluetooth", "/locale-hiboard", "/window", "/navigation", "/can", "/apollo",
+        "/cluster-card"};
     private static final String FIXTURE_INJECTOR = "/data/local/tmp/open-voyah-controls-frida-17.26.2";
     private static final Object IO_LOCK = new Object();
     private static final java.util.concurrent.ExecutorService UPDATES = java.util.concurrent.Executors.newSingleThreadExecutor();
@@ -130,6 +131,14 @@ public final class FridaBridge {
     private boolean navigationReviewed() {
         return packageReviewed(ReviewedFirmware.CLUSTER) && (production == null || production.agentAllowed(ActionCatalog.NAVIGATION));
     }
+    /**
+     * The instrument card process is pinned for this firmware and the owner has not forbidden its agent. Emulator
+     * fixtures have no instrument card, so the channel never runs there.
+     */
+    private boolean clusterCardReviewed() {
+        return production != null && production.packageReviewed(ReviewedFirmware.INSTRUMENT_CARD)
+            && production.agentAllowed(ActionCatalog.CLUSTER_CARD);
+    }
     private boolean localeAllowed(String target) {
         return packageReviewed(ReviewedFirmware.INSTANCE.getLocalizationTargets().get(target))
             && (production == null || production.agentAllowed(ActionCatalog.LOCALE_PREFIX + target));
@@ -179,6 +188,12 @@ public final class FridaBridge {
                 mediaCard.put("hide", hide);
             }
             if (mediaCard.length() > 0) root.put("mediaCard", mediaCard);
+            // The instrument card agent adds the same apps to the factory media card on the cluster.
+            if (state.clusterCardApps) {
+                JSONArray sources = new JSONArray();
+                for (String[] app : SettingsStore.MEDIA_CARD_APPS) sources.put(new JSONObject().put("package", app[0]).put("service", app[1]));
+                root.put("clusterCard", new JSONObject().put("sources", sources));
+            }
             return root
                 .put("steeringEnabled", state.enabled).put("steering", hookActions(state.steeringActions))
                 .put("steeringHoldMs", state.holdMs).put("steeringDebounceMs", state.debounceMs).toString();
@@ -483,9 +498,11 @@ public final class FridaBridge {
         boolean navigation = navigationHookEnabled(context) && navigationReviewed();
         boolean can = canReviewed();
         boolean apollo = apolloHookEnabled(context) && apolloReviewed();
+        // Runs whenever its package is pinned and the agent allowed; the setting only changes what it shows.
+        boolean clusterCard = clusterCardReviewed();
         java.util.List<String> locales = localizationChannels();
         Uploads uploads = new Uploads(progress, 3 + locales.size() + (window ? 1 : 0) + (navigation ? 1 : 0) + (can ? 1 : 0)
-            + (apollo ? 1 : 0));
+            + (apollo ? 1 : 0) + (clusterCard ? 1 : 0));
         progress.report(DeploymentProgress.Stage.STOPPING, null, 0, 0);
         // Stop only this project's prior worker. Never kill another Frida instance.
         boolean panelRestored = restorePanelIcons();
@@ -539,6 +556,10 @@ public final class FridaBridge {
             channels.add("apollo");
         } else {
             command("settings delete global " + APOLLO_CONFIG);
+        }
+        if (clusterCard) {
+            stageOptionalHook("cluster-card", uploads);
+            channels.add("cluster-card");
         }
         progress.report(DeploymentProgress.Stage.SEALING, null, 0, 0);
         sealDeployment(channels);
@@ -812,6 +833,7 @@ public final class FridaBridge {
             case "navigation" -> navigationReviewed();
             case "can" -> canReviewed();
             case "apollo" -> apolloReviewed();
+            case "cluster-card" -> clusterCardReviewed();
             default -> false;
         };
     }
@@ -1257,6 +1279,7 @@ public final class FridaBridge {
                     case "/window" -> "Window service";
                     case "/navigation" -> "Navigation feed";
                     case "/can" -> "CAN terminal key events";
+                    case "/cluster-card" -> "Instrument cluster media card";
                     default -> "Localization " + suffix;
                 };
                 String live = production == null ? "" : " && ovc_worker_live " + dir + " && ovc_child_live " + dir
@@ -1323,6 +1346,7 @@ public final class FridaBridge {
                     case "/window" -> "^OVC_WINDOW_READY protocol=3 ";
                     case "/navigation" -> "^OVC_NAVIGATION_READY";
                     case "/can" -> "^OVC_CAN_READY protocol=2 terminal edges ";
+                    case "/cluster-card" -> "^OVC_CLUSTER_CARD_READY";
                     default -> "^OVC_LOCALIZATION_READY";
                 };
                 StringBuilder markers = new StringBuilder("grep -Eq ").append(quote(pattern)).append(" ").append(dir).append("/ready");
@@ -1815,7 +1839,26 @@ public final class FridaBridge {
             + " || exit 1; for i in 0 1 2 3 4; do "
             + "if grep -qs " + quote("OVC_PANEL_ICONS_RESTORED " + token) + " " + log
             + "; then echo restored; exit 0; fi; [ \"$i\" = 4 ] || sleep 1; done; echo unconfirmed");
-        return response.equals("restored") && clearVisualSession("", true, session);
+        boolean restored = response.equals("restored") && clearVisualSession("", true, session);
+        awaitClusterCardRestore(token);
+        return restored;
+    }
+
+    /**
+     * The cluster card agent answers the same restore token once it has returned its borrowed slots. Without that
+     * answer its changes stay in the instrument card's memory until that process restarts or a new agent attaches,
+     * so the stop waits for it briefly; a missing answer is logged and never blocks the stop.
+     */
+    private void awaitClusterCardRestore(String token) {
+        String dir = base + "/cluster-card";
+        try {
+            String reply = command("if [ ! -f " + dir + "/enabled ] || [ ! -s " + dir + "/ready ]; then echo idle; exit 0; fi; "
+                + "for i in 0 1 2 3 4; do if grep -qs " + quote("OVC_CLUSTER_CARD_RESTORED " + token) + " " + dir + "/hook.log"
+                + "; then echo restored; exit 0; fi; [ \"$i\" = 4 ] || sleep 1; done; echo unconfirmed").trim();
+            if (!reply.equals("restored") && !reply.equals("idle")) ControlsLog.warn("bridge_cluster_card_restore", "outcome", "unconfirmed");
+        } catch (IOException unavailable) {
+            ControlsLog.warn("bridge_cluster_card_restore", unavailable, "outcome", "unavailable");
+        }
     }
 
     private record VisualSession(String state, String proof) { }

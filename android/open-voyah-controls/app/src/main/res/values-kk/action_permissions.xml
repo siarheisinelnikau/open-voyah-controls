@@ -44,6 +44,8 @@
     <string name="action_navigation_summary">"Құралдар панелі агенті: навигациялық карта және ойнайтын трек."</string>
     <string name="action_apollo">"Ассистенттер бетінің жауаптары"</string>
     <string name="action_apollo_summary">"Әдеттегі параметрлер агенті: ассистенттер бетіне Apollo туралы жауап және жүргізушінің қосқан жөнелтілімдері ғана."</string>
+    <string name="action_cluster_card">"Құрылғы панельіндегі медиа картасы"</string>
+    <string name="action_cluster_card_summary">"Құрылғы панелінің зауыттық медиа картасының агенті: оның көздерінің арасында Voyah Music және Voyah Radio."</string>
     <string name="action_locale_setting">"Аударма: Параметрлері"</string>
     <string name="action_locale_vehicle">"Аударма: Автомобиль"</string>
     <string name="action_locale_bluetooth">"Аударма: Телефон"</string>
