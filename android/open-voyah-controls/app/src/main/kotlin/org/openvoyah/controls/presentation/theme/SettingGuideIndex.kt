@@ -52,7 +52,6 @@ internal val settingGuides: Map<Int, SettingGuide> = mapOf(
     R.string.window_swipe_fingers to SettingGuide(R.array.guide_window_swipe_fingers, GuidePicture.SWIPE),
     R.string.window_swipe_after to SettingGuide(R.array.guide_window_swipe_after, GuidePicture.DESKTOP),
     R.string.display_density to SettingGuide(R.array.guide_display_density, GuidePicture.TEXT),
-    R.string.cluster_media_share to SettingGuide(R.array.guide_cluster_media_share, GuidePicture.SOUND),
     R.string.display_preview_show_media to SettingGuide(R.array.guide_display_preview_show_media, GuidePicture.SOUND),
     R.string.display_preview_show_navigation to SettingGuide(R.array.guide_display_preview_show_navigation, GuidePicture.WINDOW),
     R.string.display_preview_show_playback_progress to SettingGuide(R.array.guide_display_preview_show_playback_progress, GuidePicture.TIME),

@@ -39,7 +39,7 @@ internal fun DisplayScreen(
     media: DisplayViewModel.Player?, preferredMediaLabel: String, back: () -> Unit,
     needsMediaAccess: Boolean, canvasDensity: Density,
     chooseDensity: () -> Unit, mediaAccess: () -> Unit, configureNavigation: () -> Unit,
-    clusterMedia: (Boolean) -> Unit, previewMedia: (Boolean) -> Unit, previewNavigation: (Boolean) -> Unit,
+    previewMedia: (Boolean) -> Unit, previewNavigation: (Boolean) -> Unit,
     playbackProgress: (Boolean) -> Unit,
     albumArtwork: (Boolean) -> Unit, transportControls: (Boolean) -> Unit,
     transport: (PreviewMediaAction, Long, PreviewSeekStep) -> Unit, chooseSource: () -> Unit,
@@ -68,7 +68,6 @@ internal fun DisplayScreen(
                 if (needsMediaAccess && state.previewContent.showMedia) {
                     CockpitFeedback(label(R.string.display_preview_media_access_required))
                 }
-                CockpitSwitch(R.string.cluster_media_share, state.clusterMedia, change = clusterMedia)
             }
         }, second = {
             CockpitSection(label(R.string.virtual_display), CockpitIcon.DISPLAY, label(R.string.display_preview_description)) {

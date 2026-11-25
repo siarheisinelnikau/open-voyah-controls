@@ -76,7 +76,7 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
             buttons.save(state);
             voice.language("en");
             voice.audio(true, true);
-            display.restore(240, true);
+            display.restore(240);
             appWindows.saveDefaults(new AppDisplayDefaults(200, 220));
             UiText.language("kk");
             locale.preset("en");
@@ -86,11 +86,20 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
             preview.restoreSettings(mediaOptions);
             seats.restoreSettings(savedSeats);
             headlights.restoreSettings(new JSONObject().put("whileControlsOpen", true));
-            var combined = archive.prepare(archive.exportJson());
+            JSONObject exported = new JSONObject(archive.exportJson());
+            // The retired cluster track switch stays in the archive as false, for versions that still require it.
+            assertFalse(exported.getJSONObject("display").getBoolean("clusterMedia"));
+            var combined = archive.prepare(exported.toString());
+            // An archive written without it, or by a version with the switch on, still imports.
+            JSONObject withoutRetired = new JSONObject(exported.toString());
+            withoutRetired.getJSONObject("display").remove("clusterMedia");
+            archive.prepare(withoutRetired.toString());
+            withoutRetired.getJSONObject("display").put("clusterMedia", true);
+            archive.prepare(withoutRetired.toString());
 
             voice.language("ru");
             voice.audio(false, false);
-            display.restore(0, false);
+            display.restore(0);
             appWindows.saveDefaults(new AppDisplayDefaults(0, null));
             UiText.language("en");
             locale.disable();
@@ -112,7 +121,6 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
             assertTrue(voice.option("spokenFeedback"));
             assertEquals("kk", UiText.language());
             assertEquals(240, display.density());
-            assertTrue(display.clusterMedia());
             assertEquals(new AppDisplayDefaults(200, 220), appWindows.loadDefaults());
             assertTrue(locale.enabled());
             assertFalse(updates.checkOnStartup());
@@ -250,7 +258,7 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
             var changed = buttons.load();
             changed.holdMs = changed.holdMs == 800 ? 900 : 800;
             buttons.save(changed);
-            new DisplayPreferences(context).restore(320, true);
+            new DisplayPreferences(context).restore(320);
             archive.recoverInterruptedRestore();
             for (String name : new String[]{"controls", "voice", "localization", "ui", "display"}) {
                 assertEquals(original.getJSONObject(name).toString(),

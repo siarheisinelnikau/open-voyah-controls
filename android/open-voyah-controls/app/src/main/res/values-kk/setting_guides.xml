@@ -248,11 +248,6 @@
         <item>Кішірек алдын ала көрініс басқаруы</item>
         <item>Үлкенірек басқару</item>
     </string-array>
-    <string-array name="guide_cluster_media_share">
-        <item>Трек мәліметтерін үйлесімді аспаптар панеліне жібереді.</item>
-        <item>Орталық экрандағы ойнатқыш</item>
-        <item>Аспаптар панеліндегі трек ақпараты</item>
-    </string-array>
     <string-array name="guide_display_preview_show_media">
         <item>Виртуалды дисплейде белсенді медиа бөлігін көрсетеді.</item>
         <item>Медиа бөлігі жасырылған</item>

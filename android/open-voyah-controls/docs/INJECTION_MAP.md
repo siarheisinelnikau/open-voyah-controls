@@ -6,7 +6,7 @@ This describes the implemented adapters, not qualified head units. The productio
 
 | Package / process | Agent and purpose | Activation |
 | --- | --- | --- |
-| `com.qinggan.app.launcher` | Main bundle: launcher buttons/icons, QG steering callbacks, fixed voice-command API dispatch, cluster media publishing and launcher text translations | Main reviewed connection. Individual features also check their settings and capabilities. |
+| `com.qinggan.app.launcher` | Main bundle: launcher buttons/icons, QG steering callbacks, fixed voice-command API dispatch and launcher text translations | Main reviewed connection. Individual features also check their settings and capabilities. |
 | `android` / `system_server` | `window.bundle.js`: central panel inset, per-app width and DPI; separately reviewed passenger density; the owner's keyboard for the central display | Optional window worker; Android 9/11 signatures and framework review required. It modifies window-service behavior, not the target app's APK. |
 | `com.qinggan.app.setting` | `localization.bundle.js`: exact dictionary replacements in settings text | Translation enabled, matching product/package dictionary and package review. |
 | `com.qinggan.app.vehicle` | Same text adapter for vehicle screens | Same translation requirements. This worker does not replace vehicle button listeners. |
@@ -127,7 +127,7 @@ The factory home screen's structure and candidate hook points are in [the home s
 - Voice capture, microphone permission, local speech recognition and the voice popup belong to the ordinary Controls APK. Agents dispatch only the fixed allowed command set through observed OEM APIs. An accepted API call is not proof of a physical state change.
 - Window width/DPI is applied in `system_server`, with separate Android 9 (`com.android.server.am`) and 11 (`com.android.server.wm`) paths. Native placement is retained for unsupported, private, pinned or shared tasks.
 - Translation hooks `TextView.setText`, `setHint` and `TypedArray.getText` inside the selected OEM process. Only configured exact strings change. It does not turn OEM screens into Compose.
-- Cluster media uses the OEM manager from the launcher; navigation observation attaches to the cluster service. The cluster's media card is a separate process, `com.qinggan.instrumentcard`; see [Cluster media card](FRIDA_AGENTS.md#cluster-media-card). Cluster file installation/restoration is a separate reviewed root transport workflow.
+- Navigation observation attaches to the cluster service. The cluster's media card is a separate process, `com.qinggan.instrumentcard`; see [Cluster media card](FRIDA_AGENTS.md#cluster-media-card). Cluster file installation/restoration is a separate reviewed root transport workflow.
 - Oversea A/B/C account selection remains unavailable without complete backup/restore evidence. Numeric Driver 1/2/3 commands address seat memory and are not account slots.
 
 All **Controls-owned** screens and dialogs are Compose; the native OEM screens keep their own rendering. See [Compose UI coverage](COMPOSE_UI.md) and [firmware limits](FIRMWARE.md) for the remaining distinctions.

@@ -23,7 +23,6 @@
     <string name="window_hook_off">"Терезе өңдеуші тоқтатылды."</string>
     <string name="virtual_display">"Виртуалды экран"</string>
     <string name="display_media_access">"Ойыншыға қол жеткізу"</string>
-    <string name="cluster_media_share">"Құрылғыдағы ағымдағы жолды көрсету"</string>
     <string name="display_density">"Виртуалды экранның масштабы"</string>
     <string name="display_auto_density">"Автоматты DPI таңдау"</string>
     <string name="display_unavailable">"Қосымшада алдын ала қарау · Виртуалды экран жоқ"</string>

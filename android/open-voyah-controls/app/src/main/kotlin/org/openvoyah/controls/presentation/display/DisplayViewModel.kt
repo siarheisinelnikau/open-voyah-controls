@@ -46,7 +46,6 @@ internal class DisplayViewModel(
 ) : ViewModel() {
     data class State(
         val density: Int,
-        val clusterMedia: Boolean,
         val navigationEnabled: Boolean,
         val previewContent: DisplayPreviewContent,
         val changingNavigation: Boolean = false,
@@ -59,7 +58,7 @@ internal class DisplayViewModel(
     data class Player(val packageName: String, val actions: Set<PreviewMediaAction>, val revision: Long)
 
     private val current = MutableStateFlow(
-        State(settings.density(), settings.clusterMedia(), navigation.enabled(), previewSettings.load()),
+        State(settings.density(), navigation.enabled(), previewSettings.load()),
     )
     val state = current.asStateFlow()
     private val snapshots = callbackFlow {
@@ -94,7 +93,6 @@ internal class DisplayViewModel(
     fun refresh() = current.update {
         it.copy(
             density = settings.density(),
-            clusterMedia = settings.clusterMedia(),
             navigationEnabled = navigation.enabled(),
             previewContent = if (it.savingPreview) it.previewContent else previewSettings.load(),
             mediaCommandUnavailable = false,
@@ -149,11 +147,6 @@ internal class DisplayViewModel(
     fun density(value: Int) {
         settings.density(value)
         current.update { it.copy(density = value) }
-    }
-
-    fun clusterMedia(enabled: Boolean) {
-        settings.clusterMedia(enabled)
-        current.update { it.copy(clusterMedia = enabled) }
     }
 
     fun navigationEnabled(enabled: Boolean) {

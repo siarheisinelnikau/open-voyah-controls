@@ -248,11 +248,6 @@
         <item>Smaller preview controls</item>
         <item>Larger preview controls</item>
     </string-array>
-    <string-array name="guide_cluster_media_share">
-        <item>Offers media metadata to the supported instrument cluster.</item>
-        <item>Player on center screen</item>
-        <item>Track information on cluster</item>
-    </string-array>
     <string-array name="guide_display_preview_show_media">
         <item>Shows the active media pane in the virtual display preview.</item>
         <item>Media pane hidden</item>

@@ -22,7 +22,6 @@ import org.openvoyah.controls.ButtonAccessibilityService;
 import org.openvoyah.controls.R;
 import org.openvoyah.controls.UiText;
 import org.openvoyah.controls.core.Action;
-import org.openvoyah.controls.core.display.DisplayEventBus.Media;
 import org.openvoyah.controls.data.apps.AppGridPreferences;
 import org.openvoyah.controls.data.display.AppWindowPreferences;
 import org.openvoyah.controls.data.frida.WindowDiagnostics.Operation;
@@ -1636,22 +1635,6 @@ public final class FridaBridge {
             requireRoot();
             command(activationGuard() + "settings put global " + HOME_WEATHER + " " + quote(payload));
             return true;
-        }
-    }
-    public void publishClusterMedia(Media media) throws IOException {
-        synchronized (IO_LOCK) {
-            if (!runtimeConfigured()) return;
-            if (!navigationReviewed()) throw unreviewedOperation();
-            requireRoot();
-            try {
-                String data = new JSONObject().put("title", media.title()).put("artist", media.artist())
-                    .put("album", media.album()).put("playing", media.playing())
-                    .put("expires", System.currentTimeMillis() + 5000).toString();
-                String key = "org.openvoyah.controls.clusterMedia";
-                command(activationGuard() + "grep -q OVC_CLUSTER_READY " + base + "/ready && settings put global " + key + " " + quote(data)
-                    + " && { (sleep 5; if [ \"$(settings get global " + key + ")\" = " + quote(data)
-                    + " ]; then settings delete global " + key + "; fi) </dev/null >/dev/null 2>&1 & }");
-            } catch (JSONException ex) { throw new IOException("Could not encode media state", ex); }
         }
     }
     public void disconnect() throws IOException {

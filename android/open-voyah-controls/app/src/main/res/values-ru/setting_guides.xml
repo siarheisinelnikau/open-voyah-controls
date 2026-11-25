@@ -248,11 +248,6 @@
         <item>Мелкое управление в превью</item>
         <item>Крупнее управление в превью</item>
     </string-array>
-    <string-array name="guide_cluster_media_share">
-        <item>Передаёт сведения о воспроизведении на поддерживаемую приборную панель.</item>
-        <item>Плеер на центральном экране</item>
-        <item>Сведения о треке на приборке</item>
-    </string-array>
     <string-array name="guide_display_preview_show_media">
         <item>Показывает активную панель медиа на виртуальном дисплее.</item>
         <item>Панель медиа скрыта</item>

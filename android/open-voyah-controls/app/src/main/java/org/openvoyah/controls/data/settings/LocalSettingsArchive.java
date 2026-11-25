@@ -126,7 +126,8 @@ public final class LocalSettingsArchive {
                 .put("voice", new JSONObject(voice.exportJson()))
                 .put("localization", new JSONObject(localization.exportJson()))
                 .put("language", UiText.language())
-                .put("display", new JSONObject().put("density", display.density()).put("clusterMedia", display.clusterMedia()))
+                // clusterMedia belongs to a retired switch; versions before its removal refuse a display section without it.
+                .put("display", new JSONObject().put("density", display.density()).put("clusterMedia", false))
                 .put("appWindows", windows.exportProfiles())
                 .put("appDisplayDpi", windows.exportDefaults())
                 .put("updates", new JSONObject().put("checkOnStartup", updates.checkOnStartup()))
@@ -235,17 +236,15 @@ public final class LocalSettingsArchive {
         public final boolean complete;
         private final String buttons, voice, localization, language;
         private final int density;
-        private final boolean clusterMedia;
         private final OptionalPreferences optional;
 
         private Restore(String buttons, String voice, String localization, String language,
-                int density, boolean clusterMedia, OptionalPreferences optional, int bindingCount, boolean complete) {
+                int density, OptionalPreferences optional, int bindingCount, boolean complete) {
             this.buttons = buttons;
             this.voice = voice;
             this.localization = localization;
             this.language = language;
             this.density = density;
-            this.clusterMedia = clusterMedia;
             this.optional = optional;
             this.bindingCount = bindingCount;
             this.complete = complete;
@@ -268,7 +267,7 @@ public final class LocalSettingsArchive {
         JSONObject root = new JSONObject(raw);
         if (!root.has("format")) {
             SettingsStore.State state = SettingsStore.decode(raw);
-            return new Restore(SettingsStore.encode(state), null, null, null, 0, false, null,
+            return new Restore(SettingsStore.encode(state), null, null, null, 0, null,
                 state.bindings.size(), false);
         }
         if (!FORMAT.equals(root.getString("format")) || root.getInt("schema") != 1)
@@ -280,9 +279,10 @@ public final class LocalSettingsArchive {
         String language = root.getString("language");
         JSONObject displayData = root.getJSONObject("display");
         Object density = displayData.get("density");
-        Object clusterMedia = displayData.get("clusterMedia");
+        // Archives from before the retired cluster track switch carry its value; it is accepted and ignored.
+        Object clusterMedia = displayData.opt("clusterMedia");
         if (!UiText.supportsLanguage(language) || !(density instanceof Integer)
-                || !DisplayPreferences.validDensity((int) density) || !(clusterMedia instanceof Boolean))
+                || !DisplayPreferences.validDensity((int) density) || (clusterMedia != null && !(clusterMedia instanceof Boolean)))
             throw new IOException(UiText.get(R.string.settings_archive_invalid));
         JSONArray windowProfiles = root.has("appWindows")
             ? AppWindowPreferences.validateProfiles(root.getJSONArray("appWindows")) : null;
@@ -331,7 +331,7 @@ public final class LocalSettingsArchive {
             quickActions, routines, seatMemory, headlightMonitoring, vehicleAutomation, seasonalClimate, conditionalRules,
             appIcons, actionPermissions);
         return new Restore(SettingsStore.encode(state), voiceJson, localizationJson, language,
-            (int) density, (boolean) clusterMedia, optional, state.bindings.size(), true);
+            (int) density, optional, state.bindings.size(), true);
     }
 
     public void apply(Restore restore) throws Exception {
@@ -373,7 +373,7 @@ public final class LocalSettingsArchive {
             voice.importJson(restore.voice);
             localization.importJson(restore.localization);
             UiText.language(restore.language);
-            display.restore(restore.density, restore.clusterMedia);
+            display.restore(restore.density);
             if (optional.windowProfiles() != null) windows.restoreProfiles(optional.windowProfiles());
             if (optional.appDisplayDefaults() != null) windows.saveDefaults(optional.appDisplayDefaults());
             if (optional.checkOnStartup() != null) updates.checkOnStartup(optional.checkOnStartup());

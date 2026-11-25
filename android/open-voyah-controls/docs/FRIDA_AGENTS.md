@@ -41,7 +41,7 @@ The process-by-process scope and button mappings are listed in [Injection target
 | `window-gesture.js`, `window-display-move.js` | Android 11: the two- or three-finger swipe that moves an app's task to the cluster's navigation display or the passenger display and back. See [Moving windows between screens](#moving-windows-between-screens). |
 | `window-reserve*.js` | Experimental: make Android itself keep the launcher's left panel clear, instead of moving each launched task beside it. See [The reserved panel strip](#the-reserved-panel-strip-experimental). |
 | `localization*.js` | Replace selected labels using the configured dictionaries. |
-| `navigation-entry.js`, `display-events.js` | Observe navigation data and route supported navigation/media information to the relevant displays. |
+| `navigation-entry.js`, `display-events.js` | Observe navigation data on the cluster service and send navigation events to Controls. |
 | `oversea-profiles*.js`, `account-state.js` | Inspect the overseas driver API and classify a bounded observation of the account backing file. They never select or restore an account and never log its fields. |
 
 The boot and supervisor files ending in `.sh` are shell scripts. They verify the deployment, wait for the right process, start the corresponding agent and monitor its readiness. Each optional agent has its own process/package checks and recovery. Frida execution in a fixture proves the adapter can run; exact OEM compatibility and physical behavior still require vehicle qualification.
@@ -81,7 +81,7 @@ OVC_STEERING_ERROR stage=launch kind=ActivityNotFoundException key=voice gesture
 | `OVC_STEERING_ERROR` | Steering keys in the launcher | `config`, `event`, `launch`, `restore` |
 | `OVC_CAN_ERROR` | Steering keys in the CAN service | the install phase (`process`, `constants`, `callback`, `launcher`, `install`), `route`, `gesture` |
 | `OVC_LOCALIZATION_ERROR` | Interface translation | `install`, `settings`, `config`, `convert`, `refresh`, `resource_text`, `attach_text`, `format` |
-| `OVC_CLUSTER_MEDIA_ERROR`, `OVC_NAVIGATION_ERROR` | Cluster media and navigation events | `install`, `settings`, `parse`, `publish`, `event`, `distance` |
+| `OVC_NAVIGATION_ERROR` | Navigation events | `install`, `event`, `distance` |
 | `OVC_VOICE_ERROR` | Voice command executor | `install`, `settings` |
 | `OVC_WINDOW_ERROR` | Window service | see below |
 | `OVC_KEYBOARD_ERROR` | Keyboard policy in the window service | `install`, `update`, `crash_fallback` |

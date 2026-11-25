@@ -22,7 +22,6 @@
     <string name="window_hook_off">Обработчик окон остановлен.</string>
     <string name="virtual_display">Виртуальный экран</string>
     <string name="display_media_access">Доступ к плееру</string>
-    <string name="cluster_media_share">Показывать текущий трек на приборке</string>
     <string name="display_density">Масштаб виртуального экрана</string>
     <string name="display_auto_density">Автовыбор DPI</string>
     <string name="display_unavailable">Предпросмотр в приложении · Виртуальный экран недоступен</string>

@@ -22,7 +22,6 @@
     <string name="window_hook_off">Window worker stopped.</string>
     <string name="virtual_display">Virtual display</string>
     <string name="display_media_access">Media access</string>
-    <string name="cluster_media_share">Show current track on the instrument cluster</string>
     <string name="display_density">Virtual display density</string>
     <string name="display_auto_density">Automatic DPI</string>
     <string name="display_unavailable">Showing the preview in the app · Virtual display unavailable</string>

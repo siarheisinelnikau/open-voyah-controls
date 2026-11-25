@@ -8,48 +8,28 @@ import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
 import android.os.Handler;
 import android.os.Looper;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import org.openvoyah.controls.core.display.DisplayEventBus.Media;
 import org.openvoyah.controls.core.display.DisplayEventBus;
-import org.openvoyah.controls.data.display.DisplayPreferences;
 import org.openvoyah.controls.diagnostics.ControlsLog;
 
 /** Translates Android media callbacks into display events. Runs on the main thread. */
 public final class MediaSessionMonitor implements AutoCloseable {
-    public interface ClusterOutput {
-        boolean available();
-        void publish(Media media) throws IOException;
-    }
-
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final DisplayEventBus events;
-    private final DisplayPreferences preferences;
-    private final ClusterOutput cluster;
     private final MediaSessionManager manager;
     private final ComponentName component;
     private boolean connected;
     private MediaController current;
     private MediaController.Callback callback;
     private MediaSessionReading reading = new MediaSessionReading();
-    private Runnable unsubscribe;
-    private volatile long revision;
-    private Media lastRequested = Media.EMPTY;
-    // Failures are logged on a transition only: a failed publish is retried on the next player callback.
+    // Logged on a transition only.
     private boolean accessDenied;
-    private boolean publishFailing;
 
-    public MediaSessionMonitor(Context context, ComponentName component, DisplayEventBus events,
-            DisplayPreferences preferences, ClusterOutput cluster) {
+    public MediaSessionMonitor(Context context, ComponentName component, DisplayEventBus events) {
         this.manager = context.getSystemService(MediaSessionManager.class);
         this.component = component;
         this.events = events;
-        this.preferences = preferences;
-        this.cluster = cluster;
     }
 
     private final MediaSessionManager.OnActiveSessionsChangedListener sessionListener = controllers -> {
@@ -89,7 +69,6 @@ public final class MediaSessionMonitor implements AutoCloseable {
         try {
             manager.addOnActiveSessionsChangedListener(sessionListener, component, handler);
             connected = true;
-            unsubscribe = preferences.observeClusterMedia(() -> publish(events.snapshot().media()));
             select(manager.getActiveSessions(component));
             accessChanged(null);
         } catch (SecurityException ex) {
@@ -131,44 +110,16 @@ public final class MediaSessionMonitor implements AutoCloseable {
         PlaybackState playback = current == null ? null : current.getPlaybackState();
         var snapshot = reading.read(metadata, playback, selectedSession ? playback : reported);
         events.publishMedia(snapshot.media(), snapshot.progress());
-        publish(snapshot.media());
-    }
-
-    private void publish(Media snapshot) {
-        Media desired = preferences.clusterMedia() && snapshot.available() ? snapshot : Media.EMPTY;
-        if (desired.equals(lastRequested) || !cluster.available() || worker.isShutdown()) return;
-        lastRequested = desired;
-        long token = ++revision;
-        worker.execute(() -> {
-            if (token != revision) return;
-            try {
-                cluster.publish(desired);
-                if (publishFailing) {
-                    publishFailing = false;
-                    ControlsLog.info("cluster_media_publish", "outcome", "recovered");
-                }
-            }
-            catch (IOException | RuntimeException ex) {
-                // A RuntimeException here would otherwise end the worker thread and, through the default handler, the process.
-                if (!publishFailing) {
-                    publishFailing = true;
-                    ControlsLog.warn("cluster_media_publish", ex, "outcome", "transport_unavailable");
-                }
-                handler.post(() -> { if (token == revision) lastRequested = null; });
-            }
-        });
     }
 
     public void disconnect() {
         if (!connected) return;
         connected = false;
-        if (unsubscribe != null) { unsubscribe.run(); unsubscribe = null; }
         manager.removeOnActiveSessionsChangedListener(sessionListener);
         select(Collections.emptyList());
     }
 
     @Override public void close() {
         disconnect();
-        worker.shutdown();
     }
 }

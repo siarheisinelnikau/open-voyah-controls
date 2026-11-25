@@ -105,7 +105,7 @@ internal val SETTINGS_INDEX: List<SettingsEntry> = buildList {
         R.string.home_media_card_apps, R.string.home_media_card_hide_online, R.string.home_cluster_card_apps))
     addAll(entries(SettingsPartId.WINDOWS_APPS, R.string.window_hook_title, R.string.app_display_defaults_title,
         R.string.window_swipe_title, R.string.window_strip_title, R.string.settings_app_scale_hint_title))
-    addAll(entries(SettingsPartId.WINDOWS_DISPLAYS, R.string.virtual_display, R.string.display_density, R.string.cluster_media_share,
+    addAll(entries(SettingsPartId.WINDOWS_DISPLAYS, R.string.virtual_display, R.string.display_density,
         R.string.display_preview_details, R.string.display_preview_arrangement, R.string.display_navigation))
     addAll(entries(SettingsPartId.BUTTONS_PANEL, R.string.ui_69, R.string.ui_67))
     addAll(entries(SettingsPartId.BUTTONS_STEERING, R.string.oem_steering))

@@ -150,7 +150,6 @@ internal fun DisplayDestination(back: () -> Unit) {
                     UiText.get(R.string.ui_89))
             }
         },
-        clusterMedia = { if (active()) model.clusterMedia(it) },
         previewMedia = { if (active()) model.showPreviewMedia(it) },
         previewNavigation = { if (active()) model.showPreviewNavigation(it) },
         playbackProgress = { if (active()) model.showPlaybackProgress(it) },
