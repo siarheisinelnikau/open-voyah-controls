@@ -40,10 +40,16 @@ internal data class HeadlightGearDecision(
     val gear: VehicleSignal<VehicleGear>,
     val action: HeadlightGearAction,
 ) {
-    /** Recheck immediately before a native request; a reserved transition is never replayed. */
+    /**
+     * Recheck immediately before a native request; a reserved transition is never replayed. A repeat of the same gear
+     * from the same source still is this transition: the factory service delivers every change twice.
+     */
     fun isCurrent(current: HeadlightGearSettings, telemetry: VehicleTelemetry, lighting: HeadlightStatus, now: Long): Boolean =
         current == settings && current.enabled && session.matches(telemetry) &&
-            VehicleSignalKind.GEAR !in telemetry.unavailable && telemetry.gear == gear &&
+            VehicleSignalKind.GEAR !in telemetry.unavailable && telemetry.gear?.let { latest ->
+                latest.value == gear.value && latest.sourceId == gear.sourceId && latest.sessionId == gear.sessionId &&
+                    latest.observedAtElapsedNanos >= gear.observedAtElapsedNanos
+            } == true &&
             gear.isFreshFor(telemetry, now) &&
             // The selector reports only changes, so its mode is often unknown; setting the same mode again is harmless.
             lighting.currentObservation?.mode != action.mode &&

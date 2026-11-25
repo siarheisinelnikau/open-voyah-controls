@@ -107,6 +107,17 @@ class PinnedVehicleTelemetryReducerTest {
         assertNull(reader.read(16, listOf(40), 300).speedKph)
     }
 
+    @Test fun theServicesRepeatedGearCallbackKeepsTheTimeOfTheChange() {
+        // Every factory listener receives each gear change twice, 5-10 ms apart.
+        val reader = reducer()
+        val drive = reader.read(12, listOf(1, 3, 3), 100)
+        assertSame(drive, reader.read(12, listOf(1, 3, 3), 108))
+        assertEquals(100L, drive.gear?.observedAtElapsedNanos)
+        val park = reader.read(12, listOf(1, 0, 0), 200).gear
+        assertEquals(VehicleGear.PARK, park?.value)
+        assertEquals(200L, park?.observedAtElapsedNanos)
+    }
+
     @Test fun invalidGearRevokesQueuedEvidenceAndResetsSharedObjectBaselines() {
         val reader = reducer()
         reader.read(1, doors())

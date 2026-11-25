@@ -32,6 +32,8 @@ The factory speed callback reports zero both for a stop and for invalid input, s
 
 **Headlights in Drive and Park** acts on a fresh gear change. When the selector position is unknown it still sends the chosen mode, since requesting the current mode again is harmless. Auto and Low beam also run in Drive; Position lights and Off are sent only in Park.
 
+The factory service invokes each of its listeners twice per gear change, 5–10 ms apart; every client on the owner's car (HiCar, power hold, launcher) logs both. Controls keeps the time of the first callback, and the recheck right before the request accepts the same gear from the same source. Earlier, the repeat replaced the sample the decision was made on, and the request was dropped as `outcome=blocked` before it reached the launcher agent.
+
 ## Driving-mode memory
 
 **Settings → Routines and automation → Driving mode memory** keeps one driving mode (Eco, Comfort, Sport, Off-road, Individual or Snow). It does not store seat or mirror positions; those are in [Driver seat and mirror memory](DRIVER_MEMORY.md).

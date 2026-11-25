@@ -22,6 +22,21 @@ class HeadlightGearPolicyTest {
         unavailable = emptySet(),
     )
 
+    @Test fun theServicesRepeatedGearCallbackKeepsThePendingDecisionCurrent() {
+        // Owner car 14:41:11: Drive arrived twice, 5-10 ms apart; the request was dropped as blocked in between.
+        val engine = HeadlightGearEngine()
+        engine.evaluate(settings, telemetry(VehicleGear.PARK, 1_000_000), lights, 1_000_000)
+        val decision = checkNotNull(engine.evaluate(settings, telemetry(VehicleGear.DRIVE, 2_000_000), lights, 2_000_000))
+        val repeat = telemetry(VehicleGear.DRIVE, 9_000_000)
+        assertTrue(decision.isCurrent(settings, repeat, lights, 10_000_000))
+        assertNull(engine.evaluate(settings, repeat, lights, 10_000_000))
+        // A different gear, an older sample or another source is not this transition.
+        assertFalse(decision.isCurrent(settings, telemetry(VehicleGear.REVERSE, 9_000_000), lights, 10_000_000))
+        assertFalse(decision.isCurrent(settings, telemetry(VehicleGear.DRIVE, 1_500_000), lights, 10_000_000))
+        val other = repeat.copy(gear = repeat.gear!!.copy(sourceId = "replacement"))
+        assertFalse(decision.isCurrent(settings, other, lights, 10_000_000))
+    }
+
     @Test fun initialDriveAndRepeatedFeedbackNeverAct() {
         val engine = HeadlightGearEngine()
         val car = telemetry(VehicleGear.DRIVE, 1_000)

@@ -28,6 +28,10 @@ internal class PinnedVehicleTelemetryReducer(initial: VehicleTelemetry) {
             PinnedVehicleCallbacks.GEAR -> {
                 val gear = PinnedVehicleCallbacks.gear(values[1], values[2])
                 if (gear == null) restart(elapsed)
+                // The service invokes every listener twice per change, 5-10 ms apart (logcat of all its clients on
+                // the owner car). The repeat keeps the time of the change: a new stamp would replace the sample a
+                // pending headlight request was decided on.
+                else if (gear == telemetry.gear?.value) return telemetry
                 telemetry = telemetry.copy(gear = gear?.let(::sample),
                     unavailable = availability(VehicleSignalKind.GEAR, gear != null))
             }
