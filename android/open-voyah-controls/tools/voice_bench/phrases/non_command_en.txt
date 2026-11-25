@@ -1,0 +1,65 @@
+# Non-command speech for false-trigger tests. One utterance per line. "~" marks a near miss: it shares words with
+# catalog commands but is not one. Lines that normalize to a catalog phrase are dropped automatically.
+how long until we get there
+did you remember to lock the front door
+let's grab some coffee on the way
+I think we missed the exit
+what time is your meeting tomorrow
+call me when you get home
+look at that sunset
+I'm so tired after work today
+we should stop for gas before the highway
+the kids are asleep in the back
+don't forget to buy bread and milk
+the traffic is terrible this morning
+can you check the address again
+there is a speed camera ahead
+we need to book a service appointment
+I reserved a table for seven
+did you hear the news about the trip
+it is supposed to rain all next week
+let's stop and stretch our legs
+this song reminds me of summer
+it looks like it's starting to snow
+I need to pick up a package at the post office
+wait a second I'm checking my phone
+there's a long line at the parking garage
+I don't like driving at night
+we can take the scenic route
+thanks for the ride
+okay sounds good
+hmm I'm not sure
+hey what was that noise
+hello yes I'm in the car I'll call you back
+what time is it now
+where should we go on saturday
+wow that's amazing
+the road is really slippery today
+~ open the window a little more please
+~ I'm a bit hot but it's fine
+~ the bus driver cut us off
+~ the music today is kind of sad
+~ play something happy please
+~ the navigation keeps routing through downtown
+~ close the door properly please
+~ which mode is it in right now
+~ I really don't like this song
+~ where do you turn on the heater
+~ pause for a second I want to talk
+~ the radio is boring today
+~ sport mode isn't needed here
+~ it's really loud in here
+~ the weather tomorrow should be nice
+~ the camera on the back is dirty
+~ open the glove box the papers are there
+~ turn on the interior lights
+~ turn off your phone
+~ settings on my phone are a mess
+~ fresh air is good for you
+~ the next turn is on the right
+~ the previous light was red
+~ the volume on my phone is low
+~ the temperature outside is minus five
+~ the speed limit here is ninety
+~ our trunk is pretty big
+~ the headlights of that car are blinding
