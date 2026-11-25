@@ -238,7 +238,8 @@ tasks.register('compileFridaHook', Exec) {
     environment('OVC_LOCAL_VOICE_APPROVALS', localVoiceApprovals?.absolutePath ?: '')
     outputs.files('src/main/assets/hooks/launcher-buttons.bundle.js', 'src/main/assets/hooks/localization.bundle.js',
         'src/main/assets/hooks/window.bundle.js', 'src/main/assets/hooks/navigation.bundle.js',
-        'src/main/assets/hooks/can.bundle.js', 'src/main/assets/hooks/oversea-profiles.bundle.js')
+        'src/main/assets/hooks/can.bundle.js', 'src/main/assets/hooks/oversea-profiles.bundle.js',
+        'src/main/assets/hooks/apollo.bundle.js', 'src/main/assets/hooks/cluster-card.bundle.js')
     outputs.dir(voiceApprovals)
 }
 gradle.taskGraph.whenReady { graph ->
