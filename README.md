@@ -4,6 +4,12 @@
 
 Open Voyah Controls настраивает главный экран, меню приложений и управление мультимедиа на головном устройстве Voyah.
 
+**Совместимость проверялась только на VOYAH OS 6.1.0.**
+
+[![OVC и приложения-компаньоны на головном устройстве Voyah Free](android/open-voyah-controls/docs/screenshots/ovc-and-companions.webp)](android/open-voyah-controls/docs/screenshots/ovc-and-companions.mp4)
+
+OVC и приложения-компаньоны в машине: главный экран OVC, Voyah Music, Voyah Radio, меню приложений, настройки и YouTube Web. [Видео в полном качестве (MP4)](android/open-voyah-controls/docs/screenshots/ovc-and-companions.mp4)
+
 | Стартовый экран | Цветовой акцент |
 | --- | --- |
 | ![Open Voyah Controls startup screen](android/open-voyah-controls/docs/screenshots/launch-brand.png) | ![Open Voyah Controls startup screen with an amber accent](android/open-voyah-controls/docs/screenshots/launch-brand-charge-amber.png) |
@@ -18,6 +24,10 @@ Open Voyah Controls настраивает главный экран, меню �
 | Главный экран с виджетом музыки | Настройки |
 | --- | --- |
 | ![Open Voyah Controls Home with a music widget](android/open-voyah-controls/docs/screenshots/desktop-media-card-open.png) | ![Open Voyah Controls settings](android/open-voyah-controls/docs/screenshots/settings-overview.png) |
+
+Настройки OVC на головном устройстве:
+
+![Настройки OVC на головном устройстве Voyah Free](android/open-voyah-controls/docs/screenshots/head-unit-settings.png)
 
 ## Приложения-компаньоны
 
