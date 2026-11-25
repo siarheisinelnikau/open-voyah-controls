@@ -6,9 +6,9 @@ Open Voyah Controls customizes the home screen, app grid, and media controls on 
 
 **Compatibility has only been checked on VOYAH OS 6.1.0.**
 
-[![OVC and the companion apps on a Voyah Free head unit](android/open-voyah-controls/docs/screenshots/ovc-and-companions.webp)](android/open-voyah-controls/docs/screenshots/ovc-and-companions.mp4)
+https://github.com/user-attachments/assets/d68a5a29-7f86-45b1-a861-dafddf798990
 
-OVC and the companion apps in the car: OVC Home, Voyah Music, Voyah Radio, the app grid, settings, and YouTube Web. [Full-quality video (MP4)](android/open-voyah-controls/docs/screenshots/ovc-and-companions.mp4)
+OVC and the companion apps in the car: OVC Home, Voyah Music, Voyah Radio, the app grid, settings, and YouTube Web. [Download the video (MP4)](android/open-voyah-controls/docs/screenshots/ovc-and-companions.mp4)
 
 | Startup screen | Accent color |
 | --- | --- |
