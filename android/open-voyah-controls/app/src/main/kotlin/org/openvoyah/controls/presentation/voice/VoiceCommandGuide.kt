@@ -205,6 +205,7 @@ private val commandGuides = mapOf(
     "SetDriverTemperature" to CommandGuide(VoiceGuideCategory.CLIMATE, R.string.voice_effect_set_driver_temperature, CommandRequirement.FRONT_CLIMATE),
     "SetFanSpeed" to CommandGuide(VoiceGuideCategory.CLIMATE, R.string.voice_effect_set_fan_speed, CommandRequirement.FRONT_CLIMATE),
     "SetPassengerTemperature" to CommandGuide(VoiceGuideCategory.CLIMATE, R.string.voice_effect_set_passenger_temperature, CommandRequirement.FRONT_CLIMATE),
+    "SetTemperature" to CommandGuide(VoiceGuideCategory.CLIMATE, R.string.voice_effect_set_temperature, CommandRequirement.FRONT_CLIMATE),
     "SetVolume" to CommandGuide(VoiceGuideCategory.MEDIA, R.string.voice_effect_set_volume, CommandRequirement.LOCAL),
     "SmokeCommand" to CommandGuide(VoiceGuideCategory.WINDOWS, R.string.voice_effect_smoke_command, CommandRequirement.VEHICLE),
     "SnowMode" to CommandGuide(VoiceGuideCategory.DRIVING, R.string.voice_effect_snow_mode, CommandRequirement.VEHICLE),

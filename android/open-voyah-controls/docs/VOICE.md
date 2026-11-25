@@ -2,7 +2,7 @@
 
 A short press of the steering-wheel voice key opens **Voice assistant** by default on a supported vehicle profile. You can also assign it to another steering-wheel or launcher button. To keep the factory voice key, choose the factory action for it under **OEM steering wheel buttons**, or use **Restore factory buttons**. Press the button and say one command. A small Android dialog opens over the current app and starts the microphone. It briefly shows the result and returns to the underlying app. A second press closes an active dialog.
 
-The app recognizes 139 command IDs in English, Russian and Kazakh. The recognition language is separate from the interface language. **Voice settings** contains the command catalog and app assignments. **Settings → Voice → Recognition** groups the speech engine, the recognition language, the downloadable models and the optional online interpretation.
+The app recognizes 140 command IDs in English, Russian and Kazakh. The recognition language is separate from the interface language. **Voice settings** contains the command catalog and app assignments. **Settings → Voice → Recognition** groups the speech engine, the recognition language, the downloadable models and the optional online interpretation.
 
 - [English catalog](../core/src/main/resources/voice-catalog-en.tsv)
 - [Russian catalog](../core/src/main/resources/voice-catalog.tsv)
@@ -103,7 +103,7 @@ Choose whether feedback repeats the recognized command or announces its result. 
 
 ![Custom English ready phrase in Voice audio on an Android 11 emulator](screenshots/voice-ready-phrase.png)
 
-On the inspected H97 branch with front climate on, use **driver temperature**, **passenger temperature**, or **fan speed** with a value. Temperature accepts 16–30 °C, and the fan accepts 1–8. The popup shows the result and, by default, the recognized phrase. Other branches need separate verification.
+On the inspected H97 branch with front climate on, use **driver temperature**, **passenger temperature**, or **fan speed** with a value; **temperature** with a value (“температура двадцать пять”) sets both front zones. Temperature accepts 16–30 °C, and the fan accepts 1–8. The popup shows the result and, by default, the recognized phrase. Other branches need separate verification.
 
 ## Contacts, backup, and recovery
 

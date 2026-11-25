@@ -3,11 +3,14 @@ import {VoiceCommandFailure} from './voice-safety.js';
 
 // Protocol names, not enum ordinals: the installed SDK supplies its own ABI.
 export function planFor(id, options = {}) {
-    if (['SetDriverTemperature', 'SetPassengerTemperature', 'SetFanSpeed'].includes(id)) {
+    if (['SetDriverTemperature', 'SetPassengerTemperature', 'SetTemperature', 'SetFanSpeed'].includes(id)) {
         const value = options.climateValue;
         const fan = id === 'SetFanSpeed';
         if (!Number.isInteger(value) || value < (fan ? 1 : 16) || value > (fan ? 8 : 30))
             throw Error('Climate value is outside the supported range');
+        // Both front zones, driver first, as the factory sets them together; °C through the float API.
+        if (id === 'SetTemperature') return ['AC_LEFT_TEMP', 'AC_RIGHT_TEMP'].map(property =>
+            ({bus:'temperature', property, value, phase:'main', h97Climate:true}));
         const property = fan ? 'AC_BLOWER' : id === 'SetDriverTemperature' ? 'AC_LEFT_TEMP' : 'AC_RIGHT_TEMP';
         return [{bus: fan ? 'climate' : 'temperature', property, value, phase:'main', h97Climate:true}];
     }

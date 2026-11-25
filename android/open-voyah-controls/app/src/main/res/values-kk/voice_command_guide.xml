@@ -162,6 +162,7 @@
     <string name="voice_effect_set_driver_temperature">Жүргізуші аймағына айтқан температураны, 16–30 °C аралығында қоюды сұрайды.</string>
     <string name="voice_effect_set_fan_speed">Алдыңғы желдеткіштің айтқан 1–8 жылдамдығын сұрайды.</string>
     <string name="voice_effect_set_passenger_temperature">Алдыңғы жолаушы аймағына айтқан температураны, 16–30 °C аралығында қоюды сұрайды.</string>
+    <string name="voice_effect_set_temperature">Айтқан температураны, 16–30 °C аралығында, екі алдыңғы аймаққа бірден сұрайды: жүргізуші мен жолаушыға.</string>
     <string name="voice_effect_set_volume">Медиа дыбысын айтқан пайызға, 0-ден 100 пайызға дейін қояды.</string>
     <string name="voice_effect_smoke_command">Жүргізуші терезесін сәл ашуды сұрайды. Терезе баптауларында саңылауды үлкейтуге болады.</string>
     <string name="voice_effect_snow_mode">«Қар» жүріс режимін сұрайды.</string>

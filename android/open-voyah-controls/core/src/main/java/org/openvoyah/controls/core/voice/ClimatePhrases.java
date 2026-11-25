@@ -7,13 +7,17 @@ import java.util.Map;
 import org.openvoyah.controls.core.VoiceCatalog.Command;
 import org.openvoyah.controls.core.VoiceCatalog;
 
-/** Bounded front climate settings. The injected adapter verifies the OEM branch before dispatch. */
+/**
+ * Bounded front climate settings. The injected adapter verifies the OEM branch before dispatch. A temperature without a
+ * seat ([Target#BOTH]) sets the driver and the front passenger zones together.
+ */
 public final class ClimatePhrases {
     private enum Target {
         DRIVER("SetDriverTemperature", "driver temperature ", "температура водителя ", "жүргізуші температурасы ",
             16, 30, 22),
         PASSENGER("SetPassengerTemperature", "passenger temperature ", "температура пассажира ", "жолаушы температурасы ",
             16, 30, 22),
+        BOTH("SetTemperature", "temperature ", "температура ", "температура ", 16, 30, 22),
         FAN("SetFanSpeed", "fan speed ", "скорость вентилятора ", "желдеткіш жылдамдығы ", 1, 8, 3);
 
         final String id, english, russian, kazakh;

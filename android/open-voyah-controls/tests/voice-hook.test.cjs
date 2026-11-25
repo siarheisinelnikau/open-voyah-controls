@@ -385,7 +385,7 @@ test('every command allowed in motion exists in the voice catalog', () => {
     vm.runInNewContext(source('voice-safety.js') + '\nthis.ids = [...MOTION_COMMANDS];', context);
     const catalog = fs.readFileSync(path.join(__dirname, '../core/src/main/resources/voice-catalog-en.tsv'), 'utf8')
         .split(/\r?\n/).filter(line => line && !line.startsWith('#')).map(line => line.split('\t')[0]);
-    const known = new Set([...catalog, 'SetDriverTemperature', 'SetPassengerTemperature', 'SetFanSpeed', 'SetBrightness']);
+    const known = new Set([...catalog, 'SetDriverTemperature', 'SetPassengerTemperature', 'SetTemperature', 'SetFanSpeed', 'SetBrightness']);
     assert.equal(JSON.stringify(context.ids.filter(id => !known.has(id))), '[]');
     assert.ok(context.ids.length > 60);
     for (const parked of ['LampOff', 'PositionLamp', 'OpenTrunkCommand', 'CloseTrunkCommand', 'EnableTrunkCommand',
@@ -514,4 +514,17 @@ test('a rejected brightness write is reported as unknown, not as applied', async
     await settle();
     assert.deepEqual(h.backlight, [[40, 1, 19]]);
     assert.ok(h.logs.some(line => line.includes('"status":"unknown"') && line.includes('rejected')));
+});
+
+test('a temperature without a seat sets both front zones in degrees, also while driving', async () => {
+    const both = harness({h97:true, gear:'Drive', speed:50});
+    both.send('SetTemperature', {options:{climateValue:25}});
+    await settle();
+    assert.deepEqual(both.writes, [['AC_LEFT_TEMP',25],['AC_RIGHT_TEMP',25]]);
+    for (const [options, value] of [[{h97:true}, 31], [{h97:true}, 15], [{h97:false}, 22], [{h97:true, power:0}, 22]]) {
+        const blocked = harness(options);
+        blocked.send('SetTemperature', {options:{climateValue:value}});
+        await settle();
+        assert.equal(blocked.writes.length, 0, JSON.stringify([options, value]));
+    }
 });

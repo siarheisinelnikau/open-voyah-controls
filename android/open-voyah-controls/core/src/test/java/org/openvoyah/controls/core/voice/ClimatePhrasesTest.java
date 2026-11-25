@@ -17,4 +17,23 @@ public class ClimatePhrasesTest {
         assertThrows(IllegalArgumentException.class,
             () -> ClimatePhrases.value("SetDriverTemperature", "passenger temperature twenty two"));
     }
+
+    @Test public void aTemperatureWithoutASeatIsBothZonesInEveryLanguage() throws Exception {
+        for (String[] language : new String[][]{{"ru", "/voice-catalog.tsv"}, {"en", "/voice-catalog-en.tsv"},
+                {"kk", "/voice-catalog-kk.tsv"}}) {
+            var catalog = new VoiceCatalog(getClass().getResourceAsStream(language[1]),
+                SpokenValueCommands.commands(language[0]));
+            assertNotNull(language[0], catalog.byId("SetTemperature"));
+        }
+        var ru = new VoiceCatalog(getClass().getResourceAsStream("/voice-catalog.tsv"), SpokenValueCommands.commands("ru"));
+        assertEquals("SetTemperature", ru.match("температура двадцать пять").id());
+        assertEquals("SetTemperature", ru.match("температура 25 градусов").id());
+        assertEquals("SetDriverTemperature", ru.match("температура водителя двадцать пять").id());
+        assertEquals(25, ClimatePhrases.value("SetTemperature", "температура двадцать пять градусов"));
+        assertEquals(19, ClimatePhrases.value("SetTemperature", "temperature nineteen"));
+        assertEquals(24, ClimatePhrases.value("SetTemperature", "температура жиырма төрт"));
+        assertNull(ru.match("температура тридцать один"));
+        assertThrows(IllegalArgumentException.class,
+            () -> ClimatePhrases.value("SetTemperature", "температура водителя двадцать пять"));
+    }
 }

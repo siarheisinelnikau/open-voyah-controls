@@ -53,7 +53,7 @@ export const MOTION_COMMANDS = new Set([
     'BackLightModeNight', 'BackLightModeDay', 'BackLightModeAuto', 'SetBrightness',
     'DecreaseTemperature', 'FastDecreaseTemperature', 'IncreaseTemperature', 'FastIncreaseTemperature',
     'FlowBody', 'FlowBodyLegs', 'FlowLegs', 'FlowWindow', 'FlowWindowLegs',
-    'SetDriverTemperature', 'SetPassengerTemperature', 'SetFanSpeed',
+    'SetDriverTemperature', 'SetPassengerTemperature', 'SetTemperature', 'SetFanSpeed',
     ...['Driver', 'Passenger'].flatMap(seat => ['Heat', 'Condition', 'Massage'].flatMap(kind =>
         ['Default', 'One', 'Two', 'Tree'].map(level => `Enable${kind}${seat}Level${level}`))),
     'DisableDriverHeat', 'DisableDriverCondition', 'DisableDriverMassage',

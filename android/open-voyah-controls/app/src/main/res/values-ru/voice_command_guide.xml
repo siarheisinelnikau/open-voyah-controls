@@ -162,6 +162,7 @@
     <string name="voice_effect_set_driver_temperature">Запрашивает произнесённую температуру от 16 до 30 °C в зоне водителя.</string>
     <string name="voice_effect_set_fan_speed">Запрашивает произнесённую скорость переднего вентилятора от 1 до 8.</string>
     <string name="voice_effect_set_passenger_temperature">Запрашивает произнесённую температуру от 16 до 30 °C в зоне переднего пассажира.</string>
+    <string name="voice_effect_set_temperature">Запрашивает произнесённую температуру от 16 до 30 °C сразу в обеих передних зонах: водителя и пассажира.</string>
     <string name="voice_effect_set_volume" formatted="false">Задаёт произнесённый процент громкости медиа от 0 до 100%.</string>
     <string name="voice_effect_smoke_command">Запрашивает небольшую щель водительского окна. В настройках окон её можно увеличить.</string>
     <string name="voice_effect_snow_mode">Запрашивает режим движения «Снег».</string>

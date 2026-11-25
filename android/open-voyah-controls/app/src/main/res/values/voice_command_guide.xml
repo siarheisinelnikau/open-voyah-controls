@@ -162,6 +162,7 @@
     <string name="voice_effect_set_driver_temperature">Requests the temperature you say for the driver’s zone, from 16 to 30 °C.</string>
     <string name="voice_effect_set_fan_speed">Requests the front fan speed you say, from 1 to 8.</string>
     <string name="voice_effect_set_passenger_temperature">Requests the temperature you say for the front passenger’s zone, from 16 to 30 °C.</string>
+    <string name="voice_effect_set_temperature">Requests the temperature you say for both front zones, the driver’s and the front passenger’s, from 16 to 30 °C.</string>
     <string name="voice_effect_set_volume" formatted="false">Sets media volume to the percentage you say, from 0 to 100%.</string>
     <string name="voice_effect_smoke_command">Requests a small gap in the driver’s window. Window options can extend it.</string>
     <string name="voice_effect_snow_mode">Requests Snow driving mode.</string>
