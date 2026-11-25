@@ -115,17 +115,31 @@ internal class NativeVehicleTelemetryMonitor(context: Context) : VehicleTelemetr
         private var closed = false
 
         override fun onConnected(service: IBinder) {
-            synchronized(this) {
+            val session = synchronized(this) {
                 if (closed) return
                 started = true
                 diagnostic.value = NativeVehicleDiagnosticState(readerState = diagnostic.value.readerState,
                     connected = true, sessionId = telemetry.sessionId)
                 publish(telemetry)
+                telemetry.sessionId
             }
-            // Reuse the factory getGearStatus snapshot once, solely in diagnostics. It is not a transition.
+            // The factory getGearStatus snapshot is read once. It is not a transition and never a current gear: it only
+            // gives the session's first gear callback (Park to Drive after a wake) the gear it changed from.
             val (cached, outcome) = readCachedGear(service)
             synchronized(this) {
-                if (!closed) diagnostic.update { it.copy(cachedGear = cached, cachedGearOutcome = outcome) }
+                if (closed) return
+                diagnostic.update { it.copy(cachedGear = cached, cachedGearOutcome = outcome) }
+                val previous = telemetry
+                val current = cached?.let { reducer.seedGearAtConnect(session, it.ordinal, it.value) } ?: previous
+                if (current != previous) publish(current)
+                val result = when {
+                    current != previous -> "baseline"
+                    cached == null -> outcome
+                    PinnedVehicleCallbacks.gear(cached.ordinal, cached.value) == null -> "unavailable"
+                    else -> "superseded"
+                }
+                ControlsLog.info("vehicle_signal", "signal", "gear", "value", current.gearAtConnect?.key ?: "unknown",
+                    "source", "service_cache", "outcome", result, "session", session)
             }
             seedDrivingMode(service)
         }

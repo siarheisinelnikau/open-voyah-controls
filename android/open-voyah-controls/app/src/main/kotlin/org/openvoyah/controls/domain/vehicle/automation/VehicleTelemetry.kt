@@ -79,6 +79,13 @@ internal data class VehicleTelemetry(
     val unavailable: Set<VehicleSignalKind> = VehicleSignalKind.entries.toSet(),
     val confirmationWindow: VehicleTelemetryWindow? = null,
     val gearExpiredByAge: Boolean = false,
+    /**
+     * The factory service's cached gear, read once when this session connected and before any gear callback. The
+     * service reports the gear only on change, so after a wake the first callback (Park to Drive) needs this to be a
+     * transition. It stays on snapshots up to the session's first gear callback and is cleared by the next change.
+     * It is an edge baseline only: never a current reading, never a Park gate or a rule condition.
+     */
+    val gearAtConnect: VehicleGear? = null,
 ) {
     init {
         require(sessionId.isNotBlank() && sessionId.length <= 96)

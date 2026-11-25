@@ -32,8 +32,10 @@ internal class PinnedVehicleTelemetryReducer(initial: VehicleTelemetry) {
                 // the owner car). The repeat keeps the time of the change: a new stamp would replace the sample a
                 // pending headlight request was decided on.
                 else if (gear == telemetry.gear?.value) return telemetry
+                // The connect-time baseline describes only the gear the session's first callback changed from.
                 telemetry = telemetry.copy(gear = gear?.let(::sample),
-                    unavailable = availability(VehicleSignalKind.GEAR, gear != null))
+                    unavailable = availability(VehicleSignalKind.GEAR, gear != null),
+                    gearAtConnect = telemetry.gearAtConnect.takeIf { telemetry.gear == null })
             }
             PinnedVehicleCallbacks.VEHICLE_STATE -> {
                 // DRIVING_MODE_SET is emitted before the setter sends CAN. It cannot
@@ -73,6 +75,18 @@ internal class PinnedVehicleTelemetryReducer(initial: VehicleTelemetry) {
             // to the same zero. It stays diagnostic; a zero must not open a Park gate.
             // The ambient callback is not this producer's outside-temperature signal.
         }
+        return telemetry
+    }
+
+    /**
+     * Records the service's cached getGearStatus value as the session's gear baseline. Only the session that was
+     * connected when it was read, and only before its first gear callback: a callback that arrived first wins.
+     */
+    fun seedGearAtConnect(sessionId: String, ordinal: Int, value: Int): VehicleTelemetry {
+        val gear = PinnedVehicleCallbacks.gear(ordinal, value) ?: return telemetry
+        if (sessionId != telemetry.sessionId || telemetry.gear != null || telemetry.gearAtConnect != null ||
+            VehicleSignalKind.GEAR !in telemetry.unavailable) return telemetry
+        telemetry = telemetry.copy(gearAtConnect = gear)
         return telemetry
     }
 

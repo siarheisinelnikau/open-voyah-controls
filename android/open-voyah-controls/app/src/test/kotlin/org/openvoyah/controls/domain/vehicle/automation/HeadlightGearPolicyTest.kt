@@ -15,12 +15,89 @@ class HeadlightGearPolicyTest {
     private val identity = VehicleIdentity("fixture", "fixture/build:1", 30, "x86_64")
     private val settings = HeadlightGearSettings(true, HeadlightGearAction.LOW_BEAM, HeadlightGearAction.OFF)
     private val lights = HeadlightStatus(HeadlightFeedback.Confirmed(HeadlightObservation(HeadlightMode.AUTOMATIC, 1_000), 1))
-    private fun telemetry(gear: VehicleGear, at: Long, session: String = "trip", speed: Float? = 0f) = VehicleTelemetry(
+    private fun telemetry(gear: VehicleGear, at: Long, session: String = "trip", speed: Float? = 0f,
+                          atConnect: VehicleGear? = null) = VehicleTelemetry(
         identity, session, 1,
         gear = VehicleSignal(gear, at, 1_000, "factory_feedback", session),
         speedKph = speed?.let { VehicleSignal(it, at, 1_000, "factory_feedback", session) },
         unavailable = emptySet(),
+        gearAtConnect = atConnect,
     )
+    /** A session right after a wake: no gear callback yet, only the service's cached gear. */
+    private fun connected(session: String, atConnect: VehicleGear?) =
+        VehicleTelemetry(identity, session, 1, gearAtConnect = atConnect)
+
+    /** The runtime engine has watched earlier sessions; the screen then went off and on again. */
+    private fun afterEarlierTrip() = HeadlightGearEngine().also {
+        assertNull(it.evaluate(settings, telemetry(VehicleGear.PARK, 500, "evening"), lights, 500))
+    }
+
+    @Test fun cachedParkAtConnectMakesTheFirstDriveAfterAWakeATransition() {
+        // Owner car 2026-11-25 12:55 and 13:22: the screen woke, the first gear callback was Drive, the lights stayed.
+        val engine = afterEarlierTrip()
+        assertNull(engine.evaluate(settings, connected("wake", VehicleGear.PARK), lights, 2_000))
+        assertEquals(HeadlightGearAction.LOW_BEAM,
+            engine.evaluate(settings, telemetry(VehicleGear.DRIVE, 3_000, "wake", atConnect = VehicleGear.PARK), lights, 3_000)?.action)
+
+        // The baseline and the Drive callback can reach the engine as one snapshot.
+        assertEquals(HeadlightGearAction.LOW_BEAM, afterEarlierTrip().evaluate(settings,
+            telemetry(VehicleGear.DRIVE, 3_000, "wake", atConnect = VehicleGear.PARK), lights, 3_000)?.action)
+
+        // P→R→D after a wake starts the trip too.
+        val reverse = afterEarlierTrip()
+        assertNull(reverse.evaluate(settings, telemetry(VehicleGear.REVERSE, 3_000, "wake", atConnect = VehicleGear.PARK), lights, 3_000))
+        assertEquals(HeadlightGearAction.LOW_BEAM,
+            reverse.evaluate(settings, telemetry(VehicleGear.DRIVE, 4_000, "wake", atConnect = VehicleGear.PARK), lights, 4_000)?.action)
+
+        // Without the cache the first callback still only seeds.
+        val unknown = afterEarlierTrip()
+        assertNull(unknown.evaluate(settings, telemetry(VehicleGear.DRIVE, 3_000, "wake"), lights, 3_000))
+    }
+
+    @Test fun connectBaselineIsOnlyTheFirstCallbacksPreviousGear() {
+        // Connected mid-trip: the cache says Drive, so a later R→D is a manoeuvre, not a start.
+        val moving = afterEarlierTrip()
+        assertNull(moving.evaluate(settings, telemetry(VehicleGear.REVERSE, 2_000, "wake", atConnect = VehicleGear.DRIVE), lights, 2_000))
+        assertNull(moving.evaluate(settings, telemetry(VehicleGear.DRIVE, 3_000, "wake", atConnect = VehicleGear.DRIVE), lights, 3_000))
+
+        // A settings change only seeds, whatever the cache says.
+        val edited = HeadlightGearEngine()
+        edited.evaluate(settings.copy(enabled = false), connected("wake", VehicleGear.PARK), lights, 1_000)
+        assertNull(edited.evaluate(settings, telemetry(VehicleGear.DRIVE, 2_000, "wake", atConnect = VehicleGear.PARK), lights, 2_000))
+
+        // After a lost gear the old cache no longer describes the car.
+        val lost = HeadlightGearEngine()
+        lost.evaluate(settings, telemetry(VehicleGear.PARK, 1_000, "wake", atConnect = VehicleGear.PARK), lights, 1_000)
+        assertNull(lost.evaluate(settings, telemetry(VehicleGear.PARK, 1_000, "wake", atConnect = VehicleGear.PARK), lights, 6_000_002_000))
+        assertNull(lost.evaluate(settings,
+            telemetry(VehicleGear.DRIVE, 6_000_003_000, "wake", atConnect = VehicleGear.PARK), lights, 6_000_003_000))
+    }
+
+    @Test fun driveRunsOncePerTripSoALaterReverseKeepsTheDriversChoice() {
+        val engine = HeadlightGearEngine()
+        engine.evaluate(settings, telemetry(VehicleGear.PARK, 1_000_000_000), lights, 1_000_000_000)
+        assertNull(engine.evaluate(settings, telemetry(VehicleGear.REVERSE, 2_000_000_000), lights, 2_000_000_000))
+        assertEquals(HeadlightGearAction.LOW_BEAM,
+            engine.evaluate(settings, telemetry(VehicleGear.DRIVE, 3_000_000_000), lights, 3_000_000_000)?.action)
+        // A three-point turn during the trip: the driver may have chosen other lights meanwhile.
+        assertNull(engine.evaluate(settings, telemetry(VehicleGear.REVERSE, 10_000_000_000), lights, 10_000_000_000))
+        assertNull(engine.evaluate(settings, telemetry(VehicleGear.DRIVE, 12_000_000_000), lights, 12_000_000_000))
+        assertNull(engine.evaluate(settings, telemetry(VehicleGear.NEUTRAL, 14_000_000_000), lights, 14_000_000_000))
+        assertNull(engine.evaluate(settings, telemetry(VehicleGear.DRIVE, 16_000_000_000), lights, 16_000_000_000))
+        // Park ends the trip; the next Drive starts a new one.
+        assertEquals(HeadlightGearAction.OFF,
+            engine.evaluate(settings, telemetry(VehicleGear.PARK, 20_000_000_000), lights, 20_000_000_000)?.action)
+        assertEquals(HeadlightGearAction.LOW_BEAM,
+            engine.evaluate(settings, telemetry(VehicleGear.DRIVE, 25_000_000_000), lights, 25_000_000_000)?.action)
+    }
+
+    @Test fun aSessionThatBeganOutsideParkAndDriveStillStartsOnTheFirstDrive() {
+        // Without a cache baseline the trip state is unknown; R→D keeps the earlier behaviour.
+        val engine = HeadlightGearEngine()
+        assertNull(engine.evaluate(settings, telemetry(VehicleGear.REVERSE, 1_000), lights, 1_000))
+        assertEquals(HeadlightGearAction.LOW_BEAM,
+            engine.evaluate(settings, telemetry(VehicleGear.DRIVE, 2_000), lights, 2_000)?.action)
+    }
 
     @Test fun theServicesRepeatedGearCallbackKeepsThePendingDecisionCurrent() {
         // Owner car 14:41:11: Drive arrived twice, 5-10 ms apart; the request was dropped as blocked in between.

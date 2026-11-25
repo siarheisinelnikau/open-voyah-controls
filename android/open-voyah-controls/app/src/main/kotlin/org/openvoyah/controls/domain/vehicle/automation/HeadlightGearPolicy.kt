@@ -56,13 +56,20 @@ internal data class HeadlightGearDecision(
             (action.allowedInDrive || telemetry.isStationary(now))
 }
 
-/** Consumes a fresh D/P edge before dispatch, including blocked and ambiguous attempts. */
+/**
+ * Consumes a fresh D/P edge before dispatch, including blocked and ambiguous attempts. The Drive action runs once per
+ * trip: on the first Drive after Park (P→D or P→R→D). A later R→D or N→D in the same trip leaves the lights the driver
+ * chose. A new session (wake, reconnect) starts from the service's cached gear when it has one; otherwise its first
+ * gear callback only seeds the baseline.
+ */
 internal class HeadlightGearEngine(private val minimumIntervalMillis: Long = 3_000) {
     private var settings: HeadlightGearSettings? = null
     private var session: VehicleTelemetrySession? = null
     private var previousGear: VehicleSignal<VehicleGear>? = null
     private var newestGearNanos = 0L
     private var attemptedAtNanos: Long? = null
+    /** True after Park, false once the trip reached Drive, null while this session has seen neither. */
+    private var parkedSinceDrive: Boolean? = null
 
     init { require(minimumIntervalMillis in 0..60_000) }
 
@@ -72,6 +79,7 @@ internal class HeadlightGearEngine(private val minimumIntervalMillis: Long = 3_0
         previousGear = null
         newestGearNanos = 0
         attemptedAtNanos = null
+        parkedSinceDrive = null
     }
 
     fun evaluate(
@@ -80,12 +88,14 @@ internal class HeadlightGearEngine(private val minimumIntervalMillis: Long = 3_0
         lighting: HeadlightStatus,
         nowNanos: Long,
     ): HeadlightGearDecision? {
-        val rearm = settings != configuration || session?.matches(telemetry) != true
+        val reconfigured = settings != configuration
+        val rearm = reconfigured || session?.matches(telemetry) != true
         if (rearm) {
             settings = configuration
             session = VehicleTelemetrySession(telemetry)
             previousGear = null
             newestGearNanos = 0
+            parkedSinceDrive = null
         }
         val gear = telemetry.gear?.takeIf { VehicleSignalKind.GEAR !in telemetry.unavailable && it.isFreshFor(telemetry, nowNanos) }
         if (gear == null) {
@@ -98,13 +108,18 @@ internal class HeadlightGearEngine(private val minimumIntervalMillis: Long = 3_0
             if (gear.observedAtElapsedNanos == newestGearNanos && gear != previousGear) previousGear = null
             return null
         }
+        // The connect-time cache is the baseline of the session's first gear callback only, never after a loss.
+        val atConnect = telemetry.gearAtConnect?.takeIf { newestGearNanos == 0L && previousGear == null && !reconfigured }
         newestGearNanos = gear.observedAtElapsedNanos
-        val before = previousGear
+        val before = previousGear?.takeIf { it.sourceId == gear.sourceId }?.value ?: atConnect
         previousGear = gear
-        if (rearm || before == null || before.sourceId != gear.sourceId || before.value == gear.value ||
-            !configuration.enabled) return null
+        if (atConnect != null && parkedSinceDrive == null) parkedSinceDrive = parkedAfter(atConnect, null)
+        val parked = parkedSinceDrive
+        parkedSinceDrive = parkedAfter(gear.value, parked)
+        if (before == null || before == gear.value || !configuration.enabled) return null
         val action = when (gear.value) {
-            VehicleGear.DRIVE -> configuration.onDrive
+            // Unknown (a session that began in R or N) keeps the earlier behavior: R→D and N→D start the trip.
+            VehicleGear.DRIVE -> if (parked != false) configuration.onDrive else HeadlightGearAction.KEEP
             VehicleGear.PARK -> configuration.onPark
             else -> HeadlightGearAction.KEEP
         }
@@ -115,6 +130,12 @@ internal class HeadlightGearEngine(private val minimumIntervalMillis: Long = 3_0
         attemptedAtNanos = nowNanos
         return HeadlightGearDecision(configuration, checkNotNull(session), gear, action)
             .takeIf { it.isCurrent(configuration, telemetry, lighting, nowNanos) }
+    }
+
+    private fun parkedAfter(gear: VehicleGear, parked: Boolean?): Boolean? = when (gear) {
+        VehicleGear.PARK -> true
+        VehicleGear.DRIVE -> false
+        else -> parked
     }
 }
 

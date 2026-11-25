@@ -118,6 +118,35 @@ class PinnedVehicleTelemetryReducerTest {
         assertEquals(200L, park?.observedAtElapsedNanos)
     }
 
+    @Test fun cachedGearAtConnectIsOnlyABaselineBeforeTheFirstCallback() {
+        val reader = reducer()
+        val seeded = reader.seedGearAtConnect("session", 0, 0)
+        assertEquals(VehicleGear.PARK, seeded.gearAtConnect)
+        // Never a current gear: no Park gate, no rule condition.
+        assertNull(seeded.gear)
+        assertTrue(VehicleSignalKind.GEAR in seeded.unavailable)
+        assertFalse(seeded.isStationary(200))
+        assertSame(seeded, reader.seedGearAtConnect("session", 3, 3))
+        // The first callback keeps the baseline beside the actual gear, its repeat too; the next change drops it.
+        val drive = reader.read(12, listOf(1, 3, 3), 300)
+        assertEquals(VehicleGear.DRIVE, drive.gear?.value)
+        assertEquals(VehicleGear.PARK, drive.gearAtConnect)
+        assertEquals(VehicleGear.PARK, reader.read(12, listOf(1, 3, 3), 305).gearAtConnect)
+        assertNull(reader.read(12, listOf(1, 1, 1), 400).gearAtConnect)
+
+        // A callback that arrived first, another session or an unknown cached gear leave no baseline.
+        val late = reducer()
+        late.read(12, listOf(1, 3, 3), 100)
+        assertNull(late.seedGearAtConnect("session", 0, 0).gearAtConnect)
+        assertNull(reducer().seedGearAtConnect("earlier", 0, 0).gearAtConnect)
+        assertNull(reducer().seedGearAtConnect("session", 4, -1).gearAtConnect)
+
+        // A restart begins a session without the old baseline.
+        val restarted = reducer()
+        restarted.seedGearAtConnect("session", 0, 0)
+        assertNull(restarted.read(12, listOf(1, 4, 4), 100).gearAtConnect)
+    }
+
     @Test fun invalidGearRevokesQueuedEvidenceAndResetsSharedObjectBaselines() {
         val reader = reducer()
         reader.read(1, doors())
