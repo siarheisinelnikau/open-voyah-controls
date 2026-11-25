@@ -1,27 +1,9 @@
 import { createReporter } from './report.js';
+import { MEDIA_SLOTS, borrowSlot, focusOwner, mediaSources, returnSlot } from './media-slots.js';
 
-const SOURCE_PACKAGE = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/;
-const SOURCE_CLASS = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z_$][A-Za-z0-9_$]*)+$/;
-// AudioManager.STREAM_MUSIC, the stream of every media source the card shows.
-const MEDIA_STREAM = 3;
 const MEDIA_POLL_MS = 2000;
 // Whether an app is installed is read again at most this often (a PackageManager call on the launcher's UI thread).
 const MEDIA_INSTALL_CHECK_MS = 15000;
-/**
- * Media sources of the launcher's media framework (`com.qinggan.media.helper.MediaEnum`) that no code path of this
- * launcher uses (checked in the decompiled 1.0.6 launcher: SYSTEM_BT_MUSIC has no reference, DAB is only added to the
- * configuration when `AppUtils.isSupportDAB()`, which always returns false). Each added app borrows one; its fields
- * point at the app while it does, and go back to these factory values afterwards. A borrowed slot gets a media id of
- * its own: the factory DAB shares 15 with WeCar Flow, and `MediaEnum.getMediaEnumById` must find the slot.
- */
-const MEDIA_SLOTS = [
-    {name: 'SYSTEM_BT_MUSIC', id: 9001, factory: {mediaId: 11, streamType: -2, pageName: '',
-        serviceName: 'com.qinggan.media.btmusic.BTMediaBrowserService', servicePageName: 'com.android.bluetooth',
-        clientId: 'com.qinggan.media.btmusic.BTMediaBrowserService'}},
-    {name: 'DAB', id: 9002, factory: {mediaId: 15, streamType: 3, pageName: 'com.ex.dabplayer.pad',
-        serviceName: 'com.ex.dabplayer.pad.service.DabMediaService', servicePageName: 'com.qinggan.media',
-        clientId: 'com.ex.dabplayer.pad'}}
-];
 /**
  * Entries of the card's tab enum (`MediaResEnum97C`) with the source each stands for in the factory launcher. An
  * added app borrows an entry whose source the card does not support on this car (Kuwo without
@@ -49,15 +31,7 @@ export function mediaSetting(config) {
     if (!config || config.schema !== 1 || config.restoreIcons !== undefined) return null;
     const card = config.mediaCard;
     if (!card || typeof card !== 'object') return null;
-    const sources = [];
-    for (const item of Array.isArray(card.sources) ? card.sources : []) {
-        const name = item?.package, service = item?.service;
-        if (typeof name !== 'string' || name.length > 128 || !SOURCE_PACKAGE.test(name)) continue;
-        if (typeof service !== 'string' || service.length > 200 || !SOURCE_CLASS.test(service)) continue;
-        if (sources.some(source => source.package === name)) continue;
-        sources.push({package: name, service});
-        if (sources.length === MEDIA_SLOTS.length) break;
-    }
+    const sources = mediaSources(card.sources);
     const hide = HIDEABLE_SOURCES.filter(name => Array.isArray(card.hide) && card.hide.includes(name));
     return sources.length || hide.length ? {sources, hide} : null;
 }
@@ -69,16 +43,6 @@ export function mediaSetting(config) {
 export function assignSlots(sources, freeTabs) {
     const count = Math.min(sources.length, freeTabs.length, MEDIA_SLOTS.length);
     return sources.slice(0, count).map((source, index) => ({source, slot: MEDIA_SLOTS[index], tab: freeTabs[index]}));
-}
-
-/**
- * Whether the launcher's latest media audio focus belongs to the source: the OEM audio policy reports the package
- * that asked for focus, and the AudioManager client id carries the class of the app's focus listener.
- */
-export function focusOwner(source, info) {
-    if (!info || info.streamType !== MEDIA_STREAM) return false;
-    if (info.packageName === source.package) return true;
-    return typeof info.clientId === 'string' && info.clientId.includes(source.package + '.');
 }
 
 /**
@@ -280,12 +244,7 @@ export function installHomeMediaCard(Java, {readConfig, launch, report = createR
                 for (const {source, slot, tab} of assignSlots(setting.sources, freeTabs(cardsNow[0]))) {
                     const value = MediaEnum[slot.name].value;
                     const item = {source, slot, tab, value, entry: TabEnum[tab].value, label: '', locale: null, icon: null};
-                    value.mediaId.value = slot.id;
-                    value.serviceName.value = source.service;
-                    value.servicePageName.value = source.package;
-                    value.pageName.value = source.package;
-                    value.clientId.value = source.package + '.';
-                    value.streamType.value = MEDIA_STREAM;
+                    borrowSlot(value, slot, source);
                     item.entry.mediaEnum.value = value;
                     settings.mediaEnums.value.add(value);
                     settings.controlEnums.value.add(value);
@@ -327,10 +286,7 @@ export function installHomeMediaCard(Java, {readConfig, launch, report = createR
             hidden = [];
             activeKey = '';
             step('slots', () => {
-                for (const slot of MEDIA_SLOTS) {
-                    const value = MediaEnum[slot.name].value;
-                    for (const [field, factory] of Object.entries(slot.factory)) value[field].value = factory;
-                }
+                for (const slot of MEDIA_SLOTS) returnSlot(MediaEnum[slot.name].value, slot);
                 for (const [name, factory] of MEDIA_TABS) TabEnum[name].value.mediaEnum.value = MediaEnum[factory].value;
             });
             step('control', () => {
