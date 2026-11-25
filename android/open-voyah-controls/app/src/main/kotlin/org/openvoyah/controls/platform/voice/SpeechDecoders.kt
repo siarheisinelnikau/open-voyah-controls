@@ -48,6 +48,9 @@ internal interface SpeechDecoder : AutoCloseable {
     /** The listening window ended before the phrase did. */
     fun cutOff(recorded: Int): Captured
 
+    /** True while a phrase has started and not ended; asked only after the listening window. */
+    fun speaking(): Boolean
+
     /** Runs after the microphone is released. [natural] allows online interpretation of a completed phrase. */
     fun finish(captured: Captured, replay: ShortArray, natural: Boolean): SpeechEvent
 }
@@ -67,6 +70,8 @@ internal class VoskDecoder(private val model: Model, private val recognizer: Rec
         val unclear = event is SpeechEvent.Failed && JSONObject(endpoint).optString("text").isNotBlank()
         return Captured(event, if (unclear) recorded else 0, completed = true)
     }
+
+    override fun speaking(): Boolean = JSONObject(recognizer.partialResult).optString("partial").isNotBlank()
 
     override fun cutOff(recorded: Int): Captured {
         val partial = JSONObject(recognizer.partialResult).optString("partial")
@@ -188,6 +193,8 @@ internal class ZipformerDecoder(private val model: ZipformerSpeechModel, grammar
         }
         return null
     }
+
+    override fun speaking(): Boolean = model.vad.isSpeechDetected()
 
     override fun cutOff(recorded: Int): Captured {
         model.vad.flush()

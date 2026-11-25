@@ -147,10 +147,10 @@ class OfflineVoiceInput(
                 stage("start_recording")
                 audio.startRecording()
                 if (audio.recordingState != AudioRecord.RECORDSTATE_RECORDING) throw IOException(UiText.get(R.string.ui_142))
-                val deadline = SystemClock.elapsedRealtime() + listeningWindow.millis()
+                val started = SystemClock.elapsedRealtime()
                 listening(fallback)
                 stage("read")
-                read(audio, decoder, focusLost, replay, deadline)
+                read(audio, decoder, focusLost, replay, started)
             } finally {
                 try {
                     if (audio.recordingState == AudioRecord.RECORDSTATE_RECORDING) audio.stop()
@@ -187,12 +187,14 @@ class OfflineVoiceInput(
         decoder: SpeechDecoder,
         focusLost: CompletableDeferred<Unit>,
         replay: ShortArray,
-        deadline: Long,
+        started: Long,
     ): Captured {
         var recorded = 0
         val samples = ShortArray(1600)
         val captureContext = currentCoroutineContext()
-        while (!focusLost.isCompleted && recorded < sampleLimit && SystemClock.elapsedRealtime() < deadline) {
+        // A phrase still in progress when the window ends keeps the microphone open until it ends, within the extension.
+        while (!focusLost.isCompleted && recorded < sampleLimit &&
+            listeningWindow.keepListening(SystemClock.elapsedRealtime() - started) { decoder.speaking() }) {
             captureContext.ensureActive()
             val count = audio.read(samples, 0, minOf(samples.size, sampleLimit - recorded), AudioRecord.READ_NON_BLOCKING)
             if (count < 0) throw IOException(UiText.get(R.string.ui_144) + count)

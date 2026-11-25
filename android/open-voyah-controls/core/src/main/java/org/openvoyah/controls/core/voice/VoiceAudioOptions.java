@@ -68,14 +68,31 @@ public record VoiceAudioOptions(int speechRatePercent, int speechVolumePercent,
         }
     }
 
+    /**
+     * How long the microphone waits for a command. A phrase still being spoken when the window ends may run up to
+     * [EXTENSION_SECONDS] longer, so a long command such as a temperature with its seat is not cut off; silence still
+     * ends listening on time.
+     */
     public enum ListeningWindow {
         THREE_SECONDS(3), FOUR_SECONDS(4), SIX_SECONDS(6);
 
+        public static final int EXTENSION_SECONDS = 3;
         private final int seconds;
         ListeningWindow(int seconds) { this.seconds = seconds; }
         public int seconds() { return seconds; }
         public long millis() { return seconds * 1000L; }
-        public int maxSamples(int sampleRate) { return Math.multiplyExact(seconds, sampleRate); }
+        /** Samples for the window plus the extension: the most a capture can record. */
+        public int maxSamples(int sampleRate) { return Math.multiplyExact(seconds + EXTENSION_SECONDS, sampleRate); }
+
+        /**
+         * Whether to keep recording [elapsedMillis] after the microphone started: always inside the window, then only
+         * while [speaking] says a phrase is in progress, and never past the extension.
+         */
+        public boolean keepListening(long elapsedMillis, java.util.function.BooleanSupplier speaking) {
+            if (elapsedMillis < millis()) return true;
+            if (elapsedMillis >= millis() + EXTENSION_SECONDS * 1000L) return false;
+            return speaking.getAsBoolean();
+        }
 
         public static ListeningWindow fromKey(String key) {
             for (var window : values()) if (Integer.toString(window.seconds).equals(key)) return window;

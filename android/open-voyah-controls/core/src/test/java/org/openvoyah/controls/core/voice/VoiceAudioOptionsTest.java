@@ -68,13 +68,29 @@ public class VoiceAudioOptionsTest {
         }
     }
 
+    @Test public void aPhraseStillSpokenAtTheEndOfTheWindowGetsUpToThreeMoreSeconds() {
+        var window = VoiceAudioOptions.ListeningWindow.THREE_SECONDS;
+        int[] asked = {0};
+        java.util.function.BooleanSupplier speaking = () -> { asked[0]++; return true; };
+        java.util.function.BooleanSupplier silent = () -> false;
+        assertTrue(window.keepListening(2_999, silent));
+        assertEquals("Inside the window the decoder is not asked", 0, asked[0]);
+        assertFalse(window.keepListening(3_000, silent));
+        assertTrue(window.keepListening(3_000, speaking));
+        assertTrue(window.keepListening(5_999, speaking));
+        assertFalse(window.keepListening(6_000, speaking));
+        assertEquals(2, asked[0]);
+        assertTrue(VoiceAudioOptions.ListeningWindow.SIX_SECONDS.keepListening(8_500, speaking));
+        assertFalse(VoiceAudioOptions.ListeningWindow.SIX_SECONDS.keepListening(9_000, speaking));
+    }
+
     @Test public void captureAndDisplayUseSeparateStrictPresets() {
         int[] captureSeconds = {3, 4, 6};
         int[] displaySeconds = {1, 2, 4};
         for (int seconds : captureSeconds) {
             var window = VoiceAudioOptions.ListeningWindow.fromKey(Integer.toString(seconds));
             assertEquals(seconds * 1000L, window.millis());
-            assertEquals(seconds * 16_000, window.maxSamples(16_000));
+            assertEquals((seconds + 3) * 16_000, window.maxSamples(16_000));
         }
         for (int seconds : displaySeconds) {
             var duration = VoiceAudioOptions.ResultDuration.fromKey(Integer.toString(seconds));
