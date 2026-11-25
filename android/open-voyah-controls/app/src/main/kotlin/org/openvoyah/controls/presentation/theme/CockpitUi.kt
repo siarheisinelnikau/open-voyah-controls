@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
@@ -155,7 +156,14 @@ internal fun CockpitGlyph(icon: CockpitIcon, modifier: Modifier = Modifier, tint
 }
 
 @Composable
-internal fun CockpitHeading(title: String, subtitle: String? = null, back: (() -> Unit)? = null, closes: Boolean = false) {
+internal fun CockpitHeading(
+    title: String,
+    subtitle: String? = null,
+    back: (() -> Unit)? = null,
+    closes: Boolean = false,
+    /** One line with an ellipsis, so a long title never grows the heading and moves what sits beside it. */
+    singleLine: Boolean = false,
+) {
     val layout = LocalCockpitLayout.current
     Row(
         Modifier.fillMaxWidth(),
@@ -177,7 +185,8 @@ internal fun CockpitHeading(title: String, subtitle: String? = null, back: (() -
         }
         Column(Modifier.weight(1f)) {
             val style = MaterialTheme.typography.headlineSmall.scaledText(layout.pageTitleScale / layout.textScale)
-            Text(title, modifier = Modifier.semantics { heading() }, style = style)
+            Text(title, modifier = Modifier.semantics { heading() }, style = style,
+                maxLines = if (singleLine) 1 else Int.MAX_VALUE, overflow = TextOverflow.Ellipsis)
             // A blank subtitle would still take a line and push the title off the Back button's center.
             if (!subtitle.isNullOrBlank()) {
                 Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -40,6 +41,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -47,6 +49,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -178,11 +181,25 @@ internal fun CockpitAction(
     labelStyle: TextStyle = MaterialTheme.typography.labelLarge,
     colors: ButtonColors? = null,
     destructive: Boolean = false,
+    /** Every title this action can show; the button keeps the width of the longest, so a new title moves nothing. */
+    titles: List<String> = emptyList(),
 ) {
     val press = rememberPressMotion(enabled)
     val scheme = MaterialTheme.colorScheme
     val target = modifier.then(press.modifier).heightIn(min = CockpitTouch)
-    val label: @Composable RowScope.() -> Unit = { Text(title, style = labelStyle) }
+    val label: @Composable RowScope.() -> Unit = if (titles.isEmpty()) {
+        { Text(title, style = labelStyle) }
+    } else {
+        {
+            // The other titles only take their space: they are not drawn and not read out.
+            Box(contentAlignment = Alignment.Center) {
+                titles.forEach { other ->
+                    if (other != title) Text(other, Modifier.alpha(0f).clearAndSetSemantics {}, style = labelStyle)
+                }
+                Text(title, style = labelStyle)
+            }
+        }
+    }
     // An action that removes something uses the error roles, so it cannot be mistaken for the safe choice.
     if (primary) {
         val fill = colors ?: if (destructive) {

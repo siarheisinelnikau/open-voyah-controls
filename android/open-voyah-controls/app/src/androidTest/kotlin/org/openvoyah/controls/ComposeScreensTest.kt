@@ -809,7 +809,8 @@ class ComposeScreensTest : InstrumentationTestCase() {
         clickText(UiText.get(R.string.apps_stop_confirm))
         awaitText(UiText.get(R.string.apps_stop_done).format(FIXTURE_LABEL))
         assertEquals(listOf(fixture.identity), fixture.stops.toList())
-        awaitNoText(close)
+        // A closed app keeps Close in its place, dimmed, so the actions beside it do not move.
+        awaitDisabled(close)
         capture("app-closed")
     }
 
@@ -882,14 +883,15 @@ class ComposeScreensTest : InstrumentationTestCase() {
         capture("app-permissions-managed")
     }
 
-    fun testAppSettingsShowsAFirmwareAppWithoutCloseOrSwitches() {
+    fun testAppSettingsShowsAFirmwareAppWithCloseDisabledAndNoSwitches() {
         val fixture = AppControlFixture(refusal = AppControlRefusal.PREINSTALLED)
         openFixtureAppSettings(fixture)
         scrollTo(UiText.get(R.string.apps_permission_preinstalled))
         scrollTo(FIXTURE_CAMERA)
         assertFalse("A firmware app offered a permission switch", switchFor(FIXTURE_CAMERA)?.isCheckable == true)
-        assertNull("A firmware app offered Close", textNode(UiText.get(R.string.apps_stop)))
-        assertNull("A firmware app offered Uninstall", textNode(UiText.get(R.string.apps_remove)))
+        // The actions sit above the scrolling panes, so they stay on screen.
+        awaitDisabled(UiText.get(R.string.apps_stop))
+        awaitDisabled(UiText.get(R.string.apps_remove))
         scrollTo(UiText.get(R.string.apps_special_overlay))
         assertFalse("A firmware app offered a special access switch",
             switchFor(UiText.get(R.string.apps_special_overlay))?.isCheckable == true)
@@ -912,8 +914,8 @@ class ComposeScreensTest : InstrumentationTestCase() {
             scrollTo(system.label())
             clickText(system.label(), longPress = true)
             awaitText(UiText.get(R.string.app_settings_title))
+            awaitDisabled(UiText.get(R.string.apps_stop))
             scrollTo(UiText.get(R.string.apps_permission_preinstalled))
-            assertNull("A firmware app offered Close", textNode(UiText.get(R.string.apps_stop)))
             capture("app-settings-firmware")
             // A firmware app starts hidden; the pin keeps it on the grid. Turning Hide off is the user's own choice.
             val hide = UiText.get(R.string.apps_hide)
@@ -963,6 +965,18 @@ class ComposeScreensTest : InstrumentationTestCase() {
             SystemClock.sleep(50)
         }
         failWithEvidence("switch-$label", "Expected the switch '$label' to report checked=$checked")
+    }
+
+    /** An action that does not apply stays on the app's card in its place, dimmed. */
+    private fun awaitDisabled(text: String) {
+        val deadline = SystemClock.uptimeMillis() + 5_000
+        while (SystemClock.uptimeMillis() < deadline) {
+            // The label sits inside its button, which holds the enabled state.
+            val action = generateSequence(textNode(text)) { it.parent }.take(4).firstOrNull { it.isClickable || it.isCheckable }
+            if (action != null && action.refresh() && !action.isEnabled) return
+            SystemClock.sleep(50)
+        }
+        failWithEvidence("enabled-$text", "Expected '$text' on the card, disabled")
     }
 
     private fun awaitNoText(text: String) {

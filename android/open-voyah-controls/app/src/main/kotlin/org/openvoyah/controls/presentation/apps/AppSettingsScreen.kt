@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -38,10 +37,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.presentation.theme.SettingInfo
@@ -96,54 +98,37 @@ internal fun AppSettingsScreen(
     var choices by remember(app.id) { mutableStateOf<List<AppsPlatform.DisplayChoice>?>(null) }
     // Not saved across recreation: a confirmation must follow a tap on Close app in this page's lifetime.
     var confirmStop by remember(app.id) { mutableStateOf(false) }
-    val showStop = state.canStop || state.stop.busy
     LaunchedEffect(state.canStop) { if (!state.canStop) confirmStop = false }
     var confirmRemove by remember(app.id) { mutableStateOf(false) }
-    val showRemove = state.canRemove || state.remove.busy
     LaunchedEffect(state.canRemove) { if (!state.canRemove) confirmRemove = false }
-    val launchActions: @Composable (Modifier) -> Unit = { modifier ->
-        if (app.launchEntry != null || showStop || showRemove) {
-            FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // Closing stays apart from opening: it never takes the primary place at the end of the row.
-                if (showStop) CockpitAction(text(R.string.apps_stop), { confirmStop = true }, enabled = !busy)
-                if (showRemove) CockpitAction(text(R.string.apps_remove), { confirmRemove = true }, enabled = !busy, destructive = true)
-                if (app.launchEntry == null) return@FlowRow
-                if (shortcut?.hidden != null) {
-                    val hidden = shortcut.hidden
-                    // The shared switch row fills its parent; among these actions it keeps the width of its own content.
-                    Box(Modifier.width(IntrinsicSize.Max)) {
-                        CockpitSwitch(R.string.apps_hide, hidden, !busy && !shortcut.working, setHidden)
-                    }
-                }
-                if (shortcut?.pinned != null) {
-                    val pinned = shortcut.pinned
-                    val label = if (shortcut.isFavorites) {
-                        if (pinned) R.string.apps_desktop_unpin else R.string.apps_desktop_pin
-                    } else if (pinned) R.string.apps_unpin else R.string.apps_pin
-                    CockpitAction(text(label), { setPinned(!pinned) }, enabled = !busy && !shortcut.working)
-                }
-                move?.let { CockpitAction(text(R.string.apps_move), it, enabled = !busy && shortcut?.working != true) }
-                CockpitAction(text(R.string.choose_display), { choices = displays() }, enabled = !busy)
-                CockpitAction(text(R.string.open_app), { open(null, false) }, enabled = !busy, primary = true)
-            }
-        }
-    }
+    val launchable = app.launchEntry != null
     CockpitBackdrop {
         BoxWithConstraints(
             Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = layout.spacing(22.dp), vertical = layout.spacing(17.dp)),
         ) {
             val wide = maxWidth >= 880.dp && window != null
-            val inlineActions = maxWidth >= (if (shortcut == null) 680.dp else 1040.dp)
-            val inlineActionWidth = maxWidth - 310.dp
-            val spacing = Arrangement.spacedBy(layout.spacing(14.dp))
+            val gap = layout.spacing(14.dp)
+            val spacing = Arrangement.spacedBy(gap)
             Column(verticalArrangement = spacing) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = spacing, verticalAlignment = Alignment.CenterVertically) {
+                AppCardTop(gap,
                     // Back needs no disabled state: the view model keeps the page open while a change is still in flight.
-                    Box(Modifier.weight(1f)) { CockpitHeading(app.label, text(R.string.app_settings_title), model::close) }
-                    if (inlineActions) launchActions(Modifier.widthIn(max = inlineActionWidth))
-                }
-                if (!inlineActions) launchActions(Modifier)
+                    heading = { CockpitHeading(app.label, text(R.string.app_settings_title), model::close, singleLine = true) },
+                    appActions = {
+                        AppActions(
+                            stop = if (state.canStop) ({ confirmStop = true }) else null,
+                            remove = if (state.canRemove) ({ confirmRemove = true }) else null,
+                            shortcut, setHidden, busy,
+                        )
+                    },
+                    launchActions = {
+                        LaunchActions(shortcut, setPinned, move,
+                            chooseDisplay = if (launchable) ({ choices = displays() }) else null,
+                            open = if (launchable) ({ open(null, false) }) else null,
+                            busy = busy,
+                        )
+                    },
+                )
                 (state.notice ?: shortcut?.notice)?.let { message ->
                     Text(text(message), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = colors.error)
                 }
@@ -234,6 +219,139 @@ internal fun AppSettingsScreen(
             },
         )
     }
+}
+
+/**
+ * The heading and the card's actions in two lines, [appActions] then [launchActions], laid out by width alone:
+ * both lines side by side next to the heading where they fit, else the two lines stacked next to the heading, else
+ * the heading first with the actions under it. The actions keep their size in every state of the app, so the card
+ * never switches between these while it is open, and the actions always end at the right edge.
+ */
+@Composable
+private fun AppCardTop(
+    gap: Dp,
+    heading: @Composable () -> Unit,
+    appActions: @Composable () -> Unit,
+    launchActions: @Composable () -> Unit,
+) {
+    val groupGap = LocalCockpitLayout.current.spacing(ActionGroupGap)
+    Layout(listOf(heading, appActions, launchActions), Modifier.fillMaxWidth()) { (headingPart, firstPart, secondPart), constraints ->
+        val title = headingPart.single()
+        val first = firstPart.single()
+        val second = secondPart.single()
+        val width = constraints.maxWidth
+        val space = gap.roundToPx()
+        val between = groupGap.roundToPx()
+        val lines = ActionLineGap.roundToPx()
+        val firstWidth = first.maxIntrinsicWidth(Constraints.Infinity)
+        val secondWidth = second.maxIntrinsicWidth(Constraints.Infinity)
+        val beside = width - space - MinHeadingWidth.roundToPx()
+        val inline = maxOf(firstWidth, secondWidth) <= beside
+        val available = if (inline) beside else width
+        val sameLine = firstWidth + between + secondWidth <= available
+        // A line wider than the page wraps between its groups; that too depends on the width only.
+        val placedFirst = first.measure(Constraints(maxWidth = minOf(firstWidth, available)))
+        val placedSecond = second.measure(Constraints(maxWidth = minOf(secondWidth, available)))
+        val blockWidth = if (sameLine) placedFirst.width + between + placedSecond.width
+            else maxOf(placedFirst.width, placedSecond.width)
+        val blockHeight = if (sameLine) maxOf(placedFirst.height, placedSecond.height)
+            else placedFirst.height + lines + placedSecond.height
+        val placedTitle = title.measure(Constraints(maxWidth = if (inline) width - space - blockWidth else width))
+        val height = if (inline) maxOf(blockHeight, placedTitle.height) else placedTitle.height + space + blockHeight
+        val top = if (inline) (height - blockHeight) / 2 else placedTitle.height + space
+        layout(width, height) {
+            placedTitle.place(0, if (inline) (height - placedTitle.height) / 2 else 0)
+            if (sameLine) {
+                placedSecond.place(width - placedSecond.width, top + (blockHeight - placedSecond.height) / 2)
+                placedFirst.place(width - placedSecond.width - between - placedFirst.width,
+                    top + (blockHeight - placedFirst.height) / 2)
+            } else {
+                placedFirst.place(width - placedFirst.width, top)
+                placedSecond.place(width - placedSecond.width, top + placedFirst.height + lines)
+            }
+        }
+    }
+}
+
+/** Back and enough of the app's name to recognise it. */
+private val MinHeadingWidth = 310.dp
+private val ActionGroupGap = 28.dp
+private val ActionLineGap = 8.dp
+
+/*
+ * The card's actions are always all there, in one order: Close app, Uninstall, Hide, then Pin, Move, Choose a
+ * display and Open, the main action, at the very end. One that does not apply to the app right now stays in its
+ * place dimmed, and Pin keeps the width of its longest title, so nothing moves when the app starts or stops, a pin
+ * changes, the grid is still loading or another app's card opens. A null action is unavailable.
+ */
+
+/** What happens to the app itself: closing it, uninstalling it, hiding it from the list. */
+@Composable
+private fun AppActions(
+    stop: (() -> Unit)?,
+    remove: (() -> Unit)?,
+    shortcut: AppShortcutGridState?,
+    setHidden: (Boolean) -> Unit,
+    busy: Boolean,
+) {
+    ActionLine {
+        ActionGroup {
+            // Closing stays apart from opening: it never takes the primary place at the end of the row.
+            CockpitAction(text(R.string.apps_stop), { stop?.invoke() }, enabled = stop != null && !busy)
+            CockpitAction(text(R.string.apps_remove), { remove?.invoke() }, enabled = remove != null && !busy,
+                destructive = true)
+        }
+        val hidden = shortcut?.hidden
+        // The shared switch row fills its parent; among these actions it keeps the width of its own content.
+        Box(Modifier.width(IntrinsicSize.Max)) {
+            CockpitSwitch(R.string.apps_hide, hidden == true, hidden != null && !busy && shortcut?.working != true, setHidden)
+        }
+    }
+}
+
+/** Where the app sits on the grid and where it opens. */
+@Composable
+private fun LaunchActions(
+    shortcut: AppShortcutGridState?,
+    setPinned: (Boolean) -> Unit,
+    move: (() -> Unit)?,
+    chooseDisplay: (() -> Unit)?,
+    open: (() -> Unit)?,
+    busy: Boolean,
+) {
+    val gridIdle = !busy && shortcut?.working != true
+    ActionLine {
+        ActionGroup {
+            val pinned = shortcut?.pinned
+            val title = when {
+                shortcut?.isFavorites == true -> if (pinned == true) R.string.apps_desktop_unpin else R.string.apps_desktop_pin
+                pinned == true -> R.string.apps_unpin
+                else -> R.string.apps_pin
+            }
+            CockpitAction(text(title), { pinned?.let { setPinned(!it) } }, enabled = pinned != null && gridIdle,
+                titles = PinTitles.map(::text))
+            CockpitAction(text(R.string.apps_move), { move?.invoke() }, enabled = move != null && gridIdle)
+        }
+        ActionGroup {
+            CockpitAction(text(R.string.choose_display), { chooseDisplay?.invoke() }, enabled = chooseDisplay != null && !busy)
+            CockpitAction(text(R.string.open_app), { open?.invoke() }, enabled = open != null && !busy, primary = true)
+        }
+    }
+}
+
+private val PinTitles = listOf(R.string.apps_pin, R.string.apps_unpin, R.string.apps_desktop_pin, R.string.apps_desktop_unpin)
+
+@Composable
+private fun ActionLine(content: @Composable () -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(LocalCockpitLayout.current.spacing(ActionGroupGap), Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(ActionLineGap)) { content() }
+}
+
+/** Actions that belong together; they wrap apart only on a page too narrow for the pair. */
+@Composable
+private fun ActionGroup(content: @Composable () -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(ActionLineGap)) { content() }
 }
 
 /**
