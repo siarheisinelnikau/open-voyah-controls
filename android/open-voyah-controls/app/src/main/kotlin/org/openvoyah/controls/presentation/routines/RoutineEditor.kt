@@ -2,6 +2,7 @@ package org.openvoyah.controls.presentation.routines
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,6 +23,7 @@ import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.apps.AppGridPins
 import org.openvoyah.controls.domain.routines.RoutineTarget
+import org.openvoyah.controls.domain.routines.RoutineStep
 import org.openvoyah.controls.domain.settings.AppPalette
 import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
@@ -30,13 +32,15 @@ import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitColumns
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
+import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitOptionDialog
+import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.theme.CockpitTextField
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
 
-private enum class EditorDialog { PAGE, LAYOUT, THEME, APP, DELETE }
+private enum class EditorDialog { STEP, PAGE, LAYOUT, THEME, APP, DELETE }
 
 @Composable
 internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: RoutinesViewModel, appLabels: Map<String, String>?) {
@@ -58,6 +62,26 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
             error = draft.name.isNotEmpty() && !draft.validName || state.form.error == R.string.routines_duplicate_name,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }))
+        CockpitSection(UiText.get(R.string.routine_steps_title), CockpitIcon.BUTTONS,
+            UiText.get(R.string.routine_steps_hint)) {
+            draft.steps.forEachIndexed { index, step ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("${index + 1}. ${step.label()}", modifier = Modifier.weight(1f))
+                    if (index > 0) CockpitAction(UiText.get(R.string.routine_step_move), {
+                        model.moveStepEarlier(index)
+                    }, enabled = enabled)
+                    CockpitAction(UiText.get(R.string.routine_step_remove), { model.removeStep(index) },
+                        enabled = enabled)
+                }
+            }
+            if (draft.steps.size < RoutineStep.LIMIT) {
+                CockpitAction(UiText.get(R.string.routine_step_add), {
+                    focus.clearFocus()
+                    dialog = EditorDialog.STEP
+                }, enabled = enabled)
+            }
+        }
         CockpitColumns(first = {
             CockpitChoice(R.string.routines_page, draft.target.label(state.names), enabled) {
                 focus.clearFocus()
@@ -101,6 +125,11 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
         }, minimumWidth = 570.dp)
     }
     when (dialog) {
+        EditorDialog.STEP -> RoutinePicker(R.string.routine_step_add, RoutineStep.entries, null, RoutineStep::label,
+            dismiss = { dialog = null }) { step ->
+            dialog = null
+            model.addStep(step)
+        }
         EditorDialog.PAGE -> RoutinePicker(R.string.routines_page, RoutineTarget.entries, draft.target,
             label = { it.label(state.names) }, dismiss = { dialog = null }) { target ->
             dialog = null
@@ -141,6 +170,16 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
         null -> Unit
     }
 }
+
+internal fun RoutineStep.label(): String = if (delayMillis > 0) {
+    UiText.get(R.string.routine_step_wait).format(delayMillis / 1_000)
+} else UiText.get(when (this) {
+    RoutineStep.MEDIA_PLAY -> R.string.routine_step_play
+    RoutineStep.MEDIA_PAUSE -> R.string.routine_step_pause
+    RoutineStep.MEDIA_NEXT -> R.string.routine_step_next
+    RoutineStep.MEDIA_PREVIOUS -> R.string.routine_step_previous
+    else -> error("Unknown routine action")
+})
 
 /** [choose] runs only for a value other than [selected]; the dialog closes on any choice. */
 @Composable

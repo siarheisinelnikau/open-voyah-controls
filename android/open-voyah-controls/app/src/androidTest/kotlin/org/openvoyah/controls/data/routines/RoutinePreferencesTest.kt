@@ -13,6 +13,7 @@ import org.json.JSONObject
 import org.openvoyah.controls.domain.routines.RoutineLibrary
 import org.openvoyah.controls.domain.routines.RoutineOrder
 import org.openvoyah.controls.domain.routines.RoutinePlan
+import org.openvoyah.controls.domain.routines.RoutineStep
 import org.openvoyah.controls.domain.routines.RoutineTarget
 import org.openvoyah.controls.domain.settings.AppPalette
 
@@ -24,6 +25,28 @@ class RoutinePreferencesTest : AndroidTestCase() {
     private fun full() = JSONObject().put("entries", JSONArray().put(entry())).put("sort", "name").put("startup", first)
         .put("startupDays", JSONArray((1..7).toList())).put("startupWindow", JSONObject.NULL).put("pinnedIds", JSONArray())
         .put("startupFrequency", "every").put("startupDelaySeconds", 0).put("startupEnabled", true)
+
+    fun testStepsRoundTripAndMergeOlderBackupsWithoutInventingActions() {
+        val preferences = context.getSharedPreferences(RoutinePreferences.STORE, 0)
+        val previous = preferences.getString("settings", null)
+        val store = RoutinePreferences(context)
+        val steps = listOf(RoutineStep.MEDIA_PAUSE, RoutineStep.WAIT_THREE, RoutineStep.MEDIA_PLAY)
+        try {
+            store.restoreSettings(full().put("entries", JSONArray().put(entry().put("steps", encodeRoutineSteps(steps)))))
+            val exported = store.exportSettings()
+            preferences.edit().remove("settings").commit()
+            store.restoreSettings(exported)
+            assertEquals(steps, store.startupPlan()?.steps)
+            store.restoreSettings(full())
+            assertEquals(steps, store.startupPlan()?.steps)
+            val unsafe = full().put("entries", JSONArray().put(entry().put("steps", JSONArray(listOf("physical_command")))))
+            assertTrue(runCatching { store.restoreSettings(unsafe) }.isFailure)
+            store.restoreSettings(full().put("entries", JSONArray().put(entry().put("steps", JSONArray()))))
+            assertEquals(emptyList<RoutineStep>(), store.startupPlan()?.steps)
+        } finally {
+            check(preferences.edit().putString("settings", previous).commit())
+        }
+    }
 
     fun testPartialRestoresAndConcurrentEditsPreserveIndependentIdentityAndOrder() {
         val raw = context.getSharedPreferences(RoutinePreferences.STORE, 0)

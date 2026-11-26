@@ -31,6 +31,7 @@ import org.openvoyah.controls.domain.routines.RoutineProblem
 import org.openvoyah.controls.domain.routines.RoutineStartupDelay
 import org.openvoyah.controls.domain.routines.RoutineStartupFrequency
 import org.openvoyah.controls.domain.routines.RoutineStartupSchedule
+import org.openvoyah.controls.domain.routines.RoutineStep
 import org.openvoyah.controls.domain.routines.RoutineTarget
 import org.openvoyah.controls.domain.routines.RoutineTimeWindow
 import org.openvoyah.controls.domain.settings.AppPalette
@@ -46,9 +47,10 @@ internal data class RoutineDraft(
     val desktopLayoutId: String? = null,
     val originallyPinned: Boolean = false,
     val pinned: Boolean = originallyPinned,
+    val steps: List<RoutineStep> = emptyList(),
 ) {
     val validName: Boolean get() = NamedRoutine.normalizeName(name) != null
-    val hasAction: Boolean get() = RoutinePlan.hasAction(target, palette, installedApp, desktopLayoutId)
+    val hasAction: Boolean get() = RoutinePlan.hasAction(target, palette, installedApp, desktopLayoutId, steps)
 }
 
 internal data class RoutineScheduleDraft(
@@ -127,7 +129,7 @@ internal class RoutinesViewModel(
         form.value = RoutinesForm(draft = RoutineDraft(routine, routine.id, routine.name, routine.plan.target, routine.plan.palette,
             installedApp = routine.plan.installedApp,
             desktopLayoutId = routine.plan.desktopLayoutId,
-            originallyPinned = routine.id in library.pinnedIds))
+            originallyPinned = routine.id in library.pinnedIds, steps = routine.plan.steps))
     }
 
     fun closeEditor() {
@@ -140,6 +142,15 @@ internal class RoutinesViewModel(
     fun installedApp(component: String?) = changeDraft { copy(installedApp = component) }
     fun desktopLayout(id: String?) = changeDraft { copy(desktopLayoutId = id) }
     fun pin(pinned: Boolean) = changeDraft { copy(pinned = pinned) }
+    fun addStep(step: RoutineStep) = changeDraft {
+        if (steps.size >= RoutineStep.LIMIT) this else copy(steps = steps + step)
+    }
+    fun removeStep(index: Int) = changeDraft { copy(steps = steps.filterIndexed { position, _ -> position != index }) }
+    fun moveStepEarlier(index: Int) = changeDraft {
+        if (index !in 1..steps.lastIndex) this else copy(steps = steps.toMutableList().apply {
+            add(index - 1, removeAt(index))
+        })
+    }
 
     private fun changeDraft(edit: RoutineDraft.() -> RoutineDraft) = form.update { state ->
         if (state.busy) state else state.copy(draft = state.draft?.edit(), error = null)
@@ -149,7 +160,7 @@ internal class RoutinesViewModel(
         val draft = form.value.draft ?: return
         change { it.save(draft.original, draft.id, draft.name, draft.target, draft.palette,
             pinChange = draft.pinned.takeIf { pinned -> pinned != draft.originallyPinned }, installedApp = draft.installedApp,
-            desktopLayoutId = draft.desktopLayoutId) }
+            desktopLayoutId = draft.desktopLayoutId, steps = draft.steps) }
     }
 
     fun remove() {

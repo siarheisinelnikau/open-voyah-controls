@@ -1,0 +1,17 @@
+<resources>
+    <string name="routine_steps_title">Қадамдар</string>
+    <string name="routine_steps_hint">Ойнату әрекеттерін және кідірістерді қосыңыз. Таңдалған бет, тақырып, орналасу және қолданба осы қадамдардан кейін іске қосылады.</string>
+    <string name="routine_step_add">Қадам қосу</string>
+    <string name="routine_step_move">Жоғары жылжыту</string>
+    <string name="routine_step_remove">Өшіру</string>
+    <string name="routine_step_wait">%1$d с күту</string>
+    <string name="routine_step_play">Ойнату</string>
+    <string name="routine_step_pause">Ойнатуды кідірту</string>
+    <string name="routine_step_next">Келесі трек</string>
+    <string name="routine_step_previous">Алдыңғы трек</string>
+    <string name="routine_chain_preparing">Сценарий дайындалуда…</string>
+    <string name="routine_chain_running">%1$s · %3$d қадамның %2$d-қадамы</string>
+    <string name="routine_chain_app_unavailable">Сценарий үшін таңдалған қолданба қолжетімсіз.</string>
+    <string name="routine_chain_playback_unavailable">Ойнатуды басқару қолжетімсіз.</string>
+    <string name="routine_chain_unconfirmed">Соңғы ойнату сұрауының жіберілгені расталмады. Сценарий тоқтатылды.</string>
+</resources>

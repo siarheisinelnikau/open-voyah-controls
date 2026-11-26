@@ -1,0 +1,17 @@
+<resources>
+    <string name="routine_steps_title">Steps</string>
+    <string name="routine_steps_hint">Add playback actions and pauses. The chosen page, theme, layout and app are applied after these steps.</string>
+    <string name="routine_step_add">Add step</string>
+    <string name="routine_step_move">Move up</string>
+    <string name="routine_step_remove">Remove</string>
+    <string name="routine_step_wait">Wait %1$d s</string>
+    <string name="routine_step_play">Play media</string>
+    <string name="routine_step_pause">Pause media</string>
+    <string name="routine_step_next">Next track</string>
+    <string name="routine_step_previous">Previous track</string>
+    <string name="routine_chain_preparing">Preparing routine…</string>
+    <string name="routine_chain_running">%1$s · step %2$d of %3$d</string>
+    <string name="routine_chain_app_unavailable">The app selected for this routine is unavailable.</string>
+    <string name="routine_chain_playback_unavailable">Media controls are unavailable.</string>
+    <string name="routine_chain_unconfirmed">The last playback request could not be confirmed. The routine stopped.</string>
+</resources>

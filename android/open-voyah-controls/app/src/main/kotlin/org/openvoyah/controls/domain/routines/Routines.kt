@@ -60,17 +60,22 @@ internal data class RoutinePlan(
     val palette: AppPalette? = null,
     val installedApp: String? = null,
     val desktopLayoutId: String? = null,
+    val steps: List<RoutineStep> = emptyList(),
 ) {
     init {
-        require(hasAction(target, palette, installedApp, desktopLayoutId))
+        require(hasAction(target, palette, installedApp, desktopLayoutId, steps))
         require(palette == null || palette == AppPalette.DAY || palette == AppPalette.DARK)
         require(installedApp == null || AppGridPins.supports(installedApp))
         require(desktopLayoutId == null || DesktopLayoutPreset.validId(desktopLayoutId))
+        require(steps.size <= RoutineStep.LIMIT)
     }
 
     companion object {
-        fun hasAction(target: RoutineTarget, palette: AppPalette?, installedApp: String?, desktopLayoutId: String? = null): Boolean =
-            target != RoutineTarget.CURRENT || palette != null || installedApp != null || desktopLayoutId != null
+        fun hasAction(
+            target: RoutineTarget, palette: AppPalette?, installedApp: String?, desktopLayoutId: String? = null,
+            steps: List<RoutineStep> = emptyList(),
+        ): Boolean = target != RoutineTarget.CURRENT || palette != null || installedApp != null || desktopLayoutId != null ||
+            steps.any { it.delayMillis == 0L }
     }
 }
 
@@ -160,7 +165,8 @@ internal data class RoutineLibrary(
 
     fun save(original: NamedRoutine?, id: String, name: String, target: RoutineTarget, palette: AppPalette?,
              pinChange: Boolean? = null, installedApp: String? = original?.plan?.installedApp,
-             desktopLayoutId: String? = original?.plan?.desktopLayoutId): RoutineLibrary {
+             desktopLayoutId: String? = original?.plan?.desktopLayoutId,
+             steps: List<RoutineStep> = original?.plan?.steps.orEmpty()): RoutineLibrary {
         if (original == null) {
             if (entries.any { it.id == id }) throw RoutineEditException(RoutineProblem.CHANGED)
             if (entries.size >= MAX_ROUTINES) throw RoutineEditException(RoutineProblem.FULL)
@@ -171,8 +177,9 @@ internal data class RoutineLibrary(
         val normalized = NamedRoutine.normalizeName(name) ?: throw RoutineEditException(RoutineProblem.NAME)
         if (entries.any { it.id != id && it.name.equals(normalized, ignoreCase = true) })
             throw RoutineEditException(RoutineProblem.DUPLICATE)
-        if (!RoutinePlan.hasAction(target, palette, installedApp, desktopLayoutId)) throw RoutineEditException(RoutineProblem.NO_ACTION)
-        val next = NamedRoutine(id, normalized, RoutinePlan(target, palette, installedApp, desktopLayoutId))
+        if (!RoutinePlan.hasAction(target, palette, installedApp, desktopLayoutId, steps))
+            throw RoutineEditException(RoutineProblem.NO_ACTION)
+        val next = NamedRoutine(id, normalized, RoutinePlan(target, palette, installedApp, desktopLayoutId, steps))
         val updated = if (original == null) listOf(next) + entries else entries.map { if (it.id == id) next else it }
         val pins = when (pinChange) { true -> pinnedIds + id; false -> pinnedIds - id; null -> pinnedIds }
         return copy(entries = updated, pinnedIds = pins)

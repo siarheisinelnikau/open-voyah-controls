@@ -85,6 +85,8 @@ internal class RoutinePreferences(context: Context) {
 
     fun planFor(routine: NamedRoutine): RoutinePlan = withCurrentPlan(routine) { it }
 
+    fun findRoutine(id: String): NamedRoutine? = synchronized(lock) { read().entries.firstOrNull { it.id == id } }
+
     fun <T> withCurrentPlan(routine: NamedRoutine, use: (RoutinePlan) -> T): T =
         synchronized(lock) { use(read().planFor(routine)) }
 
@@ -122,8 +124,9 @@ internal class RoutinePreferences(context: Context) {
         }
     }
 
-    private data class EntryPatch(val routine: NamedRoutine, val hasInstalledApp: Boolean, val hasDesktopLayout: Boolean) {
-        val preservesActions: Boolean get() = !hasInstalledApp || !hasDesktopLayout
+    private data class EntryPatch(val routine: NamedRoutine, val hasInstalledApp: Boolean, val hasDesktopLayout: Boolean,
+                                  val hasSteps: Boolean) {
+        val preservesActions: Boolean get() = !hasInstalledApp || !hasDesktopLayout || !hasSteps
     }
 
     private data class Patch(
@@ -146,11 +149,12 @@ internal class RoutinePreferences(context: Context) {
 
         fun applyTo(before: RoutineLibrary): RoutineLibrary {
             val items = entries?.map { entry ->
-                val (routine, hasApp, hasDesktopLayout) = entry
+                val (routine, hasApp, hasDesktopLayout, hasSteps) = entry
                 val old = if (entry.preservesActions) before.entries.firstOrNull { it.id == routine.id }?.plan else null
                 if (old == null) routine else routine.copy(plan = routine.plan.copy(
                     installedApp = if (hasApp) routine.plan.installedApp else old.installedApp,
                     desktopLayoutId = if (hasDesktopLayout) routine.plan.desktopLayoutId else old.desktopLayoutId,
+                    steps = if (hasSteps) routine.plan.steps else old.steps,
                 ))
             } ?: before.entries
             val selected = if (hasStartup) startup else before.startupId?.takeIf { id -> items.any { it.id == id } }
@@ -163,12 +167,13 @@ internal class RoutinePreferences(context: Context) {
         fun encode(): JSONObject = JSONObject().apply {
             entries?.let { list ->
                 put("entries", JSONArray().apply {
-                    list.forEach { (routine, hasApp, hasDesktopLayout) ->
+                    list.forEach { (routine, hasApp, hasDesktopLayout, hasSteps) ->
                         put(JSONObject().put("id", routine.id).put("name", routine.name).put("target", routine.plan.target.key)
                             .apply {
                                 routine.plan.palette?.let { put("palette", it.preferenceId) }
                                 if (hasApp) put("installedApp", routine.plan.installedApp ?: JSONObject.NULL)
                                 if (hasDesktopLayout) put("desktopLayoutId", routine.plan.desktopLayoutId ?: JSONObject.NULL)
+                                if (hasSteps) put("steps", encodeRoutineSteps(routine.plan.steps))
                             })
                     }
                 })
@@ -186,7 +191,8 @@ internal class RoutinePreferences(context: Context) {
 
         companion object {
             fun full(value: RoutineLibrary) = Patch(
-                value.entries.map { EntryPatch(it, hasInstalledApp = true, hasDesktopLayout = true) }, value.order, true, value.startupId,
+                value.entries.map { EntryPatch(it, hasInstalledApp = true, hasDesktopLayout = true, hasSteps = true) },
+                value.order, true, value.startupId,
                 value.schedule.days, true, value.schedule.window, value.pinnedIds, value.schedule.frequency, value.schedule.delay,
                 value.startupEnabled)
         }
@@ -199,7 +205,7 @@ internal class RoutinePreferences(context: Context) {
         private val lock = Any()
         private val archiveKeys = setOf("entries", "sort", "startup", "startupDays", "startupWindow", "pinnedIds",
             "startupFrequency", "startupDelaySeconds", "startupEnabled")
-        private val entryKeys = setOf("id", "name", "target", "palette", "installedApp", "desktopLayoutId")
+        private val entryKeys = setOf("id", "name", "target", "palette", "installedApp", "desktopLayoutId", "steps")
 
         @JvmStatic fun validateSettings(data: JSONObject): JSONObject = decode(data).encode()
 
@@ -254,9 +260,11 @@ internal class RoutinePreferences(context: Context) {
             val app = if (hasApp && !data.isNull("installedApp")) data.string("installedApp") else null
             val hasDesktopLayout = data.has("desktopLayoutId")
             val desktopLayout = if (hasDesktopLayout && !data.isNull("desktopLayoutId")) data.string("desktopLayoutId") else null
+            val hasSteps = data.has("steps")
+            val steps = if (hasSteps) decodeRoutineSteps(data.getJSONArray("steps")) else emptyList()
             val routine = NamedRoutine(data.string("id"), requireNotNull(NamedRoutine.normalizeName(data.string("name"))),
-                RoutinePlan(target, palette, app, desktopLayout))
-            return EntryPatch(routine, hasApp, hasDesktopLayout)
+                RoutinePlan(target, palette, app, desktopLayout, steps))
+            return EntryPatch(routine, hasApp, hasDesktopLayout, hasSteps)
         }
 
         private fun JSONObject.string(key: String) = requireNotNull(get(key) as? String) { "Invalid routine field: $key" }

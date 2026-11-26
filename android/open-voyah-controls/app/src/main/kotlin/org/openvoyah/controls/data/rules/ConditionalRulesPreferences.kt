@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import org.openvoyah.controls.data.routines.decodeRoutineSteps
+import org.openvoyah.controls.data.routines.encodeRoutineSteps
 import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.rules.ConditionalRule
 import org.openvoyah.controls.domain.rules.ConditionalRuleLibrary
@@ -112,13 +114,14 @@ internal class ConditionalRulesPreferences(context: Context) {
         }
 
         private fun decodeRoutine(data: JSONObject): NamedRoutine {
-            require(data.length() == routineKeys.size && data.keys().asSequence().all { it in routineKeys })
+            require(routineKeys.all(data::has) && data.keys().asSequence().all { it in routineKeys || it == "steps" })
             val target = requireNotNull(RoutineTarget.entries.find { it.key == data.string("target") })
             val palette = data.nullableString("palette")?.let { key ->
                 requireNotNull(listOf(AppPalette.DAY, AppPalette.DARK).find { it.preferenceId == key })
             }
             return NamedRoutine(data.string("id"), data.string("name"), RoutinePlan(target, palette,
-                data.nullableString("installedApp"), data.nullableString("desktopLayoutId")))
+                data.nullableString("installedApp"), data.nullableString("desktopLayoutId"),
+                if (data.has("steps")) decodeRoutineSteps(data.getJSONArray("steps")) else emptyList()))
         }
 
         private fun encode(library: ConditionalRuleLibrary) = JSONObject().put("schema", 1).put("entries", JSONArray().apply {
@@ -133,6 +136,7 @@ internal class ConditionalRulesPreferences(context: Context) {
             .put("target", routine.plan.target.key).put("palette", routine.plan.palette?.preferenceId ?: JSONObject.NULL)
             .put("installedApp", routine.plan.installedApp ?: JSONObject.NULL)
             .put("desktopLayoutId", routine.plan.desktopLayoutId ?: JSONObject.NULL)
+            .apply { if (routine.plan.steps.isNotEmpty()) put("steps", encodeRoutineSteps(routine.plan.steps)) }
 
         private fun JSONObject.string(key: String) = requireNotNull(get(key) as? String) { "Invalid rule field: $key" }
         private fun JSONObject.nullableString(key: String): String? = if (get(key) === JSONObject.NULL) null else string(key)

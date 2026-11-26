@@ -1,0 +1,17 @@
+<resources>
+    <string name="routine_steps_title">Шаги</string>
+    <string name="routine_steps_hint">Добавьте управление воспроизведением и паузы. Выбранные страница, тема, раскладка и приложение применяются после этих шагов.</string>
+    <string name="routine_step_add">Добавить шаг</string>
+    <string name="routine_step_move">Выше</string>
+    <string name="routine_step_remove">Удалить</string>
+    <string name="routine_step_wait">Пауза %1$d с</string>
+    <string name="routine_step_play">Включить воспроизведение</string>
+    <string name="routine_step_pause">Приостановить воспроизведение</string>
+    <string name="routine_step_next">Следующая дорожка</string>
+    <string name="routine_step_previous">Предыдущая дорожка</string>
+    <string name="routine_chain_preparing">Подготовка сценария…</string>
+    <string name="routine_chain_running">%1$s · шаг %2$d из %3$d</string>
+    <string name="routine_chain_app_unavailable">Выбранное для сценария приложение недоступно.</string>
+    <string name="routine_chain_playback_unavailable">Управление воспроизведением недоступно.</string>
+    <string name="routine_chain_unconfirmed">Не удалось подтвердить отправку последней медиакоманды. Сценарий остановлен.</string>
+</resources>

@@ -238,7 +238,7 @@ private fun RoutineRow(routine: NamedRoutine, startup: Boolean, state: RoutinesU
     val page = plan.target.label(state.names)
     val theme = plan.palette?.let { UiText.get(R.string.routines_theme_value).format(routineTheme(it)) }
     val description = when {
-        plan.target == RoutineTarget.CURRENT && theme == null && (plan.installedApp != null || plan.desktopLayoutId != null) -> null
+        plan.target == RoutineTarget.CURRENT && theme == null -> null
         theme == null -> page
         plan.target == RoutineTarget.CURRENT -> theme
         else -> UiText.get(R.string.routines_page_and_theme).format(page, theme)
@@ -246,6 +246,8 @@ private fun RoutineRow(routine: NamedRoutine, startup: Boolean, state: RoutinesU
     val text: @Composable (Modifier) -> Unit = { modifier ->
         Column(modifier, verticalArrangement = Arrangement.spacedBy(layout.spacing(3.dp))) {
             Text(routine.name, style = MaterialTheme.typography.titleMedium)
+            if (plan.steps.isNotEmpty()) Text(plan.steps.joinToString(" → ") { it.label() },
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             description?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             plan.desktopLayoutId?.let { id ->
                 val missing = state.layouts?.getOrNull()?.none { it.id == id } == true
@@ -268,7 +270,7 @@ private fun RoutineRow(routine: NamedRoutine, startup: Boolean, state: RoutinesU
             }
             if (plan.target.isFavorite && !state.favoritesEnabled) Text(UiText.get(R.string.routines_favorites_off),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (plan.desktopLayoutId != null && state.form.running?.id == routine.id) {
+            if (plan.desktopLayoutId != null && plan.steps.isEmpty() && state.form.running?.id == routine.id) {
                 CockpitFeedback(UiText.get(R.string.routines_applying_layout))
             }
         }

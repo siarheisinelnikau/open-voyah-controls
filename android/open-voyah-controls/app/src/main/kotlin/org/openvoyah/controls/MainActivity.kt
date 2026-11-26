@@ -41,12 +41,15 @@ import org.openvoyah.controls.domain.routines.RoutineEditException
 import org.openvoyah.controls.domain.routines.RoutinePlan
 import org.openvoyah.controls.domain.routines.RoutineStartupDelay
 import org.openvoyah.controls.domain.routines.RoutineStartupRequest
+import org.openvoyah.controls.domain.routines.RoutineStepResult
+import org.openvoyah.controls.domain.routines.runRoutineSteps
 import org.openvoyah.controls.domain.settings.AppPalette
 import org.openvoyah.controls.domain.settings.LauncherEntry
 import org.openvoyah.controls.platform.apps.AppsPlatform
 import org.openvoyah.controls.platform.apps.LauncherShortcuts
 import org.openvoyah.controls.platform.audio.limitLauncherMediaVolume
 import org.openvoyah.controls.platform.display.useControlsDensity
+import org.openvoyah.controls.platform.ui.RoutinePlayback
 import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime
 import org.openvoyah.controls.presentation.home.HomeUpdatesViewModel
 import org.openvoyah.controls.presentation.home.appearanceViewModel
@@ -56,6 +59,7 @@ import org.openvoyah.controls.presentation.navigation.ControlsNavigationState
 import org.openvoyah.controls.presentation.navigation.ControlsNavigationViewModel
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.routines.RoutineAppNotice
+import org.openvoyah.controls.presentation.routines.RoutineChainNotice
 import org.openvoyah.controls.presentation.routines.RoutineInteractionFrame
 import org.openvoyah.controls.presentation.routines.RoutineStartupNotice
 import org.openvoyah.controls.presentation.theme.controlsAccentOverlay
@@ -70,12 +74,14 @@ class MainActivity : ComponentActivity() {
     private val routinePreferences by lazy { RoutinePreferences(applicationContext) }
     private val routineApps by lazy { LauncherShortcuts(applicationContext) }
     private val routineLayouts by lazy { RoutineLayoutExecution(applicationContext) }
+    private val routinePlayback by lazy { RoutinePlayback(applicationContext) }
     private class PendingStartup(val request: RoutineStartupRequest, val entry: ControlsNavigationState) {
         var layoutPermit: RoutineLayoutPermit? = null
     }
     private var pending by mutableStateOf<PendingStartup?>(null)
     private var secondsLeft by mutableIntStateOf(0)
     private var routineMessage by mutableStateOf<String?>(null)
+    private var routineStepNotice by mutableStateOf<String?>(null)
     private var manualRoutineJob: Job? = null
     private var manualLayoutPermit: RoutineLayoutPermit? = null
     private var noticeVisible = false
@@ -117,9 +123,10 @@ class MainActivity : ComponentActivity() {
                             ::runConditionalRoutine, restored = savedInstanceState != null)
                     }
                     pending?.let { launch ->
-                        if (launch.request.schedule.delay != RoutineStartupDelay.IMMEDIATE ||
-                            launch.request.routine.plan.desktopLayoutId != null) {
-                            RoutineStartupNotice(launch.request.routine.name, secondsLeft, ::cancelStartup)
+                        val hasSteps = launch.request.routine.plan.steps.isNotEmpty()
+                        if (routineStepNotice == null && (launch.request.schedule.delay != RoutineStartupDelay.IMMEDIATE ||
+                            launch.request.routine.plan.desktopLayoutId != null || hasSteps)) {
+                            RoutineStartupNotice(launch.request.routine.name, secondsLeft, ::cancelStartup, preparingChain = hasSteps)
                         }
                         val entry by navigation.state.collectAsStateWithLifecycle()
                         LaunchedEffect(launch, entry) {
@@ -131,6 +138,12 @@ class MainActivity : ComponentActivity() {
                                     startLauncherWorkIfReady()
                                 }
                             }
+                        }
+                    }
+                    routineStepNotice?.let { message ->
+                        RoutineChainNotice(message) {
+                            cancelStartup()
+                            cancelManualRoutine()
                         }
                     }
                     routineMessage?.let { message ->
@@ -162,7 +175,8 @@ class MainActivity : ComponentActivity() {
             val startRoute = appearance.launcherEntry.startRoute()
             val request = routinePreferences.startupRequest()
             val needsForeground = request != null && (request.schedule.delay != RoutineStartupDelay.IMMEDIATE ||
-                request.routine.plan.installedApp != null || request.routine.plan.desktopLayoutId != null)
+                request.routine.plan.installedApp != null || request.routine.plan.desktopLayoutId != null ||
+                request.routine.plan.steps.isNotEmpty())
             val prepared = request != null && !needsForeground && applyStartup(request, startRoute)
             if (!prepared) {
                 navigation.enterFromLauncher(startRoute, null, null)
@@ -219,11 +233,14 @@ class MainActivity : ComponentActivity() {
         try {
             val app = routine.plan.installedApp?.let { withContext(Dispatchers.IO) { routineApps.find(it) } }
             if (!routineEntryIsCurrent(entry) || !stillAllowed()) throw CancellationException()
+            val layout = layoutId?.let { routineLayouts.prepare(it) }
+            if (routine.plan.steps.isNotEmpty() && routine.plan.installedApp != null && app == null)
+                return R.string.routine_chain_app_unavailable
+            runChain(routine) { routineEntryIsCurrent(entry) && stillAllowed() }?.let { return it }
             if (layoutId == null) {
                 routinePreferences.planFor(routine)
             } else {
-                val layout = routineLayouts.prepare(layoutId)
-                val applied = routineLayouts.runManual(routine, layout, checkNotNull(permit))
+                val applied = routineLayouts.runManual(routine, checkNotNull(layout), checkNotNull(permit))
                 if (!applied) return R.string.routines_changed
             }
             if (!routineEntryIsCurrent(entry) || !stillAllowed()) throw CancellationException()
@@ -250,6 +267,27 @@ class MainActivity : ComponentActivity() {
     private fun cancelManualRoutine() {
         manualLayoutPermit?.cancel()
         manualRoutineJob?.cancel()
+    }
+
+    private suspend fun runChain(routine: NamedRoutine, isCurrent: () -> Boolean): Int? {
+        val steps = routine.plan.steps
+        if (steps.isEmpty()) return null
+        val result = try {
+            runRoutineSteps(steps, ensureCurrent = {
+                if (!isCurrent()) throw CancellationException("Routine owner lost")
+                routinePreferences.planFor(routine)
+            }, onStep = { index ->
+                routineStepNotice = UiText.get(R.string.routine_chain_running)
+                    .format(routine.name, index + 1, steps.size)
+            }, request = routinePlayback::request)
+        } finally {
+            routineStepNotice = null
+        }
+        return when (result) {
+            RoutineStepResult.REQUESTED -> null
+            RoutineStepResult.UNAVAILABLE -> R.string.routine_chain_playback_unavailable
+            RoutineStepResult.UNCONFIRMED -> R.string.routine_chain_unconfirmed
+        }
     }
 
     private fun dispatchRoutine(plan: RoutinePlan, app: InstalledApps.Entry?, startRoute: ControlsRoute? = null) {
@@ -339,7 +377,25 @@ class MainActivity : ComponentActivity() {
                 }
                 val app = plan.installedApp?.let { withContext(Dispatchers.IO) { routineApps.find(it) } }
                 if (!canCompleteStartup(launch)) return@launch
-                if (layout == null) {
+                if (plan.steps.isNotEmpty()) {
+                    if (plan.installedApp != null && app == null) {
+                        routineMessage = UiText.get(R.string.routine_chain_app_unavailable)
+                        return@launch
+                    }
+                    // Keep the startup attempt consumed even if a step is cancelled or its delivery is unknown.
+                    val routine = launch.request.routine
+                    if (!routinePreferences.runStartup(launch.request) { }) return@launch
+                    val error = runChain(routine) { canCompleteStartup(launch) }
+                    if (error != null) {
+                        routineMessage = UiText.get(error)
+                        return@launch
+                    }
+                    if (layout != null && !routineLayouts.runManual(routine, layout, checkNotNull(launch.layoutPermit)))
+                        return@launch
+                    if (!canCompleteStartup(launch)) return@launch
+                    clearStartup(launch)
+                    dispatchRoutine(plan, app, launch.entry.route)
+                } else if (layout == null) {
                     clearStartup(launch)
                     applyStartup(launch.request, launch.entry.route, app)
                 } else {

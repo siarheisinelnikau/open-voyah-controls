@@ -42,10 +42,16 @@ internal class RoutineInteractionFrame(context: Context, private val interacted:
 }
 
 @Composable
-internal fun RoutineStartupNotice(name: String, seconds: Int, cancel: () -> Unit) {
-    val message = if (seconds == 0) UiText.get(R.string.routines_applying_layout)
+internal fun RoutineStartupNotice(name: String, seconds: Int, cancel: () -> Unit, preparingChain: Boolean = false) {
+    val message = if (seconds == 0) UiText.get(
+        if (preparingChain) R.string.routine_chain_preparing else R.string.routines_applying_layout)
         else UiText.get(R.string.routines_pending).format(name, seconds)
     RoutineNotice(message, R.string.routines_stay, cancel)
+}
+
+@Composable
+internal fun RoutineChainNotice(message: String, cancel: () -> Unit) {
+    RoutineNotice(message, R.string.ui_89, cancel, announce = true)
 }
 
 @Composable
