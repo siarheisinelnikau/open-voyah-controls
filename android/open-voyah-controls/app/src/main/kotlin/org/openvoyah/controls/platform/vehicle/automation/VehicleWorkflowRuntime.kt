@@ -2,10 +2,14 @@ package org.openvoyah.controls.platform.vehicle.automation
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.PowerManager
 import android.os.SystemClock
+import java.time.LocalDateTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.async
@@ -20,13 +24,17 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import org.openvoyah.controls.R
 import org.openvoyah.controls.data.climate.FridaSeasonalClimatePort
 import org.openvoyah.controls.data.climate.LocalSeasonalClimatePreferences
 import org.openvoyah.controls.data.routines.RoutinePreferences
@@ -45,6 +53,9 @@ import org.openvoyah.controls.domain.rules.ConditionalRuleEngine
 import org.openvoyah.controls.domain.rules.RuleAttemptOutcome
 import org.openvoyah.controls.domain.rules.RuleDecision
 import org.openvoyah.controls.domain.rules.RuleHandoff
+import org.openvoyah.controls.domain.rules.RuleInputs
+import org.openvoyah.controls.domain.rules.RuleReading
+import org.openvoyah.controls.domain.trips.TripReadings
 import org.openvoyah.controls.domain.vehicle.HeadlightMonitor
 import org.openvoyah.controls.domain.vehicle.HeadlightStatus
 import org.openvoyah.controls.domain.vehicle.automation.VehicleAutomationController
@@ -53,8 +64,11 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetrySession
 import org.openvoyah.controls.domain.vehicle.automation.withVehicleSignalExpiry
 import org.openvoyah.controls.platform.vehicle.factoryHeadlightFeedback
 import org.openvoyah.controls.platform.trips.TripRuntime
+import org.openvoyah.controls.platform.trips.TripCarPermissions
 import org.openvoyah.controls.platform.ui.VehicleRoutineLauncher
 import org.openvoyah.controls.platform.vehicle.comfort.observePlaybackComfort
+import org.openvoyah.controls.platform.vehicle.comfort.AmbientLight
+import org.openvoyah.controls.platform.vehicle.comfort.AmbientLightReading
 
 internal data class VehicleRuntimeState(
     val backgroundConnected: Boolean = false,
@@ -93,6 +107,7 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
         FridaVehicleAutomationPort(app, { telemetry.value }, { headlights.value }),
         SystemClock::elapsedRealtimeNanos, scope, { ControlsLog.line(LogLevel.INFO, it) })
     private val handoff = RuleHandoff<RuleDecision>()
+    private val ruleClock = MutableStateFlow<RuleReading?>(null)
 
     init {
         scope.launch {
@@ -168,22 +183,63 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
         return handoff.claim(token, SystemClock.elapsedRealtimeNanos(), ::isCurrent)
     }
 
-    fun isCurrent(decision: RuleDecision): Boolean = try {
-        state.value.automaticRunning && decision.isCurrent(rules.current(),
+    fun isCurrent(decision: RuleDecision) = checkRule(decision, running = false)
+
+    fun staysCurrent(decision: RuleDecision) = checkRule(decision, running = true)
+
+    private fun checkRule(decision: RuleDecision, running: Boolean): Boolean = try {
+        val conditions = decision.rule.conditions
+        val live = trips.snapshot.live.takeIf { conditions.chargePercent != null }
+        val light = if (conditions.ambientLux != null) AmbientLight.readings(app).value else null
+        val clock = ruleClock.value.takeIf { conditions.timeWindow != null }
+        state.value.automaticRunning && (background.value != null || foreground.value.hasOwners) &&
+            decision.isCurrent(rules.current(),
             // The store verifies the exact selected receipt; no replacement routine is accepted.
             org.openvoyah.controls.domain.routines.RoutineLibrary(entries = listOf(routines.withCurrentPlan(decision.routine) { decision.routine })),
-            telemetry.value, SystemClock.elapsedRealtimeNanos())
+            telemetry.value, SystemClock.elapsedRealtimeNanos(), currentRuleInputs(light, live, clock, recheckClock = true), running)
     } catch (_: Exception) { false }
 
-    private suspend fun observeRules() {
+    private fun currentRuleInputs(
+        light: AmbientLightReading?, trip: TripReadings?, clock: RuleReading?, recheckClock: Boolean = false,
+    ): RuleInputs {
+        if (light == null && trip == null && clock == null ||
+            app.getSystemService(PowerManager::class.java)?.isInteractive != true) return RuleInputs()
+        val charge = trip?.levels?.chargePercent
+        val receivedAt = trip?.chargeTimestampNanos
+        val source = trip?.session
+        val energy = if (charge != null && receivedAt != null && source != null &&
+            app.checkSelfPermission(TripCarPermissions.ENERGY) == PackageManager.PERMISSION_GRANTED) {
+            RuleReading(charge, receivedAt, "automotive_charge:$source")
+        } else null
+        val localMinute = clock?.takeIf {
+            if (!recheckClock) return@takeIf true
+            val now = LocalDateTime.now()
+            now.year >= 2020 && it.value == (now.hour * 60 + now.minute).toDouble()
+        }
+        return RuleInputs(light?.let { RuleReading(it.lux.toDouble(), it.receivedAtNanos, "android_illuminance") }, energy, localMinute)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private suspend fun observeRules(): Unit = coroutineScope {
         val engine = ConditionalRuleEngine()
+        val saved = rules.observe().shareIn(this, SharingStarted.Eagerly, replay = 1)
+        val inputs = saved.map { value ->
+            val enabled = value.getOrNull()?.entries.orEmpty().filter { it.enabled }.map { it.conditions }
+            Triple(enabled.any { it.ambientLux != null }, enabled.any { it.chargePercent != null }, enabled.any { it.timeWindow != null })
+        }.distinctUntilChanged().flatMapLatest { (light, energy, time) ->
+            val ambient = if (light) AmbientLight.readings(app) else flowOf(null)
+            val charge = if (energy) trips.state.map { it.live }.distinctUntilChanged() else flowOf(null)
+            val clock = (if (time) observeRuleClock(app) else flowOf(null)).onEach { ruleClock.value = it }
+            combine(ambient, charge, clock) { lux, battery, minute -> currentRuleInputs(lux, battery, minute) }
+        }
         try {
-            combine(rules.observe(), routines.observe(), telemetry) { saved, library, car -> Triple(saved, library, car) }
-                .collect { (saved, library, car) ->
-                    val settings = saved.getOrNull()
+            combine(saved, routines.observe(), telemetry, inputs) { rules, library, car, input -> Triple(rules, library, car to input) }
+                .collect { (current, library, sources) ->
+                    val (car, input) = sources
+                    val settings = current.getOrNull()
                     val available = library.getOrNull()
                     if (settings == null || available == null) { engine.invalidate(); return@collect }
-                    for (decision in engine.evaluate(settings, available, car, SystemClock.elapsedRealtimeNanos())) {
+                    for (decision in engine.evaluate(settings, available, car, SystemClock.elapsedRealtimeNanos(), input)) {
                         var outcome = RuleAttemptOutcome.CANCELLED
                         try {
                             if (!withContext(Dispatchers.IO) { isCurrent(decision) }) continue
@@ -193,7 +249,11 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
                                     if (!foreground.value.retains(target)) throw CancellationException("Routine window lease expired")
                                     target.dispatch(decision)
                                 }.await() }
-                                outcome = if (result == null) RuleAttemptOutcome.COMPLETED else RuleAttemptOutcome.FAILED
+                                outcome = when (result) {
+                                    null -> RuleAttemptOutcome.COMPLETED
+                                    R.string.routine_chain_unconfirmed -> RuleAttemptOutcome.UNCONFIRMED
+                                    else -> RuleAttemptOutcome.FAILED
+                                }
                             } else {
                                 val token = handoff.reserve(decision, SystemClock.elapsedRealtimeNanos()) ?: continue
                                 try {
@@ -209,7 +269,10 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
                         }
                     }
                 }
-        } finally { engine.invalidate() }
+        } finally {
+            ruleClock.value = null
+            engine.invalidate()
+        }
     }
 
     private suspend fun observeClimate() {

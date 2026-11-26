@@ -1,15 +1,15 @@
 <resources>
     <string name="rules_title">Правила «Если — тогда»</string>
-    <string name="rules_description">Запуск сохранённого сценария по условиям коробки и дверей.</string>
+    <string name="rules_description">Запуск сохранённого сценария, когда выполняются все выбранные условия.</string>
     <string name="rules_scope_hint">В фоне правила работают через службу Controls и ждут свежих проверенных показаний. Открытие приложения и переподключение сами по себе не запускают правило.</string>
     <string name="rules_unavailable">Ожидание первого сигнала коробки передач в этой поездке. Правила уже можно сохранить.</string>
     <string name="rules_create">Добавить правило</string>
     <string name="rules_edit">Изменить правило</string>
-    <string name="rules_empty">Сначала создайте сценарий, затем выберите для него условие коробки или дверей.</string>
+    <string name="rules_empty">Создайте или выберите сценарий, затем задайте условия его запуска.</string>
     <string name="rules_manage_routines">Открыть сценарии</string>
     <string name="rules_name">Название правила</string>
     <string name="rules_if">Если</string>
-    <string name="rules_and_hint">Если выбраны оба условия, должны быть подтверждены оба.</string>
+    <string name="rules_and_hint">Перед запуском Controls проверяет все выбранные условия.</string>
     <string name="rules_then">Тогда</string>
     <string name="rules_gear">Коробка</string>
     <string name="rules_doors">Двери</string>
@@ -30,7 +30,7 @@
     <string name="rules_save">Сохранить правило</string>
     <string name="rules_delete">Удалить правило</string>
     <string name="rules_invalid_name">Укажите уникальное название из 1–40 видимых символов.</string>
-    <string name="rules_no_condition">Выберите положение коробки или условие дверей.</string>
+    <string name="rules_no_condition">Выберите хотя бы одно условие.</string>
     <string name="rules_routine_changed">Сценарий изменён или удалён. Выберите его заново и сохраните правило, чтобы принять текущие действия.</string>
     <string name="rules_no_routine">Выберите сохранённый сценарий.</string>
     <string name="rules_load_failed">Не удалось прочитать правила. Данные сохранены; для восстановления импортируйте исправную резервную копию настроек.</string>

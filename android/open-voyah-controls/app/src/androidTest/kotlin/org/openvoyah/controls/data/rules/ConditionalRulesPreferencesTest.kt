@@ -12,9 +12,14 @@ import org.json.JSONObject
 import org.openvoyah.controls.domain.rules.ConditionalRule
 import org.openvoyah.controls.domain.rules.ConditionalRuleLibrary
 import org.openvoyah.controls.domain.rules.DoorRequirement
+import org.openvoyah.controls.domain.rules.RuleComparison
+import org.openvoyah.controls.domain.rules.RuleConditions
+import org.openvoyah.controls.domain.rules.RuleThreshold
 import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.domain.routines.RoutinePlan
 import org.openvoyah.controls.domain.routines.RoutineTarget
+import org.openvoyah.controls.domain.routines.RoutineTimeWindow
+import org.openvoyah.controls.domain.vehicle.automation.DrivingMode
 import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
 
 class ConditionalRulesPreferencesTest : AndroidTestCase() {
@@ -79,6 +84,30 @@ class ConditionalRulesPreferencesTest : AndroidTestCase() {
             }
         } finally {
             assertTrue(raw.edit().putString("settings", original).commit())
+        }
+    }
+
+    fun testExtendedConditionsUseValidatedPortableValues() = runBlocking {
+        val raw = context.getSharedPreferences(ConditionalRulesPreferences.STORE, Context.MODE_PRIVATE)
+        val original = raw.getString("settings", null)
+        val store = ConditionalRulesPreferences(context)
+        try {
+            val conditions = RuleConditions(RuleThreshold(200, RuleComparison.AT_MOST),
+                RuleThreshold(30, RuleComparison.AT_LEAST), RuleThreshold(-5, RuleComparison.AT_MOST),
+                DrivingMode.ECO, RoutineTimeWindow(1_260, 300))
+            val extended = ConditionalRuleLibrary(listOf(example().copy(gear = null, doors = null, conditions = conditions)))
+            check(raw.edit().remove("settings").commit())
+            store.update { extended }
+            val archive = store.exportSettings()
+            store.update { ConditionalRuleLibrary() }
+            store.restoreSettings(ConditionalRulesPreferences.validateSettings(archive))
+            assertEquals(extended, store.current())
+            val invalid = JSONObject(archive.toString())
+            invalid.getJSONArray("entries").getJSONObject(0).getJSONObject("conditions").getJSONObject("chargePercent").put("amount", 103)
+            expectInvalid { store.restoreSettings(invalid) }
+            assertEquals(extended, store.current())
+        } finally {
+            check(raw.edit().putString("settings", original).commit())
         }
     }
 

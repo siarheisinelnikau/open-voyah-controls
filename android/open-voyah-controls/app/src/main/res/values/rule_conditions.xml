@@ -1,0 +1,17 @@
+<resources>
+    <string name="rules_extra_conditions">Additional conditions</string>
+    <string name="rules_condition_any">Any value</string>
+    <string name="rules_condition_none">None</string>
+    <string name="rules_light">Ambient light</string>
+    <string name="rules_charge">Battery charge</string>
+    <string name="rules_temperature">Outside temperature</string>
+    <string name="rules_driving_mode">Driving mode</string>
+    <string name="rules_at_most">At most %1$s</string>
+    <string name="rules_at_least">At least %1$s</string>
+    <string name="rules_lux">%1$d lx</string>
+    <string name="rules_percent">%1$d%%</string>
+    <string name="rules_celsius">%1$d °C</string>
+    <string name="rules_no_light_sensor">No Android light sensor is available on this head unit.</string>
+    <string name="rules_overnight">The time range continues after midnight.</string>
+    <string name="rules_missing_readings">Waiting for readings · %1$s</string>
+</resources>

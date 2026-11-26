@@ -9,6 +9,8 @@ import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.domain.routines.RoutineLibrary
 import org.openvoyah.controls.domain.routines.RoutinePlan
 import org.openvoyah.controls.domain.routines.RoutineTarget
+import org.openvoyah.controls.domain.routines.RoutineTimeWindow
+import org.openvoyah.controls.domain.vehicle.automation.DrivingMode
 import org.openvoyah.controls.domain.vehicle.automation.VehicleDoor
 import org.openvoyah.controls.domain.vehicle.automation.VehicleDoorState
 import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
@@ -153,6 +155,44 @@ class ConditionalRuleEngineTest {
         // The changed source is usable after its own fresh baseline and the existing cooldown.
         engine.evaluate(library, routines, replacement(32, VehicleGear.DRIVE), second(32))
         assertEquals(1, engine.evaluate(library, routines, replacement(33, VehicleGear.PARK), second(33)).size)
+    }
+
+    @Test fun qualifiedInputsMustAgreeAndRemainCurrentDuringAChain() {
+        val conditions = RuleConditions(
+            ambientLux = RuleThreshold(100, RuleComparison.AT_MOST),
+            chargePercent = RuleThreshold(25, RuleComparison.AT_LEAST),
+            outsideCelsius = RuleThreshold(0, RuleComparison.AT_MOST),
+            drivingMode = DrivingMode.ECO,
+            timeWindow = RoutineTimeWindow(21 * 60, 5 * 60),
+        )
+        val advanced = ConditionalRuleLibrary(listOf(rule.copy(gear = null, conditions = conditions)))
+        val engine = ConditionalRuleEngine()
+        fun winter(time: Long, mode: DrivingMode = DrivingMode.ECO) = at(time, VehicleGear.PARK)
+            .copy(outsideCelsius = sample(-5f, time), drivingMode = sample(mode, time))
+        fun reading(lux: Double, time: Long) = RuleInputs(RuleReading(lux, second(time), "light"),
+            RuleReading(65.0, second(time), "battery"), RuleReading(60.0, second(time), "clock"))
+        assertTrue(engine.evaluate(advanced, routines, winter(1), second(1), reading(200.0, 1)).isEmpty())
+        assertTrue(engine.evaluate(advanced, routines, winter(2), second(2), reading(20.0, 2).copy(chargePercent = null)).isEmpty())
+        assertTrue(engine.evaluate(advanced, routines, winter(3), second(3), reading(20.0, 3)).isEmpty())
+        assertTrue(engine.evaluate(advanced, routines, winter(4, DrivingMode.SPORT), second(4), reading(20.0, 4)).isEmpty())
+        val decision = engine.evaluate(advanced, routines, winter(5), second(5), reading(20.0, 5)).single()
+        assertFalse(decision.isCurrent(advanced, routines, winter(12), second(12), reading(20.0, 12)))
+        assertTrue(decision.isCurrent(advanced, routines, winter(12), second(12), reading(20.0, 12), running = true))
+        assertFalse(decision.isCurrent(advanced, routines, winter(12), second(12), reading(20.0, 5), running = true))
+        assertFalse(decision.isCurrent(advanced, routines, winter(13), second(13), reading(120.0, 13), running = true))
+    }
+
+    @Test fun clockJumpOnlySeedsTheOvernightRange() {
+        val ruleWithTime = rule.copy(gear = null, conditions = RuleConditions(timeWindow = RoutineTimeWindow(1_420, 30)))
+        val timed = ConditionalRuleLibrary(listOf(ruleWithTime))
+        val engine = ConditionalRuleEngine()
+        fun observe(minute: Int, time: Long, source: String) = engine.evaluate(timed, routines, at(time, VehicleGear.PARK),
+            second(time), RuleInputs(localMinute = RuleReading(minute.toDouble(), second(time), source)))
+        assertTrue(observe(1_419, 1, "clock-one").isEmpty())
+        assertTrue(observe(1_420, 3, "clock-changed").isEmpty())
+        assertTrue(observe(10, 4, "clock-changed").isEmpty())
+        assertTrue(observe(30, 5, "clock-changed").isEmpty())
+        assertEquals(1, observe(1_420, 6, "clock-changed").size)
     }
 
     private fun second(value: Long) = value * 1_000_000_000L

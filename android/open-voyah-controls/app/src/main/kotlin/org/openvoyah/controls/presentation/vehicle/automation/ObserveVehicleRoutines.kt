@@ -33,7 +33,7 @@ internal fun ObserveVehicleRoutines(
             launch {
                 snapshotFlow { currentRoute.value }.collect { current ->
                     runtime.foregroundStarted(owner, current == ControlsRoute.VEHICLE_AUTOMATION) { decision ->
-                        run.value(decision.routine, currentEntry.value()) { runtime.isCurrent(decision) }
+                        run.value(decision.routine, currentEntry.value()) { runtime.staysCurrent(decision) }
                     }
                 }
             }

@@ -57,14 +57,14 @@ private fun weekInDisplayOrder(locale: Locale): List<DayOfWeek> {
 }
 
 @Composable
-private fun deviceClockFormat(): DateTimeFormatter {
+internal fun deviceClockFormat(): DateTimeFormatter {
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     val use24 = DateFormat.is24HourFormat(context)
     return remember(locale, use24) { DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, if (use24) "Hm" else "hm"), locale) }
 }
 
-private fun DateTimeFormatter.minute(value: Int): String = format(LocalTime.of(value / 60, value % 60))
+internal fun DateTimeFormatter.minute(value: Int): String = format(LocalTime.of(value / 60, value % 60))
 
 private fun RoutineStartupFrequency.label() = UiText.get(when (this) {
     RoutineStartupFrequency.EVERY_ENTRY -> R.string.routines_each_entry
@@ -90,7 +90,6 @@ internal fun routineScheduleLabel(schedule: RoutineStartupSchedule): String? {
 @Composable
 internal fun RoutineScheduleEditor(draft: RoutineScheduleDraft, state: RoutinesUiState, model: RoutinesViewModel) {
     val locale = Locale.forLanguageTag(UiText.language())
-    val context = LocalContext.current
     val dayOrder = weekInDisplayOrder(LocalConfiguration.current.locales[0])
     val clock = deviceClockFormat()
     val enabled = !state.form.saving && state.library != null
@@ -145,22 +144,27 @@ internal fun RoutineScheduleEditor(draft: RoutineScheduleDraft, state: RoutinesU
         model.startupDelay(it)
         choosingDelay = false
     }
-    val activity = LocalActivity.current
+    editingStart?.let { starting ->
+        RoutineClockDialog(if (starting) draft.start else draft.end, dismiss = { editingStart = null }) { minute ->
+            model.chooseTime(starting, minute)
+        }
+    }
+}
+
+@Composable
+internal fun RoutineClockDialog(minute: Int, dismiss: () -> Unit, choose: (Int) -> Unit) {
+    val activity = LocalActivity.current ?: return
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val use24 = DateFormat.is24HourFormat(context)
+    val use24 = DateFormat.is24HourFormat(LocalContext.current)
     val accentOverlay = LocalControlsAccentOverlay.current
     val dialogTheme = if (MaterialTheme.colorScheme.background.luminance() > .5f)
         android.R.style.Theme_Material_Light_Dialog_Alert else android.R.style.Theme_Material_Dialog_Alert
-    editingStart?.let { starting ->
-        if (activity != null) DisposableEffect(activity, lifecycle, starting) {
-            val minute = if (starting) draft.start else draft.end
-            // The platform dialog takes its theme from the wrapper and only the accent from the overlay on top of it.
-            val dialog = TimePickerDialog(ContextThemeWrapper(activity, dialogTheme), accentOverlay, { _, hour, minutes ->
-                if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) model.chooseTime(starting, hour * 60 + minutes)
-            }, minute / 60, minute % 60, use24)
-            dialog.setOnDismissListener { editingStart = null }
-            dialog.show()
-            onDispose { dialog.setOnDismissListener(null); dialog.dismiss() }
-        }
+    DisposableEffect(activity, lifecycle, minute) {
+        val dialog = TimePickerDialog(ContextThemeWrapper(activity, dialogTheme), accentOverlay, { _, hour, minutes ->
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) choose(hour * 60 + minutes)
+        }, minute / 60, minute % 60, use24)
+        dialog.setOnDismissListener { dismiss() }
+        dialog.show()
+        onDispose { dialog.setOnDismissListener(null); dialog.dismiss() }
     }
 }

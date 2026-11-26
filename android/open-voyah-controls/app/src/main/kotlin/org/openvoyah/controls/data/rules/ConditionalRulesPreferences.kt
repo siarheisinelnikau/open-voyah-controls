@@ -18,10 +18,15 @@ import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.domain.rules.ConditionalRule
 import org.openvoyah.controls.domain.rules.ConditionalRuleLibrary
 import org.openvoyah.controls.domain.rules.DoorRequirement
+import org.openvoyah.controls.domain.rules.RuleComparison
+import org.openvoyah.controls.domain.rules.RuleConditions
+import org.openvoyah.controls.domain.rules.RuleThreshold
 import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.domain.routines.RoutinePlan
 import org.openvoyah.controls.domain.routines.RoutineTarget
+import org.openvoyah.controls.domain.routines.RoutineTimeWindow
 import org.openvoyah.controls.domain.settings.AppPalette
+import org.openvoyah.controls.domain.vehicle.automation.DrivingMode
 import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
 
 /** Settings are one validated durable record. Live inputs and command attempts are never archived. */
@@ -86,6 +91,7 @@ internal class ConditionalRulesPreferences(context: Context) {
         private val lock = Any()
         private val rootKeys = setOf("schema", "entries")
         private val ruleKeys = setOf("id", "name", "enabled", "gear", "doors", "cooldownSeconds", "routine")
+        private val conditionKeys = setOf("ambientLux", "chargePercent", "outsideCelsius", "drivingMode", "timeWindow")
         private val routineKeys = setOf("id", "name", "target", "palette", "installedApp", "desktopLayoutId")
 
         @JvmStatic
@@ -103,14 +109,42 @@ internal class ConditionalRulesPreferences(context: Context) {
         }
 
         private fun decodeRule(data: JSONObject): ConditionalRule {
-            require(data.length() == ruleKeys.size && data.keys().asSequence().all { it in ruleKeys })
+            require(ruleKeys.all(data::has) && data.keys().asSequence().all { it in ruleKeys || it == "conditions" })
             val gear = data.nullableString("gear")?.let { key -> requireNotNull(VehicleGear.entries.find { it.key == key }) }
             val doors = data.nullableString("doors")?.let { key -> requireNotNull(DoorRequirement.entries.find { it.key == key }) }
             return ConditionalRule(
                 id = data.string("id"), name = data.string("name"), routine = decodeRoutine(data.getJSONObject("routine")),
                 gear = gear, doors = doors, enabled = requireNotNull(data.get("enabled") as? Boolean),
                 cooldownSeconds = requireNotNull(data.get("cooldownSeconds") as? Int),
+                conditions = if (data.has("conditions")) decodeConditions(data.getJSONObject("conditions")) else RuleConditions.EMPTY,
             )
+        }
+
+        private fun decodeConditions(data: JSONObject): RuleConditions {
+            require(data.keys().asSequence().all { it in conditionKeys })
+            fun threshold(key: String): RuleThreshold? = if (!data.has(key)) null else data.getJSONObject(key).let { entry ->
+                require(entry.length() == 2)
+                RuleThreshold(requireNotNull(entry.get("amount") as? Int),
+                    requireNotNull(RuleComparison.entries.find { it.key == entry.string("comparison") }))
+            }
+            val mode = if (!data.has("drivingMode")) null else
+                requireNotNull(DrivingMode.entries.find { it.key == data.string("drivingMode") })
+            val range = if (!data.has("timeWindow")) null else data.getJSONObject("timeWindow").let { entry ->
+                require(entry.length() == 2)
+                RoutineTimeWindow(requireNotNull(entry.get("startMinute") as? Int), requireNotNull(entry.get("endMinute") as? Int))
+            }
+            return RuleConditions(threshold("ambientLux"), threshold("chargePercent"), threshold("outsideCelsius"), mode, range)
+        }
+
+        private fun encodeConditions(conditions: RuleConditions) = JSONObject().apply {
+            fun putThreshold(key: String, value: RuleThreshold?) {
+                if (value != null) put(key, JSONObject().put("amount", value.amount).put("comparison", value.comparison.key))
+            }
+            putThreshold("ambientLux", conditions.ambientLux)
+            putThreshold("chargePercent", conditions.chargePercent)
+            putThreshold("outsideCelsius", conditions.outsideCelsius)
+            conditions.drivingMode?.let { put("drivingMode", it.key) }
+            conditions.timeWindow?.let { put("timeWindow", JSONObject().put("startMinute", it.startMinute).put("endMinute", it.endMinute)) }
         }
 
         private fun decodeRoutine(data: JSONObject): NamedRoutine {
@@ -128,7 +162,9 @@ internal class ConditionalRulesPreferences(context: Context) {
             library.entries.forEach { rule ->
                 put(JSONObject().put("id", rule.id).put("name", rule.name).put("enabled", rule.enabled)
                     .put("gear", rule.gear?.key ?: JSONObject.NULL).put("doors", rule.doors?.key ?: JSONObject.NULL)
-                    .put("cooldownSeconds", rule.cooldownSeconds).put("routine", encodeRoutine(rule.routine)))
+                    .put("cooldownSeconds", rule.cooldownSeconds).put("routine", encodeRoutine(rule.routine)).apply {
+                        if (!rule.conditions.isEmpty) put("conditions", encodeConditions(rule.conditions))
+                    })
             }
         })
 

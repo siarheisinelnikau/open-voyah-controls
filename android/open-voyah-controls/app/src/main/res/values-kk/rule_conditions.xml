@@ -1,0 +1,17 @@
+<resources>
+    <string name="rules_extra_conditions">Қосымша шарттар</string>
+    <string name="rules_condition_any">Кез келген мән</string>
+    <string name="rules_condition_none">Жоқ</string>
+    <string name="rules_light">Жарық деңгейі</string>
+    <string name="rules_charge">Батарея заряды</string>
+    <string name="rules_temperature">Сыртқы температура</string>
+    <string name="rules_driving_mode">Жүріс режимі</string>
+    <string name="rules_at_most">Ең көбі %1$s</string>
+    <string name="rules_at_least">Кемінде %1$s</string>
+    <string name="rules_lux">%1$d лк</string>
+    <string name="rules_percent">%1$d%%</string>
+    <string name="rules_celsius">%1$d °C</string>
+    <string name="rules_no_light_sensor">Бұл бас құрылғыда Android жарық датчигі қолжетімсіз.</string>
+    <string name="rules_overnight">Уақыт аралығы түн ортасынан кейін жалғасады.</string>
+    <string name="rules_missing_readings">Көрсеткіштер күтілуде · %1$s</string>
+</resources>

@@ -19,10 +19,11 @@ internal data class ConditionalRule(
     val doors: DoorRequirement? = null,
     val enabled: Boolean = false,
     val cooldownSeconds: Int = 30,
+    val conditions: RuleConditions = RuleConditions.EMPTY,
 ) {
     init {
         require(NamedRoutine.validId(id) && NamedRoutine.normalizeName(name) == name)
-        require(gear != null || doors != null)
+        require(gear != null || doors != null || !conditions.isEmpty)
         require(cooldownSeconds in MIN_COOLDOWN_SECONDS..MAX_COOLDOWN_SECONDS)
     }
 
@@ -73,13 +74,20 @@ internal data class RuleDecision(
         routines: RoutineLibrary,
         telemetry: VehicleTelemetry,
         nowElapsedNanos: Long,
+        inputs: RuleInputs = RuleInputs(),
+        running: Boolean = false,
     ): Boolean = library.entries.firstOrNull { it.id == rule.id } == rule && rule.enabled &&
         rule.currentRoutine(routines) == routine && identity == telemetry.identity && sessionId == telemetry.sessionId &&
         reservedAtElapsedNanos >= telemetry.sessionStartedAtElapsedNanos && nowElapsedNanos >= reservedAtElapsedNanos &&
-        nowElapsedNanos - reservedAtElapsedNanos <= 5_000_000_000L &&
-        rule.evidence(telemetry, nowElapsedNanos).let { evidence ->
+        nowElapsedNanos - reservedAtElapsedNanos <= (if (running) EXECUTION_MAX_AGE else HANDOFF_MAX_AGE) &&
+        rule.evidence(telemetry, nowElapsedNanos, inputs).let { evidence ->
             evidence.matches == true && evidence.stamps.mapValues { it.value.sourceId } == signalSources
         }
+
+    companion object {
+        private const val HANDOFF_MAX_AGE = 5_000_000_000L
+        private const val EXECUTION_MAX_AGE = 80_000_000_000L
+    }
 }
 
 internal enum class RuleAttemptOutcome { COMPLETED, FAILED, UNCONFIRMED, CANCELLED }
@@ -95,6 +103,7 @@ internal class ConditionalRuleEngine {
         val sessionStartedAt: Long,
         var previousMatch: Boolean? = null,
         var previousTelemetry: VehicleTelemetry? = null,
+        var previousInputs: RuleInputs? = null,
         var stamps: Map<String, SignalStamp> = emptyMap(),
         var attemptedAt: Long? = null,
     )
@@ -110,6 +119,7 @@ internal class ConditionalRuleEngine {
         routines: RoutineLibrary,
         telemetry: VehicleTelemetry,
         nowElapsedNanos: Long,
+        inputs: RuleInputs = RuleInputs(),
     ): List<RuleDecision> {
         require(nowElapsedNanos > 0)
         if (nowElapsedNanos < lastEvaluationAt) states.clear()
@@ -122,25 +132,29 @@ internal class ConditionalRuleEngine {
                 it.rule == rule && it.identity == telemetry.identity && it.session == telemetry.sessionId &&
                     it.sessionStartedAt == telemetry.sessionStartedAtElapsedNanos
             } ?: State(rule, telemetry.identity, telemetry.sessionId, telemetry.sessionStartedAtElapsedNanos).also { states[rule.id] = it }
-            val evidence = rule.evidence(telemetry, nowElapsedNanos)
+            val evidence = rule.evidence(telemetry, nowElapsedNanos, inputs)
             if (evidence.stamps.any { (name, stamp) -> state.stamps[name]?.sourceId?.let { it != stamp.sourceId } == true }) {
                 // Replacement sources establish a new baseline even if they reuse the session ID.
                 state.previousMatch = evidence.matches
                 state.previousTelemetry = telemetry
+                state.previousInputs = inputs
                 state.stamps = evidence.stamps
                 return@mapNotNull null
             }
             if (evidence.matches == null || evidence.stamps.regressedFrom(state.stamps)) {
                 state.previousMatch = null
                 state.previousTelemetry = null
+                state.previousInputs = null
                 return@mapNotNull null
             }
             // The previous state must still be valid in this session to arm a transition.
             val wasMatching = state.previousMatch?.takeIf { previous ->
-                state.previousTelemetry?.let { rule.evidence(it, nowElapsedNanos).matches } == previous
+                val earlier = state.previousInputs ?: RuleInputs()
+                state.previousTelemetry?.let { rule.evidence(it, nowElapsedNanos, earlier).matches } == previous
             }
             state.previousMatch = evidence.matches
             state.previousTelemetry = telemetry
+            state.previousInputs = inputs
             state.stamps = state.stamps + evidence.stamps
             if (wasMatching != false || evidence.matches != true) return@mapNotNull null
             val previousAttempt = state.attemptedAt
@@ -178,12 +192,14 @@ private fun Map<String, SignalStamp>.regressedFrom(before: Map<String, SignalSta
         sample.elapsedNanos == previous.elapsedNanos && sample.value != previous.value)
 }
 
-private fun ConditionalRule.evidence(telemetry: VehicleTelemetry, now: Long): RuleEvidence {
+private fun ConditionalRule.evidence(telemetry: VehicleTelemetry, now: Long, inputs: RuleInputs): RuleEvidence {
+    val unavailable = RuleEvidence(null, emptyMap())
+    if (telemetry.confirmationWindow?.isOpen == false) return unavailable
     val stamps = mutableMapOf<String, SignalStamp>()
     val matches = mutableListOf<Boolean>()
     if (gear != null) {
         // Gear and doors are reported only on change, so their last value in this session stays valid.
-        val sample = telemetry.gear?.takeIf { it.isCurrentIn(telemetry, now) } ?: return RuleEvidence(null, emptyMap())
+        val sample = telemetry.gear?.takeIf { it.isCurrentIn(telemetry, now) } ?: return unavailable
         stamps["gear"] = SignalStamp(sample.observedAtElapsedNanos, sample.value.key, sample.sourceId)
         matches += sample.value == gear
     }
@@ -192,8 +208,35 @@ private fun ConditionalRule.evidence(telemetry: VehicleTelemetry, now: Long): Ru
         known.forEach { (door, sample) -> stamps[door.key] = SignalStamp(sample.observedAtElapsedNanos, sample.value.key, sample.sourceId) }
         val anyOpen = known.values.any { it.value == VehicleDoorState.OPEN }
         val allClosed = known.size == VehicleDoor.entries.size && known.values.all { it.value == VehicleDoorState.CLOSED }
-        if (!anyOpen && !allClosed) return RuleEvidence(null, emptyMap())
+        if (!anyOpen && !allClosed) return unavailable
         matches += if (doors == DoorRequirement.ANY_OPEN) anyOpen else allClosed
+    }
+    conditions.outsideCelsius?.let { condition ->
+        val sample = telemetry.outsideCelsius?.takeIf { it.value.isFinite() && it.isCurrentIn(telemetry, now) } ?: return unavailable
+        stamps["temperature"] = SignalStamp(sample.observedAtElapsedNanos, sample.value.toString(), sample.sourceId)
+        matches += condition.matches(sample.value.toDouble())
+    }
+    conditions.drivingMode?.let { condition ->
+        val sample = telemetry.drivingMode?.takeIf { it.isCurrentIn(telemetry, now) } ?: return unavailable
+        stamps["mode"] = SignalStamp(sample.observedAtElapsedNanos, sample.value.key, sample.sourceId)
+        matches += sample.value == condition
+    }
+    conditions.ambientLux?.let { condition ->
+        val sample = inputs.ambientLux?.takeIf { it.usable(now, Long.MAX_VALUE) && it.value in 0.0..100_000.0 } ?: return unavailable
+        stamps["ambient"] = SignalStamp(sample.observedAtNanos, sample.value.toString(), sample.source)
+        matches += condition.matches(sample.value)
+    }
+    conditions.chargePercent?.let { condition ->
+        val sample = inputs.chargePercent?.takeIf { it.usable(now, 6_000_000_000L) && it.value in 0.0..100.0 } ?: return unavailable
+        stamps["charge"] = SignalStamp(sample.observedAtNanos, sample.value.toString(), sample.source)
+        matches += condition.matches(sample.value)
+    }
+    conditions.timeWindow?.let { range ->
+        val sample = inputs.localMinute?.takeIf { it.usable(now, 120_000_000_000L) && it.value in 0.0..1439.0 } ?: return unavailable
+        stamps["clock"] = SignalStamp(sample.observedAtNanos, sample.value.toString(), sample.source)
+        val minute = sample.value.toInt()
+        matches += if (range.startMinute < range.endMinute) minute in range.startMinute until range.endMinute
+            else minute >= range.startMinute || minute < range.endMinute
     }
     return RuleEvidence(matches.all { it }, stamps)
 }

@@ -1,5 +1,6 @@
 package org.openvoyah.controls.presentation.rules
 
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
@@ -31,6 +32,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.routines.RoutinePreferences
@@ -38,7 +41,11 @@ import org.openvoyah.controls.data.rules.ConditionalRulesPreferences
 import org.openvoyah.controls.domain.rules.ConditionalRule
 import org.openvoyah.controls.domain.rules.ConditionalRuleLibrary
 import org.openvoyah.controls.domain.rules.DoorRequirement
+import org.openvoyah.controls.domain.vehicle.automation.VehicleDoor
+import org.openvoyah.controls.domain.vehicle.automation.VehicleDoorState
 import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
+import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime
+import org.openvoyah.controls.platform.vehicle.comfort.AmbientLight
 import org.openvoyah.controls.presentation.vehicle.automation.vehicleSignalsModel
 import org.openvoyah.controls.presentation.routines.RoutinePicker
 import org.openvoyah.controls.presentation.theme.CockpitAction
@@ -68,8 +75,18 @@ internal fun ConditionalRulesDestination(back: () -> Unit, editRoutines: () -> U
     val state by model.state.collectAsStateWithLifecycle()
     val signals = remember(activity) { activity.vehicleSignalsModel() }
     val telemetry by signals.telemetry.collectAsStateWithLifecycle()
-    // The gearbox reports only changes; its last reading in this trip stays valid for the rules.
-    val message = availabilityMessage ?: if (telemetry.gear == null) text(R.string.rules_unavailable) else null
+    val app = activity.applicationContext
+    val lightAvailable = remember(app) { AmbientLight.available(app) }
+    val rules = state.library?.entries.orEmpty()
+    val ambient = if (lightAvailable && rules.any { it.enabled && it.conditions.ambientLux != null }) {
+        AmbientLight.readings(app).collectAsStateWithLifecycle().value
+    } else null
+    val charge = if (rules.any { it.enabled && it.conditions.chargePercent != null }) {
+        val runtime = remember(app) { VehicleWorkflowRuntime.get(app) }
+        val samples = remember(runtime) { runtime.trips.state.map { it.live.levels.chargePercent }.distinctUntilChanged() }
+        samples.collectAsStateWithLifecycle(null).value
+    } else null
+    val now = SystemClock.elapsedRealtimeNanos()
     BackHandler(enabled = state.form.draft != null, onBack = model::closeEditor)
     val motion = LocalCockpitMotion.current
     val offset = with(LocalDensity.current) { 20.dp.roundToPx() }
@@ -78,7 +95,7 @@ internal fun ConditionalRulesDestination(back: () -> Unit, editRoutines: () -> U
         label = "rule views", contentKey = { it.form.draft != null }) { shown ->
         val draft = shown.form.draft
         if (draft != null) {
-            ConditionalRuleEditor(draft, shown, model)
+            ConditionalRuleEditor(draft, shown, model, lightAvailable)
         } else {
             CockpitDetail(text(R.string.rules_title), text(R.string.rules_description), back) {
                 val spacing = LocalCockpitLayout.current.spacing(10.dp)
@@ -92,7 +109,7 @@ internal fun ConditionalRulesDestination(back: () -> Unit, editRoutines: () -> U
                     if (shown.library?.entries?.isEmpty() == true) Text(text(R.string.rules_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (shown.library?.entries?.size == ConditionalRuleLibrary.MAX_RULES) Text(text(R.string.rules_limit))
                 }, second = {
-                    message?.let { CockpitFeedback(it) }
+                    availabilityMessage?.let { CockpitFeedback(it) }
                     Text(text(R.string.rules_scope_hint), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }, minimumWidth = 570.dp)
@@ -104,14 +121,31 @@ internal fun ConditionalRulesDestination(back: () -> Unit, editRoutines: () -> U
                     rules.forEachIndexed { index, rule -> key(rule.id) {
                         if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         val currentRoutine = shown.routines?.let { rule.currentRoutine(it) }
+                        val readings = telemetry.doors.values.filter { it.isCurrentIn(telemetry, now) }
+                        val doorUnavailable = readings.none { it.value == VehicleDoorState.OPEN } && readings.size < VehicleDoor.entries.size
+                        val missing = buildList {
+                            if (rule.gear != null && telemetry.gear?.isCurrentIn(telemetry, now) != true) add(text(R.string.rules_gear))
+                            if (rule.doors != null && doorUnavailable) add(text(R.string.rules_doors))
+                            if (rule.conditions.ambientLux != null && ambient == null) add(text(R.string.rules_light))
+                            if (rule.conditions.chargePercent != null && charge == null) add(text(R.string.rules_charge))
+                            if (rule.conditions.outsideCelsius != null && telemetry.outsideCelsius?.isCurrentIn(telemetry, now) != true)
+                                add(text(R.string.rules_temperature))
+                            if (rule.conditions.drivingMode != null && telemetry.drivingMode?.isCurrentIn(telemetry, now) != true)
+                                add(text(R.string.rules_driving_mode))
+                        }
                         CockpitColumns(first = {
                             CockpitChoice(rule.name, rule.summary(), enabled = !shown.form.saving) { model.edit(rule) }
                         }, second = {
                             CockpitSwitch(R.string.rules_enabled, rule.enabled, enabled = !shown.form.saving &&
                                 (currentRoutine != null || rule.enabled)) { model.setEnabled(rule, it) }
                             Text(text(R.string.flows_rule_routine).format(rule.routine.name), style = MaterialTheme.typography.bodyMedium)
-                            Text(text(if (currentRoutine == null) R.string.rules_routine_changed else if (rule.enabled)
-                                R.string.rules_waiting else R.string.rules_paused),
+                            val status = when {
+                                currentRoutine == null -> text(R.string.rules_routine_changed)
+                                !rule.enabled -> text(R.string.rules_paused)
+                                missing.isNotEmpty() -> text(R.string.rules_missing_readings).format(missing.joinToString(", "))
+                                else -> text(R.string.rules_waiting)
+                            }
+                            Text(status,
                                 color = if (currentRoutine == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodyMedium)
                         }, minimumWidth = 570.dp)
@@ -125,7 +159,8 @@ internal fun ConditionalRulesDestination(back: () -> Unit, editRoutines: () -> U
 private enum class RulePicker { GEAR, DOORS, ROUTINE, INTERVAL }
 
 @Composable
-private fun ConditionalRuleEditor(draft: ConditionalRuleDraft, state: ConditionalRulesUiState, model: ConditionalRulesViewModel) {
+private fun ConditionalRuleEditor(draft: ConditionalRuleDraft, state: ConditionalRulesUiState,
+                                  model: ConditionalRulesViewModel, lightAvailable: Boolean) {
     var picker by rememberSaveable(draft.id) { mutableStateOf<RulePicker?>(null) }
     var confirmingDelete by rememberSaveable(draft.id) { mutableStateOf(false) }
     val focus = LocalFocusManager.current
@@ -153,6 +188,7 @@ private fun ConditionalRuleEditor(draft: ConditionalRuleDraft, state: Conditiona
                     CockpitChoice(R.string.rules_doors, draft.doors.label(), enabled,
                         modifier = Modifier.weight(1f)) { choose(RulePicker.DOORS) }
                 }
+                RuleConditionsEditor(draft.id, draft.conditions, enabled, lightAvailable, model::conditions)
                 Text(text(R.string.rules_and_hint), color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium)
             }
@@ -220,5 +256,7 @@ private fun DoorRequirement?.label(): String = text(when (this) {
     null -> R.string.rules_any_doors
 })
 
-private fun ConditionalRule.summary(): String = listOfNotNull(gear?.label(), doors?.label()).joinToString(" · ")
+@Composable
+private fun ConditionalRule.summary(): String =
+    (listOfNotNull(gear?.label(), doors?.label()) + conditions.labels()).joinToString(" · ")
 private fun text(id: Int): String = UiText.get(id)

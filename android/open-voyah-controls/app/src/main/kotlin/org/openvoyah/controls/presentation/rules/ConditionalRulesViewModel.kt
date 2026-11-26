@@ -16,6 +16,7 @@ import org.openvoyah.controls.data.rules.ConditionalRulesPreferences
 import org.openvoyah.controls.domain.rules.ConditionalRule
 import org.openvoyah.controls.domain.rules.ConditionalRuleLibrary
 import org.openvoyah.controls.domain.rules.DoorRequirement
+import org.openvoyah.controls.domain.rules.RuleConditions
 import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.domain.routines.RoutineLibrary
 import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
@@ -29,9 +30,10 @@ internal data class ConditionalRuleDraft(
     val doors: DoorRequirement? = null,
     val enabled: Boolean = false,
     val cooldownSeconds: Int = 30,
+    val conditions: RuleConditions = RuleConditions.EMPTY,
 ) {
     val validName: Boolean get() = NamedRoutine.normalizeName(name) != null
-    val hasCondition: Boolean get() = gear != null || doors != null
+    val hasCondition: Boolean get() = gear != null || doors != null || !conditions.isEmpty
 }
 
 internal data class ConditionalRulesForm(
@@ -69,13 +71,14 @@ internal class ConditionalRulesViewModel(
     fun edit(rule: ConditionalRule) {
         if (form.value.saving || state.value.library?.entries?.firstOrNull { it.id == rule.id } != rule) return
         form.value = ConditionalRulesForm(draft = ConditionalRuleDraft(rule, rule.id, rule.name, rule.routine,
-            rule.gear, rule.doors, rule.enabled, rule.cooldownSeconds))
+            rule.gear, rule.doors, rule.enabled, rule.cooldownSeconds, rule.conditions))
     }
 
     fun closeEditor() { if (!form.value.saving) form.value = ConditionalRulesForm() }
     fun name(value: String) = changeDraft { copy(name = value) }
     fun gear(value: VehicleGear?) = changeDraft { copy(gear = value) }
     fun doors(value: DoorRequirement?) = changeDraft { copy(doors = value) }
+    fun conditions(value: RuleConditions) = changeDraft { copy(conditions = value) }
     fun enabled(value: Boolean) = changeDraft { copy(enabled = value) }
     fun cooldown(value: Int) = changeDraft {
         if (value in ConditionalRule.MIN_COOLDOWN_SECONDS..ConditionalRule.MAX_COOLDOWN_SECONDS) copy(cooldownSeconds = value) else this
@@ -96,7 +99,7 @@ internal class ConditionalRulesViewModel(
             form.update { it.copy(error = R.string.rules_routine_changed) }
             return
         }
-        val next = ConditionalRule(draft.id, name, routine, draft.gear, draft.doors, draft.enabled, draft.cooldownSeconds)
+        val next = ConditionalRule(draft.id, name, routine, draft.gear, draft.doors, draft.enabled, draft.cooldownSeconds, draft.conditions)
         change { it.save(draft.original, next) }
     }
 

@@ -500,7 +500,11 @@ class MainActivity : ComponentActivity() {
         val entry = navigation.state.value
         lifecycleScope.launch {
             val outcome = try {
-                if (runConditionalRoutine(decision.routine, entry) { runtime.isCurrent(decision) } == null) "completed" else "failed"
+                when (runConditionalRoutine(decision.routine, entry) { runtime.staysCurrent(decision) }) {
+                    null -> "completed"
+                    R.string.routine_chain_unconfirmed -> "unconfirmed"
+                    else -> "failed"
+                }
             } catch (_: CancellationException) { "cancelled" }
             catch (_: Exception) { "unconfirmed" }
             ControlsLog.info("conditional_rule_handoff", "rule", decision.rule.id, "outcome", outcome)

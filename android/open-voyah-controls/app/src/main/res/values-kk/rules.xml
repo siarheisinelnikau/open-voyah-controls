@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="rules_title">"\"Егер болса, онда\" ережелері"</string>
-    <string name="rules_description">"Қалыпталған сценарийді қорап пен есіктің жағдайы бойынша іске қосу."</string>
+    <string name="rules_description">Таңдалған шарттардың барлығы орындалғанда сақталған сценарийді іске қосу.</string>
     <string name="rules_scope_hint">"Қосымшаның ашылуы мен қайта қосылуы өздігінен ережені іске қосымайды."</string>
     <string name="rules_unavailable">"Бұл сапардағы бірінші сигнал күту."</string>
     <string name="rules_create">"Қағиданы қосу"</string>
     <string name="rules_edit">"Қағиданы өзгерту"</string>
-    <string name="rules_empty">"Біріншіден, сценарийді жасаңыз, содан кейін ол үшін қоршау немесе есіктің шартын таңдаңыз."</string>
+    <string name="rules_empty">Сценарий құрыңыз немесе таңдаңыз, содан кейін іске қосу шарттарын белгілеңіз.</string>
     <string name="rules_manage_routines">"Сценарийлерді ашу"</string>
     <string name="rules_name">"Қағидат атауы"</string>
     <string name="rules_if">"Егер"</string>
-    <string name="rules_and_hint">"Егер екеуі де таңдалса, екеуі де расталуы керек."</string>
+    <string name="rules_and_hint">Controls сценарийді іске қосар алдында таңдалған барлық шарттарды тексереді.</string>
     <string name="rules_then">"Сонда"</string>
     <string name="rules_gear">"Қорап"</string>
     <string name="rules_doors">"Есік"</string>
@@ -31,7 +31,7 @@
     <string name="rules_save">"Қағиданы сақтау"</string>
     <string name="rules_delete">"Қағиданы өшіру"</string>
     <string name="rules_invalid_name">"1-40 көрінетін символдардың бірегей атауын келтіріңіз."</string>
-    <string name="rules_no_condition">"Қораптың орналасуын немесе есіктердің орналасуын таңдаңыз."</string>
+    <string name="rules_no_condition">Кемінде бір шартты таңдаңыз.</string>
     <string name="rules_routine_changed">"Сценарий өзгертілген немесе өшірілген. Оны қайта таңдаңыз және ағымдағы әрекеттерді орындау үшін ережені сақтаңыз."</string>
     <string name="rules_no_routine">"Сақталған сценарийді таңдаңыз."</string>
     <string name="rules_load_failed">"Ережелерді оқу мүмкін болмады. Деректер сақталды; қалпына келтіру үшін дұрыс баптаулар көшірмесін импорттау керек."</string>
