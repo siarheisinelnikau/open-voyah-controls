@@ -53,10 +53,10 @@ esac
 detach=nohup
 if command -v setsid >/dev/null 2>&1; then detach=setsid; fi
 
-for channel in launcher setting vehicle bluetooth hiboard window navigation can apollo cluster-card; do
+for channel in launcher setting vehicle bluetooth hiboard window navigation can cluster-card; do
     case "$channel" in
         launcher) dir=$base; set -- ;;
-        window|navigation|can|apollo|cluster-card) dir=$base/$channel; set -- "$channel" ;;
+        window|navigation|can|cluster-card) dir=$base/$channel; set -- "$channel" ;;
         *) dir=$base/locale-$channel; set -- "$channel" ;;
     esac
     [ -d "$dir" ] && [ ! -L "$dir" ] || continue

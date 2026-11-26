@@ -239,8 +239,12 @@ tasks.register('compileFridaHook', Exec) {
     outputs.files('src/main/assets/hooks/launcher-buttons.bundle.js', 'src/main/assets/hooks/localization.bundle.js',
         'src/main/assets/hooks/window.bundle.js', 'src/main/assets/hooks/navigation.bundle.js',
         'src/main/assets/hooks/can.bundle.js', 'src/main/assets/hooks/oversea-profiles.bundle.js',
-        'src/main/assets/hooks/apollo.bundle.js', 'src/main/assets/hooks/cluster-card.bundle.js')
+        'src/main/assets/hooks/cluster-card.bundle.js')
     outputs.dir(voiceApprovals)
+}
+def removeRetiredApolloBundle = tasks.register('removeRetiredApolloBundle', Delete) {
+    // Older builds generated this ignored file in the assets directory.
+    delete 'src/main/assets/hooks/apollo.bundle.js'
 }
 gradle.taskGraph.whenReady { graph ->
     if (localVoiceApprovals != null && graph.allTasks.any { it.project == project && it.name ==~ /(package|bundle)Release/ }) {
@@ -283,6 +287,6 @@ def stageLocalTextOverlays = tasks.register('stageLocalTextOverlays', Sync) {
     into localTextOverlayApks
 }
 tasks.named('preBuild').configure {
-    dependsOn 'compileFridaHook', stageRuntimeMetadata, stageBundledVoiceModel, stageTextOverlayScript, buildTextOverlays,
-        stageLocalTextOverlays
+    dependsOn 'compileFridaHook', removeRetiredApolloBundle, stageRuntimeMetadata, stageBundledVoiceModel,
+        stageTextOverlayScript, buildTextOverlays, stageLocalTextOverlays
 }

@@ -158,7 +158,6 @@ internal fun actionRows(verifiedOperations: Set<String>): List<ActionRow> {
     val agents = ActionCatalog.agents.map { id ->
         val (title, summary) = when (id) {
             ActionCatalog.NAVIGATION -> R.string.action_navigation to R.string.action_navigation_summary
-            ActionCatalog.APOLLO -> R.string.action_apollo to R.string.action_apollo_summary
             ActionCatalog.CLUSTER_CARD -> R.string.action_cluster_card to R.string.action_cluster_card_summary
             "locale-setting" -> R.string.action_locale_setting to R.string.action_locale_summary
             "locale-vehicle" -> R.string.action_locale_vehicle to R.string.action_locale_summary

@@ -21,7 +21,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.openvoyah.controls.domain.apollo.ApolloCacheStatus
 import org.openvoyah.controls.domain.apollo.ApolloCandidatePlan
+import org.openvoyah.controls.domain.apollo.ApolloFeature
 import org.openvoyah.controls.domain.apollo.FactoryAssistanceEvidence
+import org.openvoyah.controls.domain.apollo.requestsFrom
 import org.openvoyah.controls.platform.ui.FACTORY_VEHICLE_SETTINGS_PACKAGE
 import org.openvoyah.controls.platform.ui.VehicleSettingsDestination
 import org.openvoyah.controls.platform.ui.VehicleSettingsLauncher
@@ -50,7 +52,9 @@ internal class ApolloCandidateEvidenceProbe(context: Context) {
         val dedicated = runCatching { launcher.intent(VehicleSettingsDestination.ASSISTANCE)?.component }.getOrNull()
         val general = runCatching { launcher.intent(VehicleSettingsDestination.ASSISTANCE_VEHICLE_MENU)?.component }.getOrNull()
         val cache = if (includeFactoryCache) cacheReader.read(cacheProvider) else ApolloFactoryCache(ApolloCacheStatus.NOT_REQUESTED)
-        val cachedFields = cache.fields.values.count { it.value != null }
+        val cachedValues = cache.fields.mapNotNull { (name, field) -> field.value?.let { name to it } }.toMap()
+        val cachedFields = cachedValues.size
+        val featureRequests = ApolloFeature.entries.associateWith { it.requestsFrom(cachedValues) }
         val fields = JSONObject()
         for ((name, field) in cache.fields) {
             val item = JSONObject().put("state", field.state)
@@ -62,6 +66,18 @@ internal class ApolloCandidateEvidenceProbe(context: Context) {
             .put("source", "QGSettings.System persisted CAN request cache")
             .put("expected_fields", ApolloCandidatePlan.AFFECTED_FLAGS.size).put("observed_fields", cachedFields)
             .put("fields", fields).put("controller_feedback", false).put("usable_as_rollback", false)
+        val featureReport = JSONObject()
+        for ((feature, requests) in featureRequests) {
+            val item = JSONObject().put("factory_option", "not_observed").put("access", "not_observed")
+                .put("change_confirmation", "not_observed").put("controller_state", "not_observed")
+            feature.settingRequestKey?.let {
+                item.put("setting_request_cache_key", it).put("setting_request_cache_value", requests.setting ?: JSONObject.NULL)
+            }
+            feature.serviceRequestKey?.let {
+                item.put("service_request_cache_key", it).put("service_request_cache_value", requests.service ?: JSONObject.NULL)
+            }
+            featureReport.put(feature.id, item)
+        }
         val report = JSONObject().put("schema", 2).put("mode", "read_only")
             .put("capture_started_elapsed_ms", started).put("capture_ended_elapsed_ms", SystemClock.elapsedRealtime())
             // Elapsed times restart with the head unit, so a wall clock is recorded for pairing two captures.
@@ -79,6 +95,7 @@ internal class ApolloCandidateEvidenceProbe(context: Context) {
                 .put("vehicle_component", general?.flattenToShortString() ?: JSONObject.NULL).put("opened_by_probe", false))
             .put("provider", providerRecord(provider).put("authority", BAIDU_AUTHORITY).put("content_queried", false))
             .put("factory_request_cache", cacheReport)
+            .put("features", featureReport)
             .put("recovery", JSONObject().put("off_device_backup", "not_verified")
                 .put("independent_restore", "not_verified").put("adcu_originals", "not_observed")
                 .put("queued_factory_refresh_completion", "not_observed"))
@@ -92,7 +109,7 @@ internal class ApolloCandidateEvidenceProbe(context: Context) {
                 "Completion of the factory subscription query worker, subsequent handler processing and any later controller writes",
                 "Fresh qualified Park and zero speed plus session-bound explicit user confirmation",
             )))
-        FactoryAssistanceEvidence(report.toString(2), cache.status, cachedFields, supportSummary(report, startedDevice))
+        FactoryAssistanceEvidence(report.toString(2), cache.status, cachedFields, supportSummary(report, startedDevice), featureRequests)
     }
 
     /** Exports the snapshot with the driver's own note about the factory page, when one was written. */

@@ -249,7 +249,7 @@ sleep() {{
         self.assertNotEqual(0, verify().returncode)
         self.assertFalse((self.root / "started").exists())
 
-    def test_apollo_artifact_in_a_resealed_receipt_is_reviewed(self):
+    def test_retired_apollo_worker_and_artifact_are_refused(self):
         channel = self.base / "apollo"
         channel.mkdir(mode=0o700)
         agent = channel / "launcher-buttons.js"
@@ -263,11 +263,10 @@ sleep() {{
             f"artifact\tapollo/launcher-buttons.js\t{digest(agent)}",
         ]
         self.record.write_text("\n".join(rows) + "\n", newline="\n")
-        prefix = self.sources["supervise.sh"].split('if [ "$channel" = --verify-boot ]; then', 1)[0]
-        script = prefix + 'check_runtime && printf "%s\\n" "$target $relative"\n'
-        result = subprocess.run([BASH, "-s", "--", "apollo"], input=script, capture_output=True, text=True, timeout=15)
-        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-        self.assertIn("com.qinggan.app.vehiclesetting apollo/launcher-buttons.js", result.stdout)
+        (channel / "enabled").touch()
+        self.assertEqual(2, self.run_script("supervise.sh", "apollo").returncode)
+        self.assertNotEqual(0, self.run_script("supervise.sh", "--verify-boot").returncode)
+        self.assertFalse((self.root / "started").exists())
 
     def test_cluster_card_worker_checks_the_instrument_card_and_its_agent(self):
         channel = self.base / "cluster-card"

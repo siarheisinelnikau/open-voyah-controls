@@ -20,8 +20,9 @@ previous_legacy_injector=/data/local/tmp/$previous_runtime
 runtime_sha=b58f44918fc27843484fc62502b3d2c90ea686a85ed484bed062b23482cd1733
 previous_runtime_sha=d8ce6fe18db97594d1c7a43be4f8fb405fc76f6a01470df34504bca6461328d0
 app=org.openvoyah.controls
+# The retired Apollo worker stays in the cleanup scope for older deployments.
 channels='launcher locale-setting locale-vehicle locale-bluetooth locale-hiboard window navigation can apollo cluster-card'
-keys="$app.panel $app.voice $app.localization $app.clusterMedia $app.windowProfiles $app.windowRequest"
+keys="$app.panel $app.voice $app.localization $app.clusterMedia $app.windowProfiles $app.windowRequest $app.apolloFactory $app.apolloFactoryState"
 marker_v1='# OPEN_VOYAH_CONTROLS_BOOT_V1'
 marker_v2='# OPEN_VOYAH_CONTROLS_BOOT_V2'
 marker_v3='# OPEN_VOYAH_CONTROLS_BOOT_V3'

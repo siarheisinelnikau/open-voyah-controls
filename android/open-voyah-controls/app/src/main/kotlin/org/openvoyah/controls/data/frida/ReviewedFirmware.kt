@@ -17,7 +17,7 @@ internal object ReviewedFirmware {
     const val CLUSTER = "com.qinggan.cluster"
     const val CAN_SERVICE = "com.qinggan.canbus.service"
     const val LOGIN = "com.qinggan.app.login"
-    /** The factory settings app whose Driving assistance page the Apollo agent answers for. */
+    /** The factory settings package name remains accepted in existing firmware review rows. */
     const val VEHICLE_SETTINGS = "com.qinggan.app.vehiclesetting"
     /** The factory media card on the instrument cluster's media display, which the cluster card agent extends. */
     const val INSTRUMENT_CARD = "com.qinggan.instrumentcard"

@@ -550,7 +550,13 @@ esac
     def test_rollback_keeps_native_state_unconfirmed_until_reboot(self):
         self.install()
         (self.runtime / "enabled").write_text("", newline="\n")
-        self.settings.write_text("unrelated=keep\norg.openvoyah.controls.windowRequest=fixture\n", newline="\n")
+        unchanged = "unrelated=keep\norg.openvoyah.controls.apolloFactoryClaim=historical\n"
+        self.settings.write_text(
+            unchanged + "org.openvoyah.controls.windowRequest=fixture\n"
+            "org.openvoyah.controls.apolloFactory=retired\n"
+            "org.openvoyah.controls.apolloFactoryState=retired\n",
+            newline="\n",
+        )
         result = self.configure("rollback")
         self.assertNotEqual(0, result.returncode)
         self.assertIn("OVC_ROLLBACK_VISUALS=reboot-required", result.stdout)
@@ -558,7 +564,7 @@ esac
         self.assertEqual({"401", "402"}, set(self.signals.read_text().splitlines()))
         self.assertTrue((self.runtime / "recovery.blocked").is_file())
         self.assertEqual(STOCK, self.boot.read_bytes())
-        self.assertEqual("unrelated=keep\n", self.settings.read_text())
+        self.assertEqual(unchanged, self.settings.read_text())
         self.boot_id.write_text("6277ee31-9931-442a-9dc8-3bbbf3ff562e\n", newline="\n")
         self.assertIn("OVC_ROLLBACK_INERT=yes", self.configure("status").stdout)
         self.assert_success(self.configure("rearm"))

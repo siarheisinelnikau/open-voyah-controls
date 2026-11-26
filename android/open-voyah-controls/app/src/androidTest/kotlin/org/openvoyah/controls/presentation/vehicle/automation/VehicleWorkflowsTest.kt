@@ -230,8 +230,20 @@ class VehicleWorkflowsTest : InstrumentationTestCase() {
             scrollTo(label(R.string.factory_assistance_setup))
             awaitText(label(R.string.factory_assistance_setup))
             assertNoEnabledClick(label(R.string.factory_assistance_open_assistance))
+            scrollTo(label(R.string.factory_assistance_check))
             click(label(R.string.factory_assistance_check))
+            scrollTo(label(R.string.factory_assistance_no_provider))
             awaitText(label(R.string.factory_assistance_no_provider), timeout = 10_000)
+            val assistanceFeatures = listOf(
+                R.string.factory_assistance_feature_tlc,
+                R.string.factory_assistance_feature_traffic_lights,
+                R.string.factory_assistance_feature_green_signal,
+                R.string.factory_assistance_feature_tsr,
+                R.string.factory_assistance_feature_isa,
+                R.string.factory_assistance_feature_islc,
+            )
+            for (feature in assistanceFeatures) scrollTo(label(feature))
+            scrollTo(label(R.string.factory_assistance_feature_unknown), backwards = true)
             scrollTo(label(R.string.factory_assistance_export))
             awaitText(label(R.string.factory_assistance_export))
             capture("factory-assistance")

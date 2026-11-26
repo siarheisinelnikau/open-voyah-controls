@@ -16,6 +16,7 @@ import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.openvoyah.controls.domain.apollo.ApolloCacheStatus
 import org.openvoyah.controls.domain.apollo.ApolloCandidatePlan
+import org.openvoyah.controls.domain.apollo.ApolloFeature
 
 @Suppress("DEPRECATION")
 class ApolloCandidateEvidenceProbeTest : AndroidTestCase() {
@@ -42,6 +43,17 @@ class ApolloCandidateEvidenceProbeTest : AndroidTestCase() {
         assertFalse(cache.getBoolean("usable_as_rollback"))
         assertEquals(18, cache.getInt("expected_fields"))
         assertFalse(report.getJSONObject("factory_menu").getBoolean("opened_by_probe"))
+        val features = report.getJSONObject("features")
+        assertEquals(6, features.length())
+        for (feature in ApolloFeature.entries) {
+            val item = features.getJSONObject(feature.id)
+            for (field in listOf("factory_option", "access", "change_confirmation", "controller_state")) {
+                assertEquals("not_observed", item.getString(field))
+            }
+        }
+        val tlc = features.getJSONObject("tlc")
+        assertEquals("TLC_FUNC_ENABLE", tlc.getString("setting_request_cache_key"))
+        assertTrue(tlc.has("setting_request_cache_value") && tlc.isNull("setting_request_cache_value"))
     }
 
     fun testExplicitCheckOnAnEmulatorRecordsTheMissingSourceAndRecovery() = runBlocking {

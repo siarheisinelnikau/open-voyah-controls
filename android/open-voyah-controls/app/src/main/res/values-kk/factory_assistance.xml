@@ -1,26 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="factory_assistance_title">"Apollo және жүргізу ассистенттері"</string>
-    <string name="factory_assistance_description">"Apollo Free 318 үйлесімді әдеттегі мәзірдегі баптау."</string>
+    <string name="factory_assistance_description">Көлігіңізде қандай жүргізу ассистенттері қолжетімді екенін тексеріңіз.</string>
     <string name="factory_assistance_setup">"Автомобильде баптау"</string>
     <string name="factory_assistance_sequence">"\"Автомобиль → Ассистенттер\" дегенді ашу."</string>
     <string name="factory_assistance_guest">"Егер пункт қонақ режимімен қолжетімді болмаса, штаттық мәзірдің нұсқауын тексеріңіз."</string>
     <string name="factory_assistance_qualification">"Бас құрылғыны тексеру"</string>
     <string name="factory_assistance_unqualified">"Басты құрылғының бағдарламалық қамтамасыз етуін және сақталған сұраныстарды оқыңыз. Ассистенттердің қолжетімділігі мен жағдайын көлікте тексеріңіз."</string>
     <string name="factory_assistance_manual">"FREE 318 нұсқаулығы"</string>
-    <string name="factory_assistance_answers">"Штаттық бетке жауап"</string>
-    <string name="factory_assistance_answers_summary">"Басқарушы күйге қосылғанда, Controls қалыпты баптаулардың ішінен жауап береді. Қалпына келтіру жауапты кері қайтарады."</string>
-    <string name="factory_assistance_part_subscription">"Apollo- ды қонақ режимінде көрсету"</string>
-    <string name="factory_assistance_part_subscription_message">"Зауыттық баптаулар өзінің жазылу провайдерінен Apollo қолтаңбаланған ма деп сұрайды. Controls бұл сұраққа жазылудың штаттық жауабымен жауап береді, сондықтан парақ Apollo функцияларын ұсына алады, ал профиль қонақ болып қала береді. Жауап тек естелікте өмір сүреді: ол штаттық баптауларды сөндіру немесе қайта іске қосу кезінде жоғалады, көлікке ештеңе жазбайды."</string>
-    <string name="factory_assistance_part_controller">"Ассистенттердің жай-күйін бақылаушыға жіберу (тәжірибелік)"</string>
-    <string name="factory_assistance_part_controller_message">"Егер машина тоқтап тұрған жағдайда және қозғалмайтын болса, штаттық қосымша бір рет өзінің көмекші деректер жиынтығын жүргізушіге көмек көрсету контроллерына жіберуді сұрайды. Басқа жөнелту пунктімен ауысу жөнелтуді қайталамайды. Бір жөнелту бірден он сегіз өріске тигізеді, магнитолдің бастапқы мәндерін кері есептей алмайды, тексерілген қайту жоқ. Қабылданған сұрау контроллердің жай-күйін растамайды. Өз қауіп-қатеріңізге және тәуекеліңізге пайдаланып көріңіз."</string>
-    <string name="factory_assistance_part_equipment">"Baidu жиынтығының тармағын таңдау (тәжірибелік)"</string>
-    <string name="factory_assistance_part_equipment_message">"Баидуның ішкі аймағын таңдап алу үшін зауыттық бетке нұсқау беріледі. Тек беттің көрсеткенін ғана өзгертеді; автокөліктің конфигурациясы сақталады. Екінші өнім берушімен көлікте бетке оның жоқ функцияларын ұсына алады. Өз қорқынышыңыз бен тәуекеліңіз үшін қолданыңыз."</string>
-    <string name="factory_assistance_answers_waiting">"Бұл туралы штаттық баптаулар хабарлауын күтеміз."</string>
-    <string name="factory_assistance_answers_unavailable">"Белгіленген ПҚ ұсынбады: %1$s."</string>
-    <string name="factory_assistance_answers_controller_request">"Бақылаушының сұранысы қабылданды. Бақылаушының жағдайы расталмаған."</string>
-    <string name="factory_assistance_park_required">"Көлікті басқарушыға көмекшілерді жібергенге дейін тоқтату."</string>
-    <string name="factory_assistance_answers_note">"Controls бірінші қосылған ауыстырғыштан бастап штаттық баптаулар жұмысын бастайды және оны соңғы сөндірілгенде тоқтатады. Өзгерістер штаттық бетте бір секунд ішінде кездеседі. \"Apollo диагностикасын санаңыз\" әлі күнге дейін сақталған сұрауларды ғана көрсетеді, бірақ бақылаушының жай-күйін көрсетпейді."</string>
     <string name="factory_assistance_requested">"Автомобильдегі ассистенттердің жай-күйін тексеріңіз."</string>
     <string name="factory_assistance_check">"Apollo диагностикасын есептеу"</string>
     <string name="factory_assistance_reading">"Біз бағдарламалық қамтамасыз ету және сақталған сұрауларды оқимыз..."</string>
@@ -42,6 +29,15 @@
     <string name="factory_assistance_open_vehicle_menu">"Автомобильдің мәзірін ашу"</string>
     <string name="factory_assistance_open_failed">"Таңдалған мәзірді ашу мүмкін емес. Автомобильдің мәзірін штаттық панельден ашуға тырысыңыз."</string>
     <string name="factory_assistance_fallback">"Көлік мәзірінен \"Ассистенттер\" дегенді таңдаңыз."</string>
-    <string name="factory_assistance_answers_controller_uncertain">Контроллерге сұрау жіберілгені расталмады. Автокөліктегі ассистенттердің күйін тексеріңіз.</string>
-    <string name="factory_assistance_answers_partial">Келесі жауаптарды толық қалпына келтіру мүмкін болмады: %1$s. Зауыттық беттегі жауаптардың бір бөлігі әлі де өзгертілген. Қалпына келтіру үшін зауыттық баптаулар қолданбасын қайта іске қосыңыз.</string>
+    <string name="factory_assistance_features">Жүргізу ассистенттері</string>
+    <string name="factory_assistance_features_summary">Зауыттық мәзірден тармақтың көрсетілуін, тіркелгіге қолжетімділігін, өзгерістің сақталуын және ассистенттің дайындығын не белсенділігін тексеріңіз. Кэште зауыттық бағдарламаның сұраулары ғана көрсетіледі.</string>
+    <string name="factory_assistance_feature_tlc">Бұрылыс сигналы арқылы жолақты ауыстыру (TLC)</string>
+    <string name="factory_assistance_feature_traffic_lights">Бағдаршамды тану</string>
+    <string name="factory_assistance_feature_green_signal">Жасыл сигналдың дыбыстық ескертуі</string>
+    <string name="factory_assistance_feature_tsr">Жол белгілерін тану (TSR)</string>
+    <string name="factory_assistance_feature_isa">Жылдамдық шегі туралы ескерту (ISA)</string>
+    <string name="factory_assistance_feature_islc">Жылдамдық шегін зияткерлік басқару (ISLC)</string>
+    <string name="factory_assistance_feature_unknown">Ағымдағы күй қолжетімсіз</string>
+    <string name="factory_assistance_feature_setting">Баптау сұрауының кэш мәні · %1$d</string>
+    <string name="factory_assistance_feature_service">Қызметтің қолжетімділігі туралы сұраудың кэш мәні · %1$d</string>
 </resources>

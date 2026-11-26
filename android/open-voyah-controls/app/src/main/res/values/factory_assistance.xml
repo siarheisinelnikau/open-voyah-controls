@@ -1,27 +1,12 @@
 <resources>
     <string name="factory_assistance_title">Apollo and driving assistance</string>
-    <string name="factory_assistance_description">Apollo on a compatible FREE 318 · setup stays in the factory controls.</string>
+    <string name="factory_assistance_description">Review the driving assistance controls your vehicle may offer.</string>
     <string name="factory_assistance_setup">Set up in the vehicle</string>
     <string name="factory_assistance_sequence">Open Vehicle → Driving assistance. On a compatible vehicle, enable TLC before NOA.</string>
     <string name="factory_assistance_guest">If a control is unavailable in Guest, check what the factory page asks for. Follow its prompts for vehicle account, training or service access.</string>
     <string name="factory_assistance_qualification">Check this head unit</string>
     <string name="factory_assistance_unqualified">Read the head-unit software details and cached factory requests. Check access and assistance status in the vehicle.</string>
     <string name="factory_assistance_manual">FREE 318 owner manual</string>
-    <string name="factory_assistance_answers">Answer for the factory page</string>
-    <string name="factory_assistance_answers_summary">While a switch is on, Controls answers inside the factory settings app. Turning it off takes the answer away again. None of this confirms what the vehicle did.</string>
-    <string name="factory_assistance_part_subscription">Show Apollo controls in Guest</string>
-    <string name="factory_assistance_part_subscription_message">The factory settings page asks its own subscription provider whether Apollo is subscribed. Controls answers that question with the stock subscribed answer, so the page can offer the Apollo controls while the profile stays Guest. The answer is held in memory only: it is gone when the switch is off or the factory app restarts, and nothing is written to the vehicle.</string>
-    <string name="factory_assistance_part_controller">Send the assistance state to the controller (experimental)</string>
-    <string name="factory_assistance_part_controller_message">With the car in Park and stopped, the factory software is asked once to send its assistance bundle to the driving-assistance controller. Changing another switch does not send it again. One send covers eighteen named fields at once, the head unit cannot read the original values back, and there is no verified way back. An accepted request does not confirm the controller state. Use it at your own risk.</string>
-    <string name="factory_assistance_part_equipment">Use the Baidu equipment branch (experimental)</string>
-    <string name="factory_assistance_part_equipment_message">The factory page is told to select the Baidu equipment branch and the domestic region. Only what the page shows changes; the vehicle configuration readings behind it stay as they are. On a vehicle with another supplier the page can offer controls the vehicle does not have. Use it at your own risk.</string>
-    <string name="factory_assistance_answers_waiting">Waiting for the factory settings app to report what it accepted.</string>
-    <string name="factory_assistance_answers_unavailable">The installed software did not offer: %1$s.</string>
-    <string name="factory_assistance_answers_controller_request">The controller request was accepted. The controller state is not verified.</string>
-    <string name="factory_assistance_answers_controller_uncertain">The result of the controller request is unknown. Check assistance status in the vehicle.</string>
-    <string name="factory_assistance_answers_partial">A substitution for %1$s could not be fully taken back: part of the factory page is still answered. Restart the factory settings app to restore it.</string>
-    <string name="factory_assistance_park_required">Stop the car in Park before sending the assistance state to the controller.</string>
-    <string name="factory_assistance_answers_note">Controls starts the factory settings worker with the first switch and stops it with the last one. The change reaches the factory page within a second. Read Apollo diagnostics still reports cached requests only, never a controller state.</string>
     <string name="factory_assistance_requested">Factory settings requested. Check assistance status in the vehicle.</string>
     <string name="factory_assistance_check">Read Apollo diagnostics</string>
     <string name="factory_assistance_reading">Reading factory software and cached values…</string>
@@ -43,4 +28,15 @@
     <string name="factory_assistance_open_vehicle_menu">Open vehicle menu</string>
     <string name="factory_assistance_open_failed">Could not open the selected menu. Try opening the vehicle menu from the factory panel.</string>
     <string name="factory_assistance_fallback">Choose Driving assistance in the general vehicle menu.</string>
+    <string name="factory_assistance_features">Driver assistance features</string>
+    <string name="factory_assistance_features_summary">In the factory menu, check whether an option appears, whether your account can use it, whether a change is kept and whether the assistant is ready or active. Cached requests only show what the factory software asked for.</string>
+    <string name="factory_assistance_feature_tlc">Lane change with turn signal (TLC)</string>
+    <string name="factory_assistance_feature_traffic_lights">Traffic light recognition</string>
+    <string name="factory_assistance_feature_green_signal">Green light sound</string>
+    <string name="factory_assistance_feature_tsr">Traffic sign recognition (TSR)</string>
+    <string name="factory_assistance_feature_isa">Speed limit warning (ISA)</string>
+    <string name="factory_assistance_feature_islc">Intelligent speed limit control (ISLC)</string>
+    <string name="factory_assistance_feature_unknown">Current status unavailable</string>
+    <string name="factory_assistance_feature_setting">Cached setting request · %1$d</string>
+    <string name="factory_assistance_feature_service">Cached service request · %1$d</string>
 </resources>

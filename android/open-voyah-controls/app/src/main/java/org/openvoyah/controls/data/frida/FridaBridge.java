@@ -63,12 +63,9 @@ public final class FridaBridge {
     private static final String DISPLAY_MOVE_READY = "^OVC_WINDOW_READY protocol=3 .*displayMove=1( |$)";
     private static final String KEYBOARD_READY = "^OVC_KEYBOARD_READY protocol=1( |$)";
     private static final String FIXTURE_BASE = "/data/local/tmp/open-voyah-controls";
-    /** The document the factory assistance agent reads, and the one it reports what it could apply into. */
-    private static final String APOLLO_CONFIG = "org.openvoyah.controls.apolloFactory";
-    private static final String APOLLO_STATE = "org.openvoyah.controls.apolloFactoryState";
-    /** The request id carried by the config document, so a stale agent report is never shown as current. */
-    private static final String APOLLO_REQUEST = "apolloRequest";
-    private static final String[] CHANNELS = {"", "/locale-setting", "/locale-vehicle", "/locale-bluetooth", "/locale-hiboard", "/window", "/navigation", "/can", "/apollo",
+    /** Kept in shutdown and recovery scope so upgrades can detach old workers. */
+    private static final String RETIRED_APOLLO_CHANNEL = "/apollo";
+    private static final String[] CHANNELS = {"", "/locale-setting", "/locale-vehicle", "/locale-bluetooth", "/locale-hiboard", "/window", "/navigation", "/can", RETIRED_APOLLO_CHANNEL,
         "/cluster-card"};
     private static final String FIXTURE_INJECTOR = "/data/local/tmp/open-voyah-controls-frida-17.26.2";
     private static final Object IO_LOCK = new Object();
@@ -381,6 +378,8 @@ public final class FridaBridge {
     private ActivationRecovery.Result recoverActivationLocked(ActivationRecovery.Mode mode, ControlsLog.Span span)
             throws IOException {
         requireRoot();
+        try { clearRetiredApolloConfig(); }
+        finally { command(stopCommand(RETIRED_APOLLO_CHANNEL)); }
         ActivationRecovery.Result result = ActivationRecovery.parse(command(ActivationRecovery.script(base, mode)));
         span.field("recovery", result.getOutcome().getToken()).field("recovery_reason", result.getReason());
         if (result.getOutcome() != ActivationRecovery.Outcome.NONE) {
@@ -496,18 +495,18 @@ public final class FridaBridge {
         boolean window = windowHookEnabled(context) && windowHookSupported() && windowReviewed();
         boolean navigation = navigationHookEnabled(context) && navigationReviewed();
         boolean can = canReviewed();
-        boolean apollo = apolloHookEnabled(context) && apolloReviewed();
         // Runs whenever its package is pinned and the agent allowed; the setting only changes what it shows.
         boolean clusterCard = clusterCardReviewed();
         java.util.List<String> locales = localizationChannels();
         Uploads uploads = new Uploads(progress, 3 + locales.size() + (window ? 1 : 0) + (navigation ? 1 : 0) + (can ? 1 : 0)
-            + (apollo ? 1 : 0) + (clusterCard ? 1 : 0));
+            + (clusterCard ? 1 : 0));
         progress.report(DeploymentProgress.Stage.STOPPING, null, 0, 0);
         // Stop only this project's prior worker. Never kill another Frida instance.
         boolean panelRestored = restorePanelIcons();
         boolean windowRestored = releaseWindowLocked();
         if (!panelRestored || !windowRestored) recordVisualRecovery();
         command(stopCommand(CHANNELS));
+        clearRetiredApolloConfig();
         panelRestored &= stoppedVisualSession("");
         windowRestored &= stoppedVisualSession("/window");
         if (!panelRestored || !windowRestored) {
@@ -548,13 +547,6 @@ public final class FridaBridge {
         if (can) {
             stageOptionalHook("can", uploads);
             channels.add("can");
-        }
-        if (apollo) {
-            publishApolloConfig();
-            stageOptionalHook("apollo", uploads);
-            channels.add("apollo");
-        } else {
-            command("settings delete global " + APOLLO_CONFIG);
         }
         if (clusterCard) {
             stageOptionalHook("cluster-card", uploads);
@@ -668,161 +660,16 @@ public final class FridaBridge {
     }
     public void setNavigationHook(boolean enabled) throws IOException { setOptionalHook("navigation", enabled); }
 
-    /** The three parts of the factory assistance path the driver can choose independently. */
-    public static final java.util.List<String> APOLLO_PARTS = java.util.List.of("subscription", "controller", "equipment");
-    private static String apolloKey(String part) {
-        return switch (part) {
-            case "subscription" -> "apolloSubscription";
-            case "controller" -> "apolloController";
-            case "equipment" -> "apolloEquipment";
-            default -> throw new IllegalArgumentException("Unknown factory assistance part");
-        };
-    }
-    public static boolean apolloPartEnabled(Context context, String part) {
-        return context.getSharedPreferences("bridge", Context.MODE_PRIVATE).getBoolean(apolloKey(part), false);
-    }
-    /** The channel runs while the driver wants any part of the factory assistance path. */
-    public static boolean apolloHookEnabled(Context context) {
-        for (String part : APOLLO_PARTS) if (apolloPartEnabled(context, part)) return true;
-        return false;
-    }
-    /** The request id of the config the agent is working on, or null before anything was published. */
-    public static String apolloRequest(Context context) {
-        return context.getSharedPreferences("bridge", Context.MODE_PRIVATE).getString(APOLLO_REQUEST, null);
-    }
-    /** The document the agent reads. Only the chosen parts are true; nothing is inferred from the vehicle. */
-    public static String apolloConfig(Context context) {
-        return apolloConfig(context, apolloRequest(context), false, "", 0L, 0L);
-    }
-    private static String apolloConfig(Context context, String request, boolean send, String boot,
-                                       long issued, long expires) {
-        var store = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
-        StringBuilder document = new StringBuilder("{\"schema\":1");
-        if (request != null) document.append(",\"request\":\"").append(request).append('"');
-        // A send permit is written only after a fresh Park and zero-speed check. The boot id is authoritative across
-        // a reboot; wall-clock bounds cover a clock adjustment inside one boot. Elapsed real time restarts with the
-        // kernel and could make an old document look fresh to the boot agent.
-        if (send) document.append(",\"send\":true,\"boot\":\"").append(boot)
-            .append("\",\"issued\":").append(issued).append(",\"expires\":").append(expires);
-        for (String part : APOLLO_PARTS) document.append(",\"").append(part).append("\":")
-            .append(store.getBoolean(apolloKey(part), false));
-        return document.append('}').toString();
-    }
-    /** What the agent reported it could apply, or null when it has not written one yet. */
-    public static String apolloState(Context context) {
-        try { return android.provider.Settings.Global.getString(context.getContentResolver(), APOLLO_STATE); }
-        catch (RuntimeException unreadable) { return null; }
-    }
-    /** The factory settings package is pinned for this firmware and the owner has not forbidden the agent. */
-    private boolean apolloReviewed() {
-        return packageReviewed(ReviewedFirmware.VEHICLE_SETTINGS)
-            && (production == null || production.agentAllowed(ActionCatalog.APOLLO));
-    }
     /**
-     * Turns one part of the factory assistance path over to the agent; the agent applies it within a second.
-     * The preference is written only after every check that can refuse the request has passed, and anything that
-     * fails afterwards puts the position back so the interface cannot show an answer the agent never received.
+     * Clears old worker input before waiting for its detach. The historical controller claim stays intact.
+     * Halting the old worker says nothing about whether a previous controller request took effect.
      */
-    public void setApolloPart(String part, boolean enabled) throws IOException {
-        synchronized (IO_LOCK) {
-            try (ControlsLog.Span span = ControlsLog.span("bridge_apollo", "part", part, "enabled", enabled)) {
-                String key = apolloKey(part);
-                var store = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
-                boolean previous = store.getBoolean(key, false);
-                boolean saved = false;
-                try {
-                    if (!knownAuthorization()) throw new ProductionRootAccess.Refused(UiText.get(R.string.production_connect_required));
-                    requireRoot();
-                    if (enabled && !apolloReviewed()) throw unreviewedOperation();
-                    // Only the controller writes to the car. A neighbouring switch never carries a permit.
-                    boolean send = enabled && "controller".equals(part);
-                    if (!store.edit().putBoolean(key, enabled).commit()) {
-                        throw new IOException(UiText.get(R.string.ui_152));
-                    }
-                    saved = true;
-                    if (!apolloHookEnabled(context)) {
-                        stopApolloChannel(store);
-                    } else {
-                        if (!runtimeConfigured()) throw new IOException(UiText.get(R.string.ui_19));
-                        if (production != null) production.requireActivation();
-                        if (!enabledChannels().contains("apollo")) {
-                            stageOptionalHook("apollo");
-                            if (production != null) {
-                                Set<String> active = enabledChannels();
-                                active.add("apollo");
-                                sealDeployment(active);
-                            }
-                            enableChannel("apollo");
-                            command(activationGuard() + fixtureEnvironment() + DETACHED + "/system/bin/sh " + base
-                                + "/supervise.sh apollo >/dev/null 2>&1 </dev/null &");
-                        }
-                        // The live Park check and its short-lived permit are written as the last step, so a
-                        // stopped agent cannot pick up a permit from long before it attached.
-                        if (send) requireApolloParked();
-                        publishApolloConfig(send);
-                    }
-                    span.outcome("applied");
-                } catch (IOException | RuntimeException ex) {
-                    if (saved) restoreApolloPart(part, previous);
-                    record(span, ex);
-                    throw ex;
-                }
-            }
-        }
-    }
-
-    /** The launcher agent reads live gear and speed again here; no cached reading can open this gate. */
-    private void requireApolloParked() throws IOException {
-        VoiceReply parking = sendRecognizedVoice("ParkingPreflight", new JSONObject());
-        if (!parking.accepted() || !"OVC_PARKING_READY".equals(parking.message())) {
-            throw new IOException(UiText.get(R.string.factory_assistance_park_required));
-        }
-    }
-
-    private void stopApolloChannel(android.content.SharedPreferences store) throws IOException {
-        command(stopCommand("/apollo"));
-        command(activationGuard() + "settings delete global " + APOLLO_CONFIG);
-        store.edit().remove(APOLLO_REQUEST).commit();
-    }
-
-    /** Puts the switch and the document back after a failed command, so the agent drops the request too. */
-    private void restoreApolloPart(String part, boolean previous) {
-        try {
-            var store = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
-            if (!store.edit().putBoolean(apolloKey(part), previous).commit()) {
-                throw new IOException(UiText.get(R.string.ui_152));
-            }
-            if (apolloHookEnabled(context)) publishApolloConfig(false);
-            else stopApolloChannel(store);
-        } catch (IOException | RuntimeException rollback) {
-            ControlsLog.warn("bridge_apollo_rollback", rollback, "part", part);
-        }
-    }
-
-    private void publishApolloConfig() throws IOException { publishApolloConfig(false); }
-
-    /** A new request id each time ties the agent's report to this write, not to an earlier config it may still hold. */
-    private void publishApolloConfig(boolean send) throws IOException {
-        String request = UUID.randomUUID().toString().replace("-", "");
-        String boot = send ? currentBootId() : "";
-        long issued = send ? System.currentTimeMillis() : 0L;
-        long expires = send ? issued + 5000L : 0L;
+    private void clearRetiredApolloConfig() throws IOException {
+        command("settings delete global org.openvoyah.controls.apolloFactory >/dev/null"
+            + " && settings delete global org.openvoyah.controls.apolloFactoryState >/dev/null");
         var store = context.getSharedPreferences("bridge", Context.MODE_PRIVATE);
-        if (!store.edit().putString(APOLLO_REQUEST, request).commit()) {
-            throw new IOException(UiText.get(R.string.ui_152));
-        }
-        command(activationGuard() + "settings put global " + APOLLO_CONFIG + " "
-            + quote(apolloConfig(context, request, send, boot, issued, expires)));
-    }
-
-    /** The kernel boot id is the only clock-independent proof that a permit belongs to this boot. */
-    private static String currentBootId() throws IOException {
-        try (var reader = new java.io.BufferedReader(new java.io.FileReader("/proc/sys/kernel/random/boot_id"))) {
-            String value = reader.readLine();
-            String boot = value == null ? "" : value.trim();
-            if (!boot.matches("[a-f0-9-]{8,64}")) throw new IOException("Boot identity is unavailable.");
-            return boot;
-        }
+        store.edit().remove("apolloSubscription").remove("apolloController").remove("apolloEquipment")
+            .remove("apolloRequest").apply();
     }
 
     /** Whether the pinned firmware and the owner's allowed actions let one optional channel run. */
@@ -831,7 +678,6 @@ public final class FridaBridge {
             case "window" -> windowReviewed();
             case "navigation" -> navigationReviewed();
             case "can" -> canReviewed();
-            case "apollo" -> apolloReviewed();
             case "cluster-card" -> clusterCardReviewed();
             default -> false;
         };
@@ -921,13 +767,13 @@ public final class FridaBridge {
     private Set<String> enabledChannels() throws IOException {
         StringBuilder script = new StringBuilder();
         for (String suffix : CHANNELS) {
-            if (!suffix.isEmpty()) script.append("if test -f ").append(base).append(suffix)
+            if (!suffix.isEmpty() && !suffix.equals(RETIRED_APOLLO_CHANNEL)) script.append("if test -f ").append(base).append(suffix)
                 .append("/enabled; then echo ").append(suffix.substring(1)).append("; fi\n");
         }
         var reported = java.util.Arrays.asList(command(script.toString()).split("\\n"));
         Set<String> result = new LinkedHashSet<>();
         for (String suffix : CHANNELS) {
-            if (!suffix.isEmpty() && reported.contains(suffix.substring(1))) {
+            if (!suffix.isEmpty() && !suffix.equals(RETIRED_APOLLO_CHANNEL) && reported.contains(suffix.substring(1))) {
                 result.add(suffix.substring(1));
             }
         }
@@ -1671,6 +1517,7 @@ public final class FridaBridge {
                 boolean windowsRestored = releaseWindowLocked();
                 if (!iconsRestored || !windowsRestored) recordVisualRecovery();
                 command(stopCommand(CHANNELS));
+                clearRetiredApolloConfig();
                 iconsRestored &= stoppedVisualSession("");
                 windowsRestored &= stoppedVisualSession("/window");
                 span.field("icons_restored", iconsRestored).field("windows_restored", windowsRestored);

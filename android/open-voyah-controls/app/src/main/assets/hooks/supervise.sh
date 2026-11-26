@@ -26,7 +26,6 @@ case "$channel" in
     window) package=android; relative=window/launcher-buttons.js; pattern='^OVC_WINDOW_READY protocol=3 ' ;;
     navigation) package=com.qinggan.cluster; relative=navigation/launcher-buttons.js; pattern='^OVC_NAVIGATION_READY' ;;
     can) package=com.qinggan.canbus.service; relative=can/launcher-buttons.js; pattern='^OVC_CAN_READY protocol=2 terminal edges ' ;;
-    apollo) package=com.qinggan.app.vehiclesetting; relative=apollo/launcher-buttons.js; pattern='^OVC_APOLLO_READY' ;;
     cluster-card) package=com.qinggan.instrumentcard; relative=cluster-card/launcher-buttons.js; pattern='^OVC_CLUSTER_CARD_READY' ;;
     --verify-boot|--recover|--visual-session-state|--visual-session-clear-restored|--visual-session-clear-changed) ;;
     *) exit 2 ;;
@@ -135,7 +134,7 @@ reviewed_receipt() {
                     locale-setting/launcher-buttons.js|locale-vehicle/launcher-buttons.js|locale-bluetooth/launcher-buttons.js|\
                     locale-hiboard/launcher-buttons.js|\
                     window/launcher-buttons.js|navigation/launcher-buttons.js|can/launcher-buttons.js|\
-                    apollo/launcher-buttons.js|cluster-card/launcher-buttons.js) ;;
+                    cluster-card/launcher-buttons.js) ;;
                     *) return 1;;
                 esac
                 case "$rr_artifacts" in *"|$2|"*) return 1;; esac
@@ -396,13 +395,13 @@ recovery_recorded=0
 channel_suffix() {
     case "$1" in
         main) echo '';;
-        locale-setting|locale-vehicle|locale-bluetooth|locale-hiboard|window|navigation|can|apollo|cluster-card) echo "/$1";;
+        locale-setting|locale-vehicle|locale-bluetooth|locale-hiboard|window|navigation|can|cluster-card) echo "/$1";;
         *) return 1;;
     esac
 }
 enabled_channels() {
     ec_list=
-    for ec_name in main locale-setting locale-vehicle locale-bluetooth locale-hiboard window navigation can apollo cluster-card; do
+    for ec_name in main locale-setting locale-vehicle locale-bluetooth locale-hiboard window navigation can cluster-card; do
         ec_suffix=$(channel_suffix "$ec_name")
         if [ -f "$root$ec_suffix/enabled" ] && [ ! -L "$root$ec_suffix/enabled" ]; then ec_list="${ec_list:+$ec_list,}$ec_name"; fi
     done
@@ -447,7 +446,7 @@ revoke_activation() {
     done
     recovery_recorded=1
     log "OVC_WORKER_NOTICE Activation revoked reason=$revoke_reason."
-    # Close every known channel only after durable recovery evidence exists.
+    # Close every known channel, including the retired Apollo worker, after durable recovery evidence exists.
     for suffix in '' /locale-setting /locale-vehicle /locale-bluetooth /locale-hiboard /window /navigation /can /apollo /cluster-card; do
         recovery_dir="$root$suffix"
         if [ -e "$recovery_dir" ] || [ -L "$recovery_dir" ]; then

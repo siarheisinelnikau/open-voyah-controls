@@ -11,4 +11,5 @@ internal data class FactoryAssistanceEvidence(
     val cachedFields: Int,
     /** The identities the report already holds, as short text a driver can copy into a support request. */
     val supportSummary: String = "",
+    val featureRequests: Map<ApolloFeature, ApolloFeatureRequests> = emptyMap(),
 )

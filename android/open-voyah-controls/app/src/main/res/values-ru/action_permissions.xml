@@ -43,8 +43,6 @@
     <string name="action_system_reboot_summary">Штатная перезагрузка магнитолы из настроек, только на P.</string>
     <string name="action_navigation">Навигация на приборной панели</string>
     <string name="action_navigation_summary">Агент приборной панели: карточка навигации и играющий трек.</string>
-    <string name="action_apollo">Ответы штатной страницы ассистентов</string>
-    <string name="action_apollo_summary">Агент штатных настроек: ответ про Apollo для страницы ассистентов и только те отправки, которые включил водитель.</string>
     <string name="action_cluster_card">Медиакарточка на приборной панели</string>
     <string name="action_cluster_card_summary">Агент штатной медиакарточки приборной панели: Voyah Music и Voyah Radio среди её источников.</string>
     <string name="action_locale_setting">Перевод: Настройки</string>
