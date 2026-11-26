@@ -79,8 +79,8 @@ class BindingDialogs(private val dialogs: CockpitDialogs) {
         }
     }
 
-    fun choose(selected: Consumer<Action>): Dialog = dialogs.show { close ->
-        ActionPicker(close) { close(); selected.accept(it) }
+    fun choose(routines: List<Pair<String, String>>? = null, selected: Consumer<Action>): Dialog = dialogs.show { close ->
+        ActionPicker(close, routines = routines) { close(); selected.accept(it) }
     }
 
     fun edit(code: Int, descriptor: String, initialName: String, existing: Binding?,
@@ -145,23 +145,40 @@ private fun BindingEditor(code: Int, descriptor: String, initialName: String, ex
 }
 
 @Composable
-private fun ActionPicker(back: () -> Unit, active: Boolean = true, select: (Action) -> Unit) {
-    var apps by remember { mutableStateOf(false) }
-    BackHandler(apps && active) { apps = false }
+private fun ActionPicker(
+    back: () -> Unit, active: Boolean = true, routines: List<Pair<String, String>>? = null, select: (Action) -> Unit,
+) {
+    var page by remember { mutableStateOf(ActionPickerPage.ACTION) }
+    val actionList = { page = ActionPickerPage.ACTION }
+    BackHandler(page != ActionPickerPage.ACTION && active, onBack = actionList)
     val motion = LocalCockpitMotion.current
-    AnimatedContent(apps, transitionSpec = { stepTransition(motion) }, label = "action picker step") { choosingApp ->
-        if (choosingApp) CockpitAppPicker(label(R.string.ui_114), { apps = false }, { entry ->
-            if (entry != null) select(Action(Action.Kind.LAUNCH_APP, entry.component().flattenToString(), entry.label()))
-        }) else CockpitModal(label(R.string.ui_108), footer = { CockpitTextAction(label(R.string.ui_89), back) }) {
-            CockpitChoice(label(R.string.ui_109)) { select(Action.NONE) }
-            CockpitChoice(label(R.string.ui_110)) { apps = true }
-            CockpitChoice(label(R.string.ui_61)) { select(Action(Action.Kind.SYSTEM_SETTINGS, "", label(R.string.ui_61))) }
-            CockpitChoice(label(R.string.ui_111)) { select(Action(Action.Kind.CONTROLS_SETTINGS, "", label(R.string.ui_111))) }
-            CockpitChoice(label(R.string.controls_apps)) { select(Action(Action.Kind.CONTROLS_APPS, "", label(R.string.controls_apps))) }
-            CockpitChoice(label(R.string.quick_voice_title)) { select(Action(Action.Kind.START_VOICE, "", label(R.string.quick_voice_title))) }
+    AnimatedContent(page, transitionSpec = { stepTransition(motion) }, label = "action picker step") { current ->
+        when (current) {
+            ActionPickerPage.APP -> CockpitAppPicker(label(R.string.ui_114), actionList, { entry ->
+                if (entry != null) select(Action(Action.Kind.LAUNCH_APP, entry.component().flattenToString(), entry.label()))
+            })
+            ActionPickerPage.ROUTINE -> CockpitModal(label(R.string.routine_steering_action),
+                footer = { CockpitTextAction(label(R.string.ui_89), actionList) }) {
+                if (routines.isNullOrEmpty()) Text(label(R.string.routines_empty))
+                routines.orEmpty().forEach { (id, name) ->
+                    CockpitChoice(name) { select(Action(Action.Kind.RUN_ROUTINE, id, name)) }
+                }
+            }
+            ActionPickerPage.ACTION -> CockpitModal(label(R.string.ui_108),
+                footer = { CockpitTextAction(label(R.string.ui_89), back) }) {
+                CockpitChoice(label(R.string.ui_109)) { select(Action.NONE) }
+                CockpitChoice(label(R.string.ui_110)) { page = ActionPickerPage.APP }
+                CockpitChoice(label(R.string.ui_61)) { select(Action(Action.Kind.SYSTEM_SETTINGS, "", label(R.string.ui_61))) }
+                CockpitChoice(label(R.string.ui_111)) { select(Action(Action.Kind.CONTROLS_SETTINGS, "", label(R.string.ui_111))) }
+                CockpitChoice(label(R.string.controls_apps)) { select(Action(Action.Kind.CONTROLS_APPS, "", label(R.string.controls_apps))) }
+                CockpitChoice(label(R.string.quick_voice_title)) { select(Action(Action.Kind.START_VOICE, "", label(R.string.quick_voice_title))) }
+                if (routines != null) CockpitChoice(label(R.string.routine_steering_action)) { page = ActionPickerPage.ROUTINE }
+            }
         }
     }
 }
+
+private enum class ActionPickerPage { ACTION, APP, ROUTINE }
 
 /** A short crossfade between the steps of one dialog; the window resizes with it over the same duration. */
 private fun stepTransition(motion: CockpitMotionSettings): ContentTransform = if (motion.enabled) {

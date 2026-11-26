@@ -199,7 +199,13 @@ public final class FridaBridge {
         JSONObject result = new JSONObject();
         for (var entry : assignments.entrySet()) {
             Action action = entry.getValue();
-            if (action.isAssigned()) result.put(entry.getKey(), new JSONObject().put("kind", action.kind.name()).put("component", action.component));
+            if (!action.isAssigned()) continue;
+            JSONObject row = new JSONObject().put("kind", action.kind.name()).put("component", action.component);
+            if (action.kind == Action.Kind.RUN_ROUTINE) {
+                if (!org.openvoyah.controls.core.PanelSlots.STEERING.contains(entry.getKey())) continue;
+                row.put("steeringSlot", entry.getKey());
+            }
+            result.put(entry.getKey(), row);
         }
         return result;
     }
@@ -936,7 +942,7 @@ public final class FridaBridge {
         for (Action action : state.panelActions.values()) {
             switch (action.kind) {
                 case LAUNCH_APP -> packages.add(action.component.substring(0, Math.max(0, action.component.indexOf('/'))));
-                case CONTROLS_APPS, CONTROLS_SETTINGS, START_VOICE -> packages.add(context.getPackageName());
+                case CONTROLS_APPS, CONTROLS_SETTINGS, START_VOICE, RUN_ROUTINE -> packages.add(context.getPackageName());
                 default -> { }
             }
         }

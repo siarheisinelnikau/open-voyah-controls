@@ -58,6 +58,9 @@
             android:permission="android.permission.WRITE_SECURE_SETTINGS"
             android:theme="@style/QuickVoiceTheme" android:launchMode="singleTop" android:excludeFromRecents="true"
             android:taskAffinity="org.openvoyah.controls.voice" />
+        <activity android:name=".SteeringRoutineActivity" android:exported="true"
+            android:permission="android.permission.WRITE_SECURE_SETTINGS"
+            android:theme="@android:style/Theme.NoDisplay" android:excludeFromRecents="true" />
         <receiver android:name=".platform.updates.UpdateInstallResultReceiver" android:exported="false" />
         <receiver android:name=".platform.updates.UpdatePackageReplacedReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter>

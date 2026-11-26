@@ -1,0 +1,5 @@
+<resources>
+    <string name="routine_steering_action">Run saved routine</string>
+    <string name="routine_steering_label">Routine · %1$s</string>
+    <string name="routine_steering_missing">The selected routine has been removed. Choose another steering action.</string>
+</resources>

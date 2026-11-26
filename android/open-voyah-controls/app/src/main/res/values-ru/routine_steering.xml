@@ -1,0 +1,5 @@
+<resources>
+    <string name="routine_steering_action">Запустить сохранённый сценарий</string>
+    <string name="routine_steering_label">Сценарий · %1$s</string>
+    <string name="routine_steering_missing">Выбранный сценарий удалён. Назначьте другое действие руля.</string>
+</resources>

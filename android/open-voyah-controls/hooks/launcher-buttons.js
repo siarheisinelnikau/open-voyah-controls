@@ -66,6 +66,14 @@ export function createActionIntent(Java) {
             intent = Intent.$new();
             intent.setComponent(Component.$new(PREFIX, PREFIX + '.QuickVoiceActivity'));
             intent.addFlags(0x20000000);
+        } else if (action.kind === 'RUN_ROUTINE') {
+            if (!/^(?:voice|custom|camera)(?:Short|Long)$/.test(action.steeringSlot || '')
+                || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(action.component || '')) return null;
+            intent = Intent.$new(PREFIX + '.action.STEERING_ROUTINE');
+            intent.setComponent(Component.$new(PREFIX, PREFIX + '.SteeringRoutineActivity'));
+            const putString = intent.putExtra.overload('java.lang.String', 'java.lang.String');
+            putString.call(intent, PREFIX + '.extra.STEERING_SLOT', action.steeringSlot);
+            putString.call(intent, PREFIX + '.extra.STEERING_ROUTINE_ID', action.component);
         } else if (action.kind === 'SYSTEM_SETTINGS') {
             intent = Intent.$new('android.settings.SETTINGS');
         } else if (action.kind === 'CONTROLS_SETTINGS' || action.kind === 'CONTROLS_APPS') {

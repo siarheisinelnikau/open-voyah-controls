@@ -15,11 +15,15 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import org.openvoyah.controls.ButtonCapture
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.Binding
 import org.openvoyah.controls.core.PanelControls
+import org.openvoyah.controls.data.routines.RoutinePreferences
 import org.openvoyah.controls.data.weather.HomeWeatherPreferences
 import org.openvoyah.controls.domain.weather.HomeWeather
 import org.openvoyah.controls.platform.weather.HomeWeatherJobs
@@ -214,7 +218,15 @@ internal class HomeSettingsCoordinator(
     private fun steering() {
         val rows = model.state.value.steering
         dialogs.choices(text(R.string.oem_steering), rows.map { it.title + "\n" + it.action }.toTypedArray(), { index ->
-            if (active) rows.getOrNull(index)?.let { row -> bindings.choose { if (active) model.chooseSteering(row.slot, it) } }
+            if (active) rows.getOrNull(index)?.let { row ->
+                val visit = owner
+                lifecycleOwner.lifecycleScope.launch {
+                    val routines = RoutinePreferences(activity).observe().first().getOrNull()?.entries.orEmpty()
+                    if (active && owner == visit) bindings.choose(routines.map { it.id to it.name }) {
+                        if (active && owner == visit) model.chooseSteering(row.slot, it)
+                    }
+                }
+            }
         }, text(R.string.oem_restore_keys), Runnable {
             if (active) dialogs.message(text(R.string.oem_restore_keys), text(R.string.oem_restore_keys_info), text(R.string.ui_187),
                 Runnable { if (active) model.clearSteering() }, text(R.string.ui_89))

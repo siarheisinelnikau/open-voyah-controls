@@ -1,0 +1,5 @@
+<resources>
+    <string name="routine_steering_action">Сақталған сценарийді іске қосу</string>
+    <string name="routine_steering_label">Сценарий · %1$s</string>
+    <string name="routine_steering_missing">Таңдалған сценарий жойылған. Руль үшін басқа әрекетті таңдаңыз.</string>
+</resources>

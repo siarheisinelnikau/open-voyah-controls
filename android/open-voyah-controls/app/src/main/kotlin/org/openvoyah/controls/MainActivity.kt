@@ -50,6 +50,7 @@ import org.openvoyah.controls.platform.apps.LauncherShortcuts
 import org.openvoyah.controls.platform.audio.limitLauncherMediaVolume
 import org.openvoyah.controls.platform.display.useControlsDensity
 import org.openvoyah.controls.platform.ui.RoutinePlayback
+import org.openvoyah.controls.platform.ui.RoutineActionLaunch
 import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime
 import org.openvoyah.controls.presentation.home.HomeUpdatesViewModel
 import org.openvoyah.controls.presentation.home.appearanceViewModel
@@ -163,9 +164,12 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         enter(intent)
         dispatchVehicleRuleIfReady()
+        dispatchRoutineActionIfReady()
     }
 
     private fun enter(intent: Intent) {
+        // This route has no executable payload unless the process owns the matching one-shot token.
+        if (intent.action == RoutineActionLaunch.ACTION) return
         cancelStartup()
         cancelLauncherMedia()
         cancelManualRoutine()
@@ -439,6 +443,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         resumed = true
         dispatchVehicleRuleIfReady()
+        dispatchRoutineActionIfReady()
         startLauncherWorkIfReady()
     }
 
@@ -474,6 +479,7 @@ class MainActivity : ComponentActivity() {
         focused = hasFocus
         if (hasFocus) {
             dispatchVehicleRuleIfReady()
+            dispatchRoutineActionIfReady()
             startLauncherWorkIfReady()
         }
     }
@@ -496,6 +502,20 @@ class MainActivity : ComponentActivity() {
             } catch (_: CancellationException) { "cancelled" }
             catch (_: Exception) { "unconfirmed" }
             ControlsLog.info("conditional_rule_handoff", "rule", decision.rule.id, "outcome", outcome)
+        }
+    }
+
+    private fun dispatchRoutineActionIfReady() {
+        if (!canDispatchInForeground()) return
+        val receipt = RoutineActionLaunch.claim(intent) ?: return
+        if (manualRoutineJob != null || pending != null) return
+        val entry = navigation.state.value
+        lifecycleScope.launch {
+            val error = runConditionalRoutine(receipt.routine, entry, receipt.stillAllowed)
+            if (error != null) routineMessage = UiText.get(error)
+            else if (receipt.routine.plan.installedApp == null) {
+                routineMessage = UiText.get(R.string.routines_ran).format(receipt.routine.name)
+            }
         }
     }
 

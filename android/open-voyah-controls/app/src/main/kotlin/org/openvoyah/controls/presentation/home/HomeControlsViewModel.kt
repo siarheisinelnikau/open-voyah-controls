@@ -256,6 +256,7 @@ internal fun homeActionLabel(action: Action): String = when {
     action.kind == Action.Kind.START_VOICE -> UiText.get(R.string.quick_voice_title)
     action.kind == Action.Kind.CONTROLS_APPS -> UiText.get(R.string.controls_apps)
     action.kind == Action.Kind.CONTROLS_SETTINGS -> UiText.get(R.string.ui_111)
+    action.kind == Action.Kind.RUN_ROUTINE -> UiText.get(R.string.routine_steering_label).format(action.label)
     action.isAssigned -> action.label
     else -> UiText.get(R.string.ui_66)
 }
