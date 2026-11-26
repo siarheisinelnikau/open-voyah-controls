@@ -1,0 +1,12 @@
+<resources>
+    <string name="comfort_power_hold">Удержание питания</string>
+    <string name="comfort_car_wash">Режим мойки</string>
+    <string name="comfort_power_hold_confirm">Припаркуйте автомобиль. Чтобы сохранить питание, подтвердите действие в штатном диалоге.</string>
+    <string name="comfort_car_wash_confirm">Запросить штатный режим мойки? Автомобиль должен стоять на парковке. Остальные условия зависят от автомобиля.</string>
+    <string name="comfort_command_forbidden">Действие выключено в разделе «Настройки → Разрешённые действия».</string>
+    <string name="comfort_command_unreviewed">Действие ещё не проверено на установленной прошивке.</string>
+    <string name="comfort_command_open">Открыть запрос</string>
+    <string name="comfort_command_request">Запросить</string>
+    <string name="comfort_command_sending">Отправка…</string>
+    <string name="comfort_power_hold_requested">Запрошено штатное подтверждение.</string>
+</resources>

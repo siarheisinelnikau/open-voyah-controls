@@ -1,0 +1,12 @@
+<resources>
+    <string name="comfort_power_hold">Қуатты қосулы ұстау</string>
+    <string name="comfort_car_wash">Көлік жуу режимі</string>
+    <string name="comfort_power_hold_confirm">Көлікті тұраққа қойыңыз. Қуатты қосулы ұстау үшін зауыттық терезеде растаңыз.</string>
+    <string name="comfort_car_wash_confirm">Зауыттық көлік жуу режимін сұрау керек пе? Көлік тұрақта болуы тиіс. Қалған шарттар көлікке байланысты.</string>
+    <string name="comfort_command_forbidden">Әрекет «Баптаулар → Рұқсат етілген әрекеттер» бөлімінде өшірілген.</string>
+    <string name="comfort_command_unreviewed">Әрекет орнатылған микробағдарламада әлі тексерілмеген.</string>
+    <string name="comfort_command_open">Сұрауды ашу</string>
+    <string name="comfort_command_request">Сұрау</string>
+    <string name="comfort_command_sending">Жіберілуде…</string>
+    <string name="comfort_power_hold_requested">Зауыттық растау сұралды.</string>
+</resources>

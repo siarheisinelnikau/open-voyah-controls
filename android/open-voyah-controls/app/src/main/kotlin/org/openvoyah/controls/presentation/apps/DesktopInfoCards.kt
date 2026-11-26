@@ -83,6 +83,8 @@ import org.openvoyah.controls.presentation.vehicle.lampDisplay
 import org.openvoyah.controls.presentation.vehicle.observeVisibleHeadlightSwitch
 import org.openvoyah.controls.presentation.vehicle.serviceSummary
 import org.openvoyah.controls.presentation.vehicle.vehicleSettingsViewModel
+import org.openvoyah.controls.presentation.vehicle.comfort.ComfortActionCard
+import org.openvoyah.controls.presentation.vehicle.comfort.ComfortCardAction
 
 @Composable
 internal fun rememberDesktopInfoCards(desktop: AppGridDesktop): List<DesktopInfoTile> {
@@ -123,6 +125,17 @@ internal fun LazyGridItemScope.DesktopInfoCardItem(
     val shape = MaterialTheme.shapes.medium
     val colors = MaterialTheme.colorScheme
     val border = if (showOutlines) BorderStroke(1.dp, colors.outlineVariant) else null
+    val comfortAction = when (tile.card) {
+        DesktopInfoCard.POWER_HOLD -> ComfortCardAction.POWER_HOLD
+        DesktopInfoCard.CAR_WASH -> ComfortCardAction.CAR_WASH
+        else -> null
+    }
+    if (comfortAction != null) {
+        Surface(modifier = modifier, shape = shape, color = colors.surfaceContainerHigh, border = border) {
+            ComfortActionCard(comfortAction, interactive = visible && enabled)
+        }
+        return
+    }
     val destination = when (tile.card) {
         DesktopInfoCard.SERVICE -> ControlsRoute.SERVICE_REMINDER
         DesktopInfoCard.HEADLIGHTS -> ControlsRoute.VEHICLE
@@ -196,6 +209,7 @@ private fun DesktopInfoDetails(tile: DesktopInfoTile): TileDetails {
         DesktopInfoCard.HEADLIGHTS -> HeadlightTileDetails(tile.headlightContent)
         DesktopInfoCard.PHONE -> TileDetails()
         DesktopInfoCard.ROUTE -> observeRouteTileDetails(sources, tile.routeContent)
+        DesktopInfoCard.POWER_HOLD, DesktopInfoCard.CAR_WASH -> TileDetails()
     }
 }
 
@@ -422,4 +436,6 @@ internal fun DesktopInfoCard.label(): Int = when (this) {
     DesktopInfoCard.HEADLIGHTS -> R.string.desktop_info_headlights
     DesktopInfoCard.PHONE -> R.string.desktop_info_phone
     DesktopInfoCard.ROUTE -> R.string.desktop_info_route
+    DesktopInfoCard.POWER_HOLD -> R.string.comfort_power_hold
+    DesktopInfoCard.CAR_WASH -> R.string.comfort_car_wash
 }

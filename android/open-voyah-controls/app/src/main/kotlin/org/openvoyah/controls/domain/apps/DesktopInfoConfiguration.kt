@@ -8,7 +8,9 @@ internal enum class DesktopInfoCard(val storedValue: String) {
     MEDIA("media"),
     HEADLIGHTS("headlights"),
     PHONE("phone"),
-    ROUTE("route");
+    ROUTE("route"),
+    POWER_HOLD("powerHold"),
+    CAR_WASH("carWash");
 
     companion object {
         fun fromStoredValue(value: String): DesktopInfoCard? = entries.firstOrNull { it.storedValue == value }

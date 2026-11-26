@@ -1,0 +1,12 @@
+<resources>
+    <string name="comfort_power_hold">Power Hold</string>
+    <string name="comfort_car_wash">Car wash mode</string>
+    <string name="comfort_power_hold_confirm">Park the car before opening Power Hold. Confirm in the factory prompt to keep the power on.</string>
+    <string name="comfort_car_wash_confirm">Request factory car wash mode? The car must be parked and the remaining conditions depend on the vehicle.</string>
+    <string name="comfort_command_forbidden">This action is turned off in Settings → Allowed actions.</string>
+    <string name="comfort_command_unreviewed">This action has not been verified for the installed firmware.</string>
+    <string name="comfort_command_open">Open request</string>
+    <string name="comfort_command_request">Request</string>
+    <string name="comfort_command_sending">Sending…</string>
+    <string name="comfort_power_hold_requested">Factory confirmation requested.</string>
+</resources>
