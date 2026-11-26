@@ -1456,6 +1456,9 @@
     <string name="setting_guide_sample_morning">Таң</string>
     <string name="setting_guide_sample_ready">«Дайын»</string>
     <string name="setting_guide_sample_lets_go">«Кеттік»</string>
+    <string name="rules_limit_hours">@string/routines_limit_hours</string>
+    <string name="rules_time_start">@string/routines_time_start</string>
+    <string name="rules_time_end">@string/routines_time_end</string>
     <string-array name="guide_rules_limit_hours">
         <item>Басқа шарттар орындалса да, ереже тек өзінің күнделікті уақыт аралығында орындалады.</item>
         <item>Шарттар тәулік бойы орындалуы мүмкін</item>

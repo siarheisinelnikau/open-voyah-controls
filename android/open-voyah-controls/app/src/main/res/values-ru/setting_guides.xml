@@ -1456,6 +1456,9 @@
     <string name="setting_guide_sample_morning">Утро</string>
     <string name="setting_guide_sample_ready">«Готов»</string>
     <string name="setting_guide_sample_lets_go">«Поехали»</string>
+    <string name="rules_limit_hours">@string/routines_limit_hours</string>
+    <string name="rules_time_start">@string/routines_time_start</string>
+    <string name="rules_time_end">@string/routines_time_end</string>
     <string-array name="guide_rules_limit_hours">
         <item>Позволяет правилу сработать только в его интервале, даже если остальные условия выполнены.</item>
         <item>Условия могут выполниться в любое время</item>
