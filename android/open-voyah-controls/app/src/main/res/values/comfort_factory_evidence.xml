@@ -1,0 +1,13 @@
+<resources>
+    <string name="comfort_lighting_factory_auto">To let the vehicle adjust its lights to the surroundings, select Auto in the factory lighting controls.</string>
+    <string name="comfort_ignition_unavailable">Ignition reading unavailable</string>
+    <string name="comfort_ignition_permission">Ignition reading requires Android Automotive powertrain permission</string>
+    <string name="comfort_ignition_waiting">Waiting for ignition reading</string>
+    <string name="comfort_ignition_current">Ignition · %1$s</string>
+    <string name="comfort_ignition_earlier">Earlier ignition report · %1$s</string>
+    <string name="comfort_ignition_locked">Locked</string>
+    <string name="comfort_ignition_off">Off</string>
+    <string name="comfort_ignition_accessory">Accessory (ACC)</string>
+    <string name="comfort_ignition_on">On</string>
+    <string name="comfort_ignition_starting">Starting</string>
+</resources>

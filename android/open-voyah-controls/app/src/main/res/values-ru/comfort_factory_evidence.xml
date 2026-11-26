@@ -1,0 +1,13 @@
+<resources>
+    <string name="comfort_lighting_factory_auto">Чтобы автомобиль сам управлял светом по освещённости, выберите «Авто» в штатных настройках освещения.</string>
+    <string name="comfort_ignition_unavailable">Состояние зажигания недоступно</string>
+    <string name="comfort_ignition_permission">Для чтения зажигания нужен доступ Android Automotive к трансмиссии</string>
+    <string name="comfort_ignition_waiting">Ожидание показания зажигания</string>
+    <string name="comfort_ignition_current">Зажигание · %1$s</string>
+    <string name="comfort_ignition_earlier">Ранее полученное состояние зажигания · %1$s</string>
+    <string name="comfort_ignition_locked">Заблокировано</string>
+    <string name="comfort_ignition_off">Выключено</string>
+    <string name="comfort_ignition_accessory">Питание аксессуаров (ACC)</string>
+    <string name="comfort_ignition_on">Включено</string>
+    <string name="comfort_ignition_starting">Запуск</string>
+</resources>

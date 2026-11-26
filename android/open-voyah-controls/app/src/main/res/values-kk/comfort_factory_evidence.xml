@@ -1,0 +1,13 @@
+<resources>
+    <string name="comfort_lighting_factory_auto">Көлік шамдарды жарық деңгейіне қарай өзі реттеуі үшін зауыттық жарық баптауларынан «Авто» режимін таңдаңыз.</string>
+    <string name="comfort_ignition_unavailable">От алдыру күйі қолжетімсіз</string>
+    <string name="comfort_ignition_permission">От алдыру күйін оқу үшін Android Automotive күштік агрегатына қатынасу рұқсаты керек</string>
+    <string name="comfort_ignition_waiting">От алдыру күйін күту</string>
+    <string name="comfort_ignition_current">От алдыру · %1$s</string>
+    <string name="comfort_ignition_earlier">От алдырудың алдыңғы күйі · %1$s</string>
+    <string name="comfort_ignition_locked">Құлыптаулы</string>
+    <string name="comfort_ignition_off">Өшірулі</string>
+    <string name="comfort_ignition_accessory">Қосалқы жабдықтың қуаты (ACC)</string>
+    <string name="comfort_ignition_on">Қосулы</string>
+    <string name="comfort_ignition_starting">Іске қосылуда</string>
+</resources>

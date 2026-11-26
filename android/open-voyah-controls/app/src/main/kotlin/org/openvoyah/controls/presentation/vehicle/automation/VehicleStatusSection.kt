@@ -23,6 +23,7 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleSignal
 import org.openvoyah.controls.domain.vehicle.automation.VehicleSignalKind
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
+import org.openvoyah.controls.presentation.vehicle.comfort.VehicleIgnitionStatus
 
 /** Read-only cockpit summary. Missing, unavailable and never-observed values are never filled in. */
 @Composable
@@ -46,6 +47,7 @@ internal fun VehicleStatusSection(telemetry: VehicleTelemetry?, modifier: Modifi
             Text("$label: $value", style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        VehicleIgnitionStatus()
         val latest = listOfNotNull(gear?.receivedAtMillis, speed?.receivedAtMillis, outside?.receivedAtMillis,
             mode?.receivedAtMillis, doors?.values?.maxOfOrNull { it.receivedAtMillis }).maxOrNull()
         if (latest != null) Text(text(R.string.vehicle_status_updated).format(time(latest)),

@@ -125,7 +125,11 @@ internal fun VehicleAutomationScreen(
                     Text(text(R.string.vehicle_automation_lights_blocked), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                factoryLighting?.let { CockpitAction(text(R.string.headlight_mode_open_factory), it) }
+                factoryLighting?.let {
+                    Text(text(R.string.comfort_lighting_factory_auto), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    CockpitAction(text(R.string.headlight_mode_open_factory), it)
+                }
             }
         }, second = {
             CockpitSection(text(R.string.vehicle_automation_drive_memory), CockpitIcon.CAR) {
