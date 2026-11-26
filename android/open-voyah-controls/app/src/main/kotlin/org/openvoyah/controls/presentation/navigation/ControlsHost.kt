@@ -81,6 +81,7 @@ import org.openvoyah.controls.presentation.vehicle.automation.VehicleAutomationD
 import org.openvoyah.controls.presentation.vehicle.automation.VehicleDiagnosticsPopup
 import org.openvoyah.controls.presentation.vehicle.automation.seasonalClimateModel
 import org.openvoyah.controls.presentation.vehicle.automation.vehicleAutomationModel
+import org.openvoyah.controls.presentation.vehicle.comfort.ObserveAdaptiveControlsBrightness
 import org.openvoyah.controls.presentation.voice.VoiceDestination
 
 @Composable
@@ -116,6 +117,7 @@ internal fun ControlsHost(
     LaunchedEffect(state.route, state.entry) { recent.arrived() }
     BackHandler(state.stack.size > 1, onBack = navigation::back)
     val activity = checkNotNull(LocalActivity.current as? ComponentActivity)
+    ObserveAdaptiveControlsBrightness(activity)
     KeepHeadlightsObserved(activity)
     ObserveVehicleRoutines(activity, state.route, { navigation.state.value }, runConditionalRoutine)
     var showVehicleDiagnostics by remember { mutableStateOf(false) }

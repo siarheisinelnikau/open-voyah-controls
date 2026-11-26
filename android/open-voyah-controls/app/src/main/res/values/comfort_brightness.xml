@@ -1,0 +1,10 @@
+<resources>
+    <string name="comfort_brightness_title">Controls window brightness</string>
+    <string name="comfort_brightness_enabled">Adjust brightness to ambient light</string>
+    <string name="comfort_brightness_hint">Applies while the Controls window is in use. Adjusting brightness in Android gives the system control again.</string>
+    <string name="comfort_brightness_platform_unavailable">This display uses its system brightness controls.</string>
+    <string name="comfort_brightness_no_sensor">This device has no ambient light sensor.</string>
+    <string name="comfort_brightness_low">Low-light brightness</string>
+    <string name="comfort_brightness_high">Bright-light brightness</string>
+    <string name="comfort_brightness_percent">%1$d%%</string>
+</resources>

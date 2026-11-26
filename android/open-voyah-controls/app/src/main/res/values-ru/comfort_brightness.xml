@@ -1,0 +1,10 @@
+<resources>
+    <string name="comfort_brightness_title">Яркость окна OVC</string>
+    <string name="comfort_brightness_enabled">Настраивать яркость по освещённости</string>
+    <string name="comfort_brightness_hint">Действует в активном окне OVC. При изменении яркости в Android управление возвращается системе.</string>
+    <string name="comfort_brightness_platform_unavailable">Яркость этого дисплея регулируется в системных настройках.</string>
+    <string name="comfort_brightness_no_sensor">На этом устройстве нет датчика освещённости.</string>
+    <string name="comfort_brightness_low">Яркость при слабом освещении</string>
+    <string name="comfort_brightness_high">Яркость при сильном освещении</string>
+    <string name="comfort_brightness_percent">%1$d%%</string>
+</resources>

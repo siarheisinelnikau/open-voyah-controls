@@ -1,0 +1,10 @@
+<resources>
+    <string name="comfort_brightness_title">OVC терезесінің жарықтығы</string>
+    <string name="comfort_brightness_enabled">Жарықтықты жарық деңгейіне бейімдеу</string>
+    <string name="comfort_brightness_hint">OVC терезесі белсенді болғанда жұмыс істейді. Android баптауларында жарықтықты өзгерткенде басқару жүйеге қайтарылады.</string>
+    <string name="comfort_brightness_platform_unavailable">Бұл дисплейдің жарықтығы жүйелік баптаулармен реттеледі.</string>
+    <string name="comfort_brightness_no_sensor">Бұл құрылғыда жарық датчигі жоқ.</string>
+    <string name="comfort_brightness_low">Күңгірт ортадағы жарықтық</string>
+    <string name="comfort_brightness_high">Жарық ортадағы жарықтық</string>
+    <string name="comfort_brightness_percent">%1$d%%</string>
+</resources>

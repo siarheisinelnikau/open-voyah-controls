@@ -35,6 +35,7 @@ import org.openvoyah.controls.data.updates.UpdatePreferences;
 import org.openvoyah.controls.data.vehicle.HeadlightMonitoringPreferences;
 import org.openvoyah.controls.data.vehicle.ServiceReminderPreferences;
 import org.openvoyah.controls.data.vehicle.automation.LocalVehicleAutomationPreferences;
+import org.openvoyah.controls.data.vehicle.comfort.AdaptiveBrightnessPreferences;
 import org.openvoyah.controls.data.vehicle.comfort.PlaybackComfortPreferences;
 import org.openvoyah.controls.diagnostics.ControlsLog;
 import org.openvoyah.controls.domain.display.AppDisplayDefaults;
@@ -57,7 +58,7 @@ public final class LocalSettingsArchive {
         QuickActionPreferences.STORE, RoutinePreferences.STORE, SeatMemoryPreferences.STORE, DesktopLayoutsPreferences.STORE,
         HeadlightMonitoringPreferences.STORE, LocalVehicleAutomationPreferences.STORE,
         LocalSeasonalClimatePreferences.STORE, ConditionalRulesPreferences.STORE, AppIconPreferences.STORE,
-        ActionPermissions.STORE, AppPairPreferences.STORE, PlaybackComfortPreferences.STORE
+        ActionPermissions.STORE, AppPairPreferences.STORE, PlaybackComfortPreferences.STORE, AdaptiveBrightnessPreferences.STORE
     };
     private final Context context;
     private final SettingsStore buttons;
@@ -80,6 +81,7 @@ public final class LocalSettingsArchive {
     private final HeadlightMonitoringPreferences headlights;
     private final LocalVehicleAutomationPreferences vehicleAutomation;
     private final PlaybackComfortPreferences playbackComfort;
+    private final AdaptiveBrightnessPreferences adaptiveBrightness;
     private final LocalSeasonalClimatePreferences seasonalClimate;
     private final ConditionalRulesPreferences conditionalRules;
     private final AppIconPreferences appIcons;
@@ -108,6 +110,7 @@ public final class LocalSettingsArchive {
         headlights = new HeadlightMonitoringPreferences(context);
         vehicleAutomation = new LocalVehicleAutomationPreferences(context);
         playbackComfort = new PlaybackComfortPreferences(context);
+        adaptiveBrightness = new AdaptiveBrightnessPreferences(context);
         seasonalClimate = new LocalSeasonalClimatePreferences(context);
         conditionalRules = new ConditionalRulesPreferences(context);
         appIcons = new AppIconPreferences(context);
@@ -151,6 +154,7 @@ public final class LocalSettingsArchive {
                 .put("headlightMonitoring", headlights.exportSettings())
                 .put("vehicleAutomation", vehicleAutomation.exportSettings())
                 .put("playbackComfort", playbackComfort.exportSettings())
+                .put("adaptiveControlsBrightness", adaptiveBrightness.exportSettings())
                 .put("seasonalClimate", seasonalClimate.exportSettings())
                 .put("conditionalRules", conditionalRules.exportSettings())
                 .put("appIcons", appIcons.exportSettings())
@@ -164,7 +168,7 @@ public final class LocalSettingsArchive {
             JSONObject desktopLayouts, JSONObject appearance, JSONObject displayPreview, JSONObject serviceReminder,
             JSONObject quickActions, JSONObject routines, JSONObject seatMemory, JSONObject headlightMonitoring,
             JSONObject vehicleAutomation, JSONObject seasonalClimate, JSONObject conditionalRules, JSONObject appIcons,
-            JSONObject actionPermissions, JSONObject playbackComfort) { }
+            JSONObject actionPermissions, JSONObject playbackComfort, JSONObject adaptiveControlsBrightness) { }
 
     public JSONObject captureDesktopLayout() throws Exception {
         synchronized (ARCHIVE_LOCK) {
@@ -337,10 +341,12 @@ public final class LocalSettingsArchive {
         JSONArray appPairs = root.has("appPairs") ? AppPairPreferences.validateSettings(root.getJSONArray("appPairs")) : null;
         JSONObject playbackComfort = root.has("playbackComfort")
             ? PlaybackComfortPreferences.validateSettings(root.getJSONObject("playbackComfort")) : null;
+        JSONObject adaptiveControlsBrightness = root.has("adaptiveControlsBrightness")
+            ? AdaptiveBrightnessPreferences.validateSettings(root.getJSONObject("adaptiveControlsBrightness")) : null;
         var optional = new OptionalPreferences(windowProfiles, appDisplayDefaults, appPairs, checkOnStartup,
             appGrid, desktopWallpapers, desktopInfoCards, desktopLayouts, appearance, displayPreview, serviceReminder,
             quickActions, routines, seatMemory, headlightMonitoring, vehicleAutomation, seasonalClimate, conditionalRules,
-            appIcons, actionPermissions, playbackComfort);
+            appIcons, actionPermissions, playbackComfort, adaptiveControlsBrightness);
         return new Restore(SettingsStore.encode(state), voiceJson, localizationJson, language,
             (int) density, optional, state.bindings.size(), true);
     }
@@ -377,6 +383,7 @@ public final class LocalSettingsArchive {
         if (optional.headlightMonitoring() != null) snapshot(previous, HeadlightMonitoringPreferences.STORE);
         if (optional.vehicleAutomation() != null) snapshot(previous, LocalVehicleAutomationPreferences.STORE);
         if (optional.playbackComfort() != null) snapshot(previous, PlaybackComfortPreferences.STORE);
+        if (optional.adaptiveControlsBrightness() != null) snapshot(previous, AdaptiveBrightnessPreferences.STORE);
         if (optional.seasonalClimate() != null) snapshot(previous, LocalSeasonalClimatePreferences.STORE);
         if (optional.conditionalRules() != null) snapshot(previous, ConditionalRulesPreferences.STORE);
         if (optional.appIcons() != null) snapshot(previous, AppIconPreferences.STORE);
@@ -404,6 +411,7 @@ public final class LocalSettingsArchive {
             if (optional.seatMemory() != null) seats.restoreSettings(optional.seatMemory());
             if (optional.vehicleAutomation() != null) vehicleAutomation.restoreSettings(optional.vehicleAutomation());
             if (optional.playbackComfort() != null) playbackComfort.restoreSettings(optional.playbackComfort());
+            if (optional.adaptiveControlsBrightness() != null) adaptiveBrightness.restoreSettings(optional.adaptiveControlsBrightness());
             if (optional.seasonalClimate() != null) seasonalClimate.restoreSettings(optional.seasonalClimate());
             if (optional.conditionalRules() != null) conditionalRules.restoreSettings(optional.conditionalRules());
             if (optional.appIcons() != null) appIcons.restoreSettings(optional.appIcons());
