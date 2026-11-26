@@ -1,0 +1,11 @@
+<resources>
+    <string name="comfort_playback_title">Playback in the car</string>
+    <string name="comfort_playback_door">Pause when the driver’s door opens</string>
+    <string name="comfort_playback_door_hint">Uses the driver’s door reading while parked on compatible vehicle software.</string>
+    <string name="comfort_playback_wake">Pause on sleep and resume on wake</string>
+    <string name="comfort_playback_wake_hint">Resumes the same player and track if Controls paused it and playback has stayed unchanged.</string>
+    <string name="comfort_playback_background_hint">Enable the Controls accessibility service to keep this option running in the background.</string>
+    <string name="comfort_playback_access_hint">Give Controls notification access to read and control the active music player.</string>
+    <string name="comfort_playback_access">Open notification access</string>
+    <string name="comfort_playback_access_failed">Could not open notification access.</string>
+</resources>

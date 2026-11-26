@@ -36,6 +36,7 @@ import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import org.openvoyah.controls.presentation.vehicle.headlightModeLabel
+import org.openvoyah.controls.presentation.vehicle.comfort.PlaybackComfortSection
 
 @Composable
 internal fun VehicleAutomationDestination(
@@ -156,6 +157,7 @@ internal fun VehicleAutomationScreen(
                 factoryDriving?.let { CockpitAction(text(R.string.vehicle_automation_open_driving), it) }
             }
         })
+        PlaybackComfortSection()
         if (state.settingsFailed || state.historyFailed || state.saveFailed) {
             CockpitFeedback(text(if (state.saveFailed) R.string.vehicle_automation_save_failed else R.string.vehicle_automation_load_failed), error = true)
         }

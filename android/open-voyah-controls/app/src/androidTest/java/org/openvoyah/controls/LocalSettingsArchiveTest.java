@@ -204,6 +204,23 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
         } finally { archive.apply(before); }
     }
 
+    public void testPlaybackComfortIsOptionalInOlderArchives() throws Exception {
+        var archive = new LocalSettingsArchive(getContext());
+        var before = archive.prepare(archive.exportJson());
+        try {
+            var root = new JSONObject(archive.exportJson());
+            var settings = new JSONObject().put("schema", 1)
+                .put("pauseOnDriverDoor", true).put("restoreAfterSleep", true);
+            root.put("playbackComfort", settings);
+            archive.apply(archive.prepare(root.toString()));
+            root.remove("playbackComfort");
+            archive.apply(archive.prepare(root.toString()));
+            var restored = new JSONObject(archive.exportJson()).getJSONObject("playbackComfort");
+            assertTrue(restored.getBoolean("pauseOnDriverDoor"));
+            assertTrue(restored.getBoolean("restoreAfterSleep"));
+        } finally { archive.apply(before); }
+    }
+
     public void testEarlierPreferenceSectionsRestoreSuppliedFieldsOnly() throws Exception {
         Context context = getContext();
         var archive = new LocalSettingsArchive(context);

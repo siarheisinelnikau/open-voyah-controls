@@ -35,6 +35,7 @@ import org.openvoyah.controls.data.vehicle.LocalHeadlightHistory
 import org.openvoyah.controls.data.vehicle.automation.FridaVehicleAutomationPort
 import org.openvoyah.controls.data.vehicle.automation.LocalDrivingModeHistory
 import org.openvoyah.controls.data.vehicle.automation.LocalVehicleAutomationPreferences
+import org.openvoyah.controls.data.vehicle.comfort.PlaybackComfortPreferences
 import org.openvoyah.controls.diagnostics.ControlsLog
 import org.openvoyah.controls.diagnostics.LogLevel
 import org.openvoyah.controls.domain.climate.ClimateConditionState
@@ -52,6 +53,7 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetrySession
 import org.openvoyah.controls.domain.vehicle.automation.withVehicleSignalExpiry
 import org.openvoyah.controls.platform.vehicle.factoryHeadlightFeedback
 import org.openvoyah.controls.platform.ui.VehicleRoutineLauncher
+import org.openvoyah.controls.platform.vehicle.comfort.observePlaybackComfort
 
 internal data class VehicleRuntimeState(
     val backgroundConnected: Boolean = false,
@@ -83,6 +85,7 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
     private val rules = ConditionalRulesPreferences(app)
     private val routines = RoutinePreferences(app)
     private val climates = LocalSeasonalClimatePreferences(app)
+    private val playback = PlaybackComfortPreferences(app)
     val climatePort = FridaSeasonalClimatePort(app) { telemetry.value }
     val controller = VehicleAutomationController(automation, LocalDrivingModeHistory(app), telemetry, headlights,
         FridaVehicleAutomationPort(app, { telemetry.value }, { headlights.value }),
@@ -90,6 +93,15 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
     private val handoff = RuleHandoff<RuleDecision>()
 
     init {
+        scope.launch {
+            combine(background, foreground, playback.observe()) { service, screens, saved ->
+                saved.getOrNull()?.takeIf { it.configured && (service != null || screens.hasOwners) }
+            }.distinctUntilChanged().collectLatest { settings ->
+                if (settings != null) observePlaybackComfort(app, playback, settings, telemetry) {
+                    background.value != null || foreground.value.hasOwners
+                }
+            }
+        }
         scope.launch {
             combine(background, foreground, automation.observe(), climates.observe(), rules.observe()) {
                     service, screens, savedAutomation, savedClimate, savedRules ->

@@ -1,0 +1,11 @@
+<resources>
+    <string name="comfort_playback_title">Көліктегі ойнату</string>
+    <string name="comfort_playback_door">Жүргізуші есігі ашылғанда кідірту</string>
+    <string name="comfort_playback_door_hint">Үйлесімді көлік бағдарламасында тұрақ режимінде жүргізуші есігінің күйін бақылайды.</string>
+    <string name="comfort_playback_wake">Ұйқыда кідірту және оянғанда жалғастыру</string>
+    <string name="comfort_playback_wake_hint">OVC өзі кідірткен және содан бері өзгермеген тректі сол ойнатқышта жалғастырады.</string>
+    <string name="comfort_playback_background_hint">Бұл опция фонда жұмыс істеуі үшін OVC арнайы мүмкіндіктер қызметін қосыңыз.</string>
+    <string name="comfort_playback_access_hint">Белсенді ойнатқышты басқару және күйін оқу үшін OVC қолданбасына хабарландыруларға қатынасуға рұқсат беріңіз.</string>
+    <string name="comfort_playback_access">Хабарландыруларға қатынасуды ашу</string>
+    <string name="comfort_playback_access_failed">Хабарландыруларға қатынасу баптауларын ашу мүмкін болмады.</string>
+</resources>

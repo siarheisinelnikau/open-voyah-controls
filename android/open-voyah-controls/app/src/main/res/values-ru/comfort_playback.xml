@@ -1,0 +1,11 @@
+<resources>
+    <string name="comfort_playback_title">Воспроизведение в автомобиле</string>
+    <string name="comfort_playback_door">Пауза при открытии водительской двери</string>
+    <string name="comfort_playback_door_hint">Использует сигнал водительской двери в режиме парковки на совместимом ПО автомобиля.</string>
+    <string name="comfort_playback_wake">Пауза перед сном и продолжение при пробуждении</string>
+    <string name="comfort_playback_wake_hint">Продолжает тот же трек в том же плеере, если OVC поставил его на паузу и воспроизведение с тех пор не изменилось.</string>
+    <string name="comfort_playback_background_hint">Включите службу специальных возможностей OVC, чтобы настройка работала в фоне.</string>
+    <string name="comfort_playback_access_hint">Разрешите OVC доступ к уведомлениям для чтения состояния и управления активным плеером.</string>
+    <string name="comfort_playback_access">Открыть доступ к уведомлениям</string>
+    <string name="comfort_playback_access_failed">Не удалось открыть настройки доступа к уведомлениям.</string>
+</resources>
