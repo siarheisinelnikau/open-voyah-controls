@@ -70,15 +70,15 @@ internal fun RuleConditionsEditor(id: String, conditions: RuleConditions, enable
             if (!lightAvailable) Text(UiText.get(R.string.rules_no_light_sensor),
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
             CockpitChoice(R.string.rules_driving_mode, conditions.drivingMode.ruleLabel(), enabled) { editingMode = true }
-            CockpitSwitch(R.string.routines_limit_hours, conditions.timeWindow != null, enabled) {
+            CockpitSwitch(R.string.rules_limit_hours, conditions.timeWindow != null, enabled) {
                 equalTimes = false
                 change(conditions.copy(timeWindow = if (it) RoutineTimeWindow(420, 1_320) else null))
             }
             conditions.timeWindow?.let { range ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CockpitChoice(R.string.routines_time_start, clock.minute(range.startMinute), enabled,
+                    CockpitChoice(R.string.rules_time_start, clock.minute(range.startMinute), enabled,
                         modifier = Modifier.weight(1f)) { equalTimes = false; editingTime = true }
-                    CockpitChoice(R.string.routines_time_end, clock.minute(range.endMinute), enabled,
+                    CockpitChoice(R.string.rules_time_end, clock.minute(range.endMinute), enabled,
                         modifier = Modifier.weight(1f)) { equalTimes = false; editingTime = false }
                 }
                 if (equalTimes) CockpitFeedback(UiText.get(R.string.routines_equal_times), error = true)

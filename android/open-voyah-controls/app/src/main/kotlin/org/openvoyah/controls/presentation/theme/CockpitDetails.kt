@@ -183,7 +183,16 @@ internal fun CockpitAction(
     destructive: Boolean = false,
     /** Every title this action can show; the button keeps the width of the longest, so a new title moves nothing. */
     titles: List<String> = emptyList(),
+    guideId: Int? = null,
 ) {
+    if (guideId != null && guideId in settingGuides) {
+        Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+            CockpitAction(title, onClick, Modifier.weight(1f, fill = false), enabled, primary, contentPadding,
+                labelStyle, colors, destructive, titles)
+            SettingInfo(title, guideId)
+        }
+        return
+    }
     val press = rememberPressMotion(enabled)
     val scheme = MaterialTheme.colorScheme
     val target = modifier.then(press.modifier).heightIn(min = CockpitTouch)
@@ -235,13 +244,18 @@ internal fun CockpitTextField(
     trailingIcon: (@Composable () -> Unit)? = null,
     guideId: Int? = null,
 ) {
-    OutlinedTextField(value, onValueChange, modifier.heightIn(min = CockpitTouch), enabled = enabled,
-        label = { Text(label) }, isError = error, singleLine = singleLine, shape = MaterialTheme.shapes.medium,
-        supportingText = supporting?.let { message -> { Text(message) } },
-        trailingIcon = if (guideId == null) trailingIcon else {
-            { Row(verticalAlignment = Alignment.CenterVertically) { trailingIcon?.invoke(); SettingInfo(label, guideId) } }
-        },
-        keyboardOptions = keyboardOptions, keyboardActions = keyboardActions)
+    val field: @Composable (Modifier) -> Unit = { placement ->
+        OutlinedTextField(value, onValueChange, placement.heightIn(min = CockpitTouch), enabled = enabled,
+            label = { Text(label) }, isError = error, singleLine = singleLine, shape = MaterialTheme.shapes.medium,
+            supportingText = supporting?.let { message -> { Text(message) } },
+            trailingIcon = trailingIcon, keyboardOptions = keyboardOptions, keyboardActions = keyboardActions)
+    }
+    if (guideId != null && guideId in settingGuides) {
+        Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+            field(Modifier.weight(1f))
+            SettingInfo(label, guideId)
+        }
+    } else field(modifier)
 }
 
 /**

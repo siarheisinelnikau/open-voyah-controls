@@ -292,7 +292,7 @@ class ComposeScreensTest : InstrumentationTestCase() {
                 awaitText(before)
                 awaitText(after)
                 tapCurrentText(UiText.get(R.string.setting_guide_replay))
-                SystemClock.sleep(800)
+                SystemClock.sleep(2_250)
                 capture("driver-media-guide-$name")
                 tapCurrentText(UiText.get(R.string.ui_172))
                 awaitText(title)
@@ -302,6 +302,46 @@ class ComposeScreensTest : InstrumentationTestCase() {
             UiText.language(language)
             appearance.setAnimateRoutes(motion)
             settings.importJson(previous)
+        }
+    }
+
+    fun testSettingGuideKeepsStaticExamplesInKazakh() {
+        val appearance = AppearancePreferences(app)
+        val settings = SettingsStore(app)
+        val motion = appearance.load().animateRoutes
+        val language = UiText.language()
+        try {
+            appearance.setAnimateRoutes(false)
+            UiText.language("kk")
+            val expected = settings.exportJson()
+            val activity = launch(ControlsNavigation.intent(app, ControlsRoute.SETTINGS)) as MainActivity
+            openSettingsPart(activity, SettingsPartId.HOME_CARDS)
+            val title = UiText.get(R.string.desktop_info_settings)
+            scrollTo(title)
+            clickText(UiText.get(R.string.setting_guide_open).format(title), contentDescription = true)
+            val (explanation, before, after) = UiText.getArray(R.array.guide_desktop_info_settings).toList()
+            awaitText(explanation)
+            awaitText(before)
+            awaitText(after)
+            assertFalse(nodes().any { it.isVisibleToUser && it.text?.toString() == UiText.get(R.string.setting_guide_replay) })
+            capture("setting-guide-cards-kk-static")
+            tapCurrentText(UiText.get(R.string.ui_172))
+            assertEquals(expected, settings.exportJson())
+            awaitText(title)
+            clickButton(title)
+            val media = UiText.get(R.string.desktop_info_media)
+            scrollTo(media)
+            clickText(UiText.get(R.string.setting_guide_open).format(media), contentDescription = true)
+            val (mediaCopy, mediaBefore, mediaAfter) = UiText.getArray(R.array.guide_desktop_info_media).toList()
+            awaitText(mediaCopy)
+            awaitText(mediaBefore)
+            awaitText(mediaAfter)
+            capture("setting-guide-card-media-kk-static")
+            tapCurrentText(UiText.get(R.string.ui_172))
+            assertEquals(expected, settings.exportJson())
+        } finally {
+            UiText.language(language)
+            appearance.setAnimateRoutes(motion)
         }
     }
 

@@ -55,8 +55,8 @@ import org.openvoyah.controls.presentation.theme.CockpitTextAction
 import java.util.Date
 
 private data class SlotChoice(val dock: Boolean, val index: Int) {
-    fun title(): String = UiText.get(if (dock) R.string.passenger_workspace_dock_slot else R.string.passenger_workspace_app_slot)
-        .format(index + 1)
+    val guideId: Int get() = if (dock) R.string.passenger_workspace_dock_slot else R.string.passenger_workspace_app_slot
+    fun title(): String = UiText.get(guideId).format(index + 1)
 }
 
 @Composable
@@ -178,7 +178,8 @@ private fun WorkspaceEditor(
                 listOf(false to layout.slots, true to layout.dock).forEach { (dock, slots) ->
                     slots.forEachIndexed { index, component ->
                         val slot = SlotChoice(dock, index)
-                        CockpitChoice(slot.title(), component?.let { workspaceLabel(state, it) }, enabled = enabled) { choose(slot) }
+                        CockpitChoice(slot.title(), component?.let { workspaceLabel(state, it) }, enabled = enabled,
+                            guideId = slot.guideId, guideVariant = index) { choose(slot) }
                     }
                 }
             }

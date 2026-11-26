@@ -64,7 +64,7 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }))
         CockpitSection(UiText.get(R.string.routine_steps_title), CockpitIcon.BUTTONS,
-            UiText.get(R.string.routine_steps_hint)) {
+            UiText.get(R.string.routine_steps_hint), guideId = R.string.routine_steps_title) {
             draft.steps.forEachIndexed { index, step ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically) {

@@ -114,9 +114,9 @@
         <item>Outlined card</item>
     </string-array>
     <string-array name="guide_desktop_info_clock_format">
-        <item>Changes the information shown on the clock card.</item>
-        <item>Time</item>
-        <item>Time and date</item>
+        <item>Sets whether the clock card uses the system format, 12-hour time or 24-hour time.</item>
+        <item>24-hour time</item>
+        <item>12-hour time</item>
     </string-array>
     <string-array name="guide_desktop_info_media_style">
         <item>Changes how track information and playback controls are arranged on the media card.</item>
@@ -479,9 +479,9 @@
         <item>Lighting sources over this page</item>
     </string-array>
     <string-array name="guide_quick_actions_apps_destination">
-        <item>Chooses whether the Apps shortcut opens the configured default desktop or All apps.</item>
-        <item>Default desktop</item>
-        <item>All apps</item>
+        <item>Chooses whether the Apps shortcut opens your default desktop or the All apps grid.</item>
+        <item>Default desktop (Favorites in this example)</item>
+        <item>All apps grid</item>
     </string-array>
     <string-array name="guide_quick_actions_side">
         <item>Places the side bar on the left or right of wide screens.</item>
@@ -754,9 +754,9 @@
         <item>Russian phrases and model</item>
     </string-array>
     <string-array name="guide_voice_recognition_engine">
-        <item>Selects the offline engine. The chosen engine and language need a local speech model.</item>
-        <item>Speech captured</item>
-        <item>Selected engine recognizes it</item>
+        <item>Selects the offline speech engine. Zipformer is available for Russian on supported devices. Vosk is available for all supported voice languages.</item>
+        <item>Vosk selected</item>
+        <item>Zipformer selected</item>
     </string-array>
     <string-array name="guide_voice_online_title">
         <item>Allows optional online interpretation of a confident local transcript when no catalog phrase matches.</item>
@@ -775,8 +775,8 @@
     </string-array>
     <string-array name="guide_default_levels">
         <item>Sets saved seat comfort levels used when a voice command asks to enable the feature without naming a level.</item>
-        <item>Turn on seat heating</item>
-        <item>Seat heating uses your default level</item>
+        <item>Default level 1</item>
+        <item>Default level 3</item>
     </string-array>
     <string-array name="guide_window_options">
         <item>Choose how much the windows open for the Smoke and Ventilation commands on supported vehicles.</item>
@@ -1147,5 +1147,341 @@
         <item>Lets Controls read the active media session for track information and compatible playback or rating controls.</item>
         <item>Track stays in its player</item>
         <item>Track information appears in Controls</item>
+    </string-array>
+    <string-array name="guide_home_navigator_widget_settings">
+        <item>Opens Yandex Navigator widget controls for the map theme and zoom.</item>
+        <item>Standard map view</item>
+        <item>Different map theme and zoom</item>
+    </string-array>
+    <string-array name="guide_display_navigation">
+        <item>Allows a compatible navigator to pass live turn guidance to Controls. Availability depends on this unit.</item>
+        <item>No route feed</item>
+        <item>Turn guidance received</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_title">
+        <item>Opens a separate launcher on a supported passenger display.</item>
+        <item>Passenger display without the workspace</item>
+        <item>Workspace opens on the passenger display</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_compact">
+        <item>Uses smaller app tiles in the passenger workspace.</item>
+        <item>Standard tiles</item>
+        <item>Compact tiles</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_clock">
+        <item>Shows the current time in the passenger workspace.</item>
+        <item>No clock</item>
+        <item>Clock visible</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_date">
+        <item>Adds the current date beside the time in the passenger workspace.</item>
+        <item>Time only</item>
+        <item>Time and date</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_startup">
+        <item>Opens the passenger workspace automatically when Controls starts and the display is available.</item>
+        <item>Passenger display unchanged</item>
+        <item>Workspace opens at startup</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_app_slot">
+        <item>Chooses the app opened by this workspace tile. Select an empty slot to remove its shortcut.</item>
+        <item>Previous tile</item>
+        <item>New app in this tile</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_dock_slot">
+        <item>Chooses the app opened by this shortcut in the passenger dock.</item>
+        <item>Previous dock shortcut</item>
+        <item>New app in the dock</item>
+    </string-array>
+    <string-array name="guide_app_display_defaults_central">
+        <item>Sets the default scale for apps opened by the window service on the central display.</item>
+        <item>Both displays at 160 DPI</item>
+        <item>Central display uses 200 DPI for apps</item>
+    </string-array>
+    <string-array name="guide_app_display_defaults_secondary">
+        <item>Sets the default scale for apps opened by the window service on the second display. It can be turned off for that display.</item>
+        <item>No app scale override</item>
+        <item>Second display uses 190 DPI for apps</item>
+    </string-array>
+    <string-array name="guide_app_pair_left">
+        <item>Chooses the app that opens on the left when you launch the pair.</item>
+        <item>Maps on the left</item>
+        <item>Clock on the left</item>
+    </string-array>
+    <string-array name="guide_app_pair_right">
+        <item>Chooses the app that opens on the right when you launch the pair.</item>
+        <item>Music on the right</item>
+        <item>Voice on the right</item>
+    </string-array>
+    <string-array name="guide_app_pair_proportion">
+        <item>Sets how the two apps share the available width.</item>
+        <item>Equal window widths</item>
+        <item>Wider left window</item>
+    </string-array>
+    <string-array name="guide_app_pair_name">
+        <item>Gives the pair a name for its list entry and shortcut. Leaving it empty uses the app names.</item>
+        <item>Name from the apps</item>
+        <item>Your pair name</item>
+    </string-array>
+    <string-array name="guide_app_pair_dock">
+        <item>Adds a shortcut for this pair to the Controls dock.</item>
+        <item>No shortcut for the pair</item>
+        <item>Pair available from the dock</item>
+    </string-array>
+    <string-array name="guide_button_service_enable">
+        <item>Opens Android accessibility settings so you can enable the service that receives supported hardware button presses.</item>
+        <item>Controls does not receive key presses</item>
+        <item>Button presses can reach Controls</item>
+    </string-array>
+    <string-array name="guide_ui_53">
+        <item>Waits for a hardware button press and fills in the code and input device it detected.</item>
+        <item>Waiting for a button</item>
+        <item>Key code captured</item>
+    </string-array>
+    <string-array name="guide_ui_54">
+        <item>Starts a binding from a known Android key code you type yourself.</item>
+        <item>Empty code field</item>
+        <item>Code 165 entered</item>
+    </string-array>
+    <string-array name="guide_ui_59">
+        <item>Opens the hold threshold and debounce settings for hardware buttons.</item>
+        <item>Shorter hold threshold</item>
+        <item>Longer hold threshold</item>
+    </string-array>
+    <string-array name="guide_ui_62">
+        <item>Clears the saved Android hardware key assignments after confirmation.</item>
+        <item>Keys have custom assignments</item>
+        <item>Custom assignments cleared</item>
+    </string-array>
+    <string-array name="guide_cockpit_dictionary_english">
+        <item>Applies the built-in English dictionary to supported factory labels.</item>
+        <item>Original labels</item>
+        <item>English labels</item>
+    </string-array>
+    <string-array name="guide_cockpit_dictionary_kazakh">
+        <item>Applies the built-in Kazakh dictionary to supported factory labels.</item>
+        <item>Original labels</item>
+        <item>Kazakh labels</item>
+    </string-array>
+    <string-array name="guide_translation_disable">
+        <item>Turns off the factory text dictionary and shows the original labels.</item>
+        <item>Dictionary active</item>
+        <item>Original labels visible</item>
+    </string-array>
+    <string-array name="guide_translation_restore">
+        <item>Restores the factory text dictionary used before the last change, if a previous dictionary was saved.</item>
+        <item>Current dictionary</item>
+        <item>Previous dictionary</item>
+    </string-array>
+    <string-array name="guide_diagnostics_problems_only">
+        <item>Filters the diagnostic view to warnings and errors without changing the saved log.</item>
+        <item>All entries visible</item>
+        <item>Warnings and errors only</item>
+    </string-array>
+    <string-array name="guide_comfort_playback_door">
+        <item>Pauses supported playback when the driver’s door opens, if media controls are available.</item>
+        <item>Music continues with the door open</item>
+        <item>Music pauses when the door opens</item>
+    </string-array>
+    <string-array name="guide_comfort_playback_wake">
+        <item>Pauses eligible playback at sleep and can resume the same session at wake.</item>
+        <item>Music playing before sleep</item>
+        <item>Music resumes after wake</item>
+    </string-array>
+    <string-array name="guide_comfort_brightness_enabled">
+        <item>Adjusts the brightness of the Controls window from the ambient light sensor when this head unit supports it.</item>
+        <item>Fixed Controls brightness</item>
+        <item>Controls brightens in sunlight</item>
+    </string-array>
+    <string-array name="guide_comfort_brightness_low">
+        <item>Sets the brightness used for the Controls window in a dark cabin when adaptive brightness is enabled.</item>
+        <item>35% in low light</item>
+        <item>15% in low light</item>
+    </string-array>
+    <string-array name="guide_comfort_brightness_high">
+        <item>Sets the brightness used for the Controls window in bright light when adaptive brightness is enabled.</item>
+        <item>70% in bright light</item>
+        <item>100% in bright light</item>
+    </string-array>
+    <string-array name="guide_trip_gps_title">
+        <item>Adds a GPS track to the active trip when location permission is granted and readings are available.</item>
+        <item>Distance only</item>
+        <item>Distance and recorded route</item>
+    </string-array>
+    <string-array name="guide_trips_automatic">
+        <item>Lets Controls start recording after it detects movement or a driving gear on a supported head unit.</item>
+        <item>No active record in Park</item>
+        <item>Trip starts when driving is detected</item>
+    </string-array>
+    <string-array name="guide_trip_permissions">
+        <item>Opens the vehicle reading access flow. Supported readings can appear after access is granted.</item>
+        <item>Reading unavailable</item>
+        <item>Vehicle data appears</item>
+    </string-array>
+    <string-array name="guide_rules_extra_conditions">
+        <item>Adds extra checks to a rule. All configured conditions must match before it can run.</item>
+        <item>Gear condition matches</item>
+        <item>Additional light condition blocks the rule</item>
+    </string-array>
+    <string-array name="guide_rules_light">
+        <item>Requires an ambient light reading at or beyond the chosen limit. A missing reading does not match.</item>
+        <item>500 lx is above the limit</item>
+        <item>50 lx satisfies a 100 lx maximum</item>
+    </string-array>
+    <string-array name="guide_rules_charge">
+        <item>Requires the traction battery charge to meet the chosen limit before the rule can run.</item>
+        <item>60% is below the limit</item>
+        <item>85% satisfies an 80% minimum</item>
+    </string-array>
+    <string-array name="guide_rules_temperature">
+        <item>Checks the outside temperature against the chosen limit before running the rule.</item>
+        <item>15° is above the limit</item>
+        <item>−5° satisfies a 0° maximum</item>
+    </string-array>
+    <string-array name="guide_rules_driving_mode">
+        <item>Requires the confirmed driving mode to match the one selected in the rule.</item>
+        <item>ECO does not match</item>
+        <item>SPORT matches</item>
+    </string-array>
+    <string-array name="guide_routine_voice_phrase">
+        <item>Lets you run this saved routine by saying a chosen phrase to the Controls voice assistant.</item>
+        <item>No phrase assigned</item>
+        <item>Phrase runs the routine</item>
+    </string-array>
+    <string-array name="guide_routine_steps_title">
+        <item>Adds optional steps to a routine. Steps run in the order shown.</item>
+        <item>Open the page, then play</item>
+        <item>Wait between the two steps</item>
+    </string-array>
+    <string-array name="guide_desktop_info_clock">
+        <item>Shows the clock on this desktop. Choose its width or hide it.</item>
+        <item>No clock card</item>
+        <item>Wide clock card</item>
+    </string-array>
+    <string-array name="guide_desktop_info_service">
+        <item>Shows the next scheduled service on this desktop. Choose its width or hide it.</item>
+        <item>No service card</item>
+        <item>Service mileage visible</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media">
+        <item>Sets how much grid space the desktop media card takes. You can also hide it.</item>
+        <item>Compact media card</item>
+        <item>More room for playback</item>
+    </string-array>
+    <string-array name="guide_desktop_info_headlights">
+        <item>Shows supported headlight readings on the desktop. Choose the card width or hide it.</item>
+        <item>No headlight card</item>
+        <item>Compact light status card</item>
+    </string-array>
+    <string-array name="guide_desktop_info_phone">
+        <item>Places your phone favorites on this desktop. Choose the card width or hide it.</item>
+        <item>No phone card</item>
+        <item>Phone favorites on the desktop</item>
+    </string-array>
+    <string-array name="guide_desktop_info_route">
+        <item>Places turn guidance on this desktop when navigation data is available.</item>
+        <item>No route card</item>
+        <item>Wide turn guidance card</item>
+    </string-array>
+    <string-array name="guide_comfort_power_hold">
+        <item>Places the power hold controls on this desktop. Availability depends on the head unit.</item>
+        <item>No power hold card</item>
+        <item>Power hold card shown</item>
+    </string-array>
+    <string-array name="guide_comfort_car_wash">
+        <item>Places the car wash mode controls on this desktop. Availability depends on the head unit.</item>
+        <item>No car wash card</item>
+        <item>Car wash controls are visible</item>
+    </string-array>
+    <string-array name="guide_factory_radio_card">
+        <item>Places the supported factory radio card on this desktop. Choose its width or hide it.</item>
+        <item>No radio card</item>
+        <item>Station and tuning controls shown</item>
+    </string-array>
+    <string-array name="guide_trip_current">
+        <item>Places the current trip duration and distance on this desktop when a trip is active.</item>
+        <item>No current trip card</item>
+        <item>Elapsed time and distance shown</item>
+    </string-array>
+    <string-array name="guide_trip_levels">
+        <item>Places available charge and fuel readings on this desktop.</item>
+        <item>No level card</item>
+        <item>Charge and fuel shown</item>
+    </string-array>
+    <string-array name="guide_trip_usage_last">
+        <item>Places the available consumption figures for the last trip on this desktop.</item>
+        <item>No consumption card</item>
+        <item>Last trip’s consumption shown</item>
+    </string-array>
+    <string-array name="guide_trip_tyres">
+        <item>Places the available tyre pressure readings on this desktop.</item>
+        <item>No tyre card</item>
+        <item>Pressures shown by wheel</item>
+    </string-array>
+    <string-array name="guide_trip_odometer">
+        <item>Places the vehicle’s total mileage on this desktop when the odometer reading is available.</item>
+        <item>No odometer card</item>
+        <item>Total mileage shown</item>
+    </string-array>
+    <string-array name="guide_trip_suspension">
+        <item>Places the reported ride height on this desktop when the head unit provides it.</item>
+        <item>No suspension card</item>
+        <item>Ride height shown</item>
+    </string-array>
+    <string name="setting_guide_sample_maps">Maps</string>
+    <string name="setting_guide_sample_music">Music</string>
+    <string name="setting_guide_sample_clock">Clock</string>
+    <string name="setting_guide_sample_voice">Voice</string>
+    <string name="setting_guide_sample_video">Video</string>
+    <string name="setting_guide_sample_daily">Daily drive</string>
+    <string name="setting_guide_sample_trip_layout">Trip layout</string>
+    <string name="setting_guide_sample_morning_drive">Morning drive</string>
+    <string name="setting_guide_sample_road_trip">Road trip</string>
+    <string name="setting_guide_sample_spoken_trip">«Road trip»</string>
+    <string name="setting_guide_sample_lights_in_park">Lights in Park</string>
+    <string name="setting_guide_sample_maps_and_music">Maps + Music</string>
+    <string name="setting_guide_sample_mode">Mode</string>
+    <string name="setting_guide_sample_trip">Trip</string>
+    <string name="setting_guide_sample_evening">Evening</string>
+    <string name="setting_guide_sample_morning">Morning</string>
+    <string name="setting_guide_sample_ready">«Ready»</string>
+    <string name="setting_guide_sample_lets_go">«Let’s go»</string>
+    <string-array name="guide_rules_limit_hours">
+        <item>Lets the rule run only in its own daily time window, even if the other conditions match.</item>
+        <item>Conditions can match all day</item>
+        <item>Rule is eligible only in its time window</item>
+    </string-array>
+    <string-array name="guide_rules_time_start">
+        <item>Sets the start of the daily time window for the rule.</item>
+        <item>Too early for this rule</item>
+        <item>Rule may run from the start time</item>
+    </string-array>
+    <string-array name="guide_rules_time_end">
+        <item>Sets the end of the rule’s daily time window.</item>
+        <item>Rule may run inside the window</item>
+        <item>Rule waits for the next window</item>
+    </string-array>
+    <string name="rules_limit_hours">@string/routines_limit_hours</string>
+    <string name="rules_time_start">@string/routines_time_start</string>
+    <string name="rules_time_end">@string/routines_time_end</string>
+    <string-array name="guide_ui_188">
+        <item>Chooses the app launched for this voice command. The same phrase can open a different app after you change the assignment.</item>
+        <item>Phrase opens the old app</item>
+        <item>The same phrase opens the new app</item>
+    </string-array>
+    <string-array name="guide_desktop_info_phone_add">
+        <item>Adds a saved contact to this desktop’s phone favorites so it appears on the card.</item>
+        <item>Contact in the address book</item>
+        <item>Contact on the phone card</item>
+    </string-array>
+    <string-array name="guide_app_icon_reset">
+        <item>Restores the app’s original launcher icon in the grid.</item>
+        <item>Your picture</item>
+        <item>Original app icon restored</item>
+    </string-array>
+    <string-array name="guide_app_window_restore">
+        <item>Resets this app’s saved window width, scale and panel margin to their defaults.</item>
+        <item>Custom window profile</item>
+        <item>Default window profile</item>
     </string-array>
 </resources>

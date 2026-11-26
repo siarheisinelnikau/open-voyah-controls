@@ -88,7 +88,8 @@ internal fun VehicleCommandsDialog(catalog: VoiceCatalog, close: () -> Unit) {
             for (guide in commands) {
                 val id = guide.command.id()
                 val state = states[id] ?: ActionPermission.ALLOWED
-                CockpitSwitch(guide.command.title(), state.runs, guideId = R.string.voice_vehicle_commands) { on ->
+                CockpitSwitch(guide.command.title(), state.runs, guideId = R.string.voice_vehicle_commands,
+                    guideEffect = guide.effect) { on ->
                     states = states + (id to when {
                         !on -> ActionPermission.FORBIDDEN
                         list.states[id] == ActionPermission.UNVERIFIED -> ActionPermission.UNVERIFIED

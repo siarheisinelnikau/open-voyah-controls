@@ -158,7 +158,7 @@ private fun PairEditor(
         CockpitChoice(R.string.app_pair_right, rightLabel, enabled = enabled) { choosingLeft = false }
         CockpitChoice(R.string.app_pair_proportion, ratio(percent), enabled = enabled) { choosingRatio = true }
         CockpitTextField(name, { if (it.length <= AppPair.MAX_NAME && it.none(Char::isISOControl)) name = it },
-            UiText.get(R.string.app_pair_name), Modifier.fillMaxWidth(), enabled = enabled)
+            UiText.get(R.string.app_pair_name), Modifier.fillMaxWidth(), enabled = enabled, guideId = R.string.app_pair_name)
         CockpitSwitch(R.string.app_pair_dock, dock, enabled = enabled) { dock = it }
         if (edit.failed) CockpitFeedback(UiText.get(R.string.app_pair_save_failed), error = true)
     }

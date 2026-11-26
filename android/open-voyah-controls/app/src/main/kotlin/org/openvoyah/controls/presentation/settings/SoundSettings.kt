@@ -192,7 +192,7 @@ internal fun MediaAccessSettings(extra: @Composable androidx.compose.foundation.
                 context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 false
             } catch (_: RuntimeException) { true }
-        })
+        }, guideId = R.string.display_media_access)
         if (failed) CockpitFeedback(UiText.get(R.string.ui_134), error = true)
         extra()
     }

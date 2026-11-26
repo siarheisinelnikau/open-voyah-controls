@@ -253,8 +253,7 @@ private fun <T> DesktopCardChoice(
     supporting: (T) -> String? = { null }, select: (T) -> Unit,
 ) {
     var choosing by remember { mutableStateOf(false) }
-    CockpitChoice(UiText.get(title), value, enabled = enabled,
-        guideId = if (DesktopInfoCard.entries.any { it.label() == title }) R.string.desktop_info_settings else title) { choosing = true }
+    CockpitChoice(title, value, enabled = enabled) { choosing = true }
     if (choosing) CockpitOptionDialog(UiText.get(title), options, current, label, onSelect = select, onDismiss = { choosing = false },
         enabled = enabled, detail = supporting)
 }

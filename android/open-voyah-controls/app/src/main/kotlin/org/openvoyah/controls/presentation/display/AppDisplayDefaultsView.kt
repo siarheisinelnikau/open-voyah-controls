@@ -43,9 +43,9 @@ internal fun AppDisplayDefaultsControl(model: AppDisplayDefaultsViewModel) {
             ) {
                 Text(label(R.string.app_display_defaults_description))
                 state.draft?.let { draft ->
-                    DensityPicker(label(R.string.app_display_defaults_central), draft.centralDpi,
+                    DensityPicker(R.string.app_display_defaults_central, draft.centralDpi,
                         AppWindowProfile.densities, !state.working) { model.change(true, it) }
-                    DensityPicker(label(R.string.app_display_defaults_secondary), draft.secondaryDpi,
+                    DensityPicker(R.string.app_display_defaults_secondary, draft.secondaryDpi,
                         listOf(null) + AppWindowProfile.densities, !state.working) { model.change(false, it) }
                 }
                 val message = if (state.working) R.string.ui_80 else state.message
@@ -62,10 +62,10 @@ internal fun AppDisplayDefaultsControl(model: AppDisplayDefaultsViewModel) {
 }
 
 @Composable
-private fun DensityPicker(title: String, dpi: Int?, choices: List<Int?>, enabled: Boolean, change: (Int?) -> Unit) {
+private fun DensityPicker(title: Int, dpi: Int?, choices: List<Int?>, enabled: Boolean, change: (Int?) -> Unit) {
     var choosing by remember { mutableStateOf(false) }
-    CockpitChoice(title, densityText(dpi), enabled, guideId = R.string.app_display_defaults_title) { choosing = true }
-    if (choosing) CockpitOptionDialog(title, choices, dpi, ::densityText, change, { choosing = false }, enabled = enabled)
+    CockpitChoice(title, densityText(dpi), enabled) { choosing = true }
+    if (choosing) CockpitOptionDialog(label(title), choices, dpi, ::densityText, change, { choosing = false }, enabled = enabled)
 }
 
 private fun densityText(dpi: Int?): String = when (dpi) {

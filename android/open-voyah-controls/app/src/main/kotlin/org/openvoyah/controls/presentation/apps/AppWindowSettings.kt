@@ -54,7 +54,8 @@ internal fun AppWindowSettings(window: AppSettingsViewModel.Window, model: AppSe
         CockpitAction(label(R.string.app_window_enable), model::enableWindows, enabled = editable)
     }
     FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-        CockpitAction(label(R.string.app_window_restore), model::resetWindow, enabled = editable, destructive = true)
+        CockpitAction(label(R.string.app_window_restore), model::resetWindow, enabled = editable, destructive = true,
+            guideId = R.string.app_window_restore)
         CockpitAction(label(if (window.connection == WindowConnection.ENABLED) R.string.app_window_apply else R.string.ui_104),
             model::applyWindow, enabled = editable, primary = true)
     }

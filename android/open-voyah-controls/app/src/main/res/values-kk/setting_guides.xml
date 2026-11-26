@@ -114,9 +114,9 @@
         <item>Жиекті карта</item>
     </string-array>
     <string-array name="guide_desktop_info_clock_format">
-        <item>Сағат картасында қандай мәлімет көрсетілетінін өзгертеді.</item>
-        <item>Уақыт</item>
-        <item>Уақыт және күн</item>
+        <item>Сағат картасының пішімін белгілейді. Жүйелік, 12 сағаттық немесе 24 сағаттық пішімді қолдануға болады.</item>
+        <item>24 сағаттық пішім</item>
+        <item>12 сағаттық пішім</item>
     </string-array>
     <string-array name="guide_desktop_info_media_style">
         <item>Трек ақпараты мен ойнату батырмаларының орналасуын өзгертеді.</item>
@@ -479,9 +479,9 @@
         <item>Осы беттің үстіндегі жарық дереккөздері</item>
     </string-array>
     <string-array name="guide_quick_actions_apps_destination">
-        <item>Қолданбалар жарлығы әдепкі жұмыс үстелін немесе барлық қолданбаларды ашатынын таңдайды.</item>
-        <item>Әдепкі жұмыс үстелі</item>
-        <item>Барлық қолданбалар</item>
+        <item>Қолданбалар таңбашасы әдепкі жұмыс үстелін немесе барлық қолданбалар торын ашады.</item>
+        <item>Әдепкі жұмыс үстелі (мысалда таңдаулылар)</item>
+        <item>Барлық қолданбалар торы</item>
     </string-array>
     <string-array name="guide_quick_actions_side">
         <item>Кең экранда бүйірлік жолақты солға немесе оңға орналастырады.</item>
@@ -754,9 +754,9 @@
         <item>Қазақша тіркестер мен модель</item>
     </string-array>
     <string-array name="guide_voice_recognition_engine">
-        <item>Офлайн қозғалтқышты таңдайды. Таңдалған қозғалтқыш пен тілге жергілікті сөйлеу моделі қажет.</item>
-        <item>Сөйлеу жазылды</item>
-        <item>Таңдалған қозғалтқыш сөйлеуді таниды</item>
+        <item>Интернетсіз сөйлеуді тану қозғалтқышын таңдайды. Қолдау көрсетілетін құрылғыларда Zipformer орыс тіліне қолжетімді. Vosk танудың барлық қолдау көрсетілетін тілінде жұмыс істейді.</item>
+        <item>Vosk таңдалған</item>
+        <item>Zipformer таңдалған</item>
     </string-array>
     <string-array name="guide_voice_online_title">
         <item>Каталогта тіркес сәйкес келмесе, сенімді танылған жергілікті мәтінді онлайн түсіндіруге мүмкіндік береді.</item>
@@ -775,8 +775,8 @@
     </string-array>
     <string-array name="guide_default_levels">
         <item>Деңгей айтылмай, жай ғана орындық функциясын қосу сұралса, қолданылатын жайлылық деңгейін белгілейді.</item>
-        <item>Орындық жылытуын қосу</item>
-        <item>Жылыту әдепкі деңгейде қосылады</item>
+        <item>Әдепкі деңгей 1</item>
+        <item>Әдепкі деңгей 3</item>
     </string-array>
     <string-array name="guide_window_options">
         <item>Қолдау бар көлікте желдету пәрмендері терезені қанша ашатынын таңдаңыз.</item>
@@ -1147,5 +1147,338 @@
         <item>Трек мәліметі мен үйлесімді ойнату басқаруын не бағаларды алу үшін OVC жүйесіне белсенді медиа сессиясын оқуға рұқсат береді.</item>
         <item>Трек ойнатқышта ғана көрінеді</item>
         <item>Трек мәліметі OVC жүйесінде көрінеді</item>
+    </string-array>
+    <string-array name="guide_home_navigator_widget_settings">
+        <item>Яндекс Навигатор виджетінің карта тақырыбы мен масштабын баптайды.</item>
+        <item>Әдепкі карта</item>
+        <item>Басқа тақырып пен масштаб</item>
+    </string-array>
+    <string-array name="guide_display_navigation">
+        <item>Үйлесімді навигатор маневрлерді Controls қолданбасына жібере алады. Қолжетімділік бас құрылғыға байланысты.</item>
+        <item>Бағыт дерегі жоқ</item>
+        <item>Бұрылыс нұсқауы алынды</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_title">
+        <item>Қолдау көрсетілетін жолаушы экранында бөлек жұмыс үстелін ашады.</item>
+        <item>Жұмыс үстелі жоқ</item>
+        <item>Жолаушының жұмыс үстелі ашылды</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_compact">
+        <item>Жолаушының жұмыс үстеліндегі қолданба тақташаларын кішірейтеді.</item>
+        <item>Қалыпты тақташалар</item>
+        <item>Ықшам тақташалар</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_clock">
+        <item>Жолаушының жұмыс үстелінде ағымдағы уақытты көрсетеді.</item>
+        <item>Сағат жоқ</item>
+        <item>Сағат көрінеді</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_date">
+        <item>Жолаушының жұмыс үстеліндегі сағатқа бүгінгі күнді қосады.</item>
+        <item>Тек уақыт</item>
+        <item>Уақыт пен күн</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_startup">
+        <item>Жолаушы экраны қолжетімді болса, Controls іске қосылғанда жұмыс үстелі ашылады.</item>
+        <item>Жолаушы экраны өзгеріссіз</item>
+        <item>Іске қосылғанда жұмыс үстелі ашылады</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_app_slot">
+        <item>Осы тақташа ашатын қолданбаны таңдайды. Бос ұяшық таңбашаны алып тастайды.</item>
+        <item>Бұрынғы тақташа</item>
+        <item>Осы тақташадағы жаңа қолданба</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_dock_slot">
+        <item>Жолаушы панеліндегі осы таңбаша ашатын қолданбаны таңдайды.</item>
+        <item>Панельдегі бұрынғы таңбаша</item>
+        <item>Панельдегі жаңа қолданба</item>
+    </string-array>
+    <string-array name="guide_app_display_defaults_central">
+        <item>Терезе қызметі орталық экранда ашатын қолданбалардың әдепкі масштабын белгілейді.</item>
+        <item>Екі экранда да 160 DPI</item>
+        <item>Орталық экрандағы қолданбаларда 200 DPI</item>
+    </string-array>
+    <string-array name="guide_app_display_defaults_secondary">
+        <item>Терезе қызметі екінші экранда ашатын қолданбалардың әдепкі масштабын белгілейді. Оны осы экран үшін өшіруге болады.</item>
+        <item>Масштаб өзгермейді</item>
+        <item>Екінші экрандағы қолданбаларда 190 DPI</item>
+    </string-array>
+    <string-array name="guide_app_pair_left">
+        <item>Жұпты ашқанда сол жақта іске қосылатын қолданбаны таңдайды.</item>
+        <item>Сол жақта карта</item>
+        <item>Сол жақта сағат</item>
+    </string-array>
+    <string-array name="guide_app_pair_right">
+        <item>Жұпты ашқанда оң жақта іске қосылатын қолданбаны таңдайды.</item>
+        <item>Оң жақта музыка</item>
+        <item>Оң жақта дауыс көмекшісі</item>
+    </string-array>
+    <string-array name="guide_app_pair_proportion">
+        <item>Екі терезенің қолжетімді енді қалай бөлетінін белгілейді.</item>
+        <item>Терезелердің ені бірдей</item>
+        <item>Сол жақ терезе кеңірек</item>
+    </string-array>
+    <string-array name="guide_app_pair_name">
+        <item>Тізім мен таңбаша үшін жұпқа атау береді. Бос қалса, қолданба атаулары пайдаланылады.</item>
+        <item>Қолданба атауларынан алынған атау</item>
+        <item>Жұпқа берген атауыңыз</item>
+    </string-array>
+    <string-array name="guide_app_pair_dock">
+        <item>Controls жедел панеліне осы жұптың таңбашасын қосады.</item>
+        <item>Жұптың таңбашасы жоқ</item>
+        <item>Жұп панельден ашылады</item>
+    </string-array>
+    <string-array name="guide_button_service_enable">
+        <item>Қолдау көрсетілетін аппараттық түймелерді қабылдайтын қызметті қосу үшін Android арнайы мүмкіндіктерін ашады.</item>
+        <item>Controls басуларды қабылдамайды</item>
+        <item>Басулар Controls қолданбасына жетеді</item>
+    </string-array>
+    <string-array name="guide_ui_53">
+        <item>Аппараттық түйменің басылуын күтіп, анықталған код пен енгізу құрылғысын енгізеді.</item>
+        <item>Түймені күту</item>
+        <item>Түйме коды оқылды</item>
+    </string-array>
+    <string-array name="guide_ui_54">
+        <item>Белгілі Android түйме кодын өзіңіз енгізіп, тағайындау жасауға мүмкіндік береді.</item>
+        <item>Код өрісі бос</item>
+        <item>165 коды енгізілді</item>
+    </string-array>
+    <string-array name="guide_ui_59">
+        <item>Аппараттық түймені ұстап тұру шегі мен қайталанған сигналдарды сүзу параметрлерін ашады.</item>
+        <item>Қысқалау ұстау шегі</item>
+        <item>Ұзағырақ ұстау шегі</item>
+    </string-array>
+    <string-array name="guide_ui_62">
+        <item>Растағаннан кейін сақталған Android аппараттық түйме тағайындауларын өшіреді.</item>
+        <item>Түймелердің тағайындаулары бар</item>
+        <item>Тағайындаулар өшірілді</item>
+    </string-array>
+    <string-array name="guide_cockpit_dictionary_english">
+        <item>Қолдау көрсетілетін зауыттық жазуларға кірістірілген ағылшын сөздігін қолданады.</item>
+        <item>Бастапқы жазулар</item>
+        <item>Ағылшынша жазулар</item>
+    </string-array>
+    <string-array name="guide_cockpit_dictionary_kazakh">
+        <item>Қолдау көрсетілетін зауыттық жазуларға кірістірілген қазақ сөздігін қолданады.</item>
+        <item>Бастапқы жазулар</item>
+        <item>Қазақша жазулар</item>
+    </string-array>
+    <string-array name="guide_translation_disable">
+        <item>Зауыттық жазулардың аударма сөздігін өшіріп, бастапқы жазуларды көрсетеді.</item>
+        <item>Сөздік қосулы</item>
+        <item>Бастапқы жазулар көрінеді</item>
+    </string-array>
+    <string-array name="guide_translation_restore">
+        <item>Сақталған болса, соңғы өзгеріске дейін қолданылған зауыттық жазулар сөздігін қалпына келтіреді.</item>
+        <item>Ағымдағы сөздік</item>
+        <item>Алдыңғы сөздік</item>
+    </string-array>
+    <string-array name="guide_diagnostics_problems_only">
+        <item>Диагностикада тек ескертулер мен қателерді көрсетеді. Сақталған журнал өзгермейді.</item>
+        <item>Барлық жазбалар</item>
+        <item>Тек ескертулер мен қателер</item>
+    </string-array>
+    <string-array name="guide_comfort_playback_door">
+        <item>Ойнатқышты басқару қолжетімді болса, жүргізуші есігі ашылғанда ойнатуды кідіртеді.</item>
+        <item>Есік ашық кезде музыка ойнай береді</item>
+        <item>Есік ашылғанда музыка кідіреді</item>
+    </string-array>
+    <string-array name="guide_comfort_playback_wake">
+        <item>Ұйқы режиміне өткенде қолдау көрсетілетін ойнатуды кідіртіп, оянғанда сол сеансты жалғастыра алады.</item>
+        <item>Ұйқыға дейін музыка ойнайды</item>
+        <item>Оянғаннан кейін музыка жалғасады</item>
+    </string-array>
+    <string-array name="guide_comfort_brightness_enabled">
+        <item>Бас құрылғы қолдаса, жарық датчигі арқылы Controls терезесінің жарықтығын реттейді.</item>
+        <item>Controls жарықтығы тұрақты</item>
+        <item>Күн сәулесінде Controls жарығырақ</item>
+    </string-array>
+    <string-array name="guide_comfort_brightness_low">
+        <item>Бейімделгіш жарықтық қосулы кезде қараңғы салондағы Controls терезесінің жарықтығын белгілейді.</item>
+        <item>Жарық аз кезде 35%</item>
+        <item>Жарық аз кезде 15%</item>
+    </string-array>
+    <string-array name="guide_comfort_brightness_high">
+        <item>Бейімделгіш жарықтық қосулы кезде жарық жерде Controls терезесінің жарықтығын белгілейді.</item>
+        <item>Жарық жерде 70%</item>
+        <item>Жарық жерде 100%</item>
+    </string-array>
+    <string-array name="guide_trip_gps_title">
+        <item>Орналасуға рұқсат беріліп, дерек қолжетімді болса, ағымдағы сапарға GPS бағытын қосады.</item>
+        <item>Тек қашықтық</item>
+        <item>Қашықтық пен жазылған бағыт</item>
+    </string-array>
+    <string-array name="guide_trips_automatic">
+        <item>Қолдау көрсетілетін құрылғы жүрісті немесе жүріс берілісін анықтағанда Controls жазуды автоматты түрде бастайды.</item>
+        <item>Park режимінде жазба жоқ</item>
+        <item>Жүріс анықталғанда жазба басталады</item>
+    </string-array>
+    <string-array name="guide_trip_permissions">
+        <item>Көлік деректеріне қол жеткізу баптауларын ашады. Рұқсат берілсе, құрылғы ұсынатын деректер көрінеді.</item>
+        <item>Дерек қолжетімсіз</item>
+        <item>Көлік дерегі көрсетіледі</item>
+    </string-array>
+    <string-array name="guide_rules_extra_conditions">
+        <item>Ережеге қосымша тексерулер қосады. Ереже үшін барлық таңдалған шарт орындалуы керек.</item>
+        <item>Беріліс шарты орындалды</item>
+        <item>Жарық шарты ережені бөгейді</item>
+    </string-array>
+    <string-array name="guide_rules_light">
+        <item>Таңдалған шекке сай жарық көрсеткішін талап етеді. Көрсеткіш болмаса, шарт орындалмайды.</item>
+        <item>500 лк шектен жоғары</item>
+        <item>50 лк 100 лк шегіне сай</item>
+    </string-array>
+    <string-array name="guide_rules_charge">
+        <item>Ереже орындалуы үшін тартқыш батарея заряды таңдалған шекке сай болуы керек.</item>
+        <item>60% шектен төмен</item>
+        <item>85% 80% минимумына сай</item>
+    </string-array>
+    <string-array name="guide_rules_temperature">
+        <item>Ережені іске қоспас бұрын сыртқы температураны таңдалған шекпен салыстырады.</item>
+        <item>15° шектен жоғары</item>
+        <item>−5° 0° шегіне сай</item>
+    </string-array>
+    <string-array name="guide_rules_driving_mode">
+        <item>Расталған жүріс режимі ережеде таңдалған режимге сәйкес болуы керек.</item>
+        <item>ECO сәйкес емес</item>
+        <item>SPORT сәйкес</item>
+    </string-array>
+    <string-array name="guide_routine_voice_phrase">
+        <item>Таңдалған тіркесті Controls дауыс көмекшісіне айтып, сақталған сценарийді іске қосуға болады.</item>
+        <item>Тіркес тағайындалмаған</item>
+        <item>Тіркес сценарийді іске қосады</item>
+    </string-array>
+    <string-array name="guide_routine_steps_title">
+        <item>Сценарийге қосымша қадамдар қосады. Қадамдар көрсетілген ретпен орындалады.</item>
+        <item>Алдымен бетті ашу, содан соң ойнату</item>
+        <item>Екі қадам арасында күту</item>
+    </string-array>
+    <string-array name="guide_desktop_info_clock">
+        <item>Осы жұмыс үстелінде сағатты көрсетеді. Картаның енін таңдауға немесе оны жасыруға болады.</item>
+        <item>Сағат картасы жоқ</item>
+        <item>Кең сағат картасы</item>
+    </string-array>
+    <string-array name="guide_desktop_info_service">
+        <item>Жұмыс үстелінде келесі техникалық қызметті көрсетеді. Картаның енін таңдауға немесе оны жасыруға болады.</item>
+        <item>Қызмет картасы жоқ</item>
+        <item>Қызметке дейінгі жүріс көрінеді</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media">
+        <item>Жұмыс үстеліндегі медиа картасының енін белгілейді. Картаны жасыруға да болады.</item>
+        <item>Ықшам медиа картасы</item>
+        <item>Ойнатқышқа көбірек орын</item>
+    </string-array>
+    <string-array name="guide_desktop_info_headlights">
+        <item>Жұмыс үстелінде шамдардың қолжетімді көрсеткіштерін көрсетеді. Картаның енін таңдауға немесе оны жасыруға болады.</item>
+        <item>Шамдар картасы жоқ</item>
+        <item>Шам күйінің ықшам картасы</item>
+    </string-array>
+    <string-array name="guide_desktop_info_phone">
+        <item>Таңдаулы контактілерді осы жұмыс үстеліне орналастырады. Картаның енін таңдауға немесе оны жасыруға болады.</item>
+        <item>Телефон картасы жоқ</item>
+        <item>Жұмыс үстеліндегі таңдаулы контактілер</item>
+    </string-array>
+    <string-array name="guide_desktop_info_route">
+        <item>Навигация дерегі бар кезде осы жұмыс үстелінде маневрлерді көрсетеді.</item>
+        <item>Бағыт картасы жоқ</item>
+        <item>Бұрылыс нұсқауының кең картасы</item>
+    </string-array>
+    <string-array name="guide_comfort_power_hold">
+        <item>Қуатты ұстап тұру басқаруын жұмыс үстеліне шығарады. Қолжетімділік бас құрылғыға байланысты.</item>
+        <item>Қуатты ұстап тұру картасы жоқ</item>
+        <item>Қуатты ұстап тұру картасы көрінеді</item>
+    </string-array>
+    <string-array name="guide_comfort_car_wash">
+        <item>Көлік жуу режимін басқаруды жұмыс үстеліне шығарады. Қолжетімділік бас құрылғыға байланысты.</item>
+        <item>Жуу картасы жоқ</item>
+        <item>Көлік жуу басқаруы көрінеді</item>
+    </string-array>
+    <string-array name="guide_factory_radio_card">
+        <item>Қолдау көрсетілетін зауыттық радио картасын жұмыс үстеліне орналастырады. Енін таңдауға немесе жасыруға болады.</item>
+        <item>Радио картасы жоқ</item>
+        <item>Станция мен баптау түймелері көрінеді</item>
+    </string-array>
+    <string-array name="guide_trip_current">
+        <item>Белсенді сапар кезінде жұмыс үстелінде уақыт пен қашықтықты көрсетеді.</item>
+        <item>Сапар картасы жоқ</item>
+        <item>Уақыт пен қашықтық көрінеді</item>
+    </string-array>
+    <string-array name="guide_trip_levels">
+        <item>Қолжетімді заряд пен отын деректерін жұмыс үстеліне шығарады.</item>
+        <item>Деңгей картасы жоқ</item>
+        <item>Заряд пен отын көрінеді</item>
+    </string-array>
+    <string-array name="guide_trip_usage_last">
+        <item>Соңғы сапардың қолжетімді шығын деректерін жұмыс үстеліне шығарады.</item>
+        <item>Шығын картасы жоқ</item>
+        <item>Соңғы сапардың шығыны көрінеді</item>
+    </string-array>
+    <string-array name="guide_trip_tyres">
+        <item>Шина қысымының қолжетімді деректерін жұмыс үстеліне шығарады.</item>
+        <item>Шина картасы жоқ</item>
+        <item>Әр дөңгелектің қысымы көрінеді</item>
+    </string-array>
+    <string-array name="guide_trip_odometer">
+        <item>Одометр дерегі бар кезде жұмыс үстелінде жалпы жүрісті көрсетеді.</item>
+        <item>Одометр картасы жоқ</item>
+        <item>Жалпы жүріс көрінеді</item>
+    </string-array>
+    <string-array name="guide_trip_suspension">
+        <item>Бас құрылғы хабарласа, жұмыс үстелінде аспа биіктігін көрсетеді.</item>
+        <item>Аспа картасы жоқ</item>
+        <item>Аспа биіктігі көрінеді</item>
+    </string-array>
+    <string name="setting_guide_sample_maps">Карталар</string>
+    <string name="setting_guide_sample_music">Музыка</string>
+    <string name="setting_guide_sample_clock">Сағат</string>
+    <string name="setting_guide_sample_voice">Дауыс</string>
+    <string name="setting_guide_sample_video">Бейне</string>
+    <string name="setting_guide_sample_daily">Күнделікті</string>
+    <string name="setting_guide_sample_trip_layout">Сапар үлгісі</string>
+    <string name="setting_guide_sample_morning_drive">Таңғы сапар</string>
+    <string name="setting_guide_sample_road_trip">Жолға</string>
+    <string name="setting_guide_sample_spoken_trip">«Жолға»</string>
+    <string name="setting_guide_sample_lights_in_park">Тұрақтағы жарық</string>
+    <string name="setting_guide_sample_maps_and_music">Карта + музыка</string>
+    <string name="setting_guide_sample_mode">Режим</string>
+    <string name="setting_guide_sample_trip">Сапар</string>
+    <string name="setting_guide_sample_evening">Кеш</string>
+    <string name="setting_guide_sample_morning">Таң</string>
+    <string name="setting_guide_sample_ready">«Дайын»</string>
+    <string name="setting_guide_sample_lets_go">«Кеттік»</string>
+    <string-array name="guide_rules_limit_hours">
+        <item>Басқа шарттар орындалса да, ереже тек өзінің күнделікті уақыт аралығында орындалады.</item>
+        <item>Шарттар тәулік бойы орындалуы мүмкін</item>
+        <item>Ереже тек өз уақыт аралығында орындалады</item>
+    </string-array>
+    <string-array name="guide_rules_time_start">
+        <item>Ереженің күнделікті уақыт аралығының басын белгілейді.</item>
+        <item>Ереже үшін әлі ерте</item>
+        <item>Ереже аралық басталғаннан кейін орындала алады</item>
+    </string-array>
+    <string-array name="guide_rules_time_end">
+        <item>Ереженің күнделікті уақыт аралығының соңын белгілейді.</item>
+        <item>Ереже аралық ішінде орындала алады</item>
+        <item>Ереже келесі аралықты күтеді</item>
+    </string-array>
+    <string-array name="guide_ui_188">
+        <item>Осы дауыстық пәрмен ашатын қолданбаны таңдайды. Тағайындауды өзгерткенде сол тіркес басқа қолданбаны ашады.</item>
+        <item>Тіркес бұрынғы қолданбаны ашады</item>
+        <item>Сол тіркес жаңа қолданбаны ашады</item>
+    </string-array>
+    <string-array name="guide_desktop_info_phone_add">
+        <item>Сақталған контактіні осы жұмыс үстелінің таңдаулыларына қосады, сонда ол телефон картасында көрінеді.</item>
+        <item>Контакт мекенжай кітабында</item>
+        <item>Контакт телефон картасында</item>
+    </string-array>
+    <string-array name="guide_app_icon_reset">
+        <item>Торда қолданбаның бастапқы белгішесін қалпына келтіреді.</item>
+        <item>Сіз таңдаған сурет</item>
+        <item>Бастапқы белгіше қалпына келді</item>
+    </string-array>
+    <string-array name="guide_app_window_restore">
+        <item>Осы қолданбаның сақталған терезе енін, масштабын және панель жиегін әдепкі күйге қайтарады.</item>
+        <item>Терезенің өз параметрлері</item>
+        <item>Терезенің әдепкі параметрлері</item>
     </string-array>
 </resources>

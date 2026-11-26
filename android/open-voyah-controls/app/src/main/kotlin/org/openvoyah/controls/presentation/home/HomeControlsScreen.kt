@@ -54,7 +54,8 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
         CockpitSwitch(R.string.home_navigator_card, state.navigatorHomeCard, change = actions::navigatorHomeCard)
         if (state.navigatorHomeCard) {
             NavigatorWidgetScale(state.navigatorWidgetScale, actions::navigatorWidgetScale)
-            CockpitAction(UiText.get(R.string.home_navigator_widget_settings), { actions.command(HomeCommand.NAVIGATOR_WIDGET) })
+            CockpitAction(UiText.get(R.string.home_navigator_widget_settings), { actions.command(HomeCommand.NAVIGATOR_WIDGET) },
+                guideId = R.string.home_navigator_widget_settings)
         }
         CockpitSwitch(R.string.home_weather_card, state.weatherCard, change = actions::weatherCard)
         if (state.weatherCard) {
@@ -116,7 +117,7 @@ internal fun HomeHardwareButtons(state: HomeControlsState, actions: HomeActions)
         Text(UiText.get(R.string.button_fallback_scope), style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         CockpitAction(UiText.get(if (state.connected) R.string.ui_42 else R.string.button_service_enable),
-            { actions.command(HomeCommand.ACCESSIBILITY) })
+            { actions.command(HomeCommand.ACCESSIBILITY) }, guideId = R.string.button_service_enable)
         CockpitSwitch(R.string.ui_43, state.buttonsEnabled, change = actions::buttonsEnabled)
     }
     CockpitSection(UiText.get(R.string.ui_44), CockpitIcon.SETTINGS, guideId = R.string.ui_44) {
@@ -128,17 +129,17 @@ internal fun HomeHardwareButtons(state: HomeControlsState, actions: HomeActions)
             CockpitChoice(row.title, row.device + "\n" + row.actions, guideId = R.string.ui_44) { actions.editBinding(row.id) }
         } }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            CockpitAction(UiText.get(R.string.ui_53), { actions.command(HomeCommand.CAPTURE) }, primary = true)
-            CockpitAction(UiText.get(R.string.ui_54), { actions.command(HomeCommand.MANUAL) })
+            CockpitAction(UiText.get(R.string.ui_53), { actions.command(HomeCommand.CAPTURE) }, primary = true, guideId = R.string.ui_53)
+            CockpitAction(UiText.get(R.string.ui_54), { actions.command(HomeCommand.MANUAL) }, guideId = R.string.ui_54)
         }
     }
     CockpitSection(UiText.get(R.string.ui_55), CockpitIcon.SETTINGS) {
         if (state.available) {
             Text(UiText.get(R.string.ui_56) + state.holdMs + UiText.get(R.string.ui_57) + state.debounceMs + UiText.get(R.string.ui_58),
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            CockpitAction(UiText.get(R.string.ui_59), { actions.command(HomeCommand.TIMINGS) })
+            CockpitAction(UiText.get(R.string.ui_59), { actions.command(HomeCommand.TIMINGS) }, guideId = R.string.ui_59)
         } else CockpitFeedback(state.error, error = true)
-        CockpitAction(UiText.get(R.string.ui_62), { actions.command(HomeCommand.RESET) })
+        CockpitAction(UiText.get(R.string.ui_62), { actions.command(HomeCommand.RESET) }, guideId = R.string.ui_62)
     }
 }
 
@@ -167,8 +168,8 @@ internal fun HomeConnection(state: HomeControlsState, actions: HomeActions) {
 internal fun HomeBackup(actions: HomeActions) {
     CockpitSection(UiText.get(R.string.settings_archive_title), CockpitIcon.DOWNLOAD, UiText.get(R.string.settings_archive_description)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            CockpitAction(UiText.get(R.string.settings_archive_export), { actions.command(HomeCommand.EXPORT) })
-            CockpitAction(UiText.get(R.string.settings_archive_import), { actions.command(HomeCommand.IMPORT) })
+            CockpitAction(UiText.get(R.string.settings_archive_export), { actions.command(HomeCommand.EXPORT) }, guideId = R.string.settings_archive_export)
+            CockpitAction(UiText.get(R.string.settings_archive_import), { actions.command(HomeCommand.IMPORT) }, guideId = R.string.settings_archive_import)
         }
     }
 }

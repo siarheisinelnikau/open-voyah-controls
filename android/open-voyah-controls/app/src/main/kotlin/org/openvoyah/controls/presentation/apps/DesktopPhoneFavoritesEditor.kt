@@ -80,7 +80,7 @@ internal fun DesktopPhoneFavoritesEditor(
                     if (saved.isEmpty()) Text(UiText.get(if (eligible.isEmpty()) R.string.desktop_info_phone_contacts_empty
                         else R.string.desktop_info_phone_favorites_empty))
                     if (saved.size < MAX_DESKTOP_PHONE_FAVORITES && candidates.isNotEmpty()) {
-                        CockpitChoice(UiText.get(R.string.desktop_info_phone_add), enabled = enabled) { choosing = true }
+                        CockpitChoice(R.string.desktop_info_phone_add, enabled = enabled) { choosing = true }
                     }
                 }
                 if (saveFailed) CockpitFeedback(UiText.get(R.string.desktop_info_settings_failed), error = true)

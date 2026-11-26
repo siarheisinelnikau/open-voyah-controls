@@ -54,6 +54,7 @@ import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitDialogs
 import org.openvoyah.controls.presentation.theme.CockpitModal
+import org.openvoyah.controls.presentation.theme.defaultSeatGuide
 import org.openvoyah.controls.presentation.theme.CockpitOptionRow
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
@@ -349,7 +350,7 @@ private class VoiceDestinationDialogs(
         dialogs.choices(voiceText(R.string.default_levels), labels, { index ->
             val command = defaults[index]
             dialogs.choices(command.title(), arrayOf("1", "2", "3"), { level -> model.level(command.id(), level + 1) })
-        }, guideId = R.string.default_levels)
+        }, guideId = R.string.default_levels, guideVariant = { index -> defaultSeatGuide(defaults[index].id()) })
     }
 
     fun showVehicleCommands() {

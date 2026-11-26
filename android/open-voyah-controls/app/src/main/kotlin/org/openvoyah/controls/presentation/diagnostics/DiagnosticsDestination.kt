@@ -189,7 +189,7 @@ internal fun DiagnosticsScreen(
             }
             Box(Modifier.fillMaxWidth().cockpitEntrance(1)) {
                 CockpitSwitch(UiText.get(R.string.diagnostics_problems_only).format(state.problems), state.problemsOnly,
-                    change = problemsOnly)
+                    guideId = R.string.diagnostics_problems_only, change = problemsOnly)
             }
             CockpitFeedback(state.notice?.let { UiText.get(it.message) },
                 error = state.notice == DiagnosticNotice.SAVE_FAILED || state.notice == DiagnosticNotice.CLEAR_FAILED)

@@ -24,6 +24,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.presentation.theme.SettingInfo
 import org.openvoyah.controls.domain.apps.AppGridConfiguration
 import org.openvoyah.controls.domain.apps.AppGridPins
 import org.openvoyah.controls.domain.apps.DefaultHideReason
@@ -84,18 +85,21 @@ private fun HiddenAppRows(grid: AppGridConfiguration, apps: List<LocalApp>, enab
                 else -> null
             }
             val detail = listOfNotNull(reason, app.id.takeIf { labelCounts[app.label] != 1 }).joinToString(" · ").ifEmpty { null }
-            Row(listItemMotion().fillMaxWidth().heightIn(min = 56.dp)
-                    .toggleable(hidden, enabled = enabled, role = Role.Switch) { setHidden(app, it) },
-                horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                AppIcon(app, Modifier.size(36.dp), grid.iconStyle)
-                Column(Modifier.weight(1f)) {
-                    Text(app.label, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
-                    detail?.let {
-                        Text(it, maxLines = 3, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(listItemMotion().weight(1f).heightIn(min = 56.dp)
+                        .toggleable(hidden, enabled = enabled, role = Role.Switch) { setHidden(app, it) },
+                    horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    AppIcon(app, Modifier.size(36.dp), grid.iconStyle)
+                    Column(Modifier.weight(1f)) {
+                        Text(app.label, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+                        detail?.let {
+                            Text(it, maxLines = 3, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
+                    Switch(hidden, onCheckedChange = null, enabled = enabled)
                 }
-                Switch(hidden, onCheckedChange = null, enabled = enabled)
+                SettingInfo(app.label, R.string.apps_hide)
             }
         }
     }

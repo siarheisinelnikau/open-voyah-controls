@@ -43,9 +43,16 @@ import org.openvoyah.controls.presentation.theme.CockpitAction
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.CockpitSection
+import org.openvoyah.controls.presentation.voice.describeVoiceCommand
 
 /** One row of Settings → Allowed actions. [verified] comes from an optional review row for this firmware. */
-internal data class ActionRow(val item: ActionItem, val title: String, val summary: String?, val verified: Boolean)
+internal data class ActionRow(
+    val item: ActionItem,
+    val title: String,
+    val summary: String?,
+    val verified: Boolean,
+    val guideEffect: String? = null,
+)
 
 internal data class ActionPermissionList(val rows: List<ActionRow>, val states: Map<ActionItem, ActionPermission>)
 
@@ -111,7 +118,8 @@ private fun ActionPermissionRow(row: ActionRow, state: ActionPermission, change:
     val palette = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).testTag("action_${row.item.key}"),
         verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        SettingGuideHeading(row.title, R.string.action_permissions_title)
+        SettingGuideHeading(row.title, R.string.action_permissions_title, variant = row.item.guideGlyph().ordinal,
+            effect = row.guideEffect ?: row.summary)
         row.summary?.let { Text(it, color = palette.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium) }
         if (row.verified) Text(text(R.string.action_permissions_verified), color = palette.primary,
             style = MaterialTheme.typography.labelMedium)
@@ -181,9 +189,20 @@ private fun load(context: Context): Pair<ActionPermissions, ActionPermissionList
         emptyList()
     }
     val rows = actionRows(verifiedOperations) + commands.map {
-        ActionRow(ActionCatalog.voice(it.id()), it.title().replaceFirstChar(Char::titlecase), null, it.id() in verifiedCommands)
+        ActionRow(ActionCatalog.voice(it.id()), it.title().replaceFirstChar(Char::titlecase),
+            summary = null, verified = it.id() in verifiedCommands, guideEffect = describeVoiceCommand(it, assigned = false).effect)
     }
     return store to ActionPermissionList(rows, rows.associate { it.item to store.state(it.item) })
+}
+
+private fun ActionItem.guideGlyph(): CockpitIcon = when (id) {
+    ActionCatalog.WINDOW_SERVICE, ActionCatalog.PASSENGER_WINDOW_DPI, ActionCatalog.WINDOW_DISPLAY_MOVE,
+    ActionCatalog.CLUSTER_WRITE, ActionCatalog.CLUSTER_CARD, ActionCatalog.NAVIGATION -> CockpitIcon.DISPLAY
+    ActionCatalog.CAN_STEERING, ActionCatalog.CAN_STEERING_EDGES -> CockpitIcon.BUTTONS
+    ActionCatalog.OEM_PROFILES -> CockpitIcon.LOCK
+    ActionCatalog.MEDIA_RESTART -> CockpitIcon.PLAY
+    ActionCatalog.TEXT_OVERLAYS, "locale-setting", "locale-vehicle", "locale-bluetooth", "locale-hiboard" -> CockpitIcon.LANGUAGE
+    else -> if (kind == ActionKind.VOICE) CockpitIcon.VOICE else CockpitIcon.SYSTEM
 }
 
 private fun text(id: Int): String = UiText.get(id)

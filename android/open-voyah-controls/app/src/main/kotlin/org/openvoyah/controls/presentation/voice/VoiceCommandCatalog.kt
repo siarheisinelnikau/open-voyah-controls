@@ -181,7 +181,7 @@ internal fun VoiceCommandDetails(guide: VoiceCommandGuide, close: () -> Unit, co
     var variantLimit by rememberSaveable(guide.command.id()) { mutableIntStateOf(5) }
     val category = UiText.get(guide.category.title)
     CockpitModal(category, headerAction = { CockpitTextAction(UiText.get(R.string.ui_172), close) }, footer = if (guide.canAssignApp) {
-        { CockpitAction(UiText.get(R.string.ui_188), configure) }
+        { CockpitAction(UiText.get(R.string.ui_188), configure, guideId = R.string.ui_188) }
     } else null) {
         Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, color = colors.tertiaryContainer,
             border = BorderStroke(1.dp, colors.outlineVariant)) {

@@ -114,9 +114,9 @@
         <item>Карточка с контуром</item>
     </string-array>
     <string-array name="guide_desktop_info_clock_format">
-        <item>Меняет набор данных в карточке часов.</item>
-        <item>Время</item>
-        <item>Время и дата</item>
+        <item>Задаёт формат часов на карточке. Можно использовать системный, 12-часовой или 24-часовой формат.</item>
+        <item>24-часовой формат</item>
+        <item>12-часовой формат</item>
     </string-array>
     <string-array name="guide_desktop_info_media_style">
         <item>Меняет расположение данных трека и кнопок воспроизведения на карточке медиа.</item>
@@ -479,8 +479,8 @@
         <item>Источники света поверх страницы</item>
     </string-array>
     <string-array name="guide_quick_actions_apps_destination">
-        <item>Выбирает, куда ведёт ярлык «Приложения»: на рабочий стол по умолчанию или ко всем приложениям.</item>
-        <item>Рабочий стол по умолчанию</item>
+        <item>Выбирает, куда ведёт ярлык «Приложения»: на рабочий стол по умолчанию или в сетку всех приложений.</item>
+        <item>Рабочий стол по умолчанию (здесь «Избранное»)</item>
         <item>Все приложения</item>
     </string-array>
     <string-array name="guide_quick_actions_side">
@@ -754,9 +754,9 @@
         <item>Русские фразы и модель</item>
     </string-array>
     <string-array name="guide_voice_recognition_engine">
-        <item>Выбирает офлайн-движок. Для выбранного движка и языка нужна локальная модель речи.</item>
-        <item>Речь записана</item>
-        <item>Выбранный движок распознаёт речь</item>
+        <item>Выбирает движок распознавания без интернета. Zipformer доступен для русского на поддерживаемых устройствах. Vosk работает со всеми поддерживаемыми языками распознавания.</item>
+        <item>Выбран Vosk</item>
+        <item>Выбран Zipformer</item>
     </string-array>
     <string-array name="guide_voice_online_title">
         <item>Позволяет отправить уверенно распознанный текст на онлайн-интерпретацию, если совпадения в каталоге нет.</item>
@@ -775,8 +775,8 @@
     </string-array>
     <string-array name="guide_default_levels">
         <item>Задаёт уровни комфорта сидений для голосовых команд включения без указания уровня.</item>
-        <item>Включить подогрев сиденья</item>
-        <item>Подогрев использует ваш уровень по умолчанию</item>
+        <item>Уровень по умолчанию 1</item>
+        <item>Уровень по умолчанию 3</item>
     </string-array>
     <string-array name="guide_window_options">
         <item>Выберите величину открытия окон для команд курения и проветривания на поддерживаемых автомобилях.</item>
@@ -1147,5 +1147,338 @@
         <item>Разрешает OVC читать активную медиасессию для сведений о треке и доступного управления плеером или оценками.</item>
         <item>Трек виден в плеере</item>
         <item>Сведения о треке появляются в OVC</item>
+    </string-array>
+    <string-array name="guide_home_navigator_widget_settings">
+        <item>Открывает настройки темы карты и масштаба виджета Яндекс Навигатора.</item>
+        <item>Обычная карта</item>
+        <item>Другая тема и масштаб</item>
+    </string-array>
+    <string-array name="guide_display_navigation">
+        <item>Позволяет совместимому навигатору передавать манёвры в Controls. Доступ зависит от головного устройства.</item>
+        <item>Маршрут не поступает</item>
+        <item>Подсказка о повороте</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_title">
+        <item>Открывает отдельный рабочий стол на поддерживаемом пассажирском экране.</item>
+        <item>Пассажирский экран без рабочего стола</item>
+        <item>Рабочий стол открыт для пассажира</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_compact">
+        <item>Уменьшает плитки приложений на пассажирском рабочем столе.</item>
+        <item>Обычные плитки</item>
+        <item>Компактные плитки</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_clock">
+        <item>Показывает текущее время на пассажирском рабочем столе.</item>
+        <item>Без часов</item>
+        <item>Часы видны</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_date">
+        <item>Добавляет текущую дату к часам на пассажирском рабочем столе.</item>
+        <item>Только время</item>
+        <item>Время и дата</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_startup">
+        <item>Открывает рабочий стол при запуске Controls, если пассажирский экран доступен.</item>
+        <item>Пассажирский экран без изменений</item>
+        <item>Рабочий стол открывается при запуске</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_app_slot">
+        <item>Выбирает приложение для этой плитки. Пустой слот убирает ярлык.</item>
+        <item>Прежняя плитка</item>
+        <item>Новое приложение на этой плитке</item>
+    </string-array>
+    <string-array name="guide_passenger_workspace_dock_slot">
+        <item>Выбирает приложение для этого ярлыка на пассажирской панели.</item>
+        <item>Прежний ярлык панели</item>
+        <item>Новое приложение на панели</item>
+    </string-array>
+    <string-array name="guide_app_display_defaults_central">
+        <item>Задаёт масштаб по умолчанию для приложений, которые оконный сервис открывает на центральном экране.</item>
+        <item>Оба экрана с масштабом 160 DPI</item>
+        <item>Приложения на центральном экране используют 200 DPI</item>
+    </string-array>
+    <string-array name="guide_app_display_defaults_secondary">
+        <item>Задаёт масштаб приложений на втором экране при запуске через оконный сервис. Для этого экрана его можно отключить.</item>
+        <item>Без переопределения масштаба</item>
+        <item>Приложения на втором экране используют 190 DPI</item>
+    </string-array>
+    <string-array name="guide_app_pair_left">
+        <item>Выбирает приложение, которое при запуске пары открывается слева.</item>
+        <item>Слева карты</item>
+        <item>Слева часы</item>
+    </string-array>
+    <string-array name="guide_app_pair_right">
+        <item>Выбирает приложение, которое при запуске пары открывается справа.</item>
+        <item>Справа музыка</item>
+        <item>Справа голосовой помощник</item>
+    </string-array>
+    <string-array name="guide_app_pair_proportion">
+        <item>Задаёт долю ширины для каждого окна пары.</item>
+        <item>Равные окна</item>
+        <item>Левое окно шире</item>
+    </string-array>
+    <string-array name="guide_app_pair_name">
+        <item>Задаёт имя пары в списке и на ярлыке. Если поле пустое, используются названия приложений.</item>
+        <item>Имя из названий приложений</item>
+        <item>Ваше имя пары</item>
+    </string-array>
+    <string-array name="guide_app_pair_dock">
+        <item>Добавляет ярлык этой пары в панель быстрых действий Controls.</item>
+        <item>У пары нет ярлыка</item>
+        <item>Пара доступна с панели</item>
+    </string-array>
+    <string-array name="guide_button_service_enable">
+        <item>Открывает специальные возможности Android, где можно включить службу получения нажатий поддерживаемых аппаратных кнопок.</item>
+        <item>Controls не получает нажатия</item>
+        <item>Нажатия могут поступать в Controls</item>
+    </string-array>
+    <string-array name="guide_ui_53">
+        <item>Ждёт нажатия аппаратной кнопки и подставляет обнаруженный код и устройство ввода.</item>
+        <item>Ожидание нажатия</item>
+        <item>Код кнопки считан</item>
+    </string-array>
+    <string-array name="guide_ui_54">
+        <item>Позволяет создать назначение, введя известный код кнопки Android вручную.</item>
+        <item>Пустое поле кода</item>
+        <item>Введён код 165</item>
+    </string-array>
+    <string-array name="guide_ui_59">
+        <item>Открывает настройки длительности удержания и фильтрации повторных сигналов аппаратных кнопок.</item>
+        <item>Короткий порог удержания</item>
+        <item>Длинный порог удержания</item>
+    </string-array>
+    <string-array name="guide_ui_62">
+        <item>После подтверждения удаляет сохранённые назначения аппаратных кнопок Android.</item>
+        <item>У кнопок есть свои назначения</item>
+        <item>Назначения удалены</item>
+    </string-array>
+    <string-array name="guide_cockpit_dictionary_english">
+        <item>Применяет встроенный английский словарь к поддерживаемым заводским надписям.</item>
+        <item>Исходные надписи</item>
+        <item>Английские надписи</item>
+    </string-array>
+    <string-array name="guide_cockpit_dictionary_kazakh">
+        <item>Применяет встроенный казахский словарь к поддерживаемым заводским надписям.</item>
+        <item>Исходные надписи</item>
+        <item>Казахские надписи</item>
+    </string-array>
+    <string-array name="guide_translation_disable">
+        <item>Выключает словарь перевода заводских надписей и возвращает исходные надписи.</item>
+        <item>Словарь включён</item>
+        <item>Видны исходные надписи</item>
+    </string-array>
+    <string-array name="guide_translation_restore">
+        <item>Возвращает словарь заводских надписей, который использовался до последнего изменения, если он был сохранён.</item>
+        <item>Текущий словарь</item>
+        <item>Предыдущий словарь</item>
+    </string-array>
+    <string-array name="guide_diagnostics_problems_only">
+        <item>Оставляет в окне диагностики только предупреждения и ошибки. Сохранённый журнал при этом не меняется.</item>
+        <item>Все записи</item>
+        <item>Только предупреждения и ошибки</item>
+    </string-array>
+    <string-array name="guide_comfort_playback_door">
+        <item>При открытии водительской двери ставит воспроизведение на паузу, если управление плеером доступно.</item>
+        <item>Музыка продолжает играть при открытой двери</item>
+        <item>Открытие двери ставит музыку на паузу</item>
+    </string-array>
+    <string-array name="guide_comfort_playback_wake">
+        <item>При засыпании приостанавливает поддерживаемое воспроизведение и может возобновить тот же сеанс после пробуждения.</item>
+        <item>Музыка перед засыпанием</item>
+        <item>Музыка возобновляется после пробуждения</item>
+    </string-array>
+    <string-array name="guide_comfort_brightness_enabled">
+        <item>Подстраивает яркость окна Controls по датчику освещённости, если головное устройство это поддерживает.</item>
+        <item>Постоянная яркость Controls</item>
+        <item>На солнце Controls становится ярче</item>
+    </string-array>
+    <string-array name="guide_comfort_brightness_low">
+        <item>Задаёт яркость окна Controls в тёмном салоне при включённой адаптивной яркости.</item>
+        <item>35% при слабом освещении</item>
+        <item>15% при слабом освещении</item>
+    </string-array>
+    <string-array name="guide_comfort_brightness_high">
+        <item>Задаёт яркость окна Controls на ярком свету при включённой адаптивной яркости.</item>
+        <item>70% при ярком свете</item>
+        <item>100% при ярком свете</item>
+    </string-array>
+    <string-array name="guide_trip_gps_title">
+        <item>Добавляет GPS-трек к текущей поездке, если дан доступ к координатам и они доступны.</item>
+        <item>Только расстояние</item>
+        <item>Расстояние и записанный маршрут</item>
+    </string-array>
+    <string-array name="guide_trips_automatic">
+        <item>Позволяет Controls автоматически начать запись, если поддерживаемое устройство сообщит о движении или положении трансмиссии для движения.</item>
+        <item>В Park записи нет</item>
+        <item>При начале движения начинается запись</item>
+    </string-array>
+    <string-array name="guide_trip_permissions">
+        <item>Открывает настройки доступа к данным автомобиля. После разрешения доступны показания, которые отдаёт устройство.</item>
+        <item>Показания недоступны</item>
+        <item>Данные автомобиля отображаются</item>
+    </string-array>
+    <string-array name="guide_rules_extra_conditions">
+        <item>Добавляет проверки к правилу. Чтобы оно сработало, должны выполниться все заданные условия.</item>
+        <item>Условие по передаче выполнено</item>
+        <item>Дополнительная проверка освещения блокирует правило</item>
+    </string-array>
+    <string-array name="guide_rules_light">
+        <item>Требует значения освещённости по выбранной границе. При отсутствии показания условие не выполняется.</item>
+        <item>500 лк выше границы</item>
+        <item>50 лк укладывается в предел 100 лк</item>
+    </string-array>
+    <string-array name="guide_rules_charge">
+        <item>Правило может сработать, только если заряд тяговой батареи соответствует выбранной границе.</item>
+        <item>60% ниже границы</item>
+        <item>85% выше минимума 80%</item>
+    </string-array>
+    <string-array name="guide_rules_temperature">
+        <item>Перед запуском правила сверяет температуру снаружи с выбранной границей.</item>
+        <item>15° выше границы</item>
+        <item>−5° укладывается в предел 0°</item>
+    </string-array>
+    <string-array name="guide_rules_driving_mode">
+        <item>Требует, чтобы подтверждённый режим движения совпал с выбранным в правиле.</item>
+        <item>ECO не подходит</item>
+        <item>SPORT подходит</item>
+    </string-array>
+    <string-array name="guide_routine_voice_phrase">
+        <item>Позволяет запустить сценарий выбранной фразой через голосовой помощник Controls.</item>
+        <item>Фраза не назначена</item>
+        <item>Фраза запускает сценарий</item>
+    </string-array>
+    <string-array name="guide_routine_steps_title">
+        <item>Добавляет необязательные шаги сценария. Шаги выполняются в показанном порядке.</item>
+        <item>Открыть страницу, затем включить музыку</item>
+        <item>Пауза между действиями</item>
+    </string-array>
+    <string-array name="guide_desktop_info_clock">
+        <item>Показывает часы на этом рабочем столе. Можно выбрать ширину карточки или скрыть её.</item>
+        <item>Карточки часов нет</item>
+        <item>Широкая карточка часов</item>
+    </string-array>
+    <string-array name="guide_desktop_info_service">
+        <item>Показывает ближайшее ТО на рабочем столе. Можно выбрать ширину карточки или скрыть её.</item>
+        <item>Карточки ТО нет</item>
+        <item>Пробег до ТО виден</item>
+    </string-array>
+    <string-array name="guide_desktop_info_media">
+        <item>Задаёт ширину карточки медиа в сетке рабочего стола. Карточку можно скрыть.</item>
+        <item>Компактная карточка медиа</item>
+        <item>Больше места для плеера</item>
+    </string-array>
+    <string-array name="guide_desktop_info_headlights">
+        <item>Показывает доступные данные о фарах на рабочем столе. Можно выбрать ширину карточки или скрыть её.</item>
+        <item>Карточки света нет</item>
+        <item>Компактная карточка света</item>
+    </string-array>
+    <string-array name="guide_desktop_info_phone">
+        <item>Размещает избранные контакты на этом рабочем столе. Можно выбрать ширину карточки или скрыть её.</item>
+        <item>Карточки телефона нет</item>
+        <item>Избранные контакты на рабочем столе</item>
+    </string-array>
+    <string-array name="guide_desktop_info_route">
+        <item>Показывает манёвры на этом рабочем столе, когда поступают данные навигации.</item>
+        <item>Карточки маршрута нет</item>
+        <item>Широкая карточка манёвров</item>
+    </string-array>
+    <string-array name="guide_comfort_power_hold">
+        <item>Выводит управление удержанием питания на рабочий стол. Доступ зависит от головного устройства.</item>
+        <item>Карточки удержания питания нет</item>
+        <item>Карточка удержания питания видна</item>
+    </string-array>
+    <string-array name="guide_comfort_car_wash">
+        <item>Выводит управление режимом мойки на рабочий стол. Доступ зависит от головного устройства.</item>
+        <item>Карточки мойки нет</item>
+        <item>Управление режимом мойки видно</item>
+    </string-array>
+    <string-array name="guide_factory_radio_card">
+        <item>Размещает карточку поддерживаемого заводского радио на рабочем столе. Можно выбрать её ширину или скрыть её.</item>
+        <item>Карточки радио нет</item>
+        <item>Станция и кнопки настройки видны</item>
+    </string-array>
+    <string-array name="guide_trip_current">
+        <item>Показывает длительность и расстояние на рабочем столе во время активной поездки.</item>
+        <item>Карточки поездки нет</item>
+        <item>Видны время и расстояние</item>
+    </string-array>
+    <string-array name="guide_trip_levels">
+        <item>Выводит на рабочий стол доступные показания заряда и топлива.</item>
+        <item>Карточки уровней нет</item>
+        <item>Видны заряд и топливо</item>
+    </string-array>
+    <string-array name="guide_trip_usage_last">
+        <item>Выводит на рабочий стол доступные данные расхода за последнюю поездку.</item>
+        <item>Карточки расхода нет</item>
+        <item>Виден расход за последнюю поездку</item>
+    </string-array>
+    <string-array name="guide_trip_tyres">
+        <item>Выводит на рабочий стол доступные данные о давлении в шинах.</item>
+        <item>Карточки шин нет</item>
+        <item>Видно давление по колёсам</item>
+    </string-array>
+    <string-array name="guide_trip_odometer">
+        <item>Выводит общий пробег на рабочий стол, когда доступно показание одометра.</item>
+        <item>Карточки одометра нет</item>
+        <item>Общий пробег виден</item>
+    </string-array>
+    <string-array name="guide_trip_suspension">
+        <item>Выводит высоту подвески на рабочий стол, если головное устройство сообщает её.</item>
+        <item>Карточки подвески нет</item>
+        <item>Высота подвески видна</item>
+    </string-array>
+    <string name="setting_guide_sample_maps">Карты</string>
+    <string name="setting_guide_sample_music">Музыка</string>
+    <string name="setting_guide_sample_clock">Часы</string>
+    <string name="setting_guide_sample_voice">Голос</string>
+    <string name="setting_guide_sample_video">Видео</string>
+    <string name="setting_guide_sample_daily">На каждый день</string>
+    <string name="setting_guide_sample_trip_layout">Для поездки</string>
+    <string name="setting_guide_sample_morning_drive">Утренняя поездка</string>
+    <string name="setting_guide_sample_road_trip">В дорогу</string>
+    <string name="setting_guide_sample_spoken_trip">«В дорогу»</string>
+    <string name="setting_guide_sample_lights_in_park">Свет на парковке</string>
+    <string name="setting_guide_sample_maps_and_music">Карты + музыка</string>
+    <string name="setting_guide_sample_mode">Режим</string>
+    <string name="setting_guide_sample_trip">Поездка</string>
+    <string name="setting_guide_sample_evening">Вечер</string>
+    <string name="setting_guide_sample_morning">Утро</string>
+    <string name="setting_guide_sample_ready">«Готов»</string>
+    <string name="setting_guide_sample_lets_go">«Поехали»</string>
+    <string-array name="guide_rules_limit_hours">
+        <item>Позволяет правилу сработать только в его интервале, даже если остальные условия выполнены.</item>
+        <item>Условия могут выполниться в любое время</item>
+        <item>Правило действует только в своём интервале</item>
+    </string-array>
+    <string-array name="guide_rules_time_start">
+        <item>Задаёт начало ежедневного интервала для правила.</item>
+        <item>Для правила ещё рано</item>
+        <item>Правило может сработать с начала интервала</item>
+    </string-array>
+    <string-array name="guide_rules_time_end">
+        <item>Задаёт конец ежедневного интервала для правила.</item>
+        <item>В интервале правило может сработать</item>
+        <item>Правило ждёт следующего интервала</item>
+    </string-array>
+    <string-array name="guide_ui_188">
+        <item>Выбирает приложение для этой голосовой команды. После смены назначения та же фраза открывает другое приложение.</item>
+        <item>Фраза открывает прежнее приложение</item>
+        <item>Та же фраза открывает новое приложение</item>
+    </string-array>
+    <string-array name="guide_desktop_info_phone_add">
+        <item>Добавляет сохранённый контакт в избранное этого рабочего стола, чтобы он появился на карточке телефона.</item>
+        <item>Контакт в телефонной книге</item>
+        <item>Контакт на карточке телефона</item>
+    </string-array>
+    <string-array name="guide_app_icon_reset">
+        <item>Возвращает в сетку исходный значок приложения.</item>
+        <item>Ваша картинка</item>
+        <item>Исходный значок восстановлен</item>
+    </string-array>
+    <string-array name="guide_app_window_restore">
+        <item>Сбрасывает сохранённые ширину окна, масштаб и отступ панели для этого приложения.</item>
+        <item>Свои параметры окна</item>
+        <item>Параметры окна по умолчанию</item>
     </string-array>
 </resources>

@@ -60,8 +60,9 @@ internal fun DisplayScreen(
                     else -> R.string.cockpit_disabled
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    CockpitAction(label(R.string.display_media_access), mediaAccess)
-                    CockpitAction(label(R.string.display_navigation), configureNavigation, enabled = !state.changingNavigation)
+                    CockpitAction(label(R.string.display_media_access), mediaAccess, guideId = R.string.display_media_access)
+                    CockpitAction(label(R.string.display_navigation), configureNavigation, enabled = !state.changingNavigation,
+                        guideId = R.string.display_navigation)
                 }
                 CockpitFeedback(state.message ?: label(R.string.display_navigation) + " · " + label(message))
                 if (state.changingNavigation) LinearProgressIndicator(Modifier.fillMaxWidth())

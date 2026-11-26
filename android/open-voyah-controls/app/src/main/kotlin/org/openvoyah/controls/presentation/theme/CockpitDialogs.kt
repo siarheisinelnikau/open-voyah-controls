@@ -63,13 +63,14 @@ class CockpitDialogs(private val activity: ComponentActivity) {
 
     @JvmOverloads
     fun choices(title: String, choices: Array<String>, selected: IntConsumer,
-                extra: String? = null, extraAction: Runnable? = null, guideId: Int? = null): Dialog = show { close ->
+                extra: String? = null, extraAction: Runnable? = null, guideId: Int? = null, guideVariant: ((Int) -> Int)? = null): Dialog = show { close ->
         CockpitModal(title, footer = {
             extra?.let { CockpitTextAction(it, { close(); extraAction?.run() }) }
             CockpitTextAction(UiText.get(R.string.ui_89), close)
         }) {
             choices.forEachIndexed { index, choice ->
-                CockpitChoice(choice.substringBefore('\n'), choice.substringAfter('\n', "").ifBlank { null }, guideId = guideId) {
+                CockpitChoice(choice.substringBefore('\n'), choice.substringAfter('\n', "").ifBlank { null }, guideId = guideId,
+                    guideVariant = guideVariant?.invoke(index) ?: 0) {
                     close()
                     selected.accept(index)
                 }
@@ -143,11 +144,11 @@ internal fun CockpitChoice(@StringRes title: Int, subtitle: String? = null, enab
 
 @Composable
 internal fun CockpitChoice(title: String, subtitle: String? = null, enabled: Boolean = true,
-                           modifier: Modifier = Modifier, guideId: Int? = null, onClick: () -> Unit) {
+                           modifier: Modifier = Modifier, guideId: Int? = null, guideVariant: Int = 0, onClick: () -> Unit) {
     if (guideId != null && guideId in settingGuides) {
         Row(modifier.cockpitCell().fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             CockpitChoiceBody(title, subtitle, enabled, Modifier.weight(1f), onClick)
-            SettingInfo(title, guideId)
+            SettingInfo(title, guideId, variant = guideVariant)
         }
     } else {
         CockpitChoiceBody(title, subtitle, enabled, modifier.cockpitCell(), onClick)
@@ -202,10 +203,11 @@ internal fun CockpitSwitch(title: String, checked: Boolean, enabled: Boolean = t
     CockpitSwitch(title, checked, enabled, guideId = null, change = change)
 
 @Composable
-internal fun CockpitSwitch(title: String, checked: Boolean, enabled: Boolean = true, guideId: Int?, change: (Boolean) -> Unit) {
+internal fun CockpitSwitch(title: String, checked: Boolean, enabled: Boolean = true, guideId: Int?, guideVariant: Int = 0,
+                           guideEffect: String? = null, change: (Boolean) -> Unit) {
     Row(Modifier.cockpitCell().fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         CockpitSwitchBody(title, checked, enabled, Modifier.weight(1f), change)
-        SettingInfo(title, guideId)
+        SettingInfo(title, guideId, variant = guideVariant, effect = guideEffect)
     }
 }
 

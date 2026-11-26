@@ -103,11 +103,11 @@ internal fun AppIconSettings(app: LocalApp) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         CockpitAction(text(R.string.app_icon_choose), {
             try { openImage.launch(arrayOf("image/*")) } catch (_: RuntimeException) { message = R.string.app_icon_picker_unavailable }
-        }, enabled = !busy)
+        }, enabled = !busy, guideId = R.string.app_icon_title)
         if (current.custom != null) {
             CockpitAction(text(R.string.app_icon_reset), {
                 change(R.string.app_icon_save_failed) { store.setCustom(app.packageName, null) }
-            }, enabled = !busy)
+            }, enabled = !busy, guideId = R.string.app_icon_reset)
         }
     }
     CockpitSwitch(R.string.app_icon_plain, current.plain, enabled = !busy) { plain ->
