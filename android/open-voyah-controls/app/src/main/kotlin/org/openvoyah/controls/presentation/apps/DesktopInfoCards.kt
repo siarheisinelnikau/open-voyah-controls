@@ -69,12 +69,15 @@ import org.openvoyah.controls.domain.vehicle.HeadlightStatus
 import org.openvoyah.controls.domain.vehicle.ServiceUrgency
 import org.openvoyah.controls.platform.apps.openDesktopMediaPlayer
 import org.openvoyah.controls.platform.apps.openDesktopNavigator
+import org.openvoyah.controls.platform.vehicle.automation.VehicleWorkflowRuntime
 import org.openvoyah.controls.presentation.display.formatDistance
 import org.openvoyah.controls.presentation.dock.LiveReading
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
 import org.openvoyah.controls.presentation.theme.LocalCockpitLayout
+import org.openvoyah.controls.presentation.trips.TripMetric
+import org.openvoyah.controls.presentation.trips.metricText
 import org.openvoyah.controls.presentation.vehicle.HeadlightReadingFreshness
 import org.openvoyah.controls.presentation.vehicle.activityLabel
 import org.openvoyah.controls.presentation.vehicle.headlightModeLabel
@@ -147,7 +150,7 @@ internal fun LazyGridItemScope.DesktopInfoCardItem(
         DesktopInfoCard.HEADLIGHTS -> ControlsRoute.VEHICLE
         DesktopInfoCard.MEDIA -> ControlsRoute.DISPLAY.takeUnless { tile.mediaOpenTarget == DesktopMediaOpenTarget.NONE }
         DesktopInfoCard.ROUTE -> ControlsRoute.DISPLAY.takeUnless { tile.routeOpenTarget == DesktopRouteOpenTarget.NONE }
-        else -> null
+        else -> ControlsRoute.TRIPS.takeIf { tile.card.tripMetric() != null }
     }
     val details = if (visible && tile.card != DesktopInfoCard.PHONE) DesktopInfoDetails(tile) else TileDetails()
     val mediaActionLabel = if (tile.card == DesktopInfoCard.MEDIA && destination != null) {
@@ -217,6 +220,13 @@ private fun DesktopInfoDetails(tile: DesktopInfoTile): TileDetails {
         DesktopInfoCard.ROUTE -> observeRouteTileDetails(sources, tile.routeContent)
         DesktopInfoCard.POWER_HOLD, DesktopInfoCard.CAR_WASH -> TileDetails()
         DesktopInfoCard.RADIO -> TileDetails()
+        DesktopInfoCard.CURRENT_TRIP, DesktopInfoCard.TRIP_LEVELS, DesktopInfoCard.TRIP_USAGE,
+        DesktopInfoCard.TYRE_PRESSURE, DesktopInfoCard.ODOMETER, DesktopInfoCard.SUSPENSION_HEIGHT -> {
+            val runtime = remember(app) { VehicleWorkflowRuntime.get(app).trips }
+            val state by runtime.state.visibleState(runtime.snapshot)
+            val (value, caption) = metricText(checkNotNull(tile.card.tripMetric()), state)
+            TileDetails(value, caption)
+        }
     }
 }
 
@@ -446,4 +456,17 @@ internal fun DesktopInfoCard.label(): Int = when (this) {
     DesktopInfoCard.POWER_HOLD -> R.string.comfort_power_hold
     DesktopInfoCard.CAR_WASH -> R.string.comfort_car_wash
     DesktopInfoCard.RADIO -> R.string.factory_radio_card
+    DesktopInfoCard.CURRENT_TRIP, DesktopInfoCard.TRIP_LEVELS, DesktopInfoCard.TRIP_USAGE,
+    DesktopInfoCard.TYRE_PRESSURE, DesktopInfoCard.ODOMETER, DesktopInfoCard.SUSPENSION_HEIGHT ->
+        checkNotNull(tripMetric()).title
+}
+
+private fun DesktopInfoCard.tripMetric(): TripMetric? = when (this) {
+    DesktopInfoCard.CURRENT_TRIP -> TripMetric.CURRENT
+    DesktopInfoCard.TRIP_LEVELS -> TripMetric.LEVELS
+    DesktopInfoCard.TRIP_USAGE -> TripMetric.USAGE
+    DesktopInfoCard.TYRE_PRESSURE -> TripMetric.TYRES
+    DesktopInfoCard.ODOMETER -> TripMetric.ODOMETER
+    DesktopInfoCard.SUSPENSION_HEIGHT -> TripMetric.SUSPENSION
+    else -> null
 }
