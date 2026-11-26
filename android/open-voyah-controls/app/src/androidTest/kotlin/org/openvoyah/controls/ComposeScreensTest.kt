@@ -261,6 +261,50 @@ class ComposeScreensTest : InstrumentationTestCase() {
         }
     }
 
+    fun testDriverMediaGuidesShowExamplesWithoutChangingSwitches() {
+        val settings = SettingsStore(app)
+        val previous = settings.exportJson()
+        val appearance = AppearancePreferences(app)
+        val motion = appearance.load().animateRoutes
+        val language = UiText.language()
+        try {
+            settings.save(settings.load().apply {
+                clusterCardApps = false
+                driverMediaLayout = false
+                driverNavigationCard = false
+            })
+            val expected = settings.exportJson()
+            appearance.setAnimateRoutes(true)
+            UiText.language("ru")
+            val activity = launch(ControlsNavigation.intent(app, ControlsRoute.SETTINGS)) as MainActivity
+            openSettingsPart(activity, SettingsPartId.HOME_FACTORY)
+            scrollTo(UiText.get(R.string.driver_navigation_description))
+            val guides = listOf(
+                Triple(R.string.home_cluster_card_apps, R.array.guide_home_cluster_card_apps, "sources"),
+                Triple(R.string.driver_media_layout, R.array.guide_driver_media_layout, "player"),
+                Triple(R.string.driver_navigation_card, R.array.guide_driver_navigation_card, "navigation"),
+            )
+            for ((label, copy, name) in guides) {
+                val title = UiText.get(label)
+                clickText(UiText.get(R.string.setting_guide_open).format(title), contentDescription = true)
+                val (explanation, before, after) = UiText.getArray(copy).toList()
+                awaitText(explanation)
+                awaitText(before)
+                awaitText(after)
+                tapCurrentText(UiText.get(R.string.setting_guide_replay))
+                SystemClock.sleep(800)
+                capture("driver-media-guide-$name")
+                tapCurrentText(UiText.get(R.string.ui_172))
+                awaitText(title)
+                assertEquals(expected, settings.exportJson())
+            }
+        } finally {
+            UiText.language(language)
+            appearance.setAnimateRoutes(motion)
+            settings.importJson(previous)
+        }
+    }
+
     fun testVoiceCatalogFiltersPhrasesAndShowsTheirOutcome() {
         val voice = VoiceSettings(app)
         val uiLanguage = UiText.language()

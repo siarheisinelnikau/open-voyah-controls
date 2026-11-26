@@ -63,6 +63,7 @@ internal enum class GuidePicture(val icon: CockpitIcon) {
     CORNERS(CockpitIcon.APPS), MOTION(CockpitIcon.DISPLAY), SWIPE(CockpitIcon.DISPLAY),
     VOLUME_DOWN(CockpitIcon.PLAY), VOLUME_UP(CockpitIcon.PLAY),
     SIDE(CockpitIcon.DISPLAY), EDGE(CockpitIcon.DISPLAY), STACK(CockpitIcon.DISPLAY), ORDER(CockpitIcon.APPS),
+    DRIVER_MEDIA_SOURCES(CockpitIcon.PLAY), DRIVER_LARGE_PLAYER(CockpitIcon.PLAY), DRIVER_NAVIGATION(CockpitIcon.DISPLAY),
 }
 
 /** A separate touch target, including beside controls that are currently disabled. */
@@ -185,6 +186,8 @@ private fun DrawScope.drawGuidePicture(picture: GuidePicture, origin: Offset, am
     block(0f, 0f, 100f, 60f, line, 9f)
     block(1.5f, 1.5f, 97f, 57f, fill, 8f)
     when (picture) {
+        GuidePicture.DRIVER_MEDIA_SOURCES, GuidePicture.DRIVER_LARGE_PLAYER, GuidePicture.DRIVER_NAVIGATION ->
+            drawDriverMediaGuide(picture, origin, amount, accent, line, fill)
         GuidePicture.GRID, GuidePicture.DESKTOP -> {
             val gap = 7f - amount * 2f
             val width = 32f - amount * 9f
@@ -276,5 +279,62 @@ private fun DrawScope.drawGuidePicture(picture: GuidePicture, origin: Offset, am
             block(65f, 13f, 23f, 34f, accent.copy(alpha = .25f + amount * .75f))
             bar(41f, 30f, 3f + 15f * amount)
         }
+    }
+}
+
+/** Use the same left slot and gauge in each illustration so the guide shows the affected area. */
+private fun DrawScope.drawDriverMediaGuide(
+    picture: GuidePicture, origin: Offset, amount: Float, accent: Color, line: Color, fill: Color,
+) {
+    fun point(x: Float, y: Float) = origin + Offset(x, y)
+    fun bar(x: Float, y: Float, length: Float, color: Color) =
+        drawLine(color, point(x, y), point(x + length, y), 2f, StrokeCap.Round)
+    fun card(x: Float, y: Float, width: Float, height: Float, color: Color, radius: Float = 4f) =
+        drawRoundRect(color, point(x, y), Size(width, height), CornerRadius(radius))
+
+    card(8f, 12f, 46f, 36f, line.copy(alpha = .18f))
+    val dial = point(75f, 30f)
+    drawCircle(line.copy(alpha = .74f), 12f, dial, style = Stroke(1.5f))
+    drawLine(line, dial, point(79f, 23f), 1.5f, StrokeCap.Round)
+    drawCircle(line, 1.5f, dial)
+
+    if (amount < 1f) {
+        val stock = line.copy(alpha = 1f - amount)
+        drawCircle(stock, 6.5f, point(20f, 30f), style = Stroke(1.6f))
+        drawCircle(stock, 1.5f, point(20f, 30f))
+        bar(31f, 27f, 15f, stock)
+        bar(31f, 34f, 10f, stock)
+    }
+    if (amount == 0f) return
+
+    val highlight = accent.copy(alpha = amount)
+    when (picture) {
+        GuidePicture.DRIVER_MEDIA_SOURCES -> {
+            card(13f, 23f, 14f, 14f, highlight)
+            drawLine(fill.copy(alpha = amount), point(20f, 32f), point(20f, 26f), 1.5f, StrokeCap.Round)
+            drawLine(fill.copy(alpha = amount), point(20f, 26f), point(23f, 27f), 1.5f, StrokeCap.Round)
+            drawCircle(fill.copy(alpha = amount), 1.6f, point(18.5f, 32f))
+            bar(31f, 27f, 15f, highlight)
+            bar(31f, 34f, 10f, line.copy(alpha = amount))
+        }
+        GuidePicture.DRIVER_LARGE_PLAYER -> {
+            card(8f, 12f, 46f, 36f, accent.copy(alpha = .22f * amount))
+            val artSize = 14f + 5f * amount
+            card(12f, 30f - artSize / 2, artSize, artSize, highlight)
+            drawCircle(fill.copy(alpha = amount), 5f, point(12f + artSize / 2, 30f), style = Stroke(1.5f))
+            bar(35f, 24f, 14f, highlight)
+            bar(35f, 30f, 10f, line.copy(alpha = amount))
+            bar(35f, 38f, 14f, line.copy(alpha = .52f * amount))
+            bar(35f, 38f, 4f + 5f * amount, highlight)
+        }
+        GuidePicture.DRIVER_NAVIGATION -> {
+            val top = 23f - 3f * amount
+            card(12f, top, 38f, 20f, fill.copy(alpha = amount))
+            drawRoundRect(highlight, point(12f, top), Size(38f, 20f), CornerRadius(4f), style = Stroke(1.4f))
+            bar(17f, top + 5f, 11f, highlight)
+            bar(17f, top + 10f, 27f, line.copy(alpha = amount))
+            bar(17f, top + 15f, 9f, line.copy(alpha = .72f * amount))
+        }
+        else -> Unit
     }
 }
