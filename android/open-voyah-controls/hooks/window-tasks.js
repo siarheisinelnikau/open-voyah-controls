@@ -127,7 +127,8 @@ export function systemTasks(Java, sdk, panelWidth) {
         api.windowManager.getStableInsets(0, insets);
         const unused = unusedNavigationBar();
         const [left, top, right, bottom] = rectValues(insets).map((value, side) => Math.max(0, value - unused[side]));
-        const stable = [bounds[0] + left, bounds[1] + top, bounds[2] - right, bounds[3] - bottom];
+        const status = optional(() => api.topBar(0)) ?? 0;
+        const stable = [bounds[0] + left, bounds[1] + Math.max(top, status), bounds[2] - right, bounds[3] - bottom];
         const measured = optional(() => api.launcherPanelEdge?.(bounds));
         // An invisible or transient frame cannot carry an earlier compact width into a new layout.
         const width = measured === null && api.launcherPanelEdge && reportedPanel === 0

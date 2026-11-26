@@ -173,6 +173,14 @@ test('a compact measured panel wins over an older launch hint and uses the inset
     assert.deepEqual(Array.from(h.agent.boundsFor(full)), [145,60,1920,720]);
 });
 
+test('central bounds use the actual top status bar when Android omits it and count overlapping insets once', () => {
+    const full = {width:100, dpi:0, panelPx:0};
+    const customStatus = harness(30, {displayId:0, topBar:50, stableInsets:[0,24,0,0]});
+    assert.deepEqual(Array.from(customStatus.agent.boundsFor(full)), [145,50,1920,720]);
+    const systemStatus = harness(30, {displayId:0, topBar:50, stableInsets:[0,72,0,0]});
+    assert.deepEqual(Array.from(systemStatus.agent.boundsFor(full)), [145,72,1920,720]);
+});
+
 test('failure to place the second task restores the first geometry and both density overrides', () => {
     const {left, right, profiles} = pairHarness(true);
     assert.throws(() => left.agent.applyPair(profiles, [45,46], 50, 0), /Android refused/);

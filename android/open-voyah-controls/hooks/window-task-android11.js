@@ -211,9 +211,10 @@ export function android11Tasks(Java, framework) {
             return a === null ? b === null : b !== null && a.every((value, index) => value === b[index]);
         },
         /**
-         * The bottom edge of the system windows docked at the top of [displayId] over its full width, or 0. The
-         * passenger display's clock bar (`StatusBar2` of the OEM system UI, type 2118) is such a window: Android does
-         * not count it as a status bar, so it gives apps no inset for it. Needs the global lock.
+         * The bottom edge of the system windows docked at the top of [displayId] over its full width, or 0. On
+         * the central screen measure the known `StatusBar1` only. The passenger display's clock bar
+         * (`StatusBar2` of the OEM system UI) also uses type 2118, which Android may omit from its status inset.
+         * Needs the global lock.
          */
         topBar(displayId) {
             const content = display(displayId);
@@ -228,6 +229,8 @@ export function android11Tasks(Java, framework) {
                     window.mActivityRecord.value !== null || !window.isVisibleLw()) continue;
                 const type = window.mAttrs.value.type.value;
                 if (type < 2000 || type > 2999) continue;
+                if (displayId === 0 && (type !== 2118 || String(window.getOwningPackage()) !== 'com.qinggan.systemui' ||
+                    String(window.mAttrs.value.getTitle()) !== 'StatusBar1')) continue;
                 const frame = window.getFrameLw();
                 if (frame.top.value === 0 && frame.left.value <= 0 && frame.right.value >= width &&
                     frame.bottom.value > 0 && frame.bottom.value <= height / 4) {
