@@ -1,6 +1,7 @@
 import { android9WindowHook } from './window-android9.js';
 import { android11WindowHook } from './window-android11.js';
 import { createReporter, errorKind } from './report.js';
+import { homeAppComponent, homeAppDpi } from './home-app-card.js';
 import { systemTasks } from './window-tasks.js';
 import { pairStarts, readPairLaunch } from './window-pairs.js';
 import { systemReserve } from './window-reserve.js';
@@ -8,7 +9,7 @@ import { android11DisplayMoves, displayMover } from './window-display-move.js';
 import { RESERVE_GUARD, reserveSwitch } from './window-reserve-switch.js';
 import {
     CENTRAL_DISPLAY, CONTROLS, OEM_LAUNCHER, PANEL_CONFIG, PANEL_EDGE, SECONDARY_DISPLAY, WINDOW_CONFIG, WINDOW_REQUEST,
-    componentKey, fitsReservedStrip, launchProfile, profileFor, readNavigator, readWindowConfig, readWindowRequest,
+    componentKey, fitsReservedStrip, launchProfile, pairProfileFor, profileFor, readNavigator, readWindowConfig, readWindowRequest,
     rectValues, sameBounds
 } from './window-profiles.js';
 
@@ -173,7 +174,7 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
     const started = new Set([Manager.START_SUCCESS.value, Manager.START_TASK_TO_FRONT.value, Manager.START_DELIVERED_TO_TOP.value]);
     const starting = [];
     const pendingLaunches = new Map();
-    let windowRaw, panelRaw, config, navigator, lastId;
+    let windowRaw, panelRaw, config, navigator, homeApp, lastId;
     let lastNavigator = "";
     let released = false;
     const reportError = (phase, error) => report(phase, {code:failureStatus(error)},
@@ -215,7 +216,7 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         apply: ({user, leftPercent, sides}) => {
             refresh();
             if (released || !config?.enabled || config.user !== user) return 'unsupported_window';
-            const profiles = sides.map(({component}) => profileFor(config, component, user, true));
+            const profiles = sides.map(({component}) => pairProfileFor(config, component, user));
             if (profiles.some(profile => !profile)) return 'unsupported_window';
             return tasks.applyPair(profiles, sides.map(({taskId}) => taskId), leftPercent, user);
         },
@@ -328,6 +329,14 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         if (panelRaw !== buttons) {
             panelRaw = buttons;
             navigator = readNavigator(buttons);
+            homeApp = null;
+            if (sdk === 30 && buttons !== '') {
+                try {
+                    const panel = JSON.parse(buttons);
+                    const component = componentKey(homeAppComponent(panel));
+                    if (component) homeApp = {component, dpi: homeAppDpi(panel)};
+                } catch (_) { }
+            }
         }
         const identity = config?.enabled && navigator ? config.user + ':' + navigator : '';
         if (identity !== lastNavigator) {
@@ -510,6 +519,8 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
 
     setInterval(() => Java.perform(() => {
         try { request(); } catch (error) { reportError('settings', error); }
+        try { if (!released && homeApp) tasks.fitHomeApp(homeApp.component, homeApp.dpi); }
+        catch (error) { reportError('home_app', error); }
         try { reservation.sync(reservationWanted()); } catch (error) { reportError('reserve', error); }
         try { mover?.sync(moveWanted()); } catch (error) { reportError('display_move', error); }
     }), 400);

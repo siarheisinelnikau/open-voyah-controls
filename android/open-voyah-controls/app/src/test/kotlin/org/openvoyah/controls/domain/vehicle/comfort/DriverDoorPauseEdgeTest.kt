@@ -8,8 +8,10 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleDoorState
 import org.openvoyah.controls.domain.vehicle.automation.VehicleGear
 import org.openvoyah.controls.domain.vehicle.automation.VehicleIdentity
 import org.openvoyah.controls.domain.vehicle.automation.VehicleSignal
+import org.openvoyah.controls.domain.vehicle.automation.VehicleSignalKind
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetryWindow
+import org.openvoyah.controls.domain.vehicle.automation.expireVehicleSignals
 
 class DriverDoorPauseEdgeTest {
     private val identity = VehicleIdentity("fixture", "fixture/fingerprint", 30, "arm64-v8a")
@@ -48,6 +50,36 @@ class DriverDoorPauseEdgeTest {
         val open = car(VehicleDoorState.OPEN, 3)
         assertFalse(edge.opened(open.copy(doors = mapOf(VehicleDoor.DRIVER to
             open.doors.getValue(VehicleDoor.DRIVER).copy(sourceId = "replacement"))), time(3)))
+    }
+
+    @Test fun volumeStaysLowerUntilTheLastReportedDoorCloses() {
+        val driver = car(VehicleDoorState.OPEN, 1).copy(gear = null)
+        val twoOpen = driver.copy(doors = driver.doors + (VehicleDoor.REAR_RIGHT to sample(VehicleDoorState.OPEN, 2)))
+        val rear = twoOpen.copy(doors = twoOpen.doors + (VehicleDoor.DRIVER to sample(VehicleDoorState.CLOSED, 3)))
+        val closed = rear.copy(doors = rear.doors + (VehicleDoor.REAR_RIGHT to sample(VehicleDoorState.CLOSED, 4)))
+
+        assertTrue(driver.hasOpenDoor(time(1)))
+        assertTrue(twoOpen.hasOpenDoor(time(2)))
+        assertTrue(rear.hasOpenDoor(time(10)))
+        assertFalse(closed.hasOpenDoor(time(10)))
+    }
+
+    @Test fun anOlderDoorSampleDoesNotHideAnOpeningOrCutItShort() {
+        val driverOpen = car(VehicleDoorState.OPEN, 8)
+        val twoDoors = driverOpen.copy(doors = driverOpen.doors + (VehicleDoor.PASSENGER to sample(VehicleDoorState.CLOSED, 1)))
+        val expiredForDiagnostics = twoDoors.expireVehicleSignals(time(8))
+        assertTrue(VehicleSignalKind.DOORS in expiredForDiagnostics.unavailable)
+        assertTrue(expiredForDiagnostics.hasOpenDoor(time(8)))
+        assertTrue(twoDoors.expireVehicleSignals(time(20)).hasOpenDoor(time(20)))
+    }
+
+    @Test fun aClearedOrPreviousSessionDoorCannotKeepVolumeLowered() {
+        val open = car(VehicleDoorState.OPEN, 1)
+        assertTrue(open.hasOpenDoor(time(1)))
+        assertFalse(open.copy(doors = emptyMap(), unavailable = setOf(VehicleSignalKind.DOORS)).hasOpenDoor(time(1)))
+        assertFalse(open.copy(sessionId = "next").hasOpenDoor(time(2)))
+        window.close()
+        assertFalse(open.hasOpenDoor(time(2)))
     }
 
     private fun car(door: VehicleDoorState, seconds: Long, gear: VehicleGear = VehicleGear.PARK, session: String = "first") =

@@ -16,8 +16,12 @@ function install() {
             }
             const Global = Java.use('android.provider.Settings$Global');
             const readNavigatorRequest = context => Global.getString(context.getContentResolver(), DRIVER_NAVIGATOR_REQUEST);
-            installClusterMediaCard(Java, {readConfig: createPanelConfigReader(Java), readRoute: createDriverRouteReader(Java),
-                readNavigatorRequest, report});
+            Java.scheduleOnMainThread(() => {
+                try {
+                    installClusterMediaCard(Java, {readConfig: createPanelConfigReader(Java),
+                        readRoute: createDriverRouteReader(Java), readNavigatorRequest, report});
+                } catch (error) { report('install', error); }
+            });
         } catch (error) { report('install', error); }
     });
 }

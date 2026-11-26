@@ -50,6 +50,16 @@ internal fun AppWindowSettings(window: AppSettingsViewModel.Window, model: AppSe
         editable,
     ) { step -> model.changeWindow { it.copy(panelWidthPx = step * AppWindowProfile.INSET_STEP_PX) } }
     WindowDimensions(profile, editable, model::changeWindow)
+    val splitDpi = profile.splitDensityDpi
+    val splitDpiText = when (splitDpi) {
+        null -> label(R.string.app_window_split_inherit_dpi)
+        0 -> label(R.string.app_window_default_dpi)
+        else -> "$splitDpi DPI"
+    }
+    StepSlider(R.string.app_window_split_dpi, splitDpiText, densityChoices.indexOf(splitDpi),
+        densityChoices.lastIndex, editable) { step ->
+        model.changeWindow { it.copy(splitDensityDpi = densityChoices[step]) }
+    }
     if (window.connection == WindowConnection.DISABLED) {
         CockpitAction(label(R.string.app_window_enable), model::enableWindows, enabled = editable)
     }

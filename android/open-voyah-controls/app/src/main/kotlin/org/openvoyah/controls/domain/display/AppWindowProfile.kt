@@ -6,11 +6,13 @@ data class AppWindowProfile(
     val densityDpi: Int = 0,
     val panelWidthPx: Int = 0,
     val inheritDensity: Boolean = densityDpi == 0,
+    val splitDensityDpi: Int? = null,
 ) {
     init {
         require(eligible(component))
         require(widthPercent in 50..100 && widthPercent % 5 == 0)
         require(densityDpi in densities)
+        require(splitDensityDpi == null || splitDensityDpi in densities)
         require(!inheritDensity || densityDpi == 0)
         require(panelWidthPx in 0..MAX_INSET_PX)
     }

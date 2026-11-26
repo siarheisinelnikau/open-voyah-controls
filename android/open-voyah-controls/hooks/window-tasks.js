@@ -38,6 +38,7 @@ export function systemTasks(Java, sdk, panelWidth) {
     };
     const api = (sdk === 28 ? android9Tasks : android11Tasks)(Java, framework);
     const saved = new Map();
+    let fittedHome;
     const toRect = bounds => bounds === null ? null : Rect.$new(...bounds);
     const key = task => api.id(task) + ':' + System.identityHashCode(task);
     /** Modes that keep bounds of their own: freeform and, on Android 11, multi-window. */
@@ -183,6 +184,42 @@ export function systemTasks(Java, sdk, panelWidth) {
         }
     }
 
+    function fitHomeApp(component, dpi) {
+        if (sdk !== 30) return;
+        const pkg = component.split('/')[0];
+        const user = api.user();
+        const list = api.am.getTasks(64);
+        for (let i = 0, count = list.size(); i < count; i++) {
+            const info = Java.cast(list.get(i), TaskInfo);
+            const base = info.baseActivity.value;
+            if (base === null || componentKey(String(base.flattenToString())) !== component) continue;
+            const taskId = api.runningId(info);
+            api.lock(() => {
+                const task = api.find(taskId);
+                const displayId = task?.getDisplayId() ?? -1;
+                if (displayId <= 0 || api.isLocked()) return;
+                const display = api.androidDisplay(displayId);
+                if (display === null || display.getType() !== Display.TYPE_VIRTUAL.value || display.getOwnerUid() !== 1000 ||
+                    (display.getFlags() & Display.FLAG_PRIVATE.value) === 0 ||
+                    String(display.getOwnerPackageName()) !== 'com.qinggan.app.launcher' ||
+                    !/^TaskVirtualDisplay@\d+$/.test(String(display.getName()))) return;
+                const records = activities(task, pkg, user, displayId);
+                if (!records || !task.isResizeable()) return;
+                const info = api.display(displayId).getDisplayInfo();
+                const bounds = [0, 0, info.logicalWidth.value, info.logicalHeight.value];
+                if (bounds[2] <= 0 || bounds[3] <= 0) return;
+                const identity = [key(task), displayId, dpi, ...bounds].join(':');
+                if (identity === fittedHome) return;
+                const next = api.densityConfig(task, dpi, bounds, displayId);
+                for (const record of records) clearGuest(record);
+                api.setEmbeddedBounds(next, bounds);
+                api.setOverride(task, next);
+                notify(records);
+                fittedHome = identity;
+            });
+        }
+    }
+
     /**
      * The windowing mode of a task this agent places: Android 11's multi-window mode where the release has it and
      * no task organizer would take such a task over, freeform otherwise (always on Android 9). Only freeform shows
@@ -296,16 +333,19 @@ export function systemTasks(Java, sdk, panelWidth) {
         if (!knownMode(task, mode)) throw error('unsupported_task');
         const before = snapshot(task, mode);
         const taskKey = key(task);
-        const dpi = profile.dpi;
+        const pairedBounds = taskId === undefined && mode === framework.multiWindow && saved.get(taskKey)?.paired
+            ? before.bounds : null;
+        const targetBounds = workspaceBounds ?? pairedBounds;
+        const dpi = pairedBounds === null ? profile.dpi : profile.splitDpi ?? profile.dpi;
         const changeDensity = before.dpi !== dpi;
         const canPlace = screen === CENTRAL_DISPLAY && api.supportsFreeform() && task.isResizeable() &&
-            (workspaceBounds !== null || !fitsReservedStrip(profile, reservedPx));
+            (targetBounds !== null || !fitsReservedStrip(profile, reservedPx));
         if (screen === CENTRAL_DISPLAY && !canPlace && dpi === 0 && !changeDensity) throw error('unsupported_window');
         // Android may already have applied our provisional bounds. A new task keeps its native density.
         const launchOriginal = canPlace && launch?.id === taskKey ? launch.prior : null;
         let rollback = launchOriginal;
         try {
-            const bounds = canPlace ? workspaceBounds ?? boundsFor(profile, 0, ...api.minimum(task)) : null;
+            const bounds = canPlace ? targetBounds ?? boundsFor(profile, 0, ...api.minimum(task)) : null;
             if (canPlace && bounds === null) throw error('no_space');
             rollback ??= before;
             // The mode that keeps the bounds without a caption bar where the release has one. A launch reaches it
@@ -334,11 +374,13 @@ export function systemTasks(Java, sdk, panelWidth) {
             if (dpi !== 0 && actualDpi !== dpi) throw error('density_rejected');
             const actual = rectValues(task.getBounds());
             if (bounds !== null && !sameBounds(actual, bounds)) throw error('placement_changed');
-            if (changeBounds || changeDensity) {
+            if (changeBounds || changeDensity || targetBounds !== null) {
                 const entry = tracking(task, taskKey, pkg, user, before.dpi);
                 if (canPlace) entry.central ??= before;
                 entry.appliedDpi = dpi !== entry.dpi ? dpi : null;
             }
+            const entry = saved.get(taskKey);
+            if (entry) entry.paired = canPlace && targetBounds !== null;
             return {width:actual[2] - actual[0], dpi:actualDpi, left:actual[0],
                 status:canPlace ? 'applied' : 'density_only'};
         } catch (failure) {
@@ -544,7 +586,7 @@ export function systemTasks(Java, sdk, panelWidth) {
 
     return {
         Rect, framework, boundsFor, apply, applyPair, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf, prepareMove, placeBelowBar,
-        passengerDesktopInset, workspaceTasks, canManageTasks: () => sdk === 30 && typeof api.removeTask === 'function',
+        passengerDesktopInset, workspaceTasks, fitHomeApp, canManageTasks: () => sdk === 30 && typeof api.removeTask === 'function',
         placedMode,
         freeformAvailable: () => api.supportsFreeform() && !api.isLocked(),
         /** After a start of home: hides the tasks that home, now on top of display 0, covers. */

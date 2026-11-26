@@ -1,5 +1,6 @@
 package org.openvoyah.controls.presentation.home
 
+import android.content.ComponentName
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
@@ -51,8 +53,28 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
             Text(UiText.get(R.string.settings_factory_home_unsupported), color = MaterialTheme.colorScheme.onSurfaceVariant)
             return@CockpitSection
         }
-        CockpitSwitch(R.string.home_navigator_card, state.navigatorHomeCard, change = actions::navigatorHomeCard)
-        if (state.navigatorHomeCard) {
+        if (state.homeCardActivitySupported) {
+            val context = LocalContext.current
+            val label = remember(context, state.homeCardActivity) {
+                val component = ComponentName.unflattenFromString(state.homeCardActivity)
+                component?.let {
+                    runCatching { context.packageManager.getActivityInfo(it, 0).loadLabel(context.packageManager).toString() }
+                        .getOrDefault(it.packageName)
+                }
+            }
+            CockpitChoice(R.string.home_card_activity, label ?: UiText.get(R.string.home_card_activity_default),
+                onClick = actions::chooseHomeCardActivity)
+            if (state.homeCardActivity.isNotEmpty()) {
+                HomeCardScale(R.string.home_card_activity_dpi, HOME_CARD_DPI_STEPS, state.homeCardDpi,
+                    format = { UiText.get(R.string.home_card_activity_dpi_value).format(it) }, change = actions::homeCardDpi)
+            }
+        }
+        val navigatorWindow = state.homeCardActivitySupported &&
+            state.homeCardActivity.startsWith(SettingsStore.YANDEX_NAVIGATOR + "/")
+        if (!navigatorWindow) {
+            CockpitSwitch(R.string.home_navigator_card, state.navigatorHomeCard, change = actions::navigatorHomeCard)
+        }
+        if (navigatorWindow || state.navigatorHomeCard) {
             NavigatorWidgetScale(state.navigatorWidgetScale, actions::navigatorWidgetScale)
             CockpitAction(UiText.get(R.string.home_navigator_widget_settings), { actions.command(HomeCommand.NAVIGATOR_WIDGET) },
                 guideId = R.string.home_navigator_widget_settings)
@@ -68,6 +90,7 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
     if (state.available) {
         CockpitSection(UiText.get(R.string.driver_media_heading), CockpitIcon.DISPLAY,
             UiText.get(R.string.driver_media_description)) {
+            if (!state.driverMediaHasPin) CockpitFeedback(UiText.get(R.string.driver_media_missing_pin), error = true)
             CockpitSwitch(R.string.home_cluster_card_apps, state.clusterCardApps, change = actions::clusterCardApps)
             CockpitSwitch(R.string.driver_media_layout, state.driverMediaLayout, enabled = state.clusterCardApps,
                 change = actions::driverMediaLayout)
@@ -197,20 +220,27 @@ private val NAVIGATOR_WIDGET_SCALE = (SettingsStore.NAVIGATOR_WIDGET_SCALE_MIN..
  */
 @Composable
 private fun NavigatorWidgetScale(percent: Int, change: (Int) -> Unit) {
-    var step by remember(percent) {
-        mutableIntStateOf(NAVIGATOR_WIDGET_SCALE.indexOf(percent).takeIf { it >= 0 } ?: NAVIGATOR_WIDGET_SCALE.indexOf(SettingsStore.NAVIGATOR_WIDGET_SCALE))
-    }
-    val shown = NAVIGATOR_WIDGET_SCALE[step]
-    val value = if (shown == SettingsStore.NAVIGATOR_WIDGET_SCALE) UiText.get(R.string.home_navigator_widget_scale_default) else "$shown %"
+    HomeCardScale(R.string.home_navigator_widget_scale, NAVIGATOR_WIDGET_SCALE, percent,
+        format = { if (it == SettingsStore.NAVIGATOR_WIDGET_SCALE) UiText.get(R.string.home_navigator_widget_scale_default) else "$it %" },
+        change = change, showGuide = true)
+}
+
+private val HOME_CARD_DPI_STEPS = (100..320 step 10).toList()
+
+@Composable
+private fun HomeCardScale(title: Int, values: List<Int>, selected: Int, format: (Int) -> String,
+    change: (Int) -> Unit, showGuide: Boolean = false) {
+    var step by remember(selected) { mutableIntStateOf(values.indexOf(selected).coerceAtLeast(0)) }
+    val value = format(values[step])
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(UiText.get(R.string.home_navigator_widget_scale), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            Text(UiText.get(title), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             Text(value, color = MaterialTheme.colorScheme.primary)
-            SettingInfo(UiText.get(R.string.home_navigator_widget_scale), R.string.home_navigator_widget_scale)
+            if (showGuide) SettingInfo(UiText.get(title), title)
         }
         Slider(step.toFloat(), { step = it.roundToInt() }, Modifier.fillMaxWidth().semantics { stateDescription = value },
-            valueRange = 0f..NAVIGATOR_WIDGET_SCALE.lastIndex.toFloat(), steps = NAVIGATOR_WIDGET_SCALE.lastIndex - 1,
-            onValueChangeFinished = { change(NAVIGATOR_WIDGET_SCALE[step]) })
+            valueRange = 0f..values.lastIndex.toFloat(), steps = values.lastIndex - 1,
+            onValueChangeFinished = { change(values[step]) })
     }
 }
 

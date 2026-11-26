@@ -6,7 +6,7 @@ const path = require('node:path');
 
 const js = fs.readFileSync(path.join(__dirname, '../hooks/window-profiles.js'), 'utf8')
     .replace(/^export /gm, '');
-const policy = vm.runInNewContext(js + '\n({componentKey, fitsReservedStrip, launchProfile, profileFor, readNavigator, ' +
+const policy = vm.runInNewContext(js + '\n({componentKey, fitsReservedStrip, launchProfile, pairProfileFor, profileFor, readNavigator, ' +
     'readWindowConfig, readWindowRequest, windowBounds})');
 const target = 'org.example.navigator/org.example.navigator.MainActivity';
 const external = 'org.example.player/org.example.player.MainActivity';
@@ -103,6 +103,23 @@ test('display defaults respect explicit app density, legacy system density and u
     assert.equal(policy.profileFor(legacy,target,0,true,'central',true).dpi, 190);
     const fixed = policy.readWindowConfig(config([profile], {displayDpi}));
     assert.equal(policy.profileFor(fixed,target,0,true,'secondary').dpi, 180);
+});
+
+test('app pairs inherit ordinary DPI unless the app has a split override', () => {
+    const displayDpi = {central:190,secondary:220};
+    const inherited = {component:external,width:100,dpi:0,keepPanel:true,panelPx:0,inheritDpi:true};
+    const state = policy.readWindowConfig(config([profile, {...inherited,splitDpi:160}], {displayDpi}));
+    assert.equal(policy.pairProfileFor(state,target,0).dpi, 180);
+    assert.equal(policy.pairProfileFor(state,external,0).dpi, 160);
+    assert.equal(policy.profileFor(state,external,0,true).dpi, 190);
+    assert.equal(policy.profileFor(state,external,0), null);
+    assert.equal(policy.pairProfileFor(state,external,10), null);
+
+    const defaultSplit = policy.readWindowConfig(config([inherited], {displayDpi}));
+    assert.equal(policy.pairProfileFor(defaultSplit,external,0).dpi, 190);
+    const displayScale = policy.readWindowConfig(config([{...profile,splitDpi:0}], {displayDpi}));
+    assert.equal(policy.pairProfileFor(displayScale,target,0).dpi, 0);
+    assert.equal(policy.readWindowConfig(config([{...profile,splitDpi:155}])), null);
 });
 
 test('secondary defaults are opt-in and the profile protocol validates them independently', () => {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_card_activity">Окно приложения в карточке навигации на Home</string>
+    <string name="home_card_activity_default">Использовать карточку карты</string>
+    <string name="home_card_activity_dpi">DPI встроенного приложения на Home</string>
+    <string name="home_card_activity_dpi_value">%1$d dpi</string>
+</resources>

@@ -19,7 +19,7 @@ const DEFAULT_COVER = 1;
 const STATE_PLAYING = 3;
 const DURATION = 'android.media.metadata.DURATION';
 // Bitmaps an app's session may carry, in order of preference: Voyah Radio sends its station picture as ART.
-const ARTWORK = ['android.media.metadata.ALBUM_ART', 'android.media.metadata.ART', 'android.media.metadata.DISPLAY_ICON'];
+const ARTWORK = ['android.media.metadata.ALBUM_ART', 'android.media.metadata.ART'];
 // The restore token Controls publishes before it stops the agents (FridaBridge.restorePanelIcons).
 const RESTORE_TOKEN = /^[0-9a-f]{32}$/;
 
@@ -56,9 +56,8 @@ export function trackProgress({duration, position, updated, speed, playing}, now
  * card on the factory source heard before (Bluetooth music on the reviewed car). Every added app borrows a slot no
  * code of the card uses (see MEDIA_SLOTS): the slot names the app's browser service, `MediaManager` connects to it as
  * to the factory services, the agent recognizes the app's audio focus by its package, and the card's own views show
- * the app's title, artist and play state. The agent puts the app's name and icon on the card's title and source
- * badge, the session's picture (else the app icon) on the cover, and moves the progress ring for tracks with a
- * duration.
+ * the app's title, artist and play state. The agent puts the app's name and icon on the card's title and draws the
+ * cover from the media session or the factory disc, and moves the progress ring for tracks with a duration.
  *
  * Off, or the restore token before Controls detaches, puts the factory slots back and returns the card to a factory
  * source; the token is answered with `OVC_CLUSTER_CARD_RESTORED <token>` once that is done.
@@ -69,9 +68,10 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
     // Every control this agent created, so a failed step can never leave one connecting forever.
     const controls = [];
     let timer = null, disposed = false;
-    // The apps the card offers now: [{source, slot, value, control, label, locale, icon, duration}].
+    // The apps the card offers now: [{source, slot, value, control, label, locale, duration}].
     let active = [];
     let activeKey = '';
+    let sourceView = null;
     // A restore that failed somewhere is tried again on the next tick.
     let dirty = false;
     // The last restore token this agent answered.
@@ -87,7 +87,6 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
         const Manager = Java.use('com.qinggan.app.mediaCentre.MediaManager');
         const Control = Java.use('com.qinggan.app.mediaCentre.manager.MediaControlManager');
         const Policy = Java.use('com.qinggan.media.helper.AudioPolicyHelper');
-        const BaseView = Java.use('com.qinggan.app.mediaCentre.view.BaseMediaView');
         const MusicView = Java.use('com.qinggan.cardview.panel.media.MusicBaseView');
         const Screen = Java.use('com.qinggan.instrumentcard.ScreenActivity');
         const Framework = Java.use('com.qinggan.app.service.utils.ContextUtils');
@@ -98,10 +97,10 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
         const TextView = Java.use('android.widget.TextView');
         const JString = Java.use('java.lang.String');
         const Clock = Java.use('android.os.SystemClock');
-        const sources = BaseView.getMediaEnums.overload();
         const update = MusicView.updateView.overload('com.qinggan.media.helper.MediaEnum',
             'com.qinggan.media.helper.base.bean.QinMediaInfo');
         const coverUrl = MusicView.updateUrlImage.overload('com.qinggan.media.helper.MediaEnum', 'java.lang.String');
+        const defaultCover = MusicView.getBgDrawable?.overload();
         const focusWith = Policy.isMediaFocus.overload('com.qinggan.media.helper.MediaEnum', 'com.qinggan.audiopolicy.AudioPolicyInfo');
         const focusLatest = Policy.isMediaFocus.overload('com.qinggan.media.helper.MediaEnum');
         const listOf = ArrayList.$new.overload('java.util.Collection');
@@ -144,10 +143,6 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
             }
             return item.label;
         }
-        function icon(item) {
-            if (item.icon === null) item.icon = app().getPackageManager().getApplicationIcon(item.source.package).getConstantState();
-            return item.icon.newDrawable();
-        }
         /** The app's session controller, or null while the card is not connected to it. */
         function controller(item) {
             const helper = item.control.getMediaBrowserHelper();
@@ -173,21 +168,26 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
                 playing: state.getState() === STATE_PLAYING}, Number(Clock.elapsedRealtime()));
         }
 
+        function mediaPanel() {
+            const screen = Screen.screenActivity.value;
+            return screen === null ? null : screen.panelMusicView.value;
+        }
+
         /** The music view the cluster shows now, or null (no card, or the factory radio or empty view). */
         function shown() {
-            const screen = Screen.screenActivity.value;
-            const panel = screen === null ? null : screen.panelMusicView.value;
+            const panel = mediaPanel();
             if (panel === null || panel.getChildCount() === 0) return null;
             const child = panel.getChildAt(0);
             return MusicView.class.isInstance(child) ? Java.cast(child, MusicView) : null;
         }
 
-        /** Puts the app's name, icon, picture and progress on a view whose source is an app. */
+        /** Puts the app's name, picture and progress on a view whose source is an app. */
         function decorate(view) {
             const item = sourceOf(view.getCurMediaEnum());
             if (item === null) return;
             setText.call(view.mTvTitle.value, JString.$new(label(item)));
-            view.mIvType.value.setImageDrawable(icon(item));
+            // Some OEM themes place the source drawable over the branded disc.
+            view.mIvType.value.setImageDrawable(null);
             const session = controller(item);
             const metadata = session === null ? null : session.getMetadata();
             item.duration = metadata === null ? 0 : Number(metadata.getLong(DURATION));
@@ -195,8 +195,8 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
             item.artworkRevision += 1;
             const picture = artwork(metadata);
             if (picture !== null) view.mIvCover.value.setImageBitmap(picture);
-            else view.mIvCover.value.setImageDrawable(icon(item));
-            // An empty cover asked for the default disc 3 s later; the picture stays instead.
+            else view.mIvCover.value.setImageDrawable(defaultCover?.call(view) ?? null);
+            // The desired cover is already visible. Cancel the pending factory replacement.
             view.handler.value.removeMessages(DEFAULT_COVER);
             const where = progress(session, item);
             if (where === null) view.updateProgressView(false);
@@ -227,12 +227,13 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
                     return;
                 }
                 // Guidance temporarily takes the visual area. The OEM media source and progress stay live underneath.
-                if (navigation && route !== null &&
-                    currentLayer.updateNavigation(view, route, Number(Clock.elapsedRealtime()))) {
+                const navigationHost = navigation ? (view ?? mediaPanel()) : null;
+                if (navigation && route !== null && (view !== null || route.maneuver != null) &&
+                    currentLayer.updateNavigation(navigationHost, route, Number(Clock.elapsedRealtime()))) {
                     navigationFits = true;
                     return;
                 }
-                if (navigation) navigationFits = currentLayer.navigationFits(view);
+                if (navigation) navigationFits = currentLayer.navigationFits(navigationHost);
                 if (!driverLayout || item === null || session === null ||
                     focus(item.value, Policy.getInstance(app()).getLatestMediaInfo()) !== true) {
                     currentLayer.clear(view);
@@ -261,6 +262,8 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
                 if (item !== null) {
                     const name = label(item);
                     if (text(view.mTvTitle.value.getText()) !== name) setText.call(view.mTvTitle.value, JString.$new(name));
+                    const badge = view.mIvType.value;
+                    if (badge.getDrawable() !== null) badge.setImageDrawable(null);
                     session = controller(item);
                     where = progress(session, item);
                     if (where !== null) view.updateProgress(where.position, where.duration, item.value);
@@ -282,6 +285,31 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
             return value;
         }
 
+        function removeViewSources(view, slots) {
+            const list = Java.cast(view.getMediaEnums(), ArrayList);
+            for (const value of slots) listRemove.call(list, value);
+        }
+
+        // The OEM dispatcher reads the music view's own list. Leave getMediaEnums on its original ART entry point.
+        function syncViewSources() {
+            const view = shown();
+            if (sourceView !== null) {
+                if (view !== null && sourceView.equals(view)) return;
+                removeViewSources(sourceView, borrowed());
+                sourceView.$dispose();
+                sourceView = null;
+            }
+            if (view === null) return;
+            const list = Java.cast(view.getMediaEnums(), ArrayList);
+            for (const item of active) if (!list.contains(item.value)) listAdd.call(list, item.value);
+            sourceView = Java.retain(view);
+            // A fresh view may have rejected the current source while its factory list was still in use.
+            const current = Manager.getInstance().curMediaEnum.value;
+            if (sourceOf(current) !== null && !current.equals(view.getCurMediaEnum())) {
+                view.controlMediaManager.value.updateView(current);
+            }
+        }
+
         /** A new PanelView brings a configuration without the slots; they go into it again. */
         function keepConfigured() {
             if (active.length === 0) return;
@@ -290,6 +318,7 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
                 if (!settings.mediaEnums.value.contains(item.value)) settings.mediaEnums.value.add(item.value);
                 if (!settings.controlEnums.value.contains(item.value)) settings.controlEnums.value.add(item.value);
             }
+            syncViewSources();
         }
 
         /**
@@ -313,7 +342,7 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
                 // control connects as it is created.
                 settings.mediaEnums.value.add(value);
                 settings.controlEnums.value.add(value);
-                active.push({source, slot, value, control: null, label: '', locale: null, icon: null, duration: 0,
+                active.push({source, slot, value, control: null, label: '', locale: null, duration: 0,
                     driverTrack: undefined, artworkRevision: 0});
                 // As MediaManager.initMediaControl does for the factory sources.
                 const control = Java.retain(Control.$new(context, value));
@@ -322,6 +351,7 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
                 control.addQinMediaListener(manager);
                 manager.addMediaControl(control);
             });
+            syncViewSources();
             refocus();
         }
 
@@ -359,6 +389,15 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
             step('driver_restore', () => layer()?.clear(shown()));
             const slots = borrowed();
             const ids = MEDIA_SLOTS.map(slot => slot.id);
+            step('sources', () => {
+                const view = shown();
+                if (view !== null && (sourceView === null || !sourceView.equals(view))) removeViewSources(view, slots);
+                if (sourceView !== null) {
+                    removeViewSources(sourceView, slots);
+                    sourceView.$dispose();
+                    sourceView = null;
+                }
+            });
             let manager = null, shownApp = false;
             step('control', () => {
                 manager = Manager.getInstance();
@@ -425,20 +464,6 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, readNaviga
             step('restore', refocus);
         }
 
-        // The card's views accept only the sources in this list; the apps join the factory ones while they are on.
-        sources.implementation = function () {
-            const result = sources.call(this);
-            if (active.length === 0) return result;
-            try {
-                const list = listOf.call(ArrayList, result);
-                for (const item of active) if (!list.contains(item.value)) listAdd.call(list, item.value);
-                return list;
-            } catch (error) {
-                report('sources', error);
-                return result;
-            }
-        };
-        hooks.push(sources);
         update.implementation = function (value, info) {
             const result = update.call(this, value, info);
             try { if (active.length > 0) decorate(this); } catch (error) { report('decorate', error); }

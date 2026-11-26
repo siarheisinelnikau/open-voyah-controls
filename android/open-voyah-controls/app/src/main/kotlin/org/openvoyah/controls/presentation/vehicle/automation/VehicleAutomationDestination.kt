@@ -32,6 +32,7 @@ import org.openvoyah.controls.presentation.theme.CockpitColumns
 import org.openvoyah.controls.presentation.theme.CockpitDetail
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
 import org.openvoyah.controls.presentation.theme.CockpitIcon
+import org.openvoyah.controls.presentation.theme.CockpitOptionDialog
 import org.openvoyah.controls.presentation.theme.CockpitSection
 import org.openvoyah.controls.presentation.theme.CockpitSwitch
 import org.openvoyah.controls.presentation.theme.CockpitTextAction
@@ -55,20 +56,13 @@ internal fun VehicleAutomationDestination(
         model::setHeadlightsEnabled, { choosingDrive = true }, { choosingDrive = false }, model::setDrivingMemoryEnabled,
         model::prepareRestore, model::rememberCurrent)
     choosingDrive?.let { drive ->
-        CockpitAlertDialog(
-            onDismissRequest = { choosingDrive = null },
-            title = { Text(text(if (drive) R.string.vehicle_automation_on_drive else R.string.vehicle_automation_on_park)) },
-            text = {
-                androidx.compose.foundation.layout.Column {
-                    HeadlightGearAction.entries.filter { !drive || it.allowedInDrive }.forEach { action ->
-                        CockpitChoice(actionLabel(action), onClick = {
-                            choosingDrive = null
-                            if (drive) model.setDriveAction(action) else model.setParkAction(action)
-                        })
-                    }
-                }
-            },
-            confirmButton = { CockpitTextAction(text(R.string.vehicle_automation_close)) { choosingDrive = null } },
+        CockpitOptionDialog(
+            title = text(if (drive) R.string.vehicle_automation_on_drive else R.string.vehicle_automation_on_park),
+            options = HeadlightGearAction.entries.filter { !drive || it.allowedInDrive },
+            selected = state.settings?.headlights?.let { if (drive) it.onDrive else it.onPark },
+            label = ::actionLabel,
+            onSelect = { action -> if (drive) model.setDriveAction(action) else model.setParkAction(action) },
+            onDismiss = { choosingDrive = null },
         )
     }
     state.prompt?.let { prompt ->

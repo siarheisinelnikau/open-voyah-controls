@@ -53,9 +53,25 @@ public final class SettingsStore {
      * Audio"), Kuwo, Ximalaya and Yunting, by the launcher's source names. Bluetooth and USB music stay.
      */
     public static final String[] MEDIA_CARD_ONLINE_SOURCES = {"WECAR_FLOW", "KW_MUSIC", "XMLA_MUSIC", "RADIO_YUNTING"};
+    public static String homeCardActivity(String value) {
+        if (value == null || value.length() > 256 ||
+            !value.matches("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+/[A-Za-z0-9_.$]+")) return "";
+        android.content.ComponentName component = android.content.ComponentName.unflattenFromString(value);
+        if (component == null || component.getClassName().isEmpty()) return "";
+        String pkg = component.getPackageName();
+        if (pkg.equals("org.openvoyah.controls") || pkg.equals("com.qinggan.app.launcher")) return "";
+        return component.flattenToString();
+    }
+
     public static int navigatorWidgetScale(int value) {
         if (value >= 50 && value < NAVIGATOR_WIDGET_SCALE_MIN) return NAVIGATOR_WIDGET_SCALE_MIN;
         return value >= NAVIGATOR_WIDGET_SCALE_MIN && value <= 200 ? value : NAVIGATOR_WIDGET_SCALE;
+    }
+
+    public static final int HOME_CARD_DPI = 160;
+
+    public static int homeCardDpi(int value) {
+        return value >= 100 && value <= 320 && value % 10 == 0 ? value : HOME_CARD_DPI;
     }
     public static final class State {
         public boolean enabled = true;
@@ -65,6 +81,8 @@ public final class SettingsStore {
         public boolean panelEnabled = false;
         /** Show Yandex Navigator instead of the Baidu map in the factory home screen's navigation card. Off unless turned on. */
         public boolean navigatorHomeCard = false;
+        public String homeCardActivity = "";
+        public int homeCardDpi = HOME_CARD_DPI;
         /** Scale of the Navigator widget in that card in percent; more is larger content. */
         public int navigatorWidgetScale = NAVIGATOR_WIDGET_SCALE;
         /** Feed the factory home screen's weather card with Open-Meteo weather. Off unless turned on. */
@@ -111,6 +129,8 @@ public final class SettingsStore {
         state.debounceMs = root.getInt("debounceMs");
         state.panelEnabled = root.optBoolean("panelEnabled", false);
         state.navigatorHomeCard = root.optBoolean("navigatorHomeCard", false);
+        state.homeCardActivity = homeCardActivity(root.optString("homeCardActivity", ""));
+        state.homeCardDpi = homeCardDpi(root.optInt("homeCardDpi", HOME_CARD_DPI));
         // A density saved by the first version becomes the nearest 10 % (160 = 100 %). That version always saved its
         // default, 160, so 160 means "not chosen" and takes today's default.
         int legacyDpi = root.optInt("navigatorWidgetDpi", 0);
@@ -176,6 +196,8 @@ public final class SettingsStore {
         return new JSONObject().put("schema", SCHEMA).put("enabled", state.enabled).put("holdMs", state.holdMs)
             .put("debounceMs", state.debounceMs).put("bindings", rows).put("panelEnabled", state.panelEnabled)
             .put("navigatorHomeCard", state.navigatorHomeCard)
+            .put("homeCardActivity", homeCardActivity(state.homeCardActivity))
+            .put("homeCardDpi", homeCardDpi(state.homeCardDpi))
             .put("navigatorWidgetScale", state.navigatorWidgetScale)
             .put("weatherCard", state.weatherCard)
             .put("mediaCardApps", state.mediaCardApps)

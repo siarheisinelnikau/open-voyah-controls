@@ -6,6 +6,8 @@
     <string name="driver_navigator_shown">Яндекс Навигатор открыт в левой зоне.</string>
     <string name="driver_navigator_restored">Левая зона вернулась в обычный режим.</string>
     <string name="driver_navigator_unavailable">Сервис дисплея приборки недоступен на этом головном устройстве.</string>
+    <string name="driver_media_missing_pin">В профиле прошивки нет подписи и хеша APK штатной медиакарточки (com.qinggan.instrumentcard). Сервис медиакарточки не запустится.</string>
+    <string name="driver_media_forbidden">Сервис медиакарточки приборки запрещён в разделе «Разрешённые действия».</string>
     <string name="driver_navigator_no_slot">Откройте музыкальную карточку на приборке и повторите попытку.</string>
     <string name="driver_navigator_denied">Головное устройство не разрешает открыть окно приложения в медиакарточке.</string>
     <string name="driver_navigator_not_installed">Установите Яндекс Навигатор на головное устройство.</string>

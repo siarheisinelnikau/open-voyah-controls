@@ -149,6 +149,11 @@ export function android11Tasks(Java, framework) {
         setOverride(task, config) {
             task.onRequestedOverrideConfigurationChanged(config);
         },
+        setEmbeddedBounds(config, bounds) {
+            const window = config.windowConfiguration.value;
+            setBounds().call(window, Rect.$new(...bounds));
+            window.setWindowingMode(0);
+        },
         /**
          * The requested override of [task] at [dpi] (0: the display's).
          *

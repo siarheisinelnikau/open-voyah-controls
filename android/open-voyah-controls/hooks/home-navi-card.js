@@ -1,4 +1,6 @@
 import { createReporter } from './report.js';
+import { createHomeAppCard, homeAppComponent, homeAppDpi, homeAppPairRequest } from './home-app-card.js';
+import { driverNavigatorRequest } from './driver-navigator-window.js';
 
 // Every view this module adds carries this tag, so a later agent can remove one an earlier agent left behind.
 const CARD_MARK = 'org.openvoyah.controls.homeCard';
@@ -86,6 +88,7 @@ export function guidanceLines(item) {
 export function createHomeCardController(env, report) {
     const entries = [];
     let target = null;
+    let background = null;
     let model = null;
 
     function find(card) {
@@ -98,6 +101,7 @@ export function createHomeCardController(env, report) {
             env.removeOverlay(entry.card, entry.overlay);
             entry.overlay = null;
             entry.name = null;
+            entry.background = null;
             env.resumeMap(entry.card);
             return true;
         } catch (error) {
@@ -108,8 +112,10 @@ export function createHomeCardController(env, report) {
 
     function apply(entry, name) {
         try {
-            entry.overlay = env.addOverlay(entry.card, name);
+            entry.overlay = env.addOverlay(entry.card, name, background);
+            if (entry.overlay === null) return;
             entry.name = name;
+            entry.background = background;
             env.render(entry.overlay, model);
             env.pauseMap(entry.card);
         } catch (error) {
@@ -119,18 +125,27 @@ export function createHomeCardController(env, report) {
     }
 
     function reconcile(entry) {
-        if (entry.overlay !== null && entry.name !== target && !restore(entry)) return;
+        if (entry.overlay !== null && (entry.name !== target || entry.background !== background) && !restore(entry)) return;
+        if (entry.overlay !== null && env.updateOverlay?.(entry.card, entry.overlay) === false) {
+            restore(entry);
+            return;
+        }
         if (target !== null && entry.overlay === null) apply(entry, target);
     }
 
     return {
         /** Chooses the card's app from the configuration and brings every known card in line. */
-        configure(name) {
+        configure(name, fallback = null) {
             let next = null;
-            try { next = name !== null && env.launchable(name) ? name : null; }
+            let widget = null;
+            try {
+                if (fallback !== null && env.launchable(fallback)) widget = fallback;
+                next = name !== null && env.launchable(name) ? name : widget;
+            }
             catch (error) { report('resolve', error); }
             if (next !== target) model = null;
             target = next;
+            background = next === widget ? null : widget;
             for (let i = entries.length - 1; i >= 0; i--) {
                 const entry = entries[i];
                 if (!env.alive(entry.card)) { entries.splice(i, 1); env.forget?.(entry); continue; }
@@ -139,7 +154,7 @@ export function createHomeCardController(env, report) {
         },
         track(card) {
             if (find(card)) return;
-            const entry = {card: env.keep(card), overlay: null, name: null};
+            const entry = {card: env.keep(card), overlay: null, name: null, background: null};
             // A card covered by an earlier agent that never restored it: take its overlay away first.
             try {
                 if (env.removeOrphans(entry.card) > 0 && target === null) env.resumeMap(entry.card);
@@ -150,10 +165,14 @@ export function createHomeCardController(env, report) {
         covers(card) {
             return find(card)?.overlay != null;
         },
+        handlesTap(card) {
+            const overlay = find(card)?.overlay;
+            return overlay != null && !overlay.host;
+        },
         open(card) {
             const entry = find(card);
-            if (!entry?.name) return false;
-            try { env.open(entry.card, entry.name); return true; }
+            if (!entry?.name || entry.overlay?.host) return false;
+            try { env.open(entry.card, entry.background ?? entry.name); return true; }
             catch (error) { report('open', error); return false; }
         },
         /** Navigator content for the covered cards; null shows the app tile. */
@@ -166,10 +185,25 @@ export function createHomeCardController(env, report) {
             }
         },
         target: () => target,
+        notificationPackage: () => background ?? target,
         covering: () => entries.some(entry => entry.overlay !== null),
+        releaseApp() {
+            let released = true;
+            for (const entry of entries) {
+                if (!entry.overlay?.host) continue;
+                if (entry.background === null) {
+                    if (!restore(entry)) released = false;
+                } else {
+                    try { env.releaseApp(entry.overlay); }
+                    catch (error) { report('app_release', error); released = false; }
+                }
+            }
+            return released;
+        },
         /** Puts every factory card back; true when none is covered any more. */
         restoreAll() {
             target = null;
+            background = null;
             model = null;
             let restored = true;
             for (const entry of entries) if (!restore(entry)) restored = false;
@@ -307,13 +341,14 @@ function within(down, x, y) {
  * The overlay itself is not clickable: taps reach the factory `MapWidgetLayout`, whose touch dispatch is hooked.
  * If the agent ever disappears without restoring, its hook goes with it and taps open Baidu again.
  */
-export function installHomeNavigationCard(Java, {readConfig, launch, onNavigation = () => {},
+export function installHomeNavigationCard(Java, {readConfig, readDriverNavigatorRequest, readPairRequest, launch, onNavigation = () => {},
     report = createReporter('OVC_HOME_CARD_ERROR')} = {}) {
     const hooks = [];
     let controller = null, timer = null, poll = null, disposed = false;
     // `applied` is the configured app last handed to the controller; `shown` keys the notification on screen, and
     // `current` keeps that model (with its retained notification) until the next one replaces it.
     let applied, shown = '', current = null;
+    let reopenAppAfter = 0;
     try {
         const Card = Java.use('com.qinggan.app.launcher.homecard.HomeNaviCardView');
         const MapLayout = Java.use('com.baidu.widgetmap.MapWidgetLayout');
@@ -333,7 +368,15 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
         const JString = Java.use('java.lang.String');
         const Reference = Java.use('java.lang.ref.WeakReference');
         const ActivityThread = Java.use('android.app.ActivityThread');
+        const Clock = readDriverNavigatorRequest || readPairRequest ? Java.use('android.os.SystemClock') : null;
         const HostView = Java.use('android.appwidget.AppWidgetHostView');
+        let appCard = null;
+        try { appCard = createHomeAppCard(Java, report); }
+        catch (error) { report('app_host_setup', error); }
+        let failedApp = null;
+        let driverRequest = null;
+        let pairRequest = null;
+        let configuredApp = null;
 
         const retain = object => Java.retain(object);
         const dereference = ref => {
@@ -382,6 +425,7 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
                 const child = group.getChildAt(i);
                 const tag = child?.getTag();
                 if (tag === null || tag === undefined || String(tag) !== CARD_MARK) continue;
+                appCard?.release(child);
                 group.removeViewAt(i);
                 removed++;
             }
@@ -403,7 +447,7 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
             return [width, height];
         }
 
-        let widgets = null, textCards = 0, scale = 1;
+        let widgets = null, textCards = 0, scale = 1, appDpi = 160;
         const widgetOverlays = new Set();
 
         /**
@@ -438,7 +482,41 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
         try { widgets = createWidgetSlot(Java); }
         catch (error) { report('widget', error); }
 
+        function mountApp(card, target, parent) {
+            if (failedApp === target || Date.now() < reopenAppAfter) return null;
+            const host = appCard.create(card, target, cornerRadius(card.getContext()));
+            if (host === null) return null;
+            try {
+                if (parent.equals(card)) host.view.setTag(chars(CARD_MARK));
+                Java.cast(parent, ViewGroup).addView(host.view, FrameParams.$new(-1, -1));
+                return host;
+            } catch (error) {
+                appCard.release(host.view);
+                host.view.$dispose();
+                failedApp = target;
+                throw error;
+            }
+        }
+
+        function releaseApp(overlay) {
+            const host = overlay.host;
+            if (host === null || host === undefined) return;
+            if (overlay.appTarget) {
+                appCard.release(host.view);
+                overlay.views.root.removeView(host.view);
+                host.view.$dispose();
+                overlay.host = null;
+                overlay.views.widget?.setVisibility(0);
+            }
+        }
+
         function dropOverlay(overlay) {
+            if (overlay.appTarget) releaseApp(overlay);
+            else if (overlay.host) {
+                appCard.release(overlay.views.root);
+                overlay.views.root.$dispose();
+                return;
+            }
             if (overlay.widget) {
                 widgetOverlays.delete(overlay);
                 try { widgets.drop(); } catch (error) { report('widget', error); }
@@ -456,15 +534,23 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
             },
             launchable(name) {
                 const app = ActivityThread.currentApplication();
+                if (name.includes('/')) return app !== null && appCard?.canLaunch(app, name) === true;
                 return app !== null && app.getPackageManager().getLaunchIntentForPackage(name) !== null;
             },
             removeOrphans(ref) {
                 const card = dereference(ref);
                 return card === null ? 0 : removeMarked(card);
             },
-            addOverlay(ref, name) {
+            addOverlay(ref, name, fallback) {
                 const card = dereference(ref);
                 if (card === null) throw failure('card_gone');
+                const appTarget = name.includes('/') ? name : null;
+                if (appTarget !== null && fallback === null) {
+                    const host = mountApp(card, appTarget, card);
+                    if (host === null) return null;
+                    return {host, views: {root: host.view}};
+                }
+                name = fallback ?? name;
                 removeMarked(card);
                 const context = card.getContext();
                 const density = context.getResources().getDisplayMetrics().density.value;
@@ -509,7 +595,7 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
                 root.setContentDescription(chars(appName));
                 const views = {root: retain(root), icon: retain(icon), title: retain(title),
                     text: retain(text), sub: retain(sub), custom: retain(custom)};
-                const overlay = {name, appName, widget: widget !== null, views, size, density};
+                const overlay = {name, appName, appTarget, host: null, widget: widget !== null, views, size, density};
                 if (widget !== null) {
                     views.widget = retain(widget);
                     widgetOverlays.add(overlay);
@@ -518,7 +604,7 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
                 return overlay;
             },
             render(overlay, model) {
-                if (overlay.widget) return;
+                if (overlay.widget || overlay.host) return;
                 const {icon, title, text, sub, custom} = overlay.views;
                 const context = icon.getContext();
                 custom.removeAllViews();
@@ -547,7 +633,26 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
                     custom.setVisibility(0);
                 } catch (error) { report('remote_views', error); }
             },
+            updateOverlay(ref, overlay) {
+                const card = dereference(ref);
+                if (overlay.appTarget && !overlay.host) {
+                    if (card !== null) overlay.host = mountApp(card, overlay.appTarget, overlay.views.root);
+                    return true;
+                }
+                if (!overlay.host) return true;
+                const active = card !== null && appCard.update(card, overlay.host, appDpi);
+                if (overlay.host.failed) failedApp = overlay.host.target;
+                if (!active && overlay.appTarget) {
+                    releaseApp(overlay);
+                    return true;
+                }
+                const widget = overlay.views.widget;
+                if (active && overlay.host.ready && widget && widget.getVisibility() !== 4) widget.setVisibility(4);
+                return active;
+            },
+            releaseApp,
             removeOverlay(ref, overlay) {
+                if (overlay.appTarget) releaseApp(overlay);
                 const card = dereference(ref);
                 if (card !== null) {
                     removeMarked(card);
@@ -570,6 +675,7 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
                 const manager = context.getPackageManager();
                 const intent = manager.getLaunchIntentForPackage(name);
                 const component = intent?.getComponent();
+                if (controller.target()?.startsWith(name + '/')) reopenAppAfter = Date.now() + 3000;
                 if (!component || !launch(context, String(component.flattenToString()))) throw failure('not_launchable');
                 try { onNavigation(context, name); } catch (_) { }
             }
@@ -593,7 +699,7 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
             let card = null;
             try {
                 const owner = cardOf(this);
-                if (owner !== null && controller.covers(owner)) card = owner;
+                if (owner !== null && controller.handlesTap(owner)) card = owner;
             } catch (error) { report('touch', error); }
             if (card === null) return touch.call(this, event);
             try {
@@ -638,18 +744,47 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
             };
         }
 
-        /** The configured app and widget scale, as one key the timer compares. */
+        /** The configured window, its fallback widget and its scale, as one key the timer compares. */
         function configured() {
             const app = ActivityThread.currentApplication();
             if (app === null) return null;
             const config = readConfig(app);
-            const name = cardPackage(config);
-            return name === null ? null : name + '@' + widgetScale(config);
+            return JSON.stringify([homeAppComponent(config), cardPackage(config), widgetScale(config), homeAppDpi(config)]);
+        }
+
+        function releaseForDriver(component) {
+            if (!readDriverNavigatorRequest || !component?.startsWith('ru.yandex.yandexnavi/')) return;
+            const app = ActivityThread.currentApplication();
+            if (app === null) return;
+            const request = driverNavigatorRequest(readDriverNavigatorRequest(app), Number(Clock.elapsedRealtime()));
+            if (request === null || request.id === driverRequest) return;
+            driverRequest = request.id;
+            if (request.operation === 'open') {
+                reopenAppAfter = Date.now() + 9000;
+                controller.releaseApp();
+            }
+        }
+
+        function releaseForPair(component) {
+            if (!readPairRequest) return;
+            const app = ActivityThread.currentApplication();
+            if (app === null) return;
+            const request = homeAppPairRequest(readPairRequest(app), Number(Clock.elapsedRealtime()));
+            if (request === null || request.id === pairRequest) return;
+            if (component === request.component || controller.target() === request.component) {
+                reopenAppAfter = Math.max(reopenAppAfter, Date.now() + 5000);
+                if (controller.target() === request.component && !controller.releaseApp()) return;
+            }
+            pairRequest = request.id;
+            console.log('OVC_HOME_APP_PAIR_RELEASED ' + request.id);
         }
 
         function configure(key) {
-            const name = key === null ? null : key.slice(0, key.lastIndexOf('@'));
-            const nextScale = key === null ? 1 : Number(key.slice(key.lastIndexOf('@') + 1)) / 100;
+            const [component, widget, percent, dpi] = key === null ? [null, null, 100, 160] : JSON.parse(key);
+            configuredApp = component;
+            appDpi = dpi;
+            if (key !== applied) failedApp = null;
+            const nextScale = percent / 100;
             if (nextScale !== scale) {
                 scale = nextScale;
                 // Live: the widget keeps its id and the settings chosen in Navigator.
@@ -657,8 +792,10 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
                     try { layoutWidget(overlay); } catch (error) { report('widget_scale', error); }
                 }
             }
-            controller.configure(name);
-            if (name === null) {
+            releaseForDriver(component);
+            releaseForPair(component);
+            controller.configure(component ?? widget, component === null ? null : widget);
+            if (widget === null) {
                 try { widgets?.release(); } catch (error) { report('widget', error); }
             }
             applied = key;
@@ -707,7 +844,7 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
         }
 
         function pollNotifications() {
-            const name = controller.target();
+            const name = controller.notificationPackage();
             if (name !== shownTarget) { shownTarget = name; shown = ''; }
             // Cards showing the navigator's widget need no notification text.
             if (name === null || notifications === null || textCards === 0) { shown = ''; return; }
@@ -728,7 +865,10 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
         }
 
         timer = setInterval(() => Java.perform(() => {
-            try { if (configured() !== applied) refresh(); }
+            try {
+                const key = configured();
+                if (key !== applied || configuredApp !== null) refresh();
+            }
             catch (error) { report('refresh', error); }
         }), 1000);
         poll = setInterval(() => Java.perform(() => {
@@ -769,6 +909,13 @@ export function installHomeNavigationCard(Java, {readConfig, launch, onNavigatio
         return null;
     }
     return {
+        /** Give a normal panel launch its own task before Android resolves the embedded activity. */
+        releaseForLaunch(component) {
+            const target = controller.target();
+            if (!target?.includes('/') || target.split('/')[0] !== component.split('/')[0]) return true;
+            reopenAppAfter = Date.now() + 3000;
+            return controller.releaseApp();
+        },
         /** UI thread only. Part of the panel's restore handshake before Controls detaches. */
         restoreAll() {
             // Re-read the configuration afterwards, even if it names the same app again.

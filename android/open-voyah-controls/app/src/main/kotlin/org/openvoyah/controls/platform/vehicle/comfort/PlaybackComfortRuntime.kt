@@ -8,15 +8,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import org.openvoyah.controls.data.vehicle.comfort.PlaybackComfortPreferences
+import org.openvoyah.controls.domain.audio.DuckTrigger
 import org.openvoyah.controls.domain.vehicle.automation.VehicleDoor
 import org.openvoyah.controls.domain.vehicle.automation.VehicleDoorState
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetrySession
 import org.openvoyah.controls.domain.vehicle.comfort.DriverDoorPauseEdge
 import org.openvoyah.controls.domain.vehicle.comfort.PlaybackComfortSettings
+import org.openvoyah.controls.domain.vehicle.comfort.hasOpenDoor
+import org.openvoyah.controls.platform.audio.MediaDuck
 import org.openvoyah.controls.platform.media.ComfortMediaTransport
 import org.openvoyah.controls.platform.vehicle.watchDeviceInteractivity
 
@@ -29,13 +33,33 @@ internal suspend fun observePlaybackComfort(
 ) = coroutineScope {
     val power = app.getSystemService(PowerManager::class.java) ?: return@coroutineScope
     val interactive = MutableStateFlow<Boolean?>(null)
+    fun currentSettings(): Boolean = hasOwner() && runCatching(preferences::read).getOrNull() == settings
+
+    launch { watchDeviceInteractivity(app) { on, _ -> interactive.value = on } }
+    if (settings.duckOnDoor) launch {
+        var ducking = false
+        try {
+            combine(interactive, telemetry) { screenOn, vehicle ->
+                screenOn == true && vehicle.hasOpenDoor(SystemClock.elapsedRealtimeNanos())
+            }.distinctUntilChanged().collect { open ->
+                if (open && power.isInteractive && currentSettings()) {
+                    MediaDuck.begin(app, DuckTrigger.DOOR)
+                    ducking = true
+                } else if (ducking) {
+                    MediaDuck.end(app, DuckTrigger.DOOR)
+                    ducking = false
+                }
+            }
+        } finally {
+            if (ducking) MediaDuck.end(app, DuckTrigger.DOOR)
+        }
+    }
+    if (!settings.pauses) return@coroutineScope
+
     val media = ComfortMediaTransport(app)
     val doorEdge = DriverDoorPauseEdge()
     var lastInteractive: Boolean? = null
     var pause = ComfortMediaTransport.PauseAttempt()
-    fun currentSettings(): Boolean = hasOwner() && runCatching(preferences::read).getOrNull() == settings
-
-    launch { watchDeviceInteractivity(app) { on, _ -> interactive.value = on } }
     val observedDoor = if (settings.pauseOnDriverDoor) telemetry else flowOf(null)
     combine(interactive, observedDoor) { screenOn, vehicle -> screenOn to vehicle }.collect { (screenOn, vehicle) ->
         val previous = lastInteractive

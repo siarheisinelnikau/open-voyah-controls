@@ -981,9 +981,10 @@ while may_start; do
     if [ "$stable" -lt 3 ]; then log 'OVC_WORKER_ERROR Android boot did not settle.'; break; fi
     target_pid=$(pid_for "$target")
     waited=0
-    # A translation target may not run until the driver opens it, so its worker keeps waiting for it.
+    # Translation and cluster media can start well after Android boot or a display wake.
+    # Missing processes do not consume retries. Attachment failures still use the channel's normal budget.
     while may_start && { ! is_number "$target_pid" || [ "$target_pid" -le 1 ]; } &&
-        { [ "$locale" = 1 ] || [ "$waited" -lt 60 ]; }; do
+        { [ "$locale" = 1 ] || [ "$channel" = cluster-card ] || [ "$waited" -lt 60 ]; }; do
         sleep 2; waited=$((waited+2)); target_pid=$(pid_for "$target")
     done
     may_start || break

@@ -164,6 +164,22 @@ test('a pair shares the window service frame and both tasks are restored on rele
     assert.equal(right.density(), 190);
 });
 
+test('app settings apply split DPI in place, then a standalone launch takes its ordinary DPI', () => {
+    const {left, right, profiles} = pairHarness(false);
+    left.agent.applyPair(profiles, [45,46], 50, 0);
+    const leftBounds = left.bounds();
+    const rightBounds = right.bounds();
+    const updated = {...profiles[0], width:100, dpi:200, splitDpi:160};
+    left.agent.apply(updated, 0);
+    assert.equal(left.density(), 160);
+    assert.deepEqual(left.bounds(), leftBounds);
+    assert.deepEqual(right.bounds(), rightBounds);
+    assert.equal(left.placements(), 1);
+    left.agent.apply(updated, 0, 45);
+    assert.equal(left.density(), 200);
+    assert.deepEqual(left.bounds(), [145,60,1920,720]);
+});
+
 test('a compact measured panel wins over an older launch hint and uses the inset only once', () => {
     const h = harness(30, {displayId:0, multiWindow:true, stableInsets:[80,60,0,0]});
     h.api.launcherPanelEdge = () => 80;

@@ -32,6 +32,7 @@ public final class FridaPanelControls implements PanelControls {
 
     @Override public String health() { return FridaBridge.lastHealth(context); }
     @Override public boolean configured() { return FridaBridge.wasConfigured(context); }
+    @Override public boolean hasInstrumentCardPin() { return bridge.hasInstrumentCardPin(); }
     @Override public boolean activationPaused() { return FridaBridge.activationPaused(context); }
 
     @Override public void checkActivation(Consumer<Boolean> done) {
@@ -83,6 +84,8 @@ public final class FridaPanelControls implements PanelControls {
         if (status.equals("restored")) return UiText.get(R.string.driver_navigator_restored);
         int reason = switch (status) {
             case "unavailable" -> R.string.driver_navigator_unavailable;
+            case "missing_pin" -> R.string.driver_media_missing_pin;
+            case "forbidden" -> R.string.driver_media_forbidden;
             case "no_slot" -> R.string.driver_navigator_no_slot;
             case "denied" -> R.string.driver_navigator_denied;
             case "not_installed" -> R.string.driver_navigator_not_installed;

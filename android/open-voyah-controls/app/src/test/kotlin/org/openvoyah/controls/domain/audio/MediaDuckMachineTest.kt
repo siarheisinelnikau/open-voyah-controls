@@ -96,6 +96,18 @@ class MediaDuckMachineTest {
     }
 
     @Test
+    fun `a door uses the saved level and shares restoration with a call`() {
+        val car = Car(volume = 20)
+        car.start(DuckTrigger.DOOR, DuckSettings(listening = false, calls = true, levelPercent = 35))
+        assertEquals(7, car.volume)
+        car.start(DuckTrigger.CALL)
+        car.stop(DuckTrigger.DOOR)
+        assertEquals(7, car.volume)
+        car.stop(DuckTrigger.CALL)
+        assertEquals(20, car.volume)
+    }
+
+    @Test
     fun `a new trigger during the fade back lowers again from the saved level`() {
         val car = Car(volume = 20)
         car.start(DuckTrigger.LISTENING)

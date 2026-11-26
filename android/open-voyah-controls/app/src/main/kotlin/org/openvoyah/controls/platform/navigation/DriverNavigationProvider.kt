@@ -21,15 +21,13 @@ import org.openvoyah.controls.domain.permissions.ActionCatalog
 import java.text.NumberFormat
 import java.util.Locale
 
-/** Read-only, in-memory handoff from the protected navigation receiver to the OEM media card process. */
+/** Read-only, in-memory handoff from the navigation receiver and Android notification listener to the OEM card. */
 class DriverNavigationProvider : ContentProvider() {
-    private val cardSigner by lazy {
+    private val pins by lazy {
         val app = requireNotNull(context)
         runCatching {
-            val packages = ReviewedFirmware.load(app).packages
-            packages.firstOrNull { it.name == ReviewedFirmware.INSTRUMENT_CARD }?.signer
-                ?.takeIf { packages.any { pin -> pin.name == ReviewedFirmware.CLUSTER } }
-        }.getOrNull()
+            ReviewedFirmware.load(app).packages.associate { it.name to it.signer }
+        }.getOrDefault(emptyMap())
     }
     private val permissions by lazy { ActionPermissions(requireNotNull(context)) }
 
@@ -40,19 +38,32 @@ class DriverNavigationProvider : ContentProvider() {
         // ContentProvider.call does not enforce URI read permissions. Android verifies callingPackage against the UID.
         if (method != "route" || Build.VERSION.SDK_INT != 30 || callingPackage != ReviewedFirmware.INSTRUMENT_CARD) return null
         val app = requireNotNull(context)
-        val current = sample ?: return null
-        val route = current.route ?: return null
-        if (arg != current.token || !fresh(current.at) || !FridaBridge.wasConfigured(app) ||
-            FridaBridge.pendingUpdate(app) != null || !FridaBridge.navigationHookEnabled(app) ||
-            !permissions.agent(ActionCatalog.NAVIGATION).runs || !permissions.agent(ActionCatalog.CLUSTER_CARD).runs ||
+        if (arg == null || !tokenPattern.matches(arg) || !FridaBridge.wasConfigured(app) ||
+            FridaBridge.pendingUpdate(app) != null || !permissions.agent(ActionCatalog.CLUSTER_CARD).runs ||
             !SettingsStore(app).load().driverNavigationCard) return null
-        val signer = cardSigner ?: return null
+        val signer = pins[ReviewedFirmware.INSTRUMENT_CARD] ?: return null
         val card = app.packageManager.getPackageInfo(ReviewedFirmware.INSTRUMENT_CARD, PackageManager.GET_SIGNING_CERTIFICATES)
         if ((card.applicationInfo?.flags ?: 0) and ApplicationInfo.FLAG_SYSTEM == 0) return null
         val certificate = card.signingInfo?.takeUnless { it.hasMultipleSigners() }
             ?.signingCertificateHistory?.lastOrNull()?.toByteArray() ?: return null
-        if (ReviewedFirmware.digest(certificate) != signer || !fresh(current.at) || current !== sample) return null
+        if (ReviewedFirmware.digest(certificate) != signer) return null
+        val now = SystemClock.elapsedRealtime()
+        YandexDriverGuidance.current(now)?.let { yandex ->
+            return Bundle().apply {
+                putLong("at", now)
+                putString("heading", UiText.get(R.string.driver_navigation_next))
+                putString("title", yandex.road.ifEmpty { yandex.distance })
+                putString("detail", if (yandex.road.isEmpty()) "" else yandex.distance)
+                putParcelable("maneuver", yandex.arrow)
+                putLong("maneuverAt", yandex.at)
+            }
+        }
 
+        if (ReviewedFirmware.CLUSTER !in pins || !FridaBridge.navigationHookEnabled(app) ||
+            !permissions.agent(ActionCatalog.NAVIGATION).runs) return null
+        val current = sample ?: return null
+        val route = current.route ?: return null
+        if (arg != current.token || !fresh(current.at) || current !== sample) return null
         val distance = formatDistance(route.meters())
         val hasNext = route.nextRoad().isNotEmpty() || distance.isNotEmpty()
         return Bundle().apply {

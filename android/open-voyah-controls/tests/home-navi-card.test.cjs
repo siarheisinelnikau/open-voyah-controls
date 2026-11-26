@@ -4,18 +4,53 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const source = ['report.js', 'home-navi-card.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+const source = ['report.js', 'action-preflight.js', 'home-app-card.js', 'home-navi-card.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import .*;$/gm, '').replace(/^export /gm, '')).join('\n');
 
 function load(extra = {}) {
     const logs = [];
     const context = {console: {log: line => logs.push(line)}, setInterval: () => 0, clearInterval() {}, ...extra};
-    const api = vm.runInNewContext(source + '\n({cardPackage, pickNotification, guidanceLines, createHomeCardController,' +
+    const api = vm.runInNewContext(source + '\n({cardPackage, homeAppComponent, homeAppDpi, homeAppPairRequest, canHostHomeApp, pickNotification, guidanceLines, createHomeCardController,' +
         ' installHomeNavigationCard, createReporter, CARD_MARK, pickWidget, widgetScale})', context);
     return {api, logs};
 }
 
 const NAVI = 'ru.yandex.yandexnavi';
+
+test('Home can reuse one central task and leaves tasks on other displays or in other apps alone', () => {
+    const {canHostHomeApp} = load().api;
+    assert.equal(canHostHomeApp([]), true);
+    assert.equal(canHostHomeApp([0]), true);
+    for (const displays of [[1], [5], [-1], [0, 5], [0, 0]]) assert.equal(canHostHomeApp(displays), false);
+});
+
+test('only a launch component can select the live card and restoration always wins', () => {
+    const {homeAppComponent} = load().api;
+    const component = NAVI + '/.NavigatorActivity';
+    assert.equal(homeAppComponent({schema: 1, homeCard: {component}}), component);
+    assert.equal(homeAppComponent({schema: 1, restoreIcons: 'restore', homeCard: {component}}), null);
+    for (const invalid of [NAVI, 'a.b/.x;invalid', 'org.openvoyah.controls/.MainActivity', 'com.qinggan.app.launcher/.Home']) {
+        assert.equal(homeAppComponent({schema: 1, homeCard: {component: invalid}}), null);
+    }
+});
+
+test('embedded app density defaults independently of widget scale', () => {
+    const {homeAppDpi} = load().api;
+    assert.equal(homeAppDpi({homeCard: {scale: 150}}), 160);
+    assert.equal(homeAppDpi({homeCard: {scale: 150, dpi: 120}}), 120);
+    for (const dpi of [0, 105, 330, '200']) assert.equal(homeAppDpi({homeCard: {dpi}}), 160);
+});
+
+test('the Home card accepts only a current pair handoff for a valid component', () => {
+    const {homeAppPairRequest} = load().api;
+    const component = NAVI + '/.NavigatorActivity';
+    const request = {schema: 1, id: 'a'.repeat(32), expires: 7000, component};
+    assert.equal(homeAppPairRequest(JSON.stringify(request), 1000)?.component, component);
+    assert.equal(homeAppPairRequest(JSON.stringify(request), 7001), null);
+    assert.equal(homeAppPairRequest(JSON.stringify(request), 999), null);
+    assert.equal(homeAppPairRequest(JSON.stringify({...request, component: 'org.openvoyah.controls/.MainActivity'}), 1000), null);
+    assert.equal(homeAppPairRequest(JSON.stringify({...request, id: 'unexpected'}), 1000), null);
+});
 
 test('only a valid package outside a restore request replaces the factory card', () => {
     const {cardPackage} = load().api;
@@ -131,6 +166,53 @@ test('turning the setting off restores and resumes the factory cards', () => {
     assert.equal(controller.covers('card1'), false);
     assert.equal(controller.open('card1'), false);
     assert.equal(controller.covering(), false);
+});
+
+test('an embedded window owns its own gestures and restores the factory map when the task disappears', () => {
+    const component = NAVI + '/.NavigatorActivity';
+    let running = true;
+    const {controller, calls, state} = fakeEnv({
+        addOverlay: handle => ({host: true, card: handle.card}),
+        updateOverlay: () => running
+    });
+    controller.track('card1');
+    state.launchable.add(component);
+    controller.configure(component);
+    assert.equal(controller.covers('card1'), true);
+    assert.equal(controller.handlesTap('card1'), false);
+    assert.equal(controller.open('card1'), false);
+    running = false;
+    calls.length = 0;
+    controller.configure(component);
+    assert.deepEqual(calls, [['remove', 'card1'], ['resume', 'card1']]);
+    assert.equal(controller.covers('card1'), false);
+});
+
+test('releasing the live window leaves its widget in place and keeps the widget tap available', () => {
+    const component = NAVI + '/.NavigatorActivity';
+    const overlay = {host: {type: 'window'}, card: 'card1'};
+    const {controller, calls, state} = fakeEnv({
+        addOverlay: (_, name, fallback) => {
+            assert.equal(name, component);
+            assert.equal(fallback, NAVI);
+            return overlay;
+        },
+        releaseApp: item => {
+            assert.equal(item, overlay);
+            item.host = null;
+        }
+    });
+    state.launchable.add(component);
+    controller.track('card1');
+    controller.configure(component, NAVI);
+    calls.length = 0;
+    assert.equal(controller.notificationPackage(), NAVI);
+    assert.equal(controller.handlesTap('card1'), false);
+    assert.equal(controller.releaseApp(), true);
+    assert.equal(controller.covers('card1'), true);
+    assert.equal(controller.handlesTap('card1'), true);
+    assert.equal(controller.open('card1'), true);
+    assert.deepEqual(calls, [['open', 'card1', NAVI]]);
 });
 
 test('a missing navigator keeps the factory card', () => {
@@ -298,6 +380,7 @@ function adapterHarness(options = {}) {
         'java.lang.String': {$new: value => value},
         'java.lang.ref.WeakReference': {$new: referent => ({get: () => referent, $dispose() {}})},
         'android.app.ActivityThread': {currentApplication: () => appContext},
+        'android.os.Build$VERSION': {SDK_INT: {value: 28}},
         'android.os.ServiceManager': {getService: () => 'binder'},
         'android.app.INotificationManager$Stub': {asInterface: () => ({
             getActiveNotificationsWithAttribution(caller) {

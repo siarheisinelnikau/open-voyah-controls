@@ -1,5 +1,7 @@
 <resources>
     <string name="comfort_playback_title">Воспроизведение в автомобиле</string>
+    <string name="comfort_playback_duck_door">Приглушать медиа при открытии двери</string>
+    <string name="comfort_playback_duck_door_hint">Воспроизведение продолжается, а после закрытия всех дверей громкость восстанавливается. Уровень задаётся в разделе «Звук и медиа».</string>
     <string name="comfort_playback_door">Пауза при открытии водительской двери</string>
     <string name="comfort_playback_door_hint">Использует сигнал водительской двери в режиме парковки на совместимом ПО автомобиля.</string>
     <string name="comfort_playback_wake">Пауза перед сном и продолжение при пробуждении</string>

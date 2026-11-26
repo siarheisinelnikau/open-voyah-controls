@@ -6,9 +6,21 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleSignal
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetry
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetrySession
 
-internal data class PlaybackComfortSettings(val pauseOnDriverDoor: Boolean = false, val restoreAfterSleep: Boolean = false) {
-    val configured: Boolean get() = pauseOnDriverDoor || restoreAfterSleep
+internal data class PlaybackComfortSettings(
+    val pauseOnDriverDoor: Boolean = false,
+    val restoreAfterSleep: Boolean = false,
+    val duckOnDoor: Boolean = false,
+) {
+    init { require(!pauseOnDriverDoor || !duckOnDoor) }
+
+    val pauses: Boolean get() = pauseOnDriverDoor || restoreAfterSleep
+    val configured: Boolean get() = pauses || duckOnDoor
 }
+
+// The source clears invalid door samples and revokes the session on disconnect. The diagnostics can
+// age out the whole door group even while an unchanged position is known in the current session.
+internal fun VehicleTelemetry.hasOpenDoor(nowNanos: Long): Boolean =
+    doors.values.any { it.value == VehicleDoorState.OPEN && it.isCurrentIn(this, nowNanos) }
 
 /** A callback after a reset seeds the new state, even when the driver's door is already open. */
 internal class DriverDoorPauseEdge {

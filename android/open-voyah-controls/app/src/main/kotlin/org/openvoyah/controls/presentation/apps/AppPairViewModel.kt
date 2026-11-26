@@ -82,6 +82,11 @@ internal class AppPairViewModel(private val app: Context) : ViewModel() {
         if (!foreground()) return null
         if (apps.size != 2) return R.string.app_pair_missing
         val token = newId()
+        val prepared = withContext(Dispatchers.IO) {
+            runCatching { bridge.prepareWindowPair(token, pair.left, pair.right) }.getOrDefault(false)
+        }
+        if (!foreground()) return null
+        if (!prepared) return R.string.app_pair_launch_failed
         if (!runCatching { AppsPlatform(activity).launchPair(apps, token, pair.leftPercent) }.getOrDefault(false)) {
             return R.string.app_pair_launch_failed
         }

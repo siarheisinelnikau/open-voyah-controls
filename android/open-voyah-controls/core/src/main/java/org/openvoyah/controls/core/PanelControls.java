@@ -14,6 +14,7 @@ public interface PanelControls {
     boolean configured();
     void run(Operation operation, Consumer<Result> done);
     void publish(Consumer<String> error);
+    default boolean hasInstrumentCardPin() { return true; }
 
     /** Whether the boot supervisor paused the activation (it re-arms itself after the next restart), as last checked. */
     default boolean activationPaused() { return false; }

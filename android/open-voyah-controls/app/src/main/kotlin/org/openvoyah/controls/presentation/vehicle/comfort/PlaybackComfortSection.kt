@@ -98,8 +98,13 @@ internal fun PlaybackComfortSection() {
     }
     val saved = state.settings
     CockpitSection(UiText.get(R.string.comfort_playback_title), CockpitIcon.PLAY) {
+        CockpitSwitch(R.string.comfort_playback_duck_door, saved?.duckOnDoor == true, enabled = saved != null && !state.saving) {
+            if (active) model.edit { current -> current.copy(duckOnDoor = it, pauseOnDriverDoor = !it && current.pauseOnDriverDoor) }
+        }
+        if (saved?.duckOnDoor == true) Text(UiText.get(R.string.comfort_playback_duck_door_hint),
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         CockpitSwitch(R.string.comfort_playback_door, saved?.pauseOnDriverDoor == true, enabled = saved != null && !state.saving) {
-            if (active) model.edit { current -> current.copy(pauseOnDriverDoor = it) }
+            if (active) model.edit { current -> current.copy(pauseOnDriverDoor = it, duckOnDoor = !it && current.duckOnDoor) }
         }
         if (saved?.pauseOnDriverDoor == true) Text(UiText.get(R.string.comfort_playback_door_hint),
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -109,10 +114,10 @@ internal fun PlaybackComfortSection() {
         if (saved?.restoreAfterSleep == true) {
             Text(UiText.get(R.string.comfort_playback_wake_hint), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (!state.background) Text(UiText.get(R.string.comfort_playback_background_hint),
-                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (!state.access && saved?.configured == true) {
+        if (!state.background && saved?.configured == true) Text(UiText.get(R.string.comfort_playback_background_hint),
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (!state.access && saved?.pauses == true) {
             Text(UiText.get(R.string.comfort_playback_access_hint), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             CockpitAction(UiText.get(R.string.comfort_playback_access), {

@@ -1,13 +1,14 @@
 package org.openvoyah.controls.domain.audio
 
-/** What can lower media: the voice popup while the microphone records, and a phone call. */
-enum class DuckTrigger { LISTENING, CALL }
+/** Events that share ownership of the media level. */
+enum class DuckTrigger { LISTENING, CALL, DOOR }
 
 /** The owner's choice in Voice settings → Sound. [levelPercent] is the share of the current media level that stays. */
 data class DuckSettings(val listening: Boolean, val calls: Boolean, val levelPercent: Int) {
     fun allows(trigger: DuckTrigger): Boolean = when (trigger) {
         DuckTrigger.LISTENING -> listening
         DuckTrigger.CALL -> calls
+        DuckTrigger.DOOR -> true // Enabled by the vehicle playback settings before dispatch.
     }
 
     companion object {

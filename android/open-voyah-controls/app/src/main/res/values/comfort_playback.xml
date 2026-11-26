@@ -1,5 +1,7 @@
 <resources>
     <string name="comfort_playback_title">Playback in the car</string>
+    <string name="comfort_playback_duck_door">Lower media volume when a door opens</string>
+    <string name="comfort_playback_duck_door_hint">Keeps playback going and restores the volume when all doors close. Set the level in Sound and media.</string>
     <string name="comfort_playback_door">Pause when the driver’s door opens</string>
     <string name="comfort_playback_door_hint">Uses the driver’s door reading while parked on compatible vehicle software.</string>
     <string name="comfort_playback_wake">Pause on sleep and resume on wake</string>

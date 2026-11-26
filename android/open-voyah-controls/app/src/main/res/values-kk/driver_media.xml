@@ -3,7 +3,7 @@
     <string name="driver_media_description">Үйлесімді аспаптар тақтасында ағымдағы тректі немесе станцияны жүргізуші алдындағы сол жақ медиа аймақта көрсетеді.</string>
     <string name="driver_media_layout">Ойнатқыштың ірі көрінісі</string>
     <string name="driver_navigation_card">Ықшам навигация карточкасы</string>
-    <string name="driver_navigation_description">Үйлесімді микробағдарламада маршрут нұсқауларын көрсетеді. «Виртуалды экран және аспап» бөлімінде «Навигация» деректерін қосыңыз.</string>
+    <string name="driver_navigation_description">Яндекс Навигатор маневр туралы хабарландыру жібергенде бағытты, қашықтықты және көше атын көрсетеді. Controls қолданбасына ойнатқышқа кіруге рұқсат беріп, Навигаторда фондық нұсқауларды қосыңыз. Маршрут деректері зауыттық навигациядан да келуі мүмкін.</string>
     <string name="driver_navigation_next">Келесі маневр</string>
     <string name="driver_navigation_current">Ағымдағы жол</string>
     <string name="driver_navigation_meters">%1$s м</string>

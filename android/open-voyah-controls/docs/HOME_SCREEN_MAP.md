@@ -133,7 +133,9 @@ It then adds `FLAG_ACTIVITY_NEW_TASK` and calls `ActivityAnimUtils.startActivity
 
 ## Navigation card replacement
 
-**Setting.** **Yandex Navigator instead of the Baidu map on the home screen**, under the panel assignments, off by default. The agent side is described in [Home navigation card](FRIDA_AGENTS.md#home-navigation-card).
+Under **Settings → Home screen and apps → Factory home screen**, choose **App window in the Home navigation card** on Android 11. The picker lists installed launchable apps. Choose **Use the map card** to return to the saved map choice. **Yandex Navigator instead of the Baidu map on the home screen** switches that map between the factory card and the Yandex traffic widget.
+
+The live option gives the selected Android activity its own window through the launcher's `ActivityView`. Android checks whether the activity can start on the embedded display and handles touch input. The Yandex traffic widget stays underneath when the live app is Yandex Navigator or the widget is enabled separately. It stays visible while the window starts or is in use elsewhere. The embedded app has its own DPI setting and fills the card when a task returns from a separate window. That window keeps its normal app profile. An assigned panel button for the same app releases the embedded display before opening a separate window. Changing the choice releases the embedded display.
 
 **How it is done.** It follows [Override approaches](#override-approaches): an overlay holding the navigator's traffic widget, added as the top child of `HomeNaviCardView` (not `large_bd_navi`, which the map code clears and makes visible again), with the Baidu map paused underneath. Taps are taken in `MapWidgetLayout.dispatchTouchEvent`, so the overlay holds no listener of its own. The media, weather, apps and seat cards are not touched.
 
@@ -142,7 +144,7 @@ It then adds `FLAG_ACTIVITY_NEW_TASK` and calls `ActivityAnimUtils.startActivity
 | Option | Verdict |
 | --- | --- |
 | Host an app widget from a Yandex app (`AppWidgetHost` in the launcher) | Chosen. Yandex Navigator 25.8.2 on the unit publishes six traffic widgets (`ru.yandex.yandexmaps.widget.traffic.internal.TrafficWidget{2x1,2x2,3x1,3x2,5x1,5x2}Provider`, 110 dp tall at most): a Yandex map with traffic around the car (`traffic_widget_map_view`), the traffic score, a route line and the forecast by hour. Each declares a configuration activity. Yandex Maps is not installed; Yandex Browser and Yandex Music have widgets too. The unit had no widget host before (`dumpsys appwidget`). |
-| Run Yandex Navigator on a virtual display drawn into the card, as Baidu does | Rejected. One navigator task cannot be in the card and on screen at once; moving it between displays recreates its surface and can disturb active guidance; it doubles the GPU load. |
+| Run the selected Android activity in the card | Optional on Android 11. A task on the passenger or driver display keeps its placement. |
 | Draw a Yandex map in the card | Postponed. WebView refuses to run in the launcher (a system-uid process), so Controls would have to draw the map and embed it (`SurfaceControlViewHost`, Android 11). The Yandex map SDKs need a personal API key and location access. |
 | Show the navigator's own state from its notification | Fallback when the navigator has no widget or binding fails. Without a route the navigator had no notification (checked on the unit). |
 

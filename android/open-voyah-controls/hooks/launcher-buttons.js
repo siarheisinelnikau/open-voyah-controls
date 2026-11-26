@@ -4,6 +4,8 @@ import { installHomeMediaCard } from './home-media-card.js';
 import { installPanelState } from './panel-state.js';
 import { installScreenLift } from './screen-lift.js';
 import { createReporter } from './report.js';
+import { DRIVER_NAVIGATOR_REQUEST } from './driver-navigator-window.js';
+import { HOME_APP_PAIR_REQUEST } from './home-app-card.js';
 
 const PREFIX = 'org.openvoyah.controls';
 const LEFT_PANEL = PREFIX + '.extra.LEFT_PANEL_PX';
@@ -178,6 +180,7 @@ Java.perform(function () {
                 action = candidate;
             }
             if (action?.kind === 'LAUNCH_APP' && this.mScreenId.value === 0) {
+                if (homeCard?.releaseForLaunch(action.component) === false) return;
                 // The OEM window uses the same width even while its left-edge animation is in progress.
                 try {
                     const width = this.mLp.value.width.value;
@@ -280,6 +283,8 @@ Java.perform(function () {
     };
     // Its own failure leaves the factory navigation card and does not affect the panel.
     homeCard = installHomeNavigationCard(Java, {readConfig, onNavigation,
+        readDriverNavigatorRequest: context => Global.getString(context.getContentResolver(), DRIVER_NAVIGATOR_REQUEST),
+        readPairRequest: context => Global.getString(context.getContentResolver(), HOME_APP_PAIR_REQUEST),
         launch: (context, component) => launch(context, 0, {kind: 'LAUNCH_APP', component})});
     weatherCard = installHomeWeatherCard(Java, {readConfig, readWeather});
     mediaCard = installHomeMediaCard(Java, {readConfig,

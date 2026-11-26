@@ -89,7 +89,7 @@ test('the display adapter is unavailable outside Android 11', () => {
 
 function displayFixture() {
     const events = [];
-    const state = {uid: 1000, allowed: true, owner: 'com.qinggan.cluster', frame: 0, displays: [], elapsed: 1000};
+    const state = {uid: 1000, allowed: true, owner: 'com.qinggan.cluster', frame: 0, displays: [], elapsed: 1000, suspended: 0};
     const list = items => ({size: () => items.length, get: index => items[index], add: item => items.push(item)});
     const component = {getPackageName: () => 'ru.yandex.yandexnavi'};
     const intent = {getComponent: () => component, addFlags() {}};
@@ -145,7 +145,7 @@ function displayFixture() {
     const classes = {
         'android.os.Build$VERSION': {SDK_INT: {value: 30}},
         'android.os.Process': {myUid: () => state.uid},
-        'android.os.SystemClock': {elapsedRealtime: () => state.elapsed, uptimeMillis: () => 1000},
+        'android.os.SystemClock': {elapsedRealtime: () => state.elapsed, uptimeMillis: () => state.elapsed - state.suspended},
         'android.graphics.Rect': {$new: () => ({width: () => 574, height: () => 464})},
         'android.graphics.Point': {$new: () => ({x: {value: 0}, y: {value: 0}})},
         'android.app.ActivityOptions': {makeBasic: () => ({setLaunchDisplayId: id => ({toBundle: () => id})})},
@@ -172,16 +172,29 @@ test('the OEM owner, existing task and actual display launch permission are veri
     state.uid = 10001;
     assert.equal(adapter().mount(host), 'denied');
     state.uid = 1000;
-    state.displays = [0];
-    assert.equal(adapter().mount(host), 'in_use');
     assert.deepEqual(events, []);
-    state.displays = [];
+    state.displays = [0];
     state.allowed = false;
     const api = adapter();
     const window = api.mount(host);
     assert.equal(api.poll(window, host), 'denied');
     api.close(window);
     assert.deepEqual(events, ['mount', ['create', 574, 464, 160, 1288], ['permit', 27, intent], 'display', 'surface', 'remove']);
+});
+
+test('a task on another display gets time to leave before the driver window reports that it is in use', () => {
+    const {state, host, events, adapter} = displayFixture();
+    const api = adapter();
+    state.displays = [25];
+    const window = api.mount(host);
+    assert.equal(api.poll(window, host), 'waiting');
+    state.elapsed = 3000;
+    assert.equal(api.poll(window, host), 'in_use');
+    assert.deepEqual(events, ['mount']);
+    state.displays = [];
+    assert.equal(api.poll(window, host), 'waiting');
+    assert.ok(events.some(event => event[0] === 'start'));
+    api.close(window);
 });
 
 test('the cover requires a frame and task on its child display and releases after suspend', () => {
@@ -194,7 +207,7 @@ test('the cover requires a frame and task on its child display and releases afte
     assert.equal(api.poll(window, host), 'waiting');
     state.frame = 123;
     assert.equal(api.poll(window, host), 'shown');
-    state.elapsed = 1500;
+    state.suspended = 500;
     assert.equal(api.poll(window, host), 'cancelled');
     api.close(window);
     assert.deepEqual(events.slice(-3), ['display', 'surface', 'remove']);

@@ -30,6 +30,7 @@
         <package android:name="com.qinggan.app.hiboard" />
         <package android:name="com.qinggan.cluster" />
         <package android:name="com.qinggan.instrumentcard" />
+        <package android:name="ru.yandex.yandexnavi" />
         <package android:name="com.qinggan.canbus.service" />
         <package android:name="com.qinggan.app.login" />
         <package android:name="android" />

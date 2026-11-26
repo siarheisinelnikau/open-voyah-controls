@@ -3,7 +3,7 @@
     <string name="driver_media_description">Shows the current track or station in the left media area in front of the driver on a compatible instrument display.</string>
     <string name="driver_media_layout">Large player view</string>
     <string name="driver_navigation_card">Compact navigation card</string>
-    <string name="driver_navigation_description">Shows live route guidance on compatible firmware. Enable Navigation feed in Virtual display and cluster.</string>
+    <string name="driver_navigation_description">Shows the turn, distance and road while Yandex Navigator publishes guidance notifications. Allow media access in Controls and enable background guidance notifications in Navigator. The factory navigation feed can provide route details too.</string>
     <string name="driver_navigation_next">Next maneuver</string>
     <string name="driver_navigation_current">Current road</string>
     <string name="driver_navigation_meters">%1$s m</string>

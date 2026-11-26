@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_card_activity">Басты экранның навигация картасындағы қолданба терезесі</string>
+    <string name="home_card_activity_default">Карта карточкасын пайдалану</string>
+    <string name="home_card_activity_dpi">Басты экрандағы кірістірілген қолданбаның DPI мәні</string>
+    <string name="home_card_activity_dpi_value">%1$d dpi</string>
+</resources>

@@ -24,6 +24,7 @@ import org.openvoyah.controls.UiText
 import org.openvoyah.controls.core.Binding
 import org.openvoyah.controls.core.PanelControls
 import org.openvoyah.controls.data.routines.RoutinePreferences
+import org.openvoyah.controls.data.settings.SettingsStore
 import org.openvoyah.controls.data.weather.HomeWeatherPreferences
 import org.openvoyah.controls.domain.weather.HomeWeather
 import org.openvoyah.controls.platform.weather.HomeWeatherJobs
@@ -33,6 +34,7 @@ import org.openvoyah.controls.platform.ui.ActionExecutor
 import org.openvoyah.controls.presentation.settings.BindingDialogs
 import org.openvoyah.controls.presentation.settings.SettingsArchiveDialogs
 import org.openvoyah.controls.presentation.theme.CockpitDialogs
+import org.openvoyah.controls.presentation.theme.CockpitAppPicker
 import org.openvoyah.controls.presentation.theme.CockpitModal
 
 /** Owns only foreground windows, native handoffs and capture lifetime; settings belong to the model. */
@@ -141,7 +143,18 @@ internal class HomeSettingsCoordinator(
     override fun buttonsEnabled(enabled: Boolean) { if (active) model.buttonsEnabled(enabled) }
     override fun panelEnabled(enabled: Boolean) { if (active) model.panelEnabled(enabled) }
     override fun navigatorHomeCard(enabled: Boolean) { if (active) model.navigatorHomeCard(enabled) }
+    override fun chooseHomeCardActivity() {
+        if (!active) return
+        dialogs.show {
+            CockpitAppPicker(text(R.string.home_card_activity), back = dialogs::dismiss, select = { entry ->
+                dialogs.dismiss()
+                if (active) model.homeCardActivity(entry?.component()?.flattenToString().orEmpty())
+            }, defaultChoice = text(R.string.home_card_activity_default),
+                eligible = { SettingsStore.homeCardActivity(it).isNotEmpty() })
+        }
+    }
     override fun navigatorWidgetScale(percent: Int) { if (active) model.navigatorWidgetScale(percent) }
+    override fun homeCardDpi(dpi: Int) { if (active) model.homeCardDpi(dpi) }
     override fun mediaCardApps(enabled: Boolean) { if (active) model.mediaCardApps(enabled) }
     override fun mediaCardHideOnline(enabled: Boolean) { if (active) model.mediaCardHideOnline(enabled) }
     override fun clusterCardApps(enabled: Boolean) { if (active) model.clusterCardApps(enabled) }

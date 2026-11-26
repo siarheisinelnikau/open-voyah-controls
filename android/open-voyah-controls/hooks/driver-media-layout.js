@@ -29,15 +29,17 @@ export function driverMediaGeometry({display, owner, attached, shown, width, hei
 }
 
 /** Center the compact card inside the same viewport as the large player. */
-export function driverNavigationGeometry(viewport, density, fontScale) {
+export function driverNavigationGeometry(viewport, density, fontScale, hasArrow = false) {
     if (!Number.isFinite(fontScale) || fontScale <= 0 || fontScale > 1.5) return null;
     const px = dp => Math.round(dp * density);
-    const width = px(288);
-    const height = px(Math.max(112, 28 + 76 * fontScale));
+    const width = hasArrow ? Math.min(px(380), viewport.width - 2 * px(12)) : px(288);
+    const tallerHeight = px(Math.max(128, 24 + 104 * fontScale));
+    const streetLines = hasArrow && viewport.height >= tallerHeight + 2 * px(8) ? 2 : 1;
+    const height = streetLines === 2 ? tallerHeight : px(Math.max(112, 28 + 76 * fontScale));
     const left = Math.floor((viewport.width - width) / 2);
     const top = Math.floor((viewport.height - height) / 2);
     if (left < px(12) || top < px(8)) return null;
-    return {width, height, left, top, horizontal: px(18), vertical: px(10), radius: px(16), stroke: px(1)};
+    return {width, height, left, top, streetLines, horizontal: px(18), vertical: px(10), radius: px(16), stroke: px(1)};
 }
 
 /** An optional read-only view in Android's drawing overlay. Its lease fades even if the agent stops. */
@@ -116,7 +118,13 @@ export function createDriverMediaLayer(Java) {
             layer.detail = line(18, SECONDARY, 1);
             layer.title.setTypeface(null, 1);
             for (const label of [layer.source, layer.title, layer.detail]) label.setIncludeFontPadding(false);
+            layer.maneuver = Image.$new(context);
+            layer.maneuver.setScaleType(Scale.FIT_CENTER.value);
+            layer.maneuver.setColorFilter(ACCENT);
+            layer.maneuver.setVisibility(8);
+            layer.maneuverAt = null;
             root.addView(labels);
+            root.addView(layer.maneuver);
         } else {
             const art = Image.$new(context);
             art.setScaleType(Scale.CENTER_CROP.value);
@@ -212,7 +220,7 @@ export function createDriverMediaLayer(Java) {
         return true;
     }
 
-    function navigationFrame(host, overlay) {
+    function navigationFrame(host, overlay, hasArrow = false) {
         const viewport = geometryOf(host, overlay);
         if (viewport === null) return null;
         const visible = Java.use('android.graphics.Rect').$new();
@@ -220,7 +228,7 @@ export function createDriverMediaLayer(Java) {
             visible.right.value !== viewport.width || visible.bottom.value !== viewport.height) return null;
         const resources = host.getResources();
         const card = driverNavigationGeometry(viewport, resources.getDisplayMetrics().density.value,
-            resources.getConfiguration().fontScale.value);
+            resources.getConfiguration().fontScale.value, hasArrow);
         return card === null ? null : {viewport, card};
     }
 
@@ -230,22 +238,29 @@ export function createDriverMediaLayer(Java) {
         const title = driverMediaText(model.title);
         if (remaining === 0 || !heading || !title) return false;
         const overlay = overlayOf(host);
-        const frame = navigationFrame(host, overlay);
+        const hasArrow = model.maneuver != null;
+        const frame = navigationFrame(host, overlay, hasArrow);
         if (frame === null) return false;
         const layer = select(host, overlay, 'navigation');
-        const geometry = JSON.stringify(frame);
+        const geometry = JSON.stringify([frame, hasArrow]);
         const detail = driverMediaText(model.detail);
         const text = JSON.stringify([heading, title, detail]);
         let layoutChanged = false;
         if (layer.geometry !== geometry) {
-            const {width, height, left, top, horizontal, vertical, radius, stroke} = frame.card;
+            const {width, height, left, top, streetLines, horizontal, vertical, radius, stroke} = frame.card;
+            layer.title.setMaxLines(streetLines);
             const background = Java.use('android.graphics.drawable.GradientDrawable').$new();
             background.setColor(CARD_BACKGROUND);
             background.setCornerRadius(radius);
             background.setStroke(stroke, CARD_BORDER);
             layer.labels.setBackground(background);
-            layer.labels.setPadding(horizontal, vertical, horizontal, vertical);
+            const arrowSize = Math.round(horizontal * 2.5);
+            const textInset = hasArrow ? horizontal * 2 + arrowSize : horizontal;
+            layer.labels.setPadding(textInset, vertical, horizontal, vertical);
             place(layer.labels, width, height, left, top);
+            if (hasArrow) place(layer.maneuver, arrowSize, arrowSize, left + horizontal,
+                top + Math.floor((height - arrowSize) / 2));
+            layer.maneuver.setVisibility(hasArrow ? 0 : 8);
             layer.geometry = geometry;
             layoutChanged = true;
         }
@@ -256,6 +271,11 @@ export function createDriverMediaLayer(Java) {
             layer.detail.setVisibility(detail ? 0 : 8);
             layer.text = text;
             layoutChanged = true;
+        }
+        const maneuverAt = hasArrow ? (model.maneuverAt ?? model.at) : null;
+        if (maneuverAt !== layer.maneuverAt) {
+            layer.maneuver.setImageBitmap(model.maneuver ?? null);
+            layer.maneuverAt = maneuverAt;
         }
         if (layoutChanged) measure(layer.root, frame.viewport);
         if (layer.at !== model.at) {

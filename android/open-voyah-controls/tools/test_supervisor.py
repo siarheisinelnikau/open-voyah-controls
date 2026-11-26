@@ -293,6 +293,33 @@ sleep() {{
         self.assertNotEqual(0, verify().returncode)
         self.assertFalse((self.root / "started").exists())
 
+    def test_cluster_card_worker_keeps_waiting_for_a_missing_target(self):
+        channel = self.base / "cluster-card"
+        channel.mkdir(mode=0o700)
+        (channel / "enabled").touch()
+        (self.base / "enabled").touch()
+        verify = 'if [ "$channel" = --verify-boot ]; then'
+        prefix, main = self.sources["supervise.sh"].split(verify, 1)
+        overrides = '''
+pid_for() { if [ "$1" = system_server ]; then echo 810; fi; }
+unknown_injector() { return 1; }
+sleeps=0
+sleep() {
+    sleeps=$((sleeps+1))
+    if [ "$sleeps" = 35 ]; then
+        printf '%s\n' "$waited" > "$dir/wait-observed"
+        rm -f "$dir/enabled"
+    fi
+}
+'''
+        result = subprocess.run([BASH, "-s", "--", "cluster-card"], input=prefix + overrides + verify + main,
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertGreater(int((channel / "wait-observed").read_text()), 60)
+        self.assertFalse((channel / "failure.count").exists())
+        self.assertFalse((channel / "worker.pid").exists())
+        self.assertFalse((self.root / "started").exists())
+
     def test_unlocked_clear_data_revokes_the_deployment_before_cleanup(self):
         for suffix in ("", "window", "navigation", "apollo", "cluster-card"):
             directory = self.base / suffix

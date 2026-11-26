@@ -27,4 +27,6 @@
     <string name="window_service_unavailable">"Терезе өңдеуші жауап бермеді. Фрида қосылымын тексеріңіз."</string>
     <string name="window_restore_unconfirmed">"Ашық терезелердің кейбіреулері бұрғылауды талап етеді."</string>
     <string name="app_window_explainer">"Орталық экрандағы терезе навигация батырмаларының қасында орналасады. Егер панельдерге көбірек орын қажет болса, сол жақтан ең аз қашықтықты ұлғайтыңыз."</string>
+    <string name="app_window_split_dpi">Бөлінген экран масштабы (DPI)</string>
+    <string name="app_window_split_inherit_dpi">Қолданба масштабымен бірдей</string>
 </resources>

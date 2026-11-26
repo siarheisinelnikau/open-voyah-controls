@@ -1,5 +1,7 @@
 <resources>
     <string name="comfort_playback_title">Көліктегі ойнату</string>
+    <string name="comfort_playback_duck_door">Есік ашылғанда медиа дыбысын бәсеңдету</string>
+    <string name="comfort_playback_duck_door_hint">Ойнату жалғасады, ал барлық есік жабылғанда дыбыс деңгейі қалпына келеді. Деңгейді «Дыбыс және медиа» бөлімінен реттеңіз.</string>
     <string name="comfort_playback_door">Жүргізуші есігі ашылғанда кідірту</string>
     <string name="comfort_playback_door_hint">Үйлесімді көлік бағдарламасында тұрақ режимінде жүргізуші есігінің күйін бақылайды.</string>
     <string name="comfort_playback_wake">Ұйқыда кідірту және оянғанда жалғастыру</string>

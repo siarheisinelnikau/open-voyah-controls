@@ -26,7 +26,7 @@ import org.openvoyah.controls.domain.audio.startupLevel
 import org.openvoyah.controls.domain.audio.startupVolumeDue
 
 /**
- * Lowers the media volume while Controls listens or a phone call is active, and fades it back afterwards.
+ * Lowers media while a ducking trigger is active, then fades it back.
  *
  * The head unit firmware sends `AudioManager.setStreamVolume`/`getStreamVolume` for the media stream straight to the
  * OEM audio policy, which drives the amplifier, so the media level is the one the owner sees on the volume slider.
@@ -94,6 +94,7 @@ object MediaDuck {
         private val store = PreferencesDuckStore(app)
         private val machine = MediaDuckMachine(store)
         private val flags = if (oemPolicy()) OEM_KEEP_MUTE else 0
+        private val pendingEndRetries = mutableMapOf<DuckTrigger, Runnable>()
         private var fade = 0
         private var started = false
         private var call = false
@@ -143,6 +144,7 @@ object MediaDuck {
         }
 
         fun begin(trigger: DuckTrigger) {
+            pendingEndRetries.remove(trigger)?.let(handler::removeCallbacks)
             val current = volume() ?: return
             val target = machine.start(trigger, current, minimum(), settings()) ?: return
             ControlsLog.info("media_duck", "event", "lower", "trigger", trigger.name.lowercase(), "from", current, "to", target)
@@ -150,10 +152,15 @@ object MediaDuck {
         }
 
         fun end(trigger: DuckTrigger, retry: Boolean = true) {
+            pendingEndRetries.remove(trigger)?.let(handler::removeCallbacks)
             val current = volume()
             if (current == null) {
-                // A trigger that never ends would keep media low; the audio policy may be restarting.
-                if (retry && trigger in machine.triggers) handler.postDelayed({ end(trigger, retry = false) }, RETRY_MS)
+                // The audio policy may be restarting. A new begin cancels the previous end's retry.
+                if (retry && trigger in machine.triggers) {
+                    val task = Runnable { end(trigger, retry = false) }
+                    pendingEndRetries[trigger] = task
+                    handler.postDelayed(task, RETRY_MS)
+                }
                 return
             }
             val wasDucked = machine.ducked

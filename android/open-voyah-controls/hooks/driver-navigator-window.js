@@ -6,6 +6,7 @@ const NAVIGATOR = 'ru.yandex.yandexnavi';
 const DISPLAY_OWNER = 'com.qinggan.cluster';
 const SYSTEM_UID = 1000;
 const FIRST_FRAME_MS = 6500;
+const HANDOFF_MS = 1800;
 const COMMAND_TTL_MS = 4000;
 const COVER_TAG = 'org.openvoyah.controls.driver-navigator-window';
 const HANDLES_TAG = 0x7f0f0760;
@@ -155,9 +156,9 @@ export function createDriverNavigatorWindow(Java) {
         for (let i = 0; i < tasks.size(); i++) {
             const task = Java.cast(tasks.get(i), RunningTask);
             const matches = component => component !== null && String(component.getPackageName()) === NAVIGATOR;
-            if (task.numActivities.value > 0 && (matches(task.baseActivity.value) || matches(task.topActivity.value))) {
-                displays.push(taskDisplay.getInt(task));
-            }
+            if (task.numActivities.value <= 0) continue;
+            if (matches(task.baseActivity.value)) displays.push(taskDisplay.getInt(task));
+            else if (matches(task.topActivity.value)) displays.push(-1);
         }
         return displays;
     }
@@ -196,7 +197,6 @@ export function createDriverNavigatorWindow(Java) {
             String(launch.getComponent().getPackageName()) !== NAVIGATOR) return 'not_installed';
         if (!launchable(context, launch)) return 'denied';
         const manager = Java.cast(context.getSystemService(Activities.class), Activities);
-        if (navigatorDisplays(manager).length !== 0) return 'in_use';
         sweep(host);
         const overlay = host.getOverlay();
         const cover = TextureView.$new(context);
@@ -212,7 +212,7 @@ export function createDriverNavigatorWindow(Java) {
             cover.measure(EXACTLY | width, EXACTLY | height);
             cover.layout(0, 0, width, height);
             return {host: Java.retain(host), overlay, cover, context, launch, manager, width, height, key,
-                wake: wakeClock(), display: null, presented: false};
+                wake: wakeClock(), handoff: Number(Clock.elapsedRealtime()) + HANDOFF_MS, display: null, presented: false};
         } catch (error) {
             clearCover(overlay, cover);
             throw error;
@@ -233,6 +233,11 @@ export function createDriverNavigatorWindow(Java) {
         const texture = cover.getSurfaceTexture();
         if (texture === null) return window.display === null ? 'waiting' : 'cancelled';
         if (window.display === null) {
+            const positions = navigatorDisplays(manager);
+            if (positions.length !== 0 && !(positions.length === 1 && positions[0] === 0)) {
+                // The Home card acknowledges a driver request by releasing its embedded task.
+                return Number(Clock.elapsedRealtime()) < window.handoff ? 'waiting' : 'in_use';
+            }
             texture.setDefaultBufferSize(width, height);
             const handles = ArrayList.$new();
             cover.setTag(HANDLES_TAG, handles);
@@ -247,11 +252,13 @@ export function createDriverNavigatorWindow(Java) {
                 !manager.isActivityStartAllowedOnDisplay(context, display.getDisplayId(), launch)) {
                 return 'denied';
             }
-            if (navigatorDisplays(manager).length !== 0) return 'in_use';
             const options = Options.makeBasic().setLaunchDisplayId(display.getDisplayId());
             launch.addFlags(0x10000000); // FLAG_ACTIVITY_NEW_TASK
-            context.startActivity(launch, options.toBundle());
             window.display = display;
+            try { context.startActivity(launch, options.toBundle()); }
+            catch (error) {
+                if (!navigatorDisplays(manager).includes(display.getDisplayId())) throw error;
+            }
             pulse(cover, 0.01);
             return 'waiting';
         }
@@ -259,7 +266,7 @@ export function createDriverNavigatorWindow(Java) {
         const positions = navigatorDisplays(manager);
         const taskOnDisplay = positions.includes(window.display.getDisplayId());
         if (!taskOnDisplay || Number(texture.getTimestamp()) <= 0) {
-            if (window.presented || (positions.length !== 0 && !taskOnDisplay)) return 'no_frame';
+            if (window.presented) return 'no_frame';
             pulse(cover, 0.01);
             return 'waiting';
         }

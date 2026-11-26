@@ -259,6 +259,13 @@ export function installHomeMediaCard(Java, {readConfig, launch, report = createR
             for (const card of cardsNow) {
                 try { card.initMedia(); } catch (error) { report('present', error); }
             }
+            // The player can acquire focus before the launcher connects the borrowed slots.
+            // Let the factory policy republish that focus once the card knows about the source.
+            try {
+                const policy = Policy.getInstance(app());
+                const latest = policy.getLatestMediaInfo();
+                if (latest !== null && active.some(item => focus(item.value, latest) === true)) policy.notifyFocusChanged();
+            } catch (error) { report('refresh_focus', error); }
             return true;
         }
 

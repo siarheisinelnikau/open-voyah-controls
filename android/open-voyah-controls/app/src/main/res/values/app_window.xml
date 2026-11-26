@@ -26,4 +26,6 @@
     <string name="window_service_unavailable">The window service has not responded. Check the Frida connection.</string>
     <string name="window_restore_unconfirmed">Window service stopped. Some active windows may still need to be reset.</string>
     <string name="app_window_explainer">On the central display, the app uses the space beside the launcher’s navigation buttons. Set a minimum left margin if the panel needs more room.</string>
+    <string name="app_window_split_dpi">Split-screen scale (DPI)</string>
+    <string name="app_window_split_inherit_dpi">Same as app scale</string>
 </resources>

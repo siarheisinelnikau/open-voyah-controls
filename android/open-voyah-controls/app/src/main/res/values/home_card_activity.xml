@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_card_activity">App window in the Home navigation card</string>
+    <string name="home_card_activity_default">Use the map card</string>
+    <string name="home_card_activity_dpi">Embedded app DPI on Home</string>
+    <string name="home_card_activity_dpi_value">%1$d dpi</string>
+</resources>

@@ -26,4 +26,6 @@
     <string name="window_service_unavailable">Обработчик окон не ответил. Проверьте подключение Frida.</string>
     <string name="window_restore_unconfirmed">Обработчик остановлен. Некоторые открытые окна могут требовать сброса.</string>
     <string name="app_window_explainer">На центральном экране окно размещается рядом с кнопками навигации. Увеличьте минимальный отступ слева, если панели нужно больше места.</string>
+    <string name="app_window_split_dpi">Масштаб в сплите (DPI)</string>
+    <string name="app_window_split_inherit_dpi">Как у приложения</string>
 </resources>

@@ -26,12 +26,19 @@ export function createPanelConfigReader(Java) {
 export function createDriverRouteReader(Java) {
     const Uri = Java.use('android.net.Uri');
     const Clock = Java.use('android.os.SystemClock');
+    const Bitmap = Java.use('android.graphics.Bitmap');
     const uri = Uri.parse(DRIVER_ROUTE_URI);
     return (context, token) => {
         const data = context.getContentResolver().call(uri, 'route', token, null);
         if (data === null) return null;
         const at = Number(data.getLong('at', -1));
         if (driverRouteRemaining(at, Number(Clock.elapsedRealtime())) === 0) return null;
-        return {at, heading: data.getString('heading'), title: data.getString('title'), detail: data.getString('detail')};
+        const arrow = data.getParcelable('maneuver');
+        const route = {at, heading: data.getString('heading'), title: data.getString('title'), detail: data.getString('detail')};
+        if (arrow !== null && Bitmap.class.isInstance(arrow)) {
+            route.maneuver = Java.cast(arrow, Bitmap);
+            route.maneuverAt = Number(data.getLong('maneuverAt', -1));
+        }
+        return route;
     };
 }

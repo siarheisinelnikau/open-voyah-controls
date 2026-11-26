@@ -3,7 +3,7 @@
     <string name="driver_media_description">Показывает текущий трек или станцию в левой медиазоне перед водителем на совместимой приборке.</string>
     <string name="driver_media_layout">Крупный вид плеера</string>
     <string name="driver_navigation_card">Компактная карточка навигации</string>
-    <string name="driver_navigation_description">Показывает подсказки по маршруту на совместимой прошивке. Включите «Навигация» в разделе «Виртуальный экран и приборка».</string>
+    <string name="driver_navigation_description">Показывает стрелку, расстояние и улицу, пока Яндекс Навигатор публикует уведомления о манёврах. Разрешите доступ к плееру в Controls и включите фоновые подсказки в Навигаторе. Штатный поток навигации тоже может передавать данные маршрута.</string>
     <string name="driver_navigation_next">Следующий манёвр</string>
     <string name="driver_navigation_current">Текущая дорога</string>
     <string name="driver_navigation_meters">%1$s м</string>

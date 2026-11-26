@@ -56,6 +56,7 @@ public final class FridaBridge {
         "ru.yandex.yandexnavi/ru.yandex.yandexmaps.widget.traffic.internal.configuration.TrafficWidgetConfigurationActivity";
     private static final String WINDOW_REQUEST = "org.openvoyah.controls.windowRequest";
     private static final String DRIVER_NAVIGATOR_REQUEST = "org.openvoyah.controls.driverNavigatorRequest";
+    private static final String HOME_APP_PAIR_REQUEST = "org.openvoyah.controls.homeAppPairRequest";
     private static final String WINDOW_STRIP = "windowSystemInsets";
     /** Set while an update pauses a deployment that was running, so finishing the update starts it again. */
     private static final String RESUME_AFTER_UPDATE = "resumeAfterUpdate";
@@ -133,8 +134,10 @@ public final class FridaBridge {
      * fixtures have no instrument card, so the channel never runs there.
      */
     private boolean clusterCardReviewed() {
-        return production != null && production.packageReviewed(ReviewedFirmware.INSTRUMENT_CARD)
-            && production.agentAllowed(ActionCatalog.CLUSTER_CARD);
+        return hasInstrumentCardPin() && production.agentAllowed(ActionCatalog.CLUSTER_CARD);
+    }
+    boolean hasInstrumentCardPin() {
+        return production != null && production.packageReviewed(ReviewedFirmware.INSTRUMENT_CARD);
     }
     private boolean localeAllowed(String target) {
         return packageReviewed(ReviewedFirmware.INSTANCE.getLocalizationTargets().get(target))
@@ -153,8 +156,7 @@ public final class FridaBridge {
             String steering = canSteering();
             String source = steering == null ? "qg" : steering.equals(ReviewedFirmware.CAN_STEERING_EDGES) ? "can-edges" : "can-terminal";
             JSONObject config = new JSONObject(config(state)).put("steeringSource", source).put("customIcons", icons);
-            if (state.driverNavigationCard && Build.VERSION.SDK_INT == 30 && navigationHookEnabled(context)
-                && clusterCardReviewed() && navigationReviewed()) {
+            if (state.driverNavigationCard && Build.VERSION.SDK_INT == 30 && clusterCardReviewed()) {
                 config.put("driverNavigation", UUID.randomUUID().toString().replace("-", ""));
             }
             // The app grid's icon style: the agent draws the panel's icons through the same colour matrix.
@@ -171,8 +173,17 @@ public final class FridaBridge {
         try {
             JSONObject root = new JSONObject().put("schema", 1).put("enabled", state.panelEnabled).put("actions", hookActions(state.panelActions));
             // The launcher agent covers the factory navigation card with this app's card; absent keeps the Baidu map.
-            if (state.navigatorHomeCard) root.put("homeCard", new JSONObject().put("package", SettingsStore.YANDEX_NAVIGATOR)
-                .put("scale", SettingsStore.navigatorWidgetScale(state.navigatorWidgetScale)));
+            String homeCardActivity = SettingsStore.homeCardActivity(state.homeCardActivity);
+            JSONObject homeCard = new JSONObject();
+            if (Build.VERSION.SDK_INT == 30 && !homeCardActivity.isEmpty()) {
+                homeCard.put("component", homeCardActivity).put("dpi", SettingsStore.homeCardDpi(state.homeCardDpi));
+            }
+            if (state.navigatorHomeCard || (homeCard.has("component") &&
+                    homeCardActivity.startsWith(SettingsStore.YANDEX_NAVIGATOR + "/"))) {
+                homeCard.put("package", SettingsStore.YANDEX_NAVIGATOR)
+                    .put("scale", SettingsStore.navigatorWidgetScale(state.navigatorWidgetScale));
+            }
+            if (homeCard.length() != 0) root.put("homeCard", homeCard);
             // The launcher agent shows Controls' weather (HOME_WEATHER) in the factory weather card, or this text without it.
             if (state.weatherCard) root.put("weatherCard", new JSONObject().put("noData", UiText.get(R.string.home_weather_no_data)));
             // The launcher agent adds these apps to the factory media card's sources when they are installed, and
@@ -1047,6 +1058,25 @@ public final class FridaBridge {
         }
     }
 
+    /** Release a matching embedded app before Android resolves the two central-display intents. */
+    public boolean prepareWindowPair(String token, String left, String right) throws IOException {
+        if (token == null || !token.matches("[a-f0-9]{32}")) throw new IllegalArgumentException("Invalid app-pair token");
+        synchronized (IO_LOCK) {
+            String component = new SettingsStore(context).load().homeCardActivity;
+            if (component.isEmpty()) return true;
+            String packagePrefix = component.substring(0, component.indexOf('/') + 1);
+            if (!left.startsWith(packagePrefix) && !right.startsWith(packagePrefix)) return true;
+            String request = "{\"schema\":1,\"id\":" + JSONObject.quote(token) + ",\"component\":" + JSONObject.quote(component)
+                + ",\"expires\":" + (SystemClock.elapsedRealtime() + 6000) + "}";
+            String marker = "OVC_HOME_APP_PAIR_RELEASED " + token;
+            String result = command(activationGuard() + "settings put global " + HOME_APP_PAIR_REQUEST + " " + quote(request)
+                + " || exit 1; for i in 0 1 2 3 4 5; do "
+                + "if grep -Fqx " + quote(marker) + " " + base + "/hook.log 2>/dev/null; then echo released; exit 0; fi; "
+                + "[ \"$i\" = 5 ] || sleep 1; done");
+            return "released".equals(result.trim());
+        }
+    }
+
     /** A receipt is scoped to the token this app put on its two normal launcher intents. */
     public String windowPairResult(String token) throws IOException {
         if (token == null || !token.matches("[a-f0-9]{32}")) throw new IllegalArgumentException("Invalid app-pair token");
@@ -1159,9 +1189,11 @@ public final class FridaBridge {
 
     String driverNavigatorWindow(boolean open) throws IOException {
         synchronized (IO_LOCK) {
+            if (Build.VERSION.SDK_INT != 30) return "unavailable";
+            if (!hasInstrumentCardPin()) return "missing_pin";
+            if (!production.agentAllowed(ActionCatalog.CLUSTER_CARD)) return "forbidden";
             requireRoot();
-            if (Build.VERSION.SDK_INT != 30 || !clusterCardReviewed()
-                || !channelReady("/cluster-card", "^OVC_CLUSTER_CARD_READY navigator=1$")) return "unavailable";
+            if (!channelReady("/cluster-card", "^OVC_CLUSTER_CARD_READY navigator=1$")) return "unavailable";
             String token = UUID.randomUUID().toString().replace("-", "");
             String request = "{\"schema\":1,\"id\":\"" + token + "\",\"operation\":\"" + (open ? "open" : "close")
                 + "\",\"expires\":" + (SystemClock.elapsedRealtime() + 4000) + "}";

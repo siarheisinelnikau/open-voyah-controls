@@ -59,13 +59,20 @@ internal class PlaybackComfortPreferences(context: Context) {
         @JvmStatic fun validateSettings(data: JSONObject): JSONObject = encode(decode(data))
 
         private fun encode(settings: PlaybackComfortSettings) = JSONObject()
-            .put("schema", 1).put("pauseOnDriverDoor", settings.pauseOnDriverDoor).put("restoreAfterSleep", settings.restoreAfterSleep)
+            .put("schema", 2).put("pauseOnDriverDoor", settings.pauseOnDriverDoor)
+            .put("restoreAfterSleep", settings.restoreAfterSleep).put("duckOnDoor", settings.duckOnDoor)
 
         private fun decode(data: JSONObject): PlaybackComfortSettings {
-            require(data.keys().asSequence().toSet() == setOf("schema", "pauseOnDriverDoor", "restoreAfterSleep"))
-            require(data.get("schema") == 1)
-            return PlaybackComfortSettings(requireNotNull(data.get("pauseOnDriverDoor") as? Boolean),
-                requireNotNull(data.get("restoreAfterSleep") as? Boolean))
+            val schema = data.get("schema")
+            require(schema == 1 || schema == 2)
+            val originalKeys = setOf("schema", "pauseOnDriverDoor", "restoreAfterSleep")
+            val keys = if (schema == 2) originalKeys + "duckOnDoor" else originalKeys
+            require(data.keys().asSequence().toSet() == keys)
+            return PlaybackComfortSettings(
+                pauseOnDriverDoor = requireNotNull(data.get("pauseOnDriverDoor") as? Boolean),
+                restoreAfterSleep = requireNotNull(data.get("restoreAfterSleep") as? Boolean),
+                duckOnDoor = schema == 2 && requireNotNull(data.get("duckOnDoor") as? Boolean),
+            )
         }
     }
 }

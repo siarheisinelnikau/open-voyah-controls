@@ -23,7 +23,9 @@ interface HomeActions {
     fun buttonsEnabled(enabled: Boolean)
     fun panelEnabled(enabled: Boolean)
     fun navigatorHomeCard(enabled: Boolean)
+    fun chooseHomeCardActivity()
     fun navigatorWidgetScale(percent: Int)
+    fun homeCardDpi(dpi: Int)
     fun weatherCard(enabled: Boolean)
     fun weatherCity(city: String)
     fun mediaCardApps(enabled: Boolean)
@@ -44,10 +46,13 @@ internal data class HomeControlsState(
     val available: Boolean = false, val error: String? = null, val health: String = "",
     val buttonsEnabled: Boolean = false, val panelEnabled: Boolean = false,
     val navigatorHomeCard: Boolean = false, val navigatorHomeCardSupported: Boolean = false,
+    val homeCardActivity: String = "", val homeCardActivitySupported: Boolean = false,
+    val homeCardDpi: Int = SettingsStore.HOME_CARD_DPI,
     val navigatorWidgetScale: Int = SettingsStore.NAVIGATOR_WIDGET_SCALE,
     val weatherCard: Boolean = false, val weatherCity: String = "", val mediaCardApps: Boolean = true,
     val mediaCardHideOnline: Boolean = true, val clusterCardApps: Boolean = true, val driverMediaLayout: Boolean = false,
     val driverNavigationCard: Boolean = false,
+    val driverMediaHasPin: Boolean = true,
     val driverNavigatorSupported: Boolean = false, val driverNavigatorBusy: Boolean = false,
     val driverNavigatorFeedback: PanelControls.Result? = null,
     val connected: Boolean = false,
@@ -109,6 +114,8 @@ internal class HomeControlsViewModel(
         if (change { it.panelEnabled = enabled } && !panel.configured()) error(UiText.get(R.string.ui_70))
     }
     fun navigatorHomeCard(enabled: Boolean) = change { it.navigatorHomeCard = enabled }
+    fun homeCardActivity(component: String) = change { it.homeCardActivity = SettingsStore.homeCardActivity(component) }
+    fun homeCardDpi(dpi: Int) = change { it.homeCardDpi = SettingsStore.homeCardDpi(dpi) }
     fun navigatorWidgetScale(percent: Int) = change { it.navigatorWidgetScale = SettingsStore.navigatorWidgetScale(percent) }
     fun weatherCard(enabled: Boolean) = change { it.weatherCard = enabled }
     fun weatherCity(city: String) { current.value = current.value.copy(weatherCity = city) }
@@ -212,6 +219,8 @@ internal class HomeControlsViewModel(
             it.debounceMs = source.debounceMs
             it.panelEnabled = source.panelEnabled
             it.navigatorHomeCard = source.navigatorHomeCard
+            it.homeCardActivity = source.homeCardActivity
+            it.homeCardDpi = source.homeCardDpi
             it.navigatorWidgetScale = source.navigatorWidgetScale
             it.weatherCard = source.weatherCard
             it.mediaCardApps = source.mediaCardApps
@@ -271,10 +280,13 @@ internal class HomeControlsViewModel(
             activationPaused = panel.activationPaused(),
             buttonsEnabled = settings.enabled, panelEnabled = settings.panelEnabled,
             navigatorHomeCard = settings.navigatorHomeCard, navigatorWidgetScale = settings.navigatorWidgetScale,
+            homeCardActivity = settings.homeCardActivity, homeCardActivitySupported = sdk == 30 && product != "f6811",
+            homeCardDpi = settings.homeCardDpi,
             weatherCard = settings.weatherCard, mediaCardApps = settings.mediaCardApps,
             mediaCardHideOnline = settings.mediaCardHideOnline, clusterCardApps = settings.clusterCardApps,
             driverMediaLayout = settings.driverMediaLayout,
             driverNavigationCard = settings.driverNavigationCard,
+            driverMediaHasPin = panel.hasInstrumentCardPin(),
             driverNavigatorSupported = sdk == 30,
             // The overseas launcher has no Baidu navigation card to replace.
             navigatorHomeCardSupported = product != "f6811", connected = connected(),

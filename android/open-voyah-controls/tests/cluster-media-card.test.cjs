@@ -23,7 +23,10 @@ const plain = value => JSON.parse(JSON.stringify(value));
 test('the compact navigation frame is centered and fits the minimum admitted media viewport with large text', () => {
     const {driverNavigationGeometry, driverRouteRemaining, driverNavigationToken} = load().api;
     assert.deepEqual(plain(driverNavigationGeometry({width: 574, height: 464}, 1, 1)),
-        {width: 288, height: 112, left: 143, top: 176, horizontal: 18, vertical: 10, radius: 16, stroke: 1});
+        {width: 288, height: 112, left: 143, top: 176, streetLines: 1, horizontal: 18, vertical: 10, radius: 16, stroke: 1});
+    assert.deepEqual(plain(driverNavigationGeometry({width: 574, height: 464}, 1, 1, true)),
+        {width: 380, height: 128, left: 97, top: 168, streetLines: 2, horizontal: 18, vertical: 10, radius: 16, stroke: 1});
+    assert.equal(driverNavigationGeometry({width: 480, height: 240}, 1.5, 1.5, true).streetLines, 1);
     assert.equal(driverNavigationGeometry({width: 480, height: 240}, 1.5, 1.5).width, 432);
     assert.equal(driverNavigationGeometry({width: 480, height: 240}, 1.5, 1.51), null);
     assert.equal(driverNavigationGeometry({width: 288, height: 160}, 1, 1), null);
@@ -87,6 +90,9 @@ test('driver view attaches without taking input, expires and only removes its ow
             addView(child) { this.children.push(child); }, setText(text) { this.text = text; },
             layout(x, y, width, height) { this.width = width; this.height = height; },
             setLayoutParams(params) { this.params = params; },
+            setVisibility(visibility) { this.visibility = visibility; },
+            setMaxLines(maxLines) { this.maxLines = maxLines; },
+            setImageBitmap(bitmap) { this.bitmap = bitmap; },
             animate() {
                 const self = this;
                 return {cancel() {}, alpha(value) { this.end = value; return this; },
@@ -94,7 +100,7 @@ test('driver view attaches without taking input, expires and only removes its ow
                     setDuration() { return this; }, start() { calls.push([self, this.end, this.delay]); }};
             }
         };
-        return new Proxy(view, {get: (obj, key) => obj[key] ?? (() => {})});
+        return new Proxy(view, {get: (obj, key) => key in obj ? obj[key] : (() => {})});
     }
     const layerGroup = {children: [], findViewWithTag(tag) { return this.children.find(view => view.tag === tag) ?? null; },
         equals(other) { return this === other; }};
@@ -120,7 +126,7 @@ test('driver view attaches without taking input, expires and only removes its ow
             if (name === 'android.view.ViewGroup') return {class: {isInstance: () => true}};
             if (name === 'android.view.ViewOverlay') return {getOverlayView: {overload: () => ({call: view => view.getOverlayView()})}};
             if (name === 'android.widget.FrameLayout$LayoutParams') return {$new: (width, height) => ({width, height, leftMargin: {}, topMargin: {}})};
-            if (name === 'android.widget.ImageView$ScaleType') return {CENTER_CROP: {value: 'center'}};
+            if (name === 'android.widget.ImageView$ScaleType') return {CENTER_CROP: {value: 'center'}, FIT_CENTER: {value: 'fit'}};
             if (name === 'android.text.TextUtils$TruncateAt') return {END: {value: 'end'}};
             if (name === 'android.content.res.ColorStateList') return {valueOf: color => color};
             if (name === 'java.lang.String') return {$new: value => value};
@@ -146,6 +152,18 @@ test('driver view attaches without taking input, expires and only removes its ow
         content.params.topMargin.value], [288, 112, 143, 176]);
     assert.deepEqual(content.children.map(child => child.text), ['Next maneuver', 'River Road', '250 m']);
     assert.deepEqual(calls.at(-1), [navigation, 0, 4000]);
+    const arrow = navigation.children[1];
+    assert.equal(arrow.visibility, 8);
+    const maneuver = {direction: 'left'};
+    assert.equal(layer.updateNavigation(host, {...route, maneuver, maneuverAt: 1000}, 2_000), true);
+    assert.equal(arrow.visibility, 0);
+    assert.equal(arrow.bitmap, maneuver);
+    assert.deepEqual([arrow.params.width, arrow.params.height, arrow.params.leftMargin.value], [45, 45, 115]);
+    assert.equal(content.children[1].maxLines, 2);
+    layer.updateNavigation(host, route, 2_000);
+    assert.equal(content.children[1].maxLines, 1);
+    assert.equal(arrow.visibility, 8);
+    assert.equal(arrow.bitmap, null);
     const renewals = calls.length;
     layer.updateNavigation(host, route, 3_000);
     assert.equal(calls.length, renewals, 'an unchanged observation cannot extend the drawing lease');
@@ -248,7 +266,6 @@ function harness(options = {}) {
         notifyFocusChanged() { calls.push(['notifyFocusChanged']); }};
     const prefs = {getString: (key, fallback) => (key === 'key_media_type' && state.memory !== null ? state.memory : fallback),
         edit: () => ({putString(key, value) { calls.push(['memory', key, value]); return {apply() { state.memory = value; }}; }})};
-    const icon = pkg => ({getConstantState: () => ({newDrawable: () => ({icon: pkg})})});
     let packageChecks = 0;
     const pm = {
         getServiceInfo(component) {
@@ -257,8 +274,7 @@ function harness(options = {}) {
             return {};
         },
         getApplicationInfo: (pkg) => ({pkg}),
-        getApplicationLabel: info => (info.pkg === MUSIC.package ? 'Voyah Music' : 'Voyah Radio') + ' ' + state.locale,
-        getApplicationIcon: pkg => icon(pkg)
+        getApplicationLabel: info => (info.pkg === MUSIC.package ? 'Voyah Music' : 'Voyah Radio') + ' ' + state.locale
     };
     const application = {getPackageManager: () => pm, getApplicationContext: () => application,
         getSharedPreferences(name) { assert.equal(name, 'media_memory_name'); return prefs; },
@@ -280,6 +296,8 @@ function harness(options = {}) {
     const view = {cur: E('BT_MUSIC'), isMusic: true, list: javaList(['BT_MUSIC', 'USB_MUSIC', 'LOCAL_RADIO', 'WECAR_FLOW', 'XMLA_MUSIC', 'RADIO_YUNTING'].map(E)),
         mTvTitle: {value: {text: '音乐', getText() { return this.text; }}}, mIvType: {value: imageView()}, mIvCover: {value: imageView()},
         handler: {value: {removed: [], removeMessages(what) { this.removed.push(what); }}}, ring: null, progress: null,
+        equals(other) { return this === other; }, $dispose() {}, getMediaEnums() { return this.list; },
+        controlMediaManager: {value: {updateView(value) { calls.push(['viewSource', value.name]); }}},
         getCurMediaEnum() { return this.cur; }, updateProgressView(shown) { this.ring = shown; },
         updateProgress(position, duration, value) { this.progress = [position, duration, value.name]; }};
     const panel = {children: [view], getChildCount() { return this.children.length; }, getChildAt(i) { return this.children[i]; }};
@@ -318,10 +336,10 @@ function harness(options = {}) {
                 return policy;
             }
         },
-        'com.qinggan.app.mediaCentre.view.BaseMediaView': {getMediaEnums: {overload: () => hook('sources', self => self.list)}},
         'com.qinggan.cardview.panel.media.MusicBaseView': {
             updateView: {overload: () => hook('update')},
             updateUrlImage: {overload: () => hook('coverUrl')},
+            getBgDrawable: {overload: () => ({call: () => ({factoryDisc: true})})},
             class: {isInstance: child => child.isMusic === true}
         },
         'com.qinggan.instrumentcard.ScreenActivity': {screenActivity: {value: options.screen === false ? null : screen}},
@@ -353,6 +371,7 @@ function harness(options = {}) {
         stale = {value: dab, browser: {stopped: false, onStop() { this.stopped = true; }}, getMediaBrowserHelper() { return this.browser; }};
         manager.controlMap.value.put(dab, stale);
         state.settings.mediaEnums.value.add(dab);
+        view.list.items.push(dab);
         manager.curMediaEnum.value = dab;
         manager.linkedList.value.items.push(E('USB_MUSIC'), dab);
         policy.mLatestMedia.value = 9002;
@@ -432,6 +451,22 @@ test('live navigation temporarily takes the visual slot and returns it to the cu
     assert.ok(reads.every(value => value === token));
 });
 
+test('a Yandex maneuver can replace the empty OEM media slot and clears when the route goes away', () => {
+    let route = {at: 10000, heading: 'Next maneuver', title: 'River Road', detail: '250 m', maneuver: {}};
+    let drawn = null;
+    const layer = {navigationFits: host => host !== null,
+        updateNavigation(host) { drawn = host; return true; }, clear() { drawn = null; }};
+    const h = harness({config: {schema: 1, driverNavigation: 'f'.repeat(32)},
+        fakeDriverLayer: layer, readRoute: () => route});
+    h.panel.children = [];
+    h.tick();
+    h.tick();
+    assert.equal(drawn, h.panel);
+    route = null;
+    h.tick();
+    assert.equal(drawn, null);
+});
+
 test('each app borrows a slot, joins the framework configuration and is connected as a factory source', () => {
     const h = harness();
     assert.deepEqual(h.logs, ['OVC_CLUSTER_CARD_READY']);
@@ -463,15 +498,24 @@ test('each app borrows a slot, joins the framework configuration and is connecte
     assert.equal(h.packageChecks(), checks + 2);
 });
 
-test('the card views accept the apps as sources; their factory list stays as it was', () => {
+test('the OEM source list admits the apps and is restored when disabled', () => {
     const h = harness();
-    const listed = h.hooks.sources.implementation.call(h.view);
-    assert.deepEqual(listed.items.map(value => value.name),
-        ['BT_MUSIC', 'USB_MUSIC', 'LOCAL_RADIO', 'WECAR_FLOW', 'XMLA_MUSIC', 'RADIO_YUNTING', 'SYSTEM_BT_MUSIC', 'DAB']);
-    assert.equal(h.view.list.items.length, 6);
+    const factory = ['BT_MUSIC', 'USB_MUSIC', 'LOCAL_RADIO', 'WECAR_FLOW', 'XMLA_MUSIC', 'RADIO_YUNTING'];
+    assert.deepEqual(h.view.list.items.map(value => value.name), [...factory, 'SYSTEM_BT_MUSIC', 'DAB']);
     h.state.config = {schema: 1};
     h.settle();
-    assert.equal(h.hooks.sources.implementation.call(h.view), h.view.list);
+    assert.deepEqual(h.view.list.items.map(value => value.name), factory);
+});
+
+test('a replacement music view admits and refreshes the current app source', () => {
+    const h = harness();
+    const fresh = {...h.view, list: javaList(h.view.list.items.slice(0, 6))};
+    h.manager.curMediaEnum.value = h.media('DAB');
+    h.panel.children = [fresh];
+    h.settle();
+    assert.equal(h.view.list.contains(h.media('DAB')), false);
+    assert.equal(fresh.list.contains(h.media('DAB')), true);
+    assert.ok(h.calls.some(([name, source]) => name === 'viewSource' && source === 'DAB'));
 });
 
 test('the latest media focus of an app selects its slot; other sources keep the factory check', () => {
@@ -488,32 +532,35 @@ test('the latest media focus of an app selects its slot; other sources keep the 
     assert.equal(h.hooks.focusLatest.implementation.call({}, h.media('BT_MUSIC')), 'oem');
 });
 
-test('a view showing Voyah Radio gets its name, icon, station picture and no progress ring', () => {
+test('a view showing Voyah Radio gets its name and station picture and no progress ring', () => {
     const h = harness();
     show(h, 'DAB');
     assert.equal(h.view.mTvTitle.value.text, 'Voyah Radio ru-RU');
-    assert.deepEqual({...h.view.mIvType.value.drawable}, {icon: RADIO.package});
+    assert.equal(h.view.mIvType.value.drawable, null);
     assert.deepEqual(h.view.mIvCover.value.bitmap, {bitmap: 'station'});
     // The factory default disc must not replace the picture 3 s later.
     assert.deepEqual(h.view.handler.value.removed, [1]);
     assert.equal(h.view.ring, false);
-    // A station without a picture shows the app icon.
+    // A station without a picture keeps the factory disc.
     h.sessions[RADIO.package].art = null;
     show(h, 'DAB');
-    assert.deepEqual({...h.view.mIvCover.value.drawable}, {icon: RADIO.package});
+    assert.deepEqual({...h.view.mIvCover.value.drawable}, {factoryDisc: true});
     // A language change gives the app's name in the new language.
     h.state.locale = 'en-US';
     show(h, 'DAB');
     assert.equal(h.view.mTvTitle.value.text, 'Voyah Radio en-US');
 });
 
-test('a view showing Voyah Music gets the app icon as cover and a moving progress ring', () => {
+test('a view showing Voyah Music keeps the factory disc clear and a moving progress ring', () => {
     const h = harness();
     show(h, 'SYSTEM_BT_MUSIC');
     assert.equal(h.view.mTvTitle.value.text, 'Voyah Music ru-RU');
-    assert.deepEqual({...h.view.mIvCover.value.drawable}, {icon: MUSIC.package});
+    assert.equal(h.view.mIvType.value.drawable, null);
+    assert.deepEqual({...h.view.mIvCover.value.drawable}, {factoryDisc: true});
     assert.deepEqual(h.view.progress, [30000, 180000, 'SYSTEM_BT_MUSIC']);
+    h.view.mIvType.value.setImageDrawable({overlapsDisc: true});
     h.tick();
+    assert.equal(h.view.mIvType.value.drawable, null);
     assert.deepEqual(h.view.progress, [31000, 180000, 'SYSTEM_BT_MUSIC']);
     // Paused, the ring stays where the track stopped.
     h.sessions[MUSIC.package] = {...h.sessions[MUSIC.package], state: 2, position: 40000, updated: h.state.clock};
@@ -552,11 +599,12 @@ test('views of factory sources stay as the card drew them', () => {
     assert.deepEqual(h.calls, [['coverUrl', h.media('USB_MUSIC'), '/storage/usb/cover.jpg']]);
 });
 
-test('without a connection to the app the view keeps its name and icon', () => {
+test('without a connection to the app the view keeps its name and factory disc', () => {
     const h = harness({connected: false});
     show(h, 'SYSTEM_BT_MUSIC');
     assert.equal(h.view.mTvTitle.value.text, 'Voyah Music ru-RU');
-    assert.deepEqual({...h.view.mIvCover.value.drawable}, {icon: MUSIC.package});
+    assert.equal(h.view.mIvType.value.drawable, null);
+    assert.deepEqual({...h.view.mIvCover.value.drawable}, {factoryDisc: true});
     assert.equal(h.view.ring, false);
 });
 
@@ -693,6 +741,7 @@ test('slots a vanished agent borrowed go back before the new agent borrows them'
     assert.equal(off.stale.browser.stopped, true);
     assert.equal(off.manager.controlMap.value.get(off.media('DAB')), null);
     assert.equal(off.state.settings.mediaEnums.value.contains(off.media('DAB')), false);
+    assert.equal(off.view.list.contains(off.media('DAB')), false);
     assert.deepEqual(off.calls.filter(call => call[0] === 'onMediaTypeChange'), [['onMediaTypeChange', 'USB_MUSIC']]);
     assert.equal(off.policy.mLatestMedia.value, -1);
     const on = harness({leftover: true});
@@ -725,7 +774,7 @@ test('a card without the expected classes reports it and installs nothing', () =
 test('dispose puts the factory card back, then unhooks', () => {
     const h = harness();
     h.result.dispose();
-    for (const name of ['sources', 'update', 'coverUrl', 'focusWith', 'focusLatest']) {
+    for (const name of ['update', 'coverUrl', 'focusWith', 'focusLatest']) {
         assert.equal(h.hooks[name].implementation, null, name);
     }
     assert.equal(h.media('DAB').servicePageName.value, 'com.qinggan.media');

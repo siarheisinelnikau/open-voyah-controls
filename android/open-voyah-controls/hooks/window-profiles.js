@@ -36,12 +36,12 @@ export function componentKey(value) {
 export function normalizeProfile(value) {
     if (!value || typeof value !== 'object') return null;
     const component = componentKey(value.component);
-    const {width, dpi, keepPanel, panelPx, inheritDpi = false} = value;
+    const {width, dpi, keepPanel, panelPx, inheritDpi = false, splitDpi} = value;
     if (!component || !Number.isInteger(width) || width < 50 || width > 100 || width % 5 !== 0 ||
-        !validDensity(dpi) || typeof inheritDpi !== 'boolean' || (inheritDpi && dpi !== 0) ||
+        !validDensity(dpi) || (splitDpi !== undefined && !validDensity(splitDpi)) || typeof inheritDpi !== 'boolean' || (inheritDpi && dpi !== 0) ||
         typeof keepPanel !== 'boolean' || !Number.isInteger(panelPx) || panelPx < 0 || panelPx > 600) return null;
     // Keep accepting the old field from saved profiles. The strip is now reserved for every managed launch.
-    return {component, width, dpi, panelPx, inheritDpi};
+    return {component, width, dpi, panelPx, inheritDpi, splitDpi};
 }
 
 function validDensity(dpi) {
@@ -106,8 +106,18 @@ export function profileFor(config, component, user, withDefault = false, screen 
     const dpi = config.displayDpi[screen];
     if (!validDensity(dpi)) return null;
     const profile = reset ? null : config.apps.get(component.split('/')[0]);
-    if (profile) return profile.inheritDpi ? {...profile, dpi} : profile;
+    if (profile) {
+        const splitOnly = profile.splitDpi !== undefined && profile.inheritDpi &&
+            profile.width === 100 && profile.panelPx === 0;
+        if (withDefault || !splitOnly) return profile.inheritDpi ? {...profile, dpi} : profile;
+    }
     return withDefault ? {component, width:100, dpi, panelPx:0} : null;
+}
+
+export function pairProfileFor(config, component, user) {
+    const profile = profileFor(config, component, user, true);
+    if (!profile || profile.splitDpi === undefined) return profile;
+    return {...profile, dpi:profile.splitDpi};
 }
 
 export function launchProfile(config, navigator, launch, screen = CENTRAL_DISPLAY, displayId = launch.display) {

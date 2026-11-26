@@ -213,11 +213,20 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
                 .put("pauseOnDriverDoor", true).put("restoreAfterSleep", true);
             root.put("playbackComfort", settings);
             archive.apply(archive.prepare(root.toString()));
-            root.remove("playbackComfort");
-            archive.apply(archive.prepare(root.toString()));
             var restored = new JSONObject(archive.exportJson()).getJSONObject("playbackComfort");
             assertTrue(restored.getBoolean("pauseOnDriverDoor"));
             assertTrue(restored.getBoolean("restoreAfterSleep"));
+            assertFalse(restored.getBoolean("duckOnDoor"));
+
+            restored.put("pauseOnDriverDoor", false).put("duckOnDoor", true);
+            root.put("playbackComfort", restored);
+            archive.apply(archive.prepare(root.toString()));
+            root.remove("playbackComfort");
+            archive.apply(archive.prepare(root.toString()));
+            restored = new JSONObject(archive.exportJson()).getJSONObject("playbackComfort");
+            assertFalse(restored.getBoolean("pauseOnDriverDoor"));
+            assertTrue(restored.getBoolean("restoreAfterSleep"));
+            assertTrue(restored.getBoolean("duckOnDoor"));
         } finally { archive.apply(before); }
     }
 

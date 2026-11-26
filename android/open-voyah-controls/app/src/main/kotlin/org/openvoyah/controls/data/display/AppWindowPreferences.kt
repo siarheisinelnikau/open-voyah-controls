@@ -125,6 +125,8 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
                     value.getInt("width"), value.getInt("dpi"), value.getInt("panelPx"),
                     if (value.has("inheritDpi")) value.get("inheritDpi") as? Boolean
                         ?: error("Invalid app density inheritance") else false,
+                    if (value.has("splitDpi")) value.get("splitDpi") as? Int
+                        ?: error("Invalid split density") else null,
                 )
             }
             require(profiles.distinctBy { it.packageName }.size == profiles.size)
@@ -134,7 +136,7 @@ internal class AppWindowPreferences(context: Context) : WindowProfileStorage {
         private fun encode(profiles: List<AppWindowProfile>) = JSONArray(profiles.map { profile ->
             JSONObject().put("component", profile.component).put("width", profile.widthPercent)
                 .put("dpi", profile.densityDpi).put("keepPanel", true).put("panelPx", profile.panelWidthPx)
-                .put("inheritDpi", profile.inheritDensity)
+                .put("inheritDpi", profile.inheritDensity).put("splitDpi", profile.splitDensityDpi)
         })
 
         /** The densities alone: the window agent reads exactly these two fields. */

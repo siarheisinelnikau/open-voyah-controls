@@ -1,7 +1,8 @@
 # Playback comfort
 
-Find **Playback in the car** under **Settings → Routines and automation**. Both switches start off. Controls needs Android notification access and a local music player with standard pause and play actions. The Controls accessibility service keeps the automation running while the app is closed.
+Find **Playback in the car** under **Settings → Routines and automation**. The switches start off. The Controls accessibility service keeps the automation running while the app is closed. The pause and resume actions need Android notification access and a local player with standard playback controls.
 
+- **Lower media volume when a door opens** uses the level in **Sound and media → Media ducking**. Any of the four side doors can start it, and the level returns after the last door closes or Controls loses the vehicle signal. A manual volume change takes precedence. The door setting does not require notification access. Select ducking or pause for door events.
 - **Pause when the driver’s door opens** consumes a fresh closed-to-open transition during a live vehicle session with Parking gear. An already-open door at service connection or wake establishes the starting state. The vehicle read-only adapter checks its production component, signer and APK before adding the door observer.
 - **Pause on sleep and resume on wake** follows Android interactivity. Controls resumes at most once for each wake when it can still identify the player, the same track and the unchanged pause response. It discards the in-memory receipt after wake, after a settings or runtime reset, and after 12 hours. A manual stop, seek, track change, replaced player, another local player taking over, revoked access or a missing pause response prevents playback from resuming. The original application’s controls remain active.
 
