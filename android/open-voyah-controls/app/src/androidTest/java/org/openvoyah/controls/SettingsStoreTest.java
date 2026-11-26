@@ -291,15 +291,19 @@ public class SettingsStoreTest extends AndroidTestCase {
     }
     public void testClusterCardAppsAreOnUntilTurnedOffAndNameTheSameApps() throws Exception {
         assertTrue(new SettingsStore.State().clusterCardApps);
+        assertFalse(new SettingsStore.State().driverMediaLayout);
         String old = "{\"schema\":1,\"enabled\":true,\"holdMs\":650,\"debounceMs\":100,\"bindings\":[]}";
         assertTrue(SettingsStore.decode(old).clusterCardApps);
+        assertFalse(SettingsStore.decode(old).driverMediaLayout);
         JSONObject config = new JSONObject(FridaBridge.config(new SettingsStore.State()));
         assertEquals(config.getJSONObject("mediaCard").getJSONArray("sources").toString(),
             config.getJSONObject("clusterCard").getJSONArray("sources").toString());
         SettingsStore.State state = sample(); state.clusterCardApps = false;
+        state.driverMediaLayout = true;
         store.save(state);
         SettingsStore.State loaded = new SettingsStore(getContext()).load();
         assertFalse(loaded.clusterCardApps);
+        assertTrue(loaded.driverMediaLayout);
         assertFalse(new JSONObject(FridaBridge.config(loaded)).has("clusterCard"));
         // The home screen card keeps its own switch.
         assertTrue(new JSONObject(FridaBridge.config(loaded)).getJSONObject("mediaCard").has("sources"));

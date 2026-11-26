@@ -1,0 +1,5 @@
+<resources>
+    <string name="driver_media_heading">Left area of the driver display</string>
+    <string name="driver_media_description">Shows the current track or station in the left media area in front of the driver on a compatible instrument display.</string>
+    <string name="driver_media_layout">Large player view</string>
+</resources>

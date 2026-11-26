@@ -1,0 +1,5 @@
+<resources>
+    <string name="driver_media_heading">Жүргізуші дисплейінің сол жақ аймағы</string>
+    <string name="driver_media_description">Үйлесімді аспаптар тақтасында ағымдағы тректі немесе станцияны жүргізуші алдындағы сол жақ медиа аймақта көрсетеді.</string>
+    <string name="driver_media_layout">Ойнатқыштың ірі көрінісі</string>
+</resources>

@@ -1,5 +1,6 @@
 import { createReporter } from './report.js';
 import { MEDIA_SLOTS, borrowSlot, focusOwner, mediaSources, returnSlot } from './media-slots.js';
+import { createDriverMediaLayer, driverMediaText } from './driver-media-layout.js';
 
 // Every tick reads the configuration and moves the progress ring of a playing app.
 const TICK_MS = 1000;
@@ -30,7 +31,8 @@ export function clusterCardSetting(config) {
     const card = config.clusterCard;
     if (!card || typeof card !== 'object') return null;
     const sources = mediaSources(card.sources);
-    return sources.length ? {sources} : null;
+    if (sources.length === 0) return null;
+    return card.driverLayout === true ? {sources, driverLayout: true} : {sources};
 }
 
 /**
@@ -71,6 +73,7 @@ export function installClusterMediaCard(Java, {readConfig, report = createReport
     let dirty = false;
     // The last restore token this agent answered.
     let answered = '';
+    let driverLayout = false, driverLayer = null, driverLayerChecked = false;
     const installed = new Map();
     try {
         const MediaEnum = Java.use('com.qinggan.media.helper.MediaEnum');
@@ -183,6 +186,8 @@ export function installClusterMediaCard(Java, {readConfig, report = createReport
             const session = controller(item);
             const metadata = session === null ? null : session.getMetadata();
             item.duration = metadata === null ? 0 : Number(metadata.getLong(DURATION));
+            item.driverTrack = driverLayout ? driverTrack(metadata) : undefined;
+            item.artworkRevision += 1;
             const picture = artwork(metadata);
             if (picture !== null) view.mIvCover.value.setImageBitmap(picture);
             else view.mIvCover.value.setImageDrawable(icon(item));
@@ -193,19 +198,54 @@ export function installClusterMediaCard(Java, {readConfig, report = createReport
             else view.updateProgress(where.position, where.duration, item.value);
         }
 
+        function driverTrack(metadata) {
+            const value = key => driverMediaText(metadata?.getString('android.media.metadata.' + key));
+            const title = value('DISPLAY_TITLE') || value('TITLE');
+            return title ? {title, artist: value('DISPLAY_SUBTITLE') || value('ARTIST')} : null;
+        }
+
+        function layer() {
+            if (driverLayerChecked) return driverLayer;
+            driverLayerChecked = true;
+            try { driverLayer = createDriverMediaLayer(Java); }
+            catch (error) { if (driverLayout) report('driver_layout', error); }
+            return driverLayer;
+        }
+
+        function updateDriver(view, item, session, where) {
+            const currentLayer = layer();
+            if (currentLayer === null) return;
+            try {
+                if (!driverLayout || item === null || session === null ||
+                    focus(item.value, Policy.getInstance(app()).getLatestMediaInfo()) !== true) {
+                    currentLayer.clear(view);
+                    return;
+                }
+                if (item.driverTrack === undefined) item.driverTrack = driverTrack(session.getMetadata());
+                const track = item.driverTrack;
+                currentLayer.update(view, track === null ? null : {...track, source: label(item), progress: where,
+                    cover: view.mIvCover.value.getDrawable(), artworkRevision: item.artworkRevision});
+            } catch (error) {
+                report('driver_layout', error);
+                try { currentLayer.clear(); } catch (restoreError) { report('driver_restore', restoreError); }
+            }
+        }
+
         /**
          * The view the cluster shows, once a second while it shows an app: the progress ring moves, and the title the
          * card resets to its factory word after a language change (MusicBaseView.onConfigurationChanged) comes back.
          */
         function refreshShown() {
-            if (active.length === 0) return;
+            if (!ready()) return;
             const view = shown();
             const item = view === null ? null : sourceOf(view.getCurMediaEnum());
-            if (item === null) return;
+            if (item === null) { updateDriver(view, null, null, null); return; }
             const name = label(item);
             if (text(view.mTvTitle.value.getText()) !== name) setText.call(view.mTvTitle.value, JString.$new(name));
-            const where = progress(controller(item), item);
+            const session = controller(item);
+            const where = progress(session, item);
             if (where !== null) view.updateProgress(where.position, where.duration, item.value);
+            updateDriver(view, item, session, where);
         }
 
         function available(source, now) {
@@ -251,7 +291,8 @@ export function installClusterMediaCard(Java, {readConfig, report = createReport
                 // control connects as it is created.
                 settings.mediaEnums.value.add(value);
                 settings.controlEnums.value.add(value);
-                active.push({source, slot, value, control: null, label: '', locale: null, icon: null, duration: 0});
+                active.push({source, slot, value, control: null, label: '', locale: null, icon: null, duration: 0,
+                    driverTrack: undefined, artworkRevision: 0});
                 // As MediaManager.initMediaControl does for the factory sources.
                 const control = Java.retain(Control.$new(context, value));
                 controls.push(control);
@@ -293,6 +334,7 @@ export function installClusterMediaCard(Java, {readConfig, report = createReport
             const step = (stage, fn) => {
                 try { fn(); } catch (error) { restored = false; report(stage, error); }
             };
+            step('driver_restore', () => layer()?.clear(shown()));
             const slots = borrowed();
             const ids = MEDIA_SLOTS.map(slot => slot.id);
             let manager = null, shownApp = false;
@@ -438,7 +480,9 @@ export function installClusterMediaCard(Java, {readConfig, report = createReport
             const context = app();
             if (context === null) return;
             const configuration = readConfig(context);
-            if (ready()) sync(clusterCardSetting(configuration), now);
+            const setting = clusterCardSetting(configuration);
+            driverLayout = setting?.driverLayout === true;
+            if (ready()) sync(setting, now);
             // Controls stops this agent right after the launcher confirms the same token, and waits for this answer.
             const token = configuration?.restoreIcons;
             if (typeof token === 'string' && RESTORE_TOKEN.test(token) && token !== answered && active.length === 0 && !dirty) {
@@ -469,7 +513,10 @@ export function installClusterMediaCard(Java, {readConfig, report = createReport
         return {
             /** UI thread only. */
             restoreAll() {
-                if (active.length === 0 && activeKey === '' && !dirty) return true;
+                if (active.length === 0 && activeKey === '' && !dirty) {
+                    if (ready()) layer()?.clear(shown());
+                    return true;
+                }
                 return deactivate();
             },
             dispose() {
@@ -477,7 +524,10 @@ export function installClusterMediaCard(Java, {readConfig, report = createReport
                 clearInterval(timer);
                 // The factory card first, while the hooks still keep a slot's source accepted.
                 Java.scheduleOnMainThread(() => {
-                    try { if (active.length > 0 || dirty) deactivate(); }
+                    try {
+                        if (active.length > 0 || dirty) deactivate();
+                        else if (ready()) layer()?.clear(shown());
+                    }
                     catch (error) { report('rollback', error); }
                     for (const hook of hooks) {
                         try { hook.implementation = null; } catch (error) { report('rollback', error); }

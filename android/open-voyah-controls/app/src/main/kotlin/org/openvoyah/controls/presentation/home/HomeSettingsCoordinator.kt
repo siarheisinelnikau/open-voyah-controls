@@ -145,6 +145,7 @@ internal class HomeSettingsCoordinator(
     override fun mediaCardApps(enabled: Boolean) { if (active) model.mediaCardApps(enabled) }
     override fun mediaCardHideOnline(enabled: Boolean) { if (active) model.mediaCardHideOnline(enabled) }
     override fun clusterCardApps(enabled: Boolean) { if (active) model.clusterCardApps(enabled) }
+    override fun driverMediaLayout(enabled: Boolean) { if (active) model.driverMediaLayout(enabled) }
     override fun weatherCard(enabled: Boolean) {
         if (!active || !model.weatherCard(enabled)) return
         if (enabled) {

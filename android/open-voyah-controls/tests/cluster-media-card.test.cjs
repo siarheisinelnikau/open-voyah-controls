@@ -4,13 +4,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const source = ['report.js', 'media-slots.js', 'cluster-media-card.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+const source = ['report.js', 'media-slots.js', 'driver-media-layout.js', 'cluster-media-card.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import .*;$/gm, '').replace(/^export /gm, '')).join('\n');
 
 function load(extra = {}) {
     const logs = [];
     const context = {console: {log: line => logs.push(line)}, setInterval: () => 1, clearInterval() {}, JSON, Date, ...extra};
-    const api = vm.runInNewContext(source + '\n({clusterCardSetting, trackProgress, installClusterMediaCard, MEDIA_SLOTS})', context);
+    const api = vm.runInNewContext(source + '\n({clusterCardSetting, trackProgress, installClusterMediaCard, MEDIA_SLOTS, driverMediaGeometry, driverMediaText, createDriverMediaLayer})', context);
     return {api, logs};
 }
 
@@ -30,10 +30,92 @@ test('the setting lists valid, distinct apps and is off without them or during a
     assert.equal(clusterCardSetting(null), null);
     // The home screen card's setting does not turn this card on.
     assert.equal(clusterCardSetting({schema: 1, mediaCard: {sources: [MUSIC]}}), null);
+    assert.deepEqual(plain(clusterCardSetting({schema: 1, clusterCard: {...ON.clusterCard, driverLayout: true}})),
+        {sources: [MUSIC, RADIO], driverLayout: true});
+    assert.deepEqual(plain(clusterCardSetting({schema: 1, clusterCard: {...ON.clusterCard, driverLayout: 'true'}})),
+        {sources: [MUSIC, RADIO]});
     const bad = [{package: 'app', service: 'app.X'}, {package: 'app.x;rm', service: 'app.x.S'}, {package: 'app.x', service: ''}, null];
     assert.equal(clusterCardSetting({schema: 1, clusterCard: {sources: bad}}), null);
     const third = {package: 'org.example.player', service: 'org.example.player.Browser'};
     assert.deepEqual(plain(clusterCardSetting({schema: 1, clusterCard: {sources: [MUSIC, MUSIC, RADIO, third]}})).sources, [MUSIC, RADIO]);
+});
+
+test('driver geometry stays inside the visible media view on the exact driver surface', () => {
+    const {driverMediaGeometry, driverMediaText} = load().api;
+    const view = {display: 'Cluster-Media-Display', owner: 'com.qinggan.instrumentcard',
+        attached: true, shown: true, width: 574, height: 464, density: 1};
+    const layer = driverMediaGeometry(view);
+    assert.equal(layer.width, 574);
+    assert.equal(layer.height, 464);
+    assert.ok(layer.art + layer.inset < layer.left);
+    assert.equal(layer.left + layer.textWidth + layer.inset, layer.width);
+    for (const refused of [{display: 'Built-in Screen'}, {display: 'Cluster-Navi-Display'}, {owner: 'com.qinggan.cluster'},
+        {attached: false}, {shown: false}, {width: 100}, {height: 40}, {density: NaN}, {width: 1920}]) {
+        assert.equal(driverMediaGeometry({...view, ...refused}), null);
+    }
+    assert.equal(driverMediaText('  Track\nName \u202e More\0 '), 'Track Name More');
+    assert.equal(driverMediaText('x'.repeat(400)).length, 240);
+});
+
+test('driver view attaches without taking input, expires and only removes its own layer', () => {
+    const {createDriverMediaLayer} = load().api;
+    const calls = [];
+    function nativeView() {
+        let parent = null;
+        const view = {
+            width: 0, height: 0, alpha: 1, children: [],
+            setParent(value) { parent = value; }, getParent() { return parent; },
+            setTag(tag) { this.tag = tag; }, setAlpha(alpha) { this.alpha = alpha; }, getAlpha() { return this.alpha; },
+            setClickable(clickable) { this.clickable = clickable; }, setFocusable(focusable) { this.focusable = focusable; },
+            addView(child) { this.children.push(child); }, setText(text) { this.text = text; },
+            layout(x, y, width, height) { this.width = width; this.height = height; },
+            animate() {
+                const self = this;
+                return {cancel() {}, alpha(value) { this.end = value; return this; },
+                    setStartDelay(delay) { this.delay = delay; return this; },
+                    setDuration() { return this; }, start() { calls.push([self, this.end, this.delay]); }};
+            }
+        };
+        return new Proxy(view, {get: (obj, key) => obj[key] ?? (() => {})});
+    }
+    const layerGroup = {children: [], findViewWithTag(tag) { return this.children.find(view => view.tag === tag) ?? null; },
+        equals(other) { return this === other; }};
+    const overlay = {getOverlayView: () => layerGroup, add(view) { view.setParent(layerGroup); layerGroup.children.push(view); },
+        remove(view) { layerGroup.children.splice(layerGroup.children.indexOf(view), 1); view.setParent(null); }};
+    const factory = nativeView();
+    factory.setTag('stock');
+    overlay.add(factory);
+    const host = {getDisplay: () => ({getName: () => 'Cluster-Media-Display'}), getOverlay: () => overlay,
+        getContext: () => ({getPackageName: () => 'com.qinggan.instrumentcard'}),
+        getResources: () => ({getDisplayMetrics: () => ({density: {value: 1}})}),
+        isAttachedToWindow: () => true, isShown: () => true, getWidth: () => 574, getHeight: () => 464,
+        equals(other) { return this === other; }, $dispose() {}};
+    const java = {
+        cast: value => value, retain: value => value,
+        use(name) {
+            if (name === 'android.os.Build$VERSION') return {SDK_INT: {value: 30}};
+            if (name === 'android.view.ViewGroup') return {class: {isInstance: () => true}};
+            if (name === 'android.view.ViewOverlay') return {getOverlayView: {overload: () => ({call: view => view.getOverlayView()})}};
+            if (name === 'android.widget.FrameLayout$LayoutParams') return {$new: () => ({leftMargin: {}, topMargin: {}})};
+            if (name === 'android.widget.ImageView$ScaleType') return {CENTER_CROP: {value: 'center'}};
+            if (name === 'android.text.TextUtils$TruncateAt') return {END: {value: 'end'}};
+            if (name === 'android.content.res.ColorStateList') return {valueOf: color => color};
+            if (name === 'java.lang.String') return {$new: value => value};
+            return {$new: nativeView};
+        }
+    };
+    const layer = createDriverMediaLayer(java);
+    const model = {source: 'Music', title: 'A track', artist: 'An artist', artworkRevision: 0, progress: null};
+    assert.equal(layer.update(host, model), true);
+    const drawn = layerGroup.children[1];
+    assert.deepEqual([drawn.width, drawn.height, drawn.focusable, drawn.clickable, drawn.alpha], [574, 464, false, false, 1]);
+    assert.equal(drawn.children[1].children[1].text, 'A track');
+    assert.deepEqual(calls.at(-1), [drawn, 0, 3500]);
+    layer.update(host, {...model, title: 'Another track'});
+    assert.equal(layerGroup.children.length, 2);
+    layer.clear(host);
+    assert.deepEqual(layerGroup.children, [factory]);
+    assert.equal(drawn.alpha, 0);
 });
 
 test('a track with a duration moves on while it plays; a station has no progress', () => {

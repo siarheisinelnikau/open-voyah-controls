@@ -188,7 +188,7 @@ public final class FridaBridge {
             if (state.clusterCardApps) {
                 JSONArray sources = new JSONArray();
                 for (String[] app : SettingsStore.MEDIA_CARD_APPS) sources.put(new JSONObject().put("package", app[0]).put("service", app[1]));
-                root.put("clusterCard", new JSONObject().put("sources", sources));
+                root.put("clusterCard", new JSONObject().put("sources", sources).put("driverLayout", state.driverMediaLayout));
             }
             return root
                 .put("steeringEnabled", state.enabled).put("steering", hookActions(state.steeringActions))

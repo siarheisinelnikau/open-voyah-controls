@@ -1,0 +1,5 @@
+<resources>
+    <string name="driver_media_heading">Левая зона приборки водителя</string>
+    <string name="driver_media_description">Показывает текущий трек или станцию в левой медиазоне перед водителем на совместимой приборке.</string>
+    <string name="driver_media_layout">Крупный вид плеера</string>
+</resources>
