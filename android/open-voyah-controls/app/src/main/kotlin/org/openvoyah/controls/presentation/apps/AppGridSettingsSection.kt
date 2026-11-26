@@ -56,6 +56,7 @@ import org.openvoyah.controls.domain.apps.FavoritesBackBehavior
 import org.openvoyah.controls.platform.apps.AppsCatalog
 import org.openvoyah.controls.platform.apps.InstalledAppPermissions
 import org.openvoyah.controls.platform.apps.LocalApp
+import org.openvoyah.controls.presentation.display.PassengerWorkspaceSettingsEntry
 import org.openvoyah.controls.presentation.theme.CockpitAlertDialog
 import org.openvoyah.controls.presentation.theme.CockpitChoice
 import org.openvoyah.controls.presentation.theme.CockpitFeedback
@@ -252,6 +253,7 @@ internal fun AppGridSettingsSection(part: AppGridPart) {
             }
             DesktopWallpaperSettings(extraDesktops = desktops?.enabled == true, desktopName = desktopLabel)
             DesktopLayoutsSettings(editable)
+            PassengerWorkspaceSettingsEntry()
             if (failure != null) CockpitFeedback(text(failure), error = true)
         }
         AppGridPart.CARDS -> CockpitSection(text(R.string.settings_cards_heading), CockpitIcon.APPS) {

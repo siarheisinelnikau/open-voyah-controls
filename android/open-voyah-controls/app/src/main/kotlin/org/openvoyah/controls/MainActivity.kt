@@ -48,6 +48,7 @@ import org.openvoyah.controls.domain.settings.LauncherEntry
 import org.openvoyah.controls.platform.apps.AppsPlatform
 import org.openvoyah.controls.platform.apps.LauncherShortcuts
 import org.openvoyah.controls.platform.audio.limitLauncherMediaVolume
+import org.openvoyah.controls.platform.display.openPassengerWorkspaceOnStartup
 import org.openvoyah.controls.platform.display.useControlsDensity
 import org.openvoyah.controls.platform.ui.RoutinePlayback
 import org.openvoyah.controls.platform.ui.RoutineActionLaunch
@@ -445,6 +446,7 @@ class MainActivity : ComponentActivity() {
         dispatchVehicleRuleIfReady()
         dispatchRoutineActionIfReady()
         startLauncherWorkIfReady()
+        openPassengerWorkspaceOnStartup()
     }
 
     override fun onPause() {

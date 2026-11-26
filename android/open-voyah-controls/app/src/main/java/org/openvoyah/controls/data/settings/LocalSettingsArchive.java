@@ -28,6 +28,7 @@ import org.openvoyah.controls.data.display.AppPairPreferences;
 import org.openvoyah.controls.data.display.AppWindowPreferences;
 import org.openvoyah.controls.data.display.DisplayPreferences;
 import org.openvoyah.controls.data.display.DisplayPreviewPreferences;
+import org.openvoyah.controls.data.display.PassengerWorkspacePreferences;
 import org.openvoyah.controls.data.dock.QuickActionPreferences;
 import org.openvoyah.controls.data.routines.RoutinePreferences;
 import org.openvoyah.controls.data.rules.ConditionalRulesPreferences;
@@ -58,7 +59,8 @@ public final class LocalSettingsArchive {
         QuickActionPreferences.STORE, RoutinePreferences.STORE, SeatMemoryPreferences.STORE, DesktopLayoutsPreferences.STORE,
         HeadlightMonitoringPreferences.STORE, LocalVehicleAutomationPreferences.STORE,
         LocalSeasonalClimatePreferences.STORE, ConditionalRulesPreferences.STORE, AppIconPreferences.STORE,
-        ActionPermissions.STORE, AppPairPreferences.STORE, PlaybackComfortPreferences.STORE, AdaptiveBrightnessPreferences.STORE
+        ActionPermissions.STORE, AppPairPreferences.STORE, PlaybackComfortPreferences.STORE,
+        AdaptiveBrightnessPreferences.STORE, PassengerWorkspacePreferences.STORE
     };
     private final Context context;
     private final SettingsStore buttons;
@@ -67,6 +69,7 @@ public final class LocalSettingsArchive {
     private final DisplayPreferences display;
     private final AppWindowPreferences windows;
     private final AppPairPreferences pairs;
+    private final PassengerWorkspacePreferences passengerWorkspace;
     private final UpdatePreferences updates;
     private final AppGridPreferences grid;
     private final DesktopWallpaperPreferences wallpapers;
@@ -96,6 +99,7 @@ public final class LocalSettingsArchive {
         display = new DisplayPreferences(context);
         windows = new AppWindowPreferences(context);
         pairs = new AppPairPreferences(context);
+        passengerWorkspace = new PassengerWorkspacePreferences(context);
         updates = new UpdatePreferences(context);
         grid = new AppGridPreferences(context);
         wallpapers = new DesktopWallpaperPreferences(context);
@@ -139,6 +143,7 @@ public final class LocalSettingsArchive {
                 .put("display", new JSONObject().put("density", display.density()).put("clusterMedia", false))
                 .put("appWindows", windows.exportProfiles())
                 .put("appPairs", pairs.exportSettings())
+                .put("passengerWorkspace", passengerWorkspace.exportSettings())
                 .put("appDisplayDpi", windows.exportDefaults())
                 .put("updates", new JSONObject().put("checkOnStartup", updates.checkOnStartup()))
                 .put("appGrid", desktop.getJSONObject("appGrid"))
@@ -168,7 +173,8 @@ public final class LocalSettingsArchive {
             JSONObject desktopLayouts, JSONObject appearance, JSONObject displayPreview, JSONObject serviceReminder,
             JSONObject quickActions, JSONObject routines, JSONObject seatMemory, JSONObject headlightMonitoring,
             JSONObject vehicleAutomation, JSONObject seasonalClimate, JSONObject conditionalRules, JSONObject appIcons,
-            JSONObject actionPermissions, JSONObject playbackComfort, JSONObject adaptiveControlsBrightness) { }
+            JSONObject actionPermissions, JSONObject playbackComfort, JSONObject adaptiveControlsBrightness,
+            JSONObject passengerWorkspace) { }
 
     public JSONObject captureDesktopLayout() throws Exception {
         synchronized (ARCHIVE_LOCK) {
@@ -343,10 +349,12 @@ public final class LocalSettingsArchive {
             ? PlaybackComfortPreferences.validateSettings(root.getJSONObject("playbackComfort")) : null;
         JSONObject adaptiveControlsBrightness = root.has("adaptiveControlsBrightness")
             ? AdaptiveBrightnessPreferences.validateSettings(root.getJSONObject("adaptiveControlsBrightness")) : null;
+        JSONObject passengerWorkspace = root.has("passengerWorkspace")
+            ? PassengerWorkspacePreferences.validateSettings(root.getJSONObject("passengerWorkspace")) : null;
         var optional = new OptionalPreferences(windowProfiles, appDisplayDefaults, appPairs, checkOnStartup,
             appGrid, desktopWallpapers, desktopInfoCards, desktopLayouts, appearance, displayPreview, serviceReminder,
             quickActions, routines, seatMemory, headlightMonitoring, vehicleAutomation, seasonalClimate, conditionalRules,
-            appIcons, actionPermissions, playbackComfort, adaptiveControlsBrightness);
+            appIcons, actionPermissions, playbackComfort, adaptiveControlsBrightness, passengerWorkspace);
         return new Restore(SettingsStore.encode(state), voiceJson, localizationJson, language,
             (int) density, optional, state.bindings.size(), true);
     }
@@ -369,6 +377,7 @@ public final class LocalSettingsArchive {
         if (optional.windowProfiles() != null || optional.appDisplayDefaults() != null)
             snapshot(previous, "app_windows");
         if (optional.appPairs() != null) snapshot(previous, AppPairPreferences.STORE);
+        if (optional.passengerWorkspace() != null) snapshot(previous, PassengerWorkspacePreferences.STORE);
         if (optional.checkOnStartup() != null) snapshot(previous, "updates");
         if (optional.appGrid() != null) snapshot(previous, AppGridPreferences.STORE);
         if (optional.desktopWallpapers() != null) snapshot(previous, DesktopWallpaperPreferences.STORE);
@@ -397,6 +406,7 @@ public final class LocalSettingsArchive {
             if (optional.windowProfiles() != null) windows.restoreProfiles(optional.windowProfiles());
             if (optional.appDisplayDefaults() != null) windows.saveDefaults(optional.appDisplayDefaults());
             if (optional.appPairs() != null) pairs.restoreSettings(optional.appPairs());
+            if (optional.passengerWorkspace() != null) passengerWorkspace.restoreSettings(optional.passengerWorkspace());
             if (optional.checkOnStartup() != null) updates.checkOnStartup(optional.checkOnStartup());
             if (optional.appGrid() != null) grid.restoreSettings(optional.appGrid());
             if (optional.desktopWallpapers() != null) wallpapers.restoreSettings(optional.desktopWallpapers());

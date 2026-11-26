@@ -1,0 +1,17 @@
+<resources>
+    <string name="passenger_workspace_title">Passenger workspace</string>
+    <string name="passenger_workspace_settings">Workspace settings</string>
+    <string name="passenger_workspace_app_slot">App slot %1$d</string>
+    <string name="passenger_workspace_dock_slot">Dock slot %1$d</string>
+    <string name="passenger_workspace_empty_slot">Leave this slot empty</string>
+    <string name="passenger_workspace_compact">Compact tiles</string>
+    <string name="passenger_workspace_clock">Show clock</string>
+    <string name="passenger_workspace_date">Show date</string>
+    <string name="passenger_workspace_startup">Open on Controls startup</string>
+    <string name="passenger_workspace_missing_target">%1$s (app missing)</string>
+    <string name="passenger_workspace_app_missing">This app is no longer available to launch.</string>
+    <string name="passenger_workspace_launch_failed">Android could not open this app on the passenger display.</string>
+    <string name="passenger_workspace_unavailable">The passenger display is unavailable. Check the display, firmware and window service.</string>
+    <string name="passenger_workspace_read_failed">Could not load the passenger workspace.</string>
+    <string name="passenger_workspace_save_failed">Could not save the passenger workspace. Try again.</string>
+</resources>

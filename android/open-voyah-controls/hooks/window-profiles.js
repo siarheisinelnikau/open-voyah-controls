@@ -122,7 +122,7 @@ export function readWindowRequest(raw, now) {
         !Number.isInteger(value.user) || value.user < 0 || !Number.isInteger(value.expires) ||
         value.expires < now || value.expires > now + 10000) return null;
     // Releasing the service, asking for the state of the reserved strip and bringing moved windows back name no app.
-    if (value.operation === 'release' || value.operation === 'insets' || value.operation === 'recall') {
+    if (['release', 'insets', 'recall', 'passenger-desktop'].includes(value.operation)) {
         return {id:value.id, user:value.user, operation:value.operation};
     }
     const component = componentKey(value.component);

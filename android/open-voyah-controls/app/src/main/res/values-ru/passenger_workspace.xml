@@ -1,0 +1,17 @@
+<resources>
+    <string name="passenger_workspace_title">Рабочий стол пассажира</string>
+    <string name="passenger_workspace_settings">Настройки рабочего стола</string>
+    <string name="passenger_workspace_app_slot">Место для приложения %1$d</string>
+    <string name="passenger_workspace_dock_slot">Место в доке %1$d</string>
+    <string name="passenger_workspace_empty_slot">Оставить место пустым</string>
+    <string name="passenger_workspace_compact">Компактные плитки</string>
+    <string name="passenger_workspace_clock">Показывать часы</string>
+    <string name="passenger_workspace_date">Показывать дату</string>
+    <string name="passenger_workspace_startup">Открывать при запуске Controls</string>
+    <string name="passenger_workspace_missing_target">%1$s (приложение недоступно)</string>
+    <string name="passenger_workspace_app_missing">Это приложение больше недоступно для запуска.</string>
+    <string name="passenger_workspace_launch_failed">Android не смог открыть это приложение на экране пассажира.</string>
+    <string name="passenger_workspace_unavailable">Экран пассажира недоступен. Проверьте экран, прошивку и оконный сервис.</string>
+    <string name="passenger_workspace_read_failed">Не удалось загрузить рабочий стол пассажира.</string>
+    <string name="passenger_workspace_save_failed">Не удалось сохранить рабочий стол пассажира. Попробуйте ещё раз.</string>
+</resources>

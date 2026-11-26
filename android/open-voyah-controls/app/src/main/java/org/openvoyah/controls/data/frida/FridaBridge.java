@@ -1050,6 +1050,24 @@ public final class FridaBridge {
         return start < 0 ? "" : reply.substring(start + prefix.length()).trim();
     }
 
+    /** Returns the measured passenger status-bar inset, or -1 when the designated built-in display is unavailable. */
+    public int passengerDesktopTopInset() throws IOException {
+        synchronized (IO_LOCK) {
+            if (Build.VERSION.SDK_INT != 30 || !runtimeConfigured() || !windowHookEnabled(context) ||
+                !windowHookSupported() || !displayMoveReviewed()) return -1;
+            requireRoot();
+            if (!channelReady("/window", "^OVC_WINDOW_READY protocol=3 .*passengerDesk=1( |$)")) return -1;
+            try {
+                JSONObject receipt = new JSONObject(windowRequest("passenger-desktop", ""));
+                if (!"applied".equals(receipt.optString("status"))) return -1;
+                int top = receipt.getInt("top");
+                return top >= 0 && top <= 1024 ? top : -1;
+            } catch (JSONException invalid) {
+                return -1;
+            }
+        }
+    }
+
     /** Asks the window agent to bring every window it moved to another screen back to the central display. */
     public boolean recallMovedWindows() throws IOException {
         synchronized (IO_LOCK) {

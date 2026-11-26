@@ -476,6 +476,17 @@ export function systemTasks(Java, sdk, panelWidth) {
         });
     }
 
+    function passengerDesktopInset(user) {
+        return api.lock(() => {
+            if (sdk !== 30 || api.user() !== user || api.isLocked() || screenOf(1) !== SECONDARY_DISPLAY) {
+                throw error('no_display');
+            }
+            const top = api.topBar(1);
+            if (!Number.isInteger(top) || top < 0 || top > 1024) throw error('no_display');
+            return top;
+        });
+    }
+
     function release(user) {
         return api.lock(() => {
             if (api.user() !== user || api.isLocked()) throw error('unsupported_task');
@@ -502,6 +513,7 @@ export function systemTasks(Java, sdk, panelWidth) {
 
     return {
         Rect, framework, boundsFor, apply, applyPair, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf, prepareMove, placeBelowBar,
+        passengerDesktopInset,
         placedMode,
         freeformAvailable: () => api.supportsFreeform() && !api.isLocked(),
         /** After a start of home: hides the tasks that home, now on top of display 0, covers. */

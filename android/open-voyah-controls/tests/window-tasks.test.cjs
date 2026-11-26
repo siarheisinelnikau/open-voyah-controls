@@ -54,7 +54,7 @@ function harness(sdk, options = {}) {
         find: id => id === 45 ? task : null,
         display: () => ({getConfiguration: () => ({windowConfiguration:field({getBounds:()=>rect(...displayBounds)}),
             densityDpi:field(density)})}),
-        androidDisplay: id => id === 2 ? {
+        androidDisplay: id => id === (options.secondaryId ?? 2) ? {
             getType: () => options.type ?? 1,
             getFlags: () => options.flags ?? 0,
             getOwnerUid: () => options.owner ?? 0,
@@ -835,7 +835,7 @@ test('a complete installation announces the request protocol after both hooks ar
         const h = harness(sdk, {displayId:0});
         const service = livePolicy(sdk, h);
         assert.deepEqual(service.logs, ['OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1 systemInsets=1 displayMove='
-            + (sdk === 30 ? '1 pairs=1' : '0')]);
+            + (sdk === 30 ? '1 pairs=1 passengerDesk=1' : '0')]);
         assert.equal(service.hooks.length, 2);
         assert.ok(service.hooks.every(hook=>typeof hook.implementation === 'function'));
     }
@@ -1022,7 +1022,7 @@ test('the app can bring moved windows back, and turning the service off returns 
 test('without the Android 11 members the window service still starts and says the swipe is unavailable', () => {
     const service = livePolicy(30, harness(30, {displayId:0}), {movesMissing:true});
     assert.deepEqual(service.logs, ['OVC_WINDOW_ERROR stage=display_move kind=NoSuchMethodError',
-        'OVC_WINDOW_READY protocol=3 sdk=30 displayDpi=1 systemInsets=1 displayMove=0 pairs=1']);
+        'OVC_WINDOW_READY protocol=3 sdk=30 displayDpi=1 systemInsets=1 displayMove=0 pairs=1 passengerDesk=1']);
     assert.deepEqual(service.request('recall'), {status:'rollback_failed'});
     const android9 = livePolicy(28, harness(28, {displayId:0}));
     assert.equal(android9.moves.dependencies, null);
@@ -1037,6 +1037,21 @@ test('a window leaving the central display keeps its density and drops the sizes
     assert.equal(h.mode(), 1);
     assert.equal(h.density(), 200, 'the app keeps its scale on the other screen');
     assert.equal(h.pinned(), null);
+});
+
+test('the passenger workspace only accepts the designated public built-in display and returns the live bar height', () => {
+    const passenger = harness(30, {secondaryId:1, topBar:50});
+    const service = livePolicy(30, passenger);
+    assert.deepEqual(service.request('passenger-desktop'), {status:'applied', top:50});
+    assert.equal(passenger.placements(), 0);
+    assert.equal(passenger.writes(), 0);
+    for (const [sdk, options] of [[30, {secondaryId:2}], [30, {flags:4}], [30, {owner:1000}], [30, {type:5}], [28, {}]]) {
+        const display = harness(sdk, {secondaryId:1, topBar:50, ...options});
+        assert.deepEqual(livePolicy(sdk, display).request('passenger-desktop'), {status:'no_display'});
+        assert.equal(display.placements(), 0);
+    }
+    assert.equal(service.request('release').status, 'applied');
+    assert.deepEqual(service.request('passenger-desktop'), {status:'no_profile'});
 });
 
 test('on the passenger display a moved window goes below the clock bar at its own density', () => {

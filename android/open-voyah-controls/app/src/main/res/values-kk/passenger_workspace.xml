@@ -1,0 +1,17 @@
+<resources>
+    <string name="passenger_workspace_title">Жолаушының жұмыс үстелі</string>
+    <string name="passenger_workspace_settings">Жұмыс үстелінің параметрлері</string>
+    <string name="passenger_workspace_app_slot">Қолданба орны %1$d</string>
+    <string name="passenger_workspace_dock_slot">Док орны %1$d</string>
+    <string name="passenger_workspace_empty_slot">Орынды бос қалдыру</string>
+    <string name="passenger_workspace_compact">Шағын тақталар</string>
+    <string name="passenger_workspace_clock">Сағатты көрсету</string>
+    <string name="passenger_workspace_date">Күнді көрсету</string>
+    <string name="passenger_workspace_startup">Controls іске қосылғанда ашу</string>
+    <string name="passenger_workspace_missing_target">%1$s (қолданба қолжетімсіз)</string>
+    <string name="passenger_workspace_app_missing">Бұл қолданбаны іске қосу енді мүмкін емес.</string>
+    <string name="passenger_workspace_launch_failed">Android бұл қолданбаны жолаушы экранында аша алмады.</string>
+    <string name="passenger_workspace_unavailable">Жолаушы экраны қолжетімсіз. Экранды, микробағдарламаны және терезе қызметін тексеріңіз.</string>
+    <string name="passenger_workspace_read_failed">Жолаушының жұмыс үстелі жүктелмеді.</string>
+    <string name="passenger_workspace_save_failed">Жолаушының жұмыс үстелі сақталмады. Қайталап көріңіз.</string>
+</resources>
