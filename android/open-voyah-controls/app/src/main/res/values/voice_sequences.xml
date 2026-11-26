@@ -1,0 +1,16 @@
+<resources>
+    <string name="routine_voice_phrase">Voice phrase (optional)</string>
+    <string name="routine_voice_hint">Say this phrase with Controls listening. Choose a phrase that differs from built-in commands.</string>
+    <string name="routine_voice_summary">Say “%1$s”</string>
+    <string name="routine_voice_invalid">Choose a phrase of up to eight words that is different from existing commands and routines.</string>
+    <string name="routine_voice_requested">Asked Controls to run the routine.</string>
+    <string name="routine_voice_unavailable">The routine has changed or cannot run now.</string>
+    <string name="voice_sequence_sending">Sending commands…</string>
+    <string name="voice_sequence_finished">Command results</string>
+    <string name="voice_sequence_duplicate">Duplicate command skipped.</string>
+    <string name="voice_sequence_single_only">Available as a single command only.</string>
+    <string name="voice_sequence_last_only">Available as the final command only.</string>
+    <string name="voice_sequence_stopped">Skipped after the sequence stopped.</string>
+    <string name="voice_sequence_limit">A phrase can contain up to three commands. Extra commands were skipped.</string>
+    <string name="voice_sequence_timeout">Command delivery was not confirmed within the time limit. The sequence stopped.</string>
+</resources>

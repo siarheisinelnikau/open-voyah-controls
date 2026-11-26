@@ -14,6 +14,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
+import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.core.voice.TranscriptMatcher
 import org.openvoyah.controls.data.voice.BpeVocab
 import org.openvoyah.controls.domain.voice.SpeechEvent
@@ -34,6 +35,12 @@ internal sealed interface LoadedSpeechModel
 
 internal class VoskSpeechModel(val model: Model) : LoadedSpeechModel
 
+internal class ExactVoiceTranscripts(
+    val accepts: (String) -> Boolean = { false },
+    val suppressFallback: (String) -> Boolean = { false },
+    val exactOnlyPhrases: Set<String> = emptySet(),
+)
+
 /**
  * The engine-specific half of a capture. The microphone loop is shared; a decoder decides when the phrase ended and
  * turns the captured audio into the final event after the microphone is released.
@@ -52,7 +59,8 @@ internal interface SpeechDecoder : AutoCloseable {
     fun speaking(): Boolean
 
     /** Runs after the microphone is released. [natural] allows online interpretation of a completed phrase. */
-    fun finish(captured: Captured, replay: ShortArray, natural: Boolean): SpeechEvent
+    fun finish(captured: Captured, replay: ShortArray, natural: Boolean,
+        exact: ExactVoiceTranscripts = ExactVoiceTranscripts()): SpeechEvent
 }
 
 /** Vosk with the command grammar; a phrase that is not a confident command is replayed once without the grammar. */
@@ -79,22 +87,24 @@ internal class VoskDecoder(private val model: Model, private val recognizer: Rec
         return if (partial.isBlank()) Captured(noSpeech()) else Captured(unrecognized(), recorded)
     }
 
-    override fun finish(captured: Captured, replay: ShortArray, natural: Boolean): SpeechEvent {
+    override fun finish(captured: Captured, replay: ShortArray, natural: Boolean, exact: ExactVoiceTranscripts): SpeechEvent {
         if (captured.replaySamples <= 0) return captured.event
-        return transcribe(replay, captured.replaySamples, natural && captured.completed) ?: captured.event
+        return transcribe(replay, captured.replaySamples, captured.completed, natural, exact) ?: captured.event
     }
 
     /**
      * One pass without the grammar over the captured audio. Only a completed, confident and short phrase may go on to
      * online interpretation; anything else heard is shown and never acted on.
      */
-    private fun transcribe(samples: ShortArray, count: Int, natural: Boolean): SpeechEvent? =
+    private fun transcribe(samples: ShortArray, count: Int, complete: Boolean, natural: Boolean, exact: ExactVoiceTranscripts): SpeechEvent? =
         Recognizer(model, SpeechModels.SAMPLE_RATE.toFloat()).use { free ->
             free.setWords(true)
             val result = if (free.acceptWaveForm(samples, count)) free.result else free.finalResult
             val heard = heardText(result) ?: return@use null
             val text = (decodeEndpoint(result) as? SpeechEvent.Recognized)?.text
-            if (natural && text != null && text.length <= 160 && text.count { it == ' ' } <= 13) SpeechEvent.Natural(text)
+            if (complete && text != null && exact.accepts(text)) SpeechEvent.Recognized(text)
+            else if (complete && natural && text != null && !exact.suppressFallback(text) &&
+                text.length <= 160 && text.count { it == ' ' } <= 13) SpeechEvent.Natural(text)
             else SpeechEvent.Unmatched(heard)
         }
 
@@ -210,7 +220,7 @@ internal class ZipformerDecoder(private val model: ZipformerSpeechModel, grammar
         return Captured(unrecognized(), end, completed, (start - PAD).coerceAtLeast(0))
     }
 
-    override fun finish(captured: Captured, replay: ShortArray, natural: Boolean): SpeechEvent {
+    override fun finish(captured: Captured, replay: ShortArray, natural: Boolean, exact: ExactVoiceTranscripts): SpeechEvent {
         if (captured.replaySamples <= captured.replayStart) return captured.event
         val audio = FloatArray(captured.replaySamples - captured.replayStart) { replay[captured.replayStart + it] / 32768f }
         val stream = model.recognizer.createStream(hotwords)
@@ -222,10 +232,14 @@ internal class ZipformerDecoder(private val model: ZipformerSpeechModel, grammar
             stream.release()
         }
         if (text.isBlank()) return noSpeech()
-        val phrase = if (captured.completed) matcher.match(text) else null
+        if (captured.completed && exact.accepts(text)) return SpeechEvent.Recognized(text)
+        val suppress = exact.suppressFallback(text)
+        val phrase = if (captured.completed && !suppress) matcher.match(text)?.takeUnless {
+            VoiceCatalog.normalize(it) in exact.exactOnlyPhrases
+        } else null
         return when {
             phrase != null -> SpeechEvent.Recognized(phrase)
-            natural && captured.completed && text.length <= 160 && text.count { it == ' ' } <= 13 -> SpeechEvent.Natural(text)
+            !suppress && natural && captured.completed && text.length <= 160 && text.count { it == ' ' } <= 13 -> SpeechEvent.Natural(text)
             else -> SpeechEvent.Unmatched(text.take(MAX_HEARD_CHARACTERS).trim())
         }
     }

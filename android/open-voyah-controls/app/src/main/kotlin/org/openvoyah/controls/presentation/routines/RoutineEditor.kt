@@ -53,6 +53,7 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
         state.loadFailed -> R.string.routines_load_failed
         state.form.error != null -> state.form.error
         draft.name.isNotEmpty() && !draft.validName -> R.string.routines_invalid_name
+        !draft.validVoicePhrase -> R.string.routine_voice_invalid
         !draft.hasAction -> R.string.routines_no_action
         else -> null
     }
@@ -110,6 +111,12 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
                 dialog = EditorDialog.APP
             }
         }, minimumWidth = 570.dp)
+        CockpitTextField(draft.voicePhrase, model::voicePhrase, UiText.get(R.string.routine_voice_phrase),
+            Modifier.fillMaxWidth(), enabled = enabled, guideId = R.string.routine_voice_phrase,
+            error = !draft.validVoicePhrase || state.form.error == R.string.routine_voice_invalid,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }))
+        Text(UiText.get(R.string.routine_voice_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
         problem?.let { CockpitFeedback(UiText.get(it), error = true) }
         CockpitColumns(first = {
             CockpitSwitch(R.string.routines_pin, draft.pinned, enabled, model::pin)
@@ -120,7 +127,7 @@ internal fun RoutineEditor(draft: RoutineDraft, state: RoutinesUiState, model: R
                 if (draft.original != null) CockpitAction(UiText.get(R.string.routines_delete),
                     { focus.clearFocus(); dialog = EditorDialog.DELETE }, enabled = enabled, destructive = true)
                 CockpitAction(UiText.get(R.string.routines_save), model::save,
-                    enabled = enabled && draft.validName && draft.hasAction, primary = true)
+                    enabled = enabled && draft.validName && draft.hasAction && draft.validVoicePhrase, primary = true)
             }
         }, minimumWidth = 570.dp)
     }

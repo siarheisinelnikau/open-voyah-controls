@@ -171,6 +171,7 @@ internal fun QuickVoicePopup(
     showRecognizedPhrase: Boolean,
     recoverMicrophone: (() -> Unit)? = null,
     listeningMillis: Long = 0L,
+    cancelSequence: (() -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val motion = LocalCockpitMotion.current
@@ -199,9 +200,9 @@ internal fun QuickVoicePopup(
         colorSpec, label = "voice microphone glyph",
     )
     val rise = with(LocalDensity.current) { 7.dp.roundToPx() }
-    // One frame for every phase: the popup does not grow or shrink while it listens, runs and answers.
+    // Single commands keep the existing compact frame. A sequence reserves room for its individual results.
     Surface(
-        Modifier.fillMaxWidth().height(QUICK_VOICE_HEIGHT_DP.dp),
+        Modifier.fillMaxWidth().height((if (state.steps.isEmpty()) QUICK_VOICE_HEIGHT_DP else 228).dp),
         shape = MaterialTheme.shapes.large,
         color = colors.surface,
         border = BorderStroke(1.dp, border),
@@ -244,6 +245,17 @@ internal fun QuickVoicePopup(
                         else -> MaterialTheme.typography.headlineSmall
                     }
                     Text(current.status, style = statusStyle, color = statusColor, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    current.steps.forEachIndexed { index, step ->
+                        val result = if (showRecognizedPhrase && step.phrase.isNotBlank()) {
+                            "${step.phrase} · ${step.result}"
+                        } else step.result
+                        Text(if (step.phrase.isEmpty()) result else "${index + 1}. $result",
+                            color = if (step.failed) colors.error else colors.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    if (current.steps.isNotEmpty() && current.phase == VoiceViewModel.Phase.EXECUTING) {
+                        cancelSequence?.let { CockpitTextAction(label(R.string.ui_89), it) }
+                    }
                     if (current.phase == VoiceViewModel.Phase.LISTENING && listeningMillis > 0) {
                         ListeningBar(listeningMillis, Modifier.padding(vertical = 4.dp).fillMaxWidth())
                     }

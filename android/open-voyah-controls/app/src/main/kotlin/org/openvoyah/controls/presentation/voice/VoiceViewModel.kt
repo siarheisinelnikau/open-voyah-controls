@@ -7,12 +7,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.FeedbackStyle
 import org.openvoyah.controls.core.voice.VoiceCommandUseCase
@@ -23,6 +26,12 @@ import org.openvoyah.controls.domain.voice.VoiceFeedback
 import org.openvoyah.controls.domain.voice.VoiceInput
 import org.openvoyah.controls.domain.voice.VoiceOutcome
 import org.openvoyah.controls.domain.voice.VoiceResult
+import org.openvoyah.controls.domain.voice.SequenceCommandPolicy
+import org.openvoyah.controls.domain.voice.VoiceSequence
+import org.openvoyah.controls.domain.voice.sequenceCommandPolicy
+import org.openvoyah.controls.domain.voice.sequenceIsUncertain
+import org.openvoyah.controls.core.voice.ClimatePhrases
+import org.openvoyah.controls.core.voice.VolumePhrases
 
 /** The button opens one foreground capture. Only its first final result can reach an action. */
 class VoiceViewModel(
@@ -35,6 +44,9 @@ class VoiceViewModel(
     dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
     private val natural: (suspend (String) -> VoiceResult)? = null,
     private val feedbackStyle: FeedbackStyle = FeedbackStyle.READBACK,
+    private val sequenceLabels: SequenceLabels? = null,
+    private val custom: Map<String, suspend () -> VoiceResult> = emptyMap(),
+    private val executeSequenceStep: suspend (Request) -> VoiceResult = execute,
 ) : AutoCloseable {
     /** [unknown] is shown when nothing usable was heard, [noMatch] beside a heard phrase that names no command. */
     data class Labels(
@@ -43,6 +55,12 @@ class VoiceViewModel(
         val interpreting: String = executing,
         val noMatch: String = unknown,
     )
+    data class SequenceLabels(
+        val sending: String, val finished: String, val duplicate: String, val singleOnly: String,
+        val lastOnly: String, val stopped: String, val tooMany: String, val timedOut: String,
+    )
+
+    data class SequenceLine(val phrase: String, val result: String, val failed: Boolean = false)
 
     enum class Phase { PREPARING, LISTENING, EXECUTING, DONE }
     data class State(
@@ -50,6 +68,7 @@ class VoiceViewModel(
         val status: String,
         val phrase: String? = null,
         val failed: Boolean = false,
+        val steps: List<SequenceLine> = emptyList(),
     )
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -58,13 +77,15 @@ class VoiceViewModel(
     val state = mutableState.asStateFlow()
     val feedback = pendingFeedback.receiveAsFlow()
     private var started = false
+    private val sequence = VoiceSequence(language) { catalog.match(it) != null || it in custom }
 
     fun listen() {
         if (started) return
         started = true
         scope.launch {
             try {
-                val final = input.listen(language, catalog.grammar()).onEach { event ->
+                val grammar = catalog.grammar() + custom.keys + (sequenceLabels?.let { sequence.separators } ?: emptySet())
+                val final = input.listen(language, grammar).onEach { event ->
                     if (event is SpeechEvent.Listening) mutableState.value = State(Phase.LISTENING, event.text)
                 }.first { it !is SpeechEvent.Listening }
                 when (final) {
@@ -86,7 +107,16 @@ class VoiceViewModel(
         val phrase = VoiceCatalog.normalize(text)
         val command = catalog.match(phrase)
         if (command == null) {
-            complete(noMatch(), phrase)
+            val launch = custom[phrase]
+            val parts = sequenceLabels?.let { sequence.split(phrase) }
+            when {
+                launch != null -> {
+                    begin(phrase)
+                    complete(launch(), phrase)
+                }
+                parts != null -> resolveSequence(phrase, parts, requireNotNull(sequenceLabels))
+                else -> complete(noMatch(), phrase)
+            }
             return
         }
         val request = commands.prepare(command, phrase)
@@ -94,9 +124,76 @@ class VoiceViewModel(
             complete(VoiceResult(labels.weatherOffline, failed = true, outcome = VoiceOutcome.WEATHER_OFFLINE), phrase)
             return
         }
+        begin(phrase)
+        complete(execute(request), phrase)
+    }
+
+    private fun begin(phrase: String) {
         mutableState.value = State(Phase.EXECUTING, labels.executing, phrase)
         if (feedbackStyle == FeedbackStyle.READBACK) pendingFeedback.trySend(VoiceFeedback.Readback(phrase))
-        complete(execute(request), phrase)
+    }
+
+    private suspend fun resolveSequence(phrase: String, parts: List<String>, messages: SequenceLabels) {
+        begin(phrase)
+        val steps = parts.take(VoiceSequence.LIMIT)
+        val rows = mutableListOf<SequenceLine>()
+        val attempted = mutableSetOf<String>()
+        var stopped = false
+        var lastSuccess: VoiceOutcome? = null
+        var uncertain: VoiceOutcome? = null
+        val completed = withTimeoutOrNull(20_000) {
+            steps.forEachIndexed { index, segment ->
+                currentCoroutineContext().ensureActive()
+                mutableState.value = State(Phase.EXECUTING, messages.sending, phrase,
+                    steps = rows + SequenceLine(segment, messages.sending))
+                val command = catalog.match(segment)
+                val launch = custom[segment]
+                val policy = command?.id()?.let(::sequenceCommandPolicy) ?: SequenceCommandPolicy.LAST_ONLY
+                val last = index == parts.lastIndex
+                val prepared = command?.id()?.let { id -> when {
+                    ClimatePhrases.supports(id) -> "$id:${ClimatePhrases.value(id, segment)}"
+                    id == VolumePhrases.COMMAND_ID -> "$id:${VolumePhrases.percentage(segment)}"
+                    else -> id
+                } } ?: segment
+                val result = when {
+                    stopped -> VoiceResult(messages.stopped, failed = true)
+                    command == null && launch == null -> noMatch()
+                    policy == SequenceCommandPolicy.SINGLE_ONLY -> VoiceResult(messages.singleOnly, failed = true)
+                    policy == SequenceCommandPolicy.LAST_ONLY && !last -> VoiceResult(messages.lastOnly, failed = true)
+                    !attempted.add(prepared) -> VoiceResult(messages.duplicate, failed = true)
+                    else -> {
+                        val response = try {
+                            if (command != null) executeSequenceStep(commands.prepare(command, segment))
+                            else checkNotNull(launch).invoke()
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            VoiceResult(messages.timedOut, failed = true)
+                        }
+                        if (response.outcome.sequenceIsUncertain() || response.outcome == VoiceOutcome.AUDIO_INTERRUPTED) {
+                            stopped = true
+                            uncertain = response.outcome
+                        }
+                        response
+                    }
+                }
+                rows += SequenceLine(segment, result.message, result.failed)
+                if (!result.failed) lastSuccess = result.outcome
+            }
+            true
+        } ?: false
+        if (!completed) {
+            val interruptedAt = rows.size
+            steps.drop(interruptedAt).forEachIndexed { index, segment ->
+                rows += SequenceLine(segment, if (index == 0) messages.timedOut else messages.stopped, failed = true)
+            }
+            uncertain = VoiceOutcome.VEHICLE_UNCONFIRMED
+        }
+        if (parts.size > VoiceSequence.LIMIT) rows += SequenceLine("", messages.tooMany, failed = true)
+        val outcome = uncertain ?: lastSuccess ?: VoiceOutcome.UNRECOGNIZED
+        if (feedbackStyle == FeedbackStyle.OUTCOME && outcome != VoiceOutcome.AUDIO_INTERRUPTED)
+            pendingFeedback.trySend(VoiceFeedback.Outcome(outcome))
+        mutableState.value = State(Phase.DONE, messages.finished, phrase, failed = rows.any { it.failed }, steps = rows.toList())
     }
 
     private suspend fun interpret(phrase: String) {

@@ -34,6 +34,7 @@ import org.openvoyah.controls.domain.routines.RoutineStartupSchedule
 import org.openvoyah.controls.domain.routines.RoutineStep
 import org.openvoyah.controls.domain.routines.RoutineTarget
 import org.openvoyah.controls.domain.routines.RoutineTimeWindow
+import org.openvoyah.controls.domain.routines.normalizeRoutinePhrase
 import org.openvoyah.controls.domain.settings.AppPalette
 import org.openvoyah.controls.platform.apps.LauncherShortcuts
 
@@ -48,9 +49,12 @@ internal data class RoutineDraft(
     val originallyPinned: Boolean = false,
     val pinned: Boolean = originallyPinned,
     val steps: List<RoutineStep> = emptyList(),
+    val originalVoicePhrase: String = "",
+    val voicePhrase: String = originalVoicePhrase,
 ) {
     val validName: Boolean get() = NamedRoutine.normalizeName(name) != null
     val hasAction: Boolean get() = RoutinePlan.hasAction(target, palette, installedApp, desktopLayoutId, steps)
+    val validVoicePhrase: Boolean get() = voicePhrase.isBlank() || normalizeRoutinePhrase(voicePhrase) != null
 }
 
 internal data class RoutineScheduleDraft(
@@ -91,6 +95,7 @@ internal class RoutinesViewModel(
     grid: Flow<Result<AppGridConfiguration>>,
     layouts: Flow<Result<List<DesktopLayoutPreset>>>,
     private val apps: LauncherShortcuts,
+    private val matchesExistingCommand: suspend (String) -> Boolean = { false },
 ) : ViewModel() {
     private val form = MutableStateFlow(RoutinesForm())
     val state = combine(store.observe(), grid, layouts.onStart<Result<List<DesktopLayoutPreset>>?> { emit(null) }, form) {
@@ -129,7 +134,8 @@ internal class RoutinesViewModel(
         form.value = RoutinesForm(draft = RoutineDraft(routine, routine.id, routine.name, routine.plan.target, routine.plan.palette,
             installedApp = routine.plan.installedApp,
             desktopLayoutId = routine.plan.desktopLayoutId,
-            originallyPinned = routine.id in library.pinnedIds, steps = routine.plan.steps))
+            originallyPinned = routine.id in library.pinnedIds, steps = routine.plan.steps,
+            originalVoicePhrase = library.voicePhrases[routine.id].orEmpty()))
     }
 
     fun closeEditor() {
@@ -142,6 +148,7 @@ internal class RoutinesViewModel(
     fun installedApp(component: String?) = changeDraft { copy(installedApp = component) }
     fun desktopLayout(id: String?) = changeDraft { copy(desktopLayoutId = id) }
     fun pin(pinned: Boolean) = changeDraft { copy(pinned = pinned) }
+    fun voicePhrase(phrase: String) = changeDraft { copy(voicePhrase = phrase) }
     fun addStep(step: RoutineStep) = changeDraft {
         if (steps.size >= RoutineStep.LIMIT) this else copy(steps = steps + step)
     }
@@ -158,9 +165,17 @@ internal class RoutinesViewModel(
 
     fun save() {
         val draft = form.value.draft ?: return
-        change { it.save(draft.original, draft.id, draft.name, draft.target, draft.palette,
-            pinChange = draft.pinned.takeIf { pinned -> pinned != draft.originallyPinned }, installedApp = draft.installedApp,
-            desktopLayoutId = draft.desktopLayoutId, steps = draft.steps) }
+        change(validate = {
+            val phrase = normalizeRoutinePhrase(draft.voicePhrase)
+            if (!draft.validVoicePhrase || phrase != null && phrase != draft.originalVoicePhrase && matchesExistingCommand(phrase))
+                throw RoutineEditException(RoutineProblem.VOICE_PHRASE)
+        }) { library ->
+            if (draft.original != null && library.voicePhrases[draft.id].orEmpty() != draft.originalVoicePhrase)
+                throw RoutineEditException(RoutineProblem.CHANGED)
+            library.save(draft.original, draft.id, draft.name, draft.target, draft.palette,
+                pinChange = draft.pinned.takeIf { pinned -> pinned != draft.originallyPinned }, installedApp = draft.installedApp,
+                desktopLayoutId = draft.desktopLayoutId, steps = draft.steps, voicePhrase = draft.voicePhrase)
+        }
     }
 
     fun remove() {
@@ -216,11 +231,12 @@ internal class RoutinesViewModel(
         }
     }
 
-    private fun change(edit: (RoutineLibrary) -> RoutineLibrary) {
+    private fun change(validate: suspend () -> Unit = {}, edit: (RoutineLibrary) -> RoutineLibrary) {
         val before = form.value
         if (state.value.library == null || before.busy || !form.compareAndSet(before, before.copy(saving = true, error = null))) return
         viewModelScope.launch {
             try {
+                validate()
                 store.update(edit)
                 form.value = RoutinesForm()
             } catch (cancelled: CancellationException) {
@@ -232,6 +248,7 @@ internal class RoutinesViewModel(
                     RoutineProblem.FULL -> R.string.routines_full
                     RoutineProblem.CHANGED -> R.string.routines_changed
                     RoutineProblem.NO_ACTION -> R.string.routines_no_action
+                    RoutineProblem.VOICE_PHRASE -> R.string.routine_voice_invalid
                     null -> R.string.routines_save_failed
                 }
                 form.value = before.copy(saving = false, error = error)

@@ -43,7 +43,7 @@ import org.openvoyah.controls.domain.voice.VoiceInput
 import org.openvoyah.controls.domain.voice.VoiceOutcome
 
 /** The speech lock of [SpeechModels] protects the microphone and native model across both voice entry points. */
-class OfflineVoiceInput(
+internal class OfflineVoiceInput(
     context: Context,
     private val duckMedia: Boolean,
     private val naturalPhrases: Boolean = false,
@@ -52,6 +52,7 @@ class OfflineVoiceInput(
     private val listeningWindow: ListeningWindow = ListeningWindow.FOUR_SECONDS,
     /** Null uses the engine selected in Recognition, adjusted for the device and language. */
     private val engine: SpeechEngine? = null,
+    private val exact: ExactVoiceTranscripts = ExactVoiceTranscripts(),
 ) : VoiceInput {
     private val context = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
@@ -166,7 +167,7 @@ class OfflineVoiceInput(
         stage("transcript")
         captureContext.ensureActive()
         val cue = endCue.takeUnless { focusLost.isCompleted }
-        return alongsideCue(cue) { decoder.finish(captured, replay, naturalPhrases) }
+        return alongsideCue(cue) { decoder.finish(captured, replay, naturalPhrases, exact) }
     }
 
     private fun requestFocus(manager: AudioManager, focusLost: CompletableDeferred<Unit>): AudioFocusRequest? {

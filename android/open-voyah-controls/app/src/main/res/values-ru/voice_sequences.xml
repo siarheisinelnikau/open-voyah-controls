@@ -1,0 +1,16 @@
+<resources>
+    <string name="routine_voice_phrase">Голосовая фраза (необязательно)</string>
+    <string name="routine_voice_hint">Произнесите эту фразу, когда Controls слушает. Выберите фразу, которая отличается от встроенных команд.</string>
+    <string name="routine_voice_summary">Скажите «%1$s»</string>
+    <string name="routine_voice_invalid">Выберите фразу до восьми слов, отличную от существующих команд и сценариев.</string>
+    <string name="routine_voice_requested">Отправлен запрос на запуск сценария.</string>
+    <string name="routine_voice_unavailable">Сценарий изменился или сейчас недоступен.</string>
+    <string name="voice_sequence_sending">Отправка команд…</string>
+    <string name="voice_sequence_finished">Результаты команд</string>
+    <string name="voice_sequence_duplicate">Повтор команды пропущен.</string>
+    <string name="voice_sequence_single_only">Доступна только как отдельная команда.</string>
+    <string name="voice_sequence_last_only">Доступна только последней в цепочке.</string>
+    <string name="voice_sequence_stopped">Пропущено после остановки цепочки.</string>
+    <string name="voice_sequence_limit">Во фразе может быть до трёх команд. Остальные пропущены.</string>
+    <string name="voice_sequence_timeout">Не удалось подтвердить отправку команды вовремя. Цепочка остановлена.</string>
+</resources>

@@ -1,0 +1,16 @@
+<resources>
+    <string name="routine_voice_phrase">Дауыстық тіркес (міндетті емес)</string>
+    <string name="routine_voice_hint">Controls тыңдап тұрғанда осы тіркесті айтыңыз. Кіріктірілген пәрмендерден өзгеше тіркесті таңдаңыз.</string>
+    <string name="routine_voice_summary">«%1$s» деп айтыңыз</string>
+    <string name="routine_voice_invalid">Пәрмендер мен сценарийлерде қолданылмаған сегіз сөзге дейінгі тіркесті таңдаңыз.</string>
+    <string name="routine_voice_requested">Controls қолданбасына сценарийді іске қосу сұрауы жіберілді.</string>
+    <string name="routine_voice_unavailable">Сценарий өзгертілген немесе қазір қолжетімсіз.</string>
+    <string name="voice_sequence_sending">Пәрмендер жіберілуде…</string>
+    <string name="voice_sequence_finished">Пәрмен нәтижелері</string>
+    <string name="voice_sequence_duplicate">Қайталанған пәрмен өткізіліп жіберілді.</string>
+    <string name="voice_sequence_single_only">Тек жеке пәрмен ретінде қолжетімді.</string>
+    <string name="voice_sequence_last_only">Тек соңғы пәрмен ретінде қолжетімді.</string>
+    <string name="voice_sequence_stopped">Тізбек тоқтағаннан кейін өткізіліп жіберілді.</string>
+    <string name="voice_sequence_limit">Бір тіркесте үш пәрменге дейін болады. Артық пәрмендер өткізіліп жіберілді.</string>
+    <string name="voice_sequence_timeout">Пәрменнің жіберілуі уақытында расталмады. Тізбек тоқтатылды.</string>
+</resources>

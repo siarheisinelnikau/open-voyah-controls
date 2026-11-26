@@ -87,6 +87,16 @@ internal class RoutinePreferences(context: Context) {
 
     fun findRoutine(id: String): NamedRoutine? = synchronized(lock) { read().entries.firstOrNull { it.id == id } }
 
+    fun voiceRoutines(): Map<String, NamedRoutine> = synchronized(lock) {
+        val library = read()
+        library.entries.mapNotNull { routine -> library.voicePhrases[routine.id]?.let { it to routine } }.toMap()
+    }
+
+    fun hasVoiceRoutine(phrase: String, routine: NamedRoutine): Boolean = synchronized(lock) {
+        val library = read()
+        library.voicePhrases[routine.id] == phrase && library.entries.firstOrNull { it.id == routine.id } == routine
+    }
+
     fun <T> withCurrentPlan(routine: NamedRoutine, use: (RoutinePlan) -> T): T =
         synchronized(lock) { use(read().planFor(routine)) }
 
@@ -141,10 +151,11 @@ internal class RoutinePreferences(context: Context) {
         val frequency: RoutineStartupFrequency? = null,
         val delay: RoutineStartupDelay? = null,
         val enabled: Boolean? = null,
+        val voicePhrases: Map<String, String>? = null,
     ) {
         val hasOriginalFields: Boolean get() = entries != null && sort != null && hasStartup
         val complete: Boolean get() = hasOriginalFields && days != null && hasWindow && pins != null && frequency != null &&
-            delay != null && enabled != null
+            delay != null && enabled != null && voicePhrases != null
         val preservesEntryActions: Boolean get() = entries?.any { it.preservesActions } == true
 
         fun applyTo(before: RoutineLibrary): RoutineLibrary {
@@ -161,7 +172,8 @@ internal class RoutinePreferences(context: Context) {
             val schedule = RoutineStartupSchedule(days ?: before.schedule.days, if (hasWindow) window else before.schedule.window,
                 frequency ?: before.schedule.frequency, delay ?: before.schedule.delay)
             val pinned = pins ?: before.pinnedIds.filterTo(mutableSetOf()) { id -> items.any { it.id == id } }
-            return RoutineLibrary(items, sort ?: before.order, selected, schedule, pinned, enabled ?: before.startupEnabled)
+            val aliases = voicePhrases ?: before.voicePhrases.filterKeys { id -> items.any { it.id == id } }
+            return RoutineLibrary(items, sort ?: before.order, selected, schedule, pinned, enabled ?: before.startupEnabled, aliases)
         }
 
         fun encode(): JSONObject = JSONObject().apply {
@@ -187,6 +199,9 @@ internal class RoutinePreferences(context: Context) {
             frequency?.let { put("startupFrequency", it.key) }
             delay?.let { put("startupDelaySeconds", it.seconds) }
             enabled?.let { put("startupEnabled", it) }
+            voicePhrases?.let { aliases -> put("voicePhrases", JSONObject().apply {
+                aliases.toSortedMap().forEach { (id, phrase) -> put(id, phrase) }
+            }) }
         }
 
         companion object {
@@ -194,7 +209,7 @@ internal class RoutinePreferences(context: Context) {
                 value.entries.map { EntryPatch(it, hasInstalledApp = true, hasDesktopLayout = true, hasSteps = true) },
                 value.order, true, value.startupId,
                 value.schedule.days, true, value.schedule.window, value.pinnedIds, value.schedule.frequency, value.schedule.delay,
-                value.startupEnabled)
+                value.startupEnabled, value.voicePhrases)
         }
     }
 
@@ -204,7 +219,7 @@ internal class RoutinePreferences(context: Context) {
         private const val SETTINGS = "settings"
         private val lock = Any()
         private val archiveKeys = setOf("entries", "sort", "startup", "startupDays", "startupWindow", "pinnedIds",
-            "startupFrequency", "startupDelaySeconds", "startupEnabled")
+            "startupFrequency", "startupDelaySeconds", "startupEnabled", "voicePhrases")
         private val entryKeys = setOf("id", "name", "target", "palette", "installedApp", "desktopLayoutId", "steps")
 
         @JvmStatic fun validateSettings(data: JSONObject): JSONObject = decode(data).encode()
@@ -242,8 +257,16 @@ internal class RoutinePreferences(context: Context) {
             val delay = if (data.has("startupDelaySeconds"))
                 requireNotNull(RoutineStartupDelay.entries.find { it.seconds == data.get("startupDelaySeconds") }) else null
             val enabled = if (data.has("startupEnabled")) requireNotNull(data.get("startupEnabled") as? Boolean) else null
+            val aliases = if (data.has("voicePhrases")) {
+                val items = data.getJSONObject("voicePhrases")
+                require(items.length() <= RoutineLibrary.MAX_ROUTINES)
+                items.keys().asSequence().associateWith { id ->
+                    require(NamedRoutine.validId(id))
+                    items.string(id).also { require(org.openvoyah.controls.domain.routines.normalizeRoutinePhrase(it) == it) }
+                }.also { require(it.values.toSet().size == it.size) }
+            } else null
             val patch = Patch(entries, sort, data.has("startup"), startup, days, data.has("startupWindow"), window, pins,
-                frequency, delay, enabled)
+                frequency, delay, enabled, aliases)
             if (entries != null) patch.applyTo(RoutineLibrary())
             return patch
         }

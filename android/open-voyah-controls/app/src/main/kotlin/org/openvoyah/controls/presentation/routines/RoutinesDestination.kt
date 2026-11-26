@@ -39,13 +39,16 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.openvoyah.controls.R
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.data.apps.AppGridPreferences
 import org.openvoyah.controls.data.apps.DesktopLayoutsPreferences
 import org.openvoyah.controls.data.routines.RoutinePreferences
+import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.domain.apps.AppGridDesktopNames
 import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.domain.routines.RoutineLibrary
@@ -114,7 +117,9 @@ internal fun RoutinesDestination(back: () -> Unit, run: suspend (NamedRoutine) -
         val app = activity.applicationContext
         ViewModelProvider(activity, viewModelFactory { initializer {
             RoutinesViewModel(RoutinePreferences(app), AppGridPreferences(app).observeSettings(),
-                DesktopLayoutsPreferences(app).observe(), LauncherShortcuts(app))
+                DesktopLayoutsPreferences(app).observe(), LauncherShortcuts(app)) { phrase ->
+                    withContext(Dispatchers.IO) { VoiceSettings(app).withContacts().match(phrase) != null }
+                }
         } })[RoutinesViewModel::class.java]
     }
     val state by model.state.collectAsStateWithLifecycle()
@@ -248,6 +253,9 @@ private fun RoutineRow(routine: NamedRoutine, startup: Boolean, state: RoutinesU
             Text(routine.name, style = MaterialTheme.typography.titleMedium)
             if (plan.steps.isNotEmpty()) Text(plan.steps.joinToString(" → ") { it.label() },
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+            state.library?.voicePhrases?.get(routine.id)?.let { phrase ->
+                Text(UiText.get(R.string.routine_voice_summary).format(phrase), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             description?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             plan.desktopLayoutId?.let { id ->
                 val missing = state.layouts?.getOrNull()?.none { it.id == id } == true

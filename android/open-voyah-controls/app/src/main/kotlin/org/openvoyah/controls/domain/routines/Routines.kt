@@ -110,7 +110,7 @@ internal data class NamedRoutine(val id: String, val name: String, val plan: Rou
     }
 }
 
-internal enum class RoutineProblem { NAME, DUPLICATE, FULL, CHANGED, NO_ACTION }
+internal enum class RoutineProblem { NAME, DUPLICATE, FULL, CHANGED, NO_ACTION, VOICE_PHRASE }
 internal class RoutineEditException(val problem: RoutineProblem) : IllegalArgumentException(problem.name)
 
 /** Entries retain creation order. Renaming, sorting and startup selection never change a routine's identity. */
@@ -121,6 +121,7 @@ internal data class RoutineLibrary(
     val schedule: RoutineStartupSchedule = RoutineStartupSchedule(),
     val pinnedIds: Set<String> = emptySet(),
     val startupEnabled: Boolean = true,
+    val voicePhrases: Map<String, String> = emptyMap(),
 ) {
     init {
         require(entries.size <= MAX_ROUTINES && entries.distinctBy { it.id }.size == entries.size)
@@ -129,6 +130,9 @@ internal data class RoutineLibrary(
         })
         require(startupId == null || entries.any { it.id == startupId })
         require(pinnedIds.all { id -> entries.any { it.id == id } })
+        require(voicePhrases.keys.all { id -> entries.any { it.id == id } })
+        require(voicePhrases.values.all { phrase -> normalizeRoutinePhrase(phrase) == phrase })
+        require(voicePhrases.values.toSet().size == voicePhrases.size)
     }
 
     fun ordered(locale: Locale): List<NamedRoutine> {
@@ -166,7 +170,7 @@ internal data class RoutineLibrary(
     fun save(original: NamedRoutine?, id: String, name: String, target: RoutineTarget, palette: AppPalette?,
              pinChange: Boolean? = null, installedApp: String? = original?.plan?.installedApp,
              desktopLayoutId: String? = original?.plan?.desktopLayoutId,
-             steps: List<RoutineStep> = original?.plan?.steps.orEmpty()): RoutineLibrary {
+             steps: List<RoutineStep> = original?.plan?.steps.orEmpty(), voicePhrase: String? = voicePhrases[id]): RoutineLibrary {
         if (original == null) {
             if (entries.any { it.id == id }) throw RoutineEditException(RoutineProblem.CHANGED)
             if (entries.size >= MAX_ROUTINES) throw RoutineEditException(RoutineProblem.FULL)
@@ -182,13 +186,19 @@ internal data class RoutineLibrary(
         val next = NamedRoutine(id, normalized, RoutinePlan(target, palette, installedApp, desktopLayoutId, steps))
         val updated = if (original == null) listOf(next) + entries else entries.map { if (it.id == id) next else it }
         val pins = when (pinChange) { true -> pinnedIds + id; false -> pinnedIds - id; null -> pinnedIds }
-        return copy(entries = updated, pinnedIds = pins)
+        val phrase = voicePhrase?.takeUnless(String::isBlank)?.let {
+            normalizeRoutinePhrase(it) ?: throw RoutineEditException(RoutineProblem.VOICE_PHRASE)
+        }
+        if (phrase != null && voicePhrases.any { (other, value) -> other != id && value == phrase })
+            throw RoutineEditException(RoutineProblem.VOICE_PHRASE)
+        val aliases = if (phrase == null) voicePhrases - id else voicePhrases + (id to phrase)
+        return copy(entries = updated, pinnedIds = pins, voicePhrases = aliases)
     }
 
     fun remove(original: NamedRoutine): RoutineLibrary {
         verify(original)
         return copy(entries = entries.filterNot { it.id == original.id }, startupId = startupId?.takeUnless { it == original.id },
-            pinnedIds = pinnedIds - original.id)
+            pinnedIds = pinnedIds - original.id, voicePhrases = voicePhrases - original.id)
     }
 
     fun chooseStartup(routine: NamedRoutine?): RoutineLibrary {

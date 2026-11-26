@@ -13,15 +13,20 @@ import org.openvoyah.controls.core.voice.VoiceCommandUseCase.Request
 import org.openvoyah.controls.data.frida.FridaBridge
 import org.openvoyah.controls.data.frida.FridaVoiceDispatcher
 import org.openvoyah.controls.data.frida.ReviewedVoiceCommands
+import org.openvoyah.controls.data.routines.RoutinePreferences
 import org.openvoyah.controls.data.settings.SettingsStore
 import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.data.voice.CloudVoiceSettings
 import org.openvoyah.controls.data.voice.Interpretation
 import org.openvoyah.controls.data.voice.OpenRouterVoiceInterpreter
 import org.openvoyah.controls.domain.seatmemory.SeatMemorySlot
+import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.domain.voice.VoicePanelApps
 import org.openvoyah.controls.domain.voice.VoiceOutcome
 import org.openvoyah.controls.domain.voice.VoiceResult
+import org.openvoyah.controls.domain.voice.VoiceSequence
+import org.openvoyah.controls.platform.ui.RoutineActionLaunch
+import org.openvoyah.controls.platform.voice.ExactVoiceTranscripts
 import org.openvoyah.controls.platform.voice.OfflineVoiceInput
 import org.openvoyah.controls.platform.voice.VoiceUiActions
 import org.openvoyah.controls.presentation.voice.VoiceViewModel
@@ -34,6 +39,8 @@ internal object VoiceScreenFactory {
         endCue: (suspend () -> Unit)? = null,
         feedbackStyle: FeedbackStyle = FeedbackStyle.READBACK,
         listeningWindow: ListeningWindow = ListeningWindow.FOUR_SECONDS,
+        voiceRoutines: Map<String, NamedRoutine> = emptyMap(),
+        foreground: () -> Boolean = { activity.hasWindowFocus() && !activity.isFinishing && !activity.isDestroyed },
     ): VoiceViewModel {
         val application = activity.applicationContext
         // Without an app chosen in Voice settings, music, navigation and radio open the app of their panel button.
@@ -63,20 +70,47 @@ internal object VoiceScreenFactory {
                     outcome = VoiceOutcome.ONLINE_UNAVAILABLE)
             }
         } else null
-        val input = OfflineVoiceInput(application, duckMedia, enabled, readyCue, endCue, listeningWindow)
-        return VoiceViewModel(catalog, language, commands, input, { request ->
-            when (request.destination()) {
+        val routines = RoutinePreferences(application)
+        val custom = voiceRoutines.filterKeys { catalog.match(it) == null }.mapValues { (phrase, routine) ->
+            suspend {
+                val receipt = RoutineActionLaunch.Receipt(routine) {
+                    runCatching { routines.hasVoiceRoutine(phrase, routine) }.getOrDefault(false)
+                }
+                if (foreground() && RoutineActionLaunch.request(activity, receipt))
+                    VoiceResult(UiText.get(R.string.routine_voice_requested), outcome = VoiceOutcome.LOCAL_REQUESTED)
+                else VoiceResult(UiText.get(R.string.routine_voice_unavailable), failed = true, outcome = VoiceOutcome.BLOCKED)
+            }
+        }
+        val sequence = VoiceSequence(language) { catalog.match(it) != null || it in custom }
+        val input = OfflineVoiceInput(application, duckMedia, enabled, readyCue, endCue, listeningWindow,
+            exact = ExactVoiceTranscripts(
+                accepts = { VoiceCatalog.normalize(it) in custom || sequence.split(it) != null },
+                suppressFallback = { sequence.hasSeparator(it) && catalog.match(it) == null },
+                exactOnlyPhrases = custom.keys,
+            ))
+        val execute: suspend (Request, Boolean) -> VoiceResult = { request, compound ->
+            if (compound && !foreground()) {
+                VoiceResult(UiText.get(R.string.voice_sequence_stopped), failed = true, outcome = VoiceOutcome.AUDIO_INTERRUPTED)
+            } else when (request.destination()) {
                 Destination.LOCAL -> android.runLocal(request.command().id(), request.phrase())
                 Destination.DIAL -> android.dial(request.phone())
                 Destination.VEHICLE -> routeVehicleVoice(
                     request,
                     recallApproved = { id -> withContext(Dispatchers.IO) { reviewed.profileFor(id) != null } },
-                    dispatch = vehicle::dispatch,
+                    dispatch = { vehicle.dispatch(it, stillAllowed = foreground.takeIf { compound }) },
                     openDriverMemory = android::openDriverMemory,
                 )
                 Destination.OFFLINE_WEATHER -> VoiceResult(labels.weatherOffline, failed = true, outcome = VoiceOutcome.WEATHER_OFFLINE)
             }
-        }, labels, natural = natural, feedbackStyle = feedbackStyle)
+        }
+        val sequenceLabels = VoiceViewModel.SequenceLabels(UiText.get(R.string.voice_sequence_sending),
+            UiText.get(R.string.voice_sequence_finished), UiText.get(R.string.voice_sequence_duplicate),
+            UiText.get(R.string.voice_sequence_single_only), UiText.get(R.string.voice_sequence_last_only),
+            UiText.get(R.string.voice_sequence_stopped), UiText.get(R.string.voice_sequence_limit),
+            UiText.get(R.string.voice_sequence_timeout))
+        return VoiceViewModel(catalog, language, commands, input, { execute(it, false) }, labels,
+            natural = natural, feedbackStyle = feedbackStyle, sequenceLabels = sequenceLabels, custom = custom,
+            executeSequenceStep = { execute(it, true) })
     }
 }
 

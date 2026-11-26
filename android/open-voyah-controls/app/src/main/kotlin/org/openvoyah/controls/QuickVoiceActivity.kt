@@ -30,7 +30,9 @@ import org.openvoyah.controls.core.VoiceCatalog
 import org.openvoyah.controls.core.voice.VoiceAudioOptions
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.FeedbackStyle
 import org.openvoyah.controls.core.voice.VoiceAudioOptions.ReadyCueStyle
+import org.openvoyah.controls.data.routines.RoutinePreferences
 import org.openvoyah.controls.data.settings.VoiceSettings
+import org.openvoyah.controls.domain.routines.NamedRoutine
 import org.openvoyah.controls.domain.voice.VoiceResult
 import org.openvoyah.controls.platform.display.useControlsDensity
 import org.openvoyah.controls.platform.voice.OfflineVoiceFeedback
@@ -83,7 +85,7 @@ class QuickVoiceActivity : ComponentActivity() {
                 val viewModel = model
                 val recover = if (microphoneRecovery) ::openMicrophoneSettings else null
                 val state = if (viewModel == null) startup else viewModel.state.collectAsStateWithLifecycle().value
-                QuickVoicePopup(state, popupOptions.showRecognizedPhrase(), recover, popupOptions.listeningWindow().millis())
+                QuickVoicePopup(state, popupOptions.showRecognizedPhrase(), recover, popupOptions.listeningWindow().millis(), ::finish)
             }
         }
         window.setLayout(minOf(px(QUICK_VOICE_WIDTH_DP), resources.displayMetrics.widthPixels - px(24)).coerceAtLeast(1),
@@ -102,8 +104,9 @@ class QuickVoiceActivity : ComponentActivity() {
             popupOptions = audio
             val configuration = withContext(Dispatchers.IO) {
                 val language = settings.language()
+                val routines = runCatching { RoutinePreferences(applicationContext).voiceRoutines() }.getOrDefault(emptyMap())
                 Configuration(settings.withContacts(), language, settings.mediaDuck().listening,
-                    settings.option("spokenFeedback"), settings.offlineVoice(language), settings.readyPrompt(language))
+                    settings.option("spokenFeedback"), settings.offlineVoice(language), settings.readyPrompt(language), routines)
             }
             val hasReadyCue = audio.readyCue() && audio.readyCueGain() > 0f
             val speakReplies = configuration.spokenFeedback && audio.speechGain() > 0f
@@ -116,7 +119,8 @@ class QuickVoiceActivity : ComponentActivity() {
             } else null
             val endCue = voiceCue(R.raw.voice_end, audio.endCueGain())
             val viewModel = VoiceScreenFactory.create(this, configuration.catalog, settings,
-                configuration.language, configuration.duckMedia, readyCue, endCue, audio.feedbackStyle(), audio.listeningWindow())
+                configuration.language, configuration.duckMedia, readyCue, endCue, audio.feedbackStyle(), audio.listeningWindow(),
+                configuration.routines, ::ownsForeground)
             if (speakReplies && speech != null) {
                 val recognitionContext = applicationContext.forRecognitionLanguage(configuration.language)
                 lifecycleScope.launch {
@@ -131,8 +135,8 @@ class QuickVoiceActivity : ComponentActivity() {
             }
             model = viewModel
             lifecycleScope.launch {
-                viewModel.state.first { it.phase == Phase.DONE }
-                if (!microphoneRecovery) finishAfterResult(audio)
+                val answer = viewModel.state.first { it.phase == Phase.DONE }
+                if (!microphoneRecovery) finishAfterResult(audio, answer.steps.size)
             }
             startIfReady()
         } catch (cancelled: CancellationException) {
@@ -185,8 +189,8 @@ class QuickVoiceActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun finishAfterResult(audio: VoiceAudioOptions) {
-        delay(audio.resultDuration().millis())
+    private suspend fun finishAfterResult(audio: VoiceAudioOptions, steps: Int = 0) {
+        delay(maxOf(audio.resultDuration().millis(), steps * 1_200L))
         val grace = if (audio.feedbackStyle() == FeedbackStyle.OUTCOME) OUTCOME_GRACE_MS else SPEECH_GRACE_MS
         withTimeoutOrNull(grace) { feedback?.awaitIdle() }
         finish()
@@ -239,6 +243,7 @@ class QuickVoiceActivity : ComponentActivity() {
         val spokenFeedback: Boolean,
         val offlineVoiceName: String,
         val readyPrompt: String,
+        val routines: Map<String, NamedRoutine>,
     )
 
     companion object {
