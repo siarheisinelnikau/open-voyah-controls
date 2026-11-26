@@ -1,0 +1,22 @@
+<resources>
+    <string name="factory_radio_card">Зауыттық FM/AM</string>
+    <string name="factory_radio_connecting">Зауыттық радиоға қосылуда…</string>
+    <string name="factory_radio_unavailable">Үйлесімді зауыттық радио қызметі қолжетімсіз.</string>
+    <string name="factory_radio_disconnected">Зауыттық радиоға қосылу мүмкін болмады.</string>
+    <string name="factory_radio_no_station">Радио ағымдағы станцияны хабарламады.</string>
+    <string name="factory_radio_station">%1$s · %2$s</string>
+    <string name="factory_radio_previous">Алдыңғы</string>
+    <string name="factory_radio_next">Келесі</string>
+    <string name="factory_radio_fm">FM</string>
+    <string name="factory_radio_am">AM</string>
+    <string name="factory_radio_remember">Сақтау</string>
+    <string name="factory_radio_restore">Сақталған станция</string>
+    <string name="factory_radio_retry">Қайта қосылу</string>
+    <string name="factory_radio_open">Радионы ашу</string>
+    <string name="factory_radio_saved">Станция сақталды</string>
+    <string name="factory_radio_save_failed">Станцияны сақтау мүмкін болмады.</string>
+    <string name="factory_radio_open_failed">Зауыттық радионы ашу мүмкін болмады.</string>
+    <string name="factory_radio_waiting">Радио жауабы күтілуде…</string>
+    <string name="factory_radio_unconfirmed">Радио станцияның ауысуын растаған жоқ.</string>
+    <string name="factory_radio_changed">Радио немесе станциялар тізімі өзгерді.</string>
+</resources>

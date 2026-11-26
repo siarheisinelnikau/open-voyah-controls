@@ -1,0 +1,22 @@
+<resources>
+    <string name="factory_radio_card">Штатное FM/AM</string>
+    <string name="factory_radio_connecting">Подключение к штатному радио…</string>
+    <string name="factory_radio_unavailable">Нет доступной совместимой службы штатного радио.</string>
+    <string name="factory_radio_disconnected">Штатное радио не подключилось.</string>
+    <string name="factory_radio_no_station">Радио не сообщило текущую станцию.</string>
+    <string name="factory_radio_station">%1$s · %2$s</string>
+    <string name="factory_radio_previous">Предыдущая</string>
+    <string name="factory_radio_next">Следующая</string>
+    <string name="factory_radio_fm">FM</string>
+    <string name="factory_radio_am">AM</string>
+    <string name="factory_radio_remember">Запомнить</string>
+    <string name="factory_radio_restore">Сохранённая станция</string>
+    <string name="factory_radio_retry">Подключиться</string>
+    <string name="factory_radio_open">Открыть радио</string>
+    <string name="factory_radio_saved">Станция сохранена</string>
+    <string name="factory_radio_save_failed">Не удалось запомнить станцию.</string>
+    <string name="factory_radio_open_failed">Не удалось открыть штатное радио.</string>
+    <string name="factory_radio_waiting">Ожидание ответа радио…</string>
+    <string name="factory_radio_unconfirmed">Радио не подтвердило смену станции.</string>
+    <string name="factory_radio_changed">Радио или список станций изменились.</string>
+</resources>

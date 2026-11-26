@@ -1,0 +1,22 @@
+<resources>
+    <string name="factory_radio_card">Factory FM/AM</string>
+    <string name="factory_radio_connecting">Connecting to the factory radio…</string>
+    <string name="factory_radio_unavailable">A supported factory radio service is unavailable.</string>
+    <string name="factory_radio_disconnected">The factory radio did not connect.</string>
+    <string name="factory_radio_no_station">The radio has not reported its current station.</string>
+    <string name="factory_radio_station">%1$s · %2$s</string>
+    <string name="factory_radio_previous">Previous</string>
+    <string name="factory_radio_next">Next</string>
+    <string name="factory_radio_fm">FM</string>
+    <string name="factory_radio_am">AM</string>
+    <string name="factory_radio_remember">Remember</string>
+    <string name="factory_radio_restore">Saved station</string>
+    <string name="factory_radio_retry">Reconnect</string>
+    <string name="factory_radio_open">Open radio</string>
+    <string name="factory_radio_saved">Station remembered</string>
+    <string name="factory_radio_save_failed">Could not remember the station.</string>
+    <string name="factory_radio_open_failed">Could not open the factory radio.</string>
+    <string name="factory_radio_waiting">Waiting for the radio…</string>
+    <string name="factory_radio_unconfirmed">The radio did not confirm a station change.</string>
+    <string name="factory_radio_changed">The radio or its station list changed.</string>
+</resources>

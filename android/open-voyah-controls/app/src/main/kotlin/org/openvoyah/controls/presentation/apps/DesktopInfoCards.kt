@@ -125,6 +125,12 @@ internal fun LazyGridItemScope.DesktopInfoCardItem(
     val shape = MaterialTheme.shapes.medium
     val colors = MaterialTheme.colorScheme
     val border = if (showOutlines) BorderStroke(1.dp, colors.outlineVariant) else null
+    if (tile.card == DesktopInfoCard.RADIO) {
+        Surface(modifier = modifier, shape = shape, color = colors.surfaceContainerHigh, border = border) {
+            DesktopFactoryRadioCard(visible, enabled)
+        }
+        return
+    }
     val comfortAction = when (tile.card) {
         DesktopInfoCard.POWER_HOLD -> ComfortCardAction.POWER_HOLD
         DesktopInfoCard.CAR_WASH -> ComfortCardAction.CAR_WASH
@@ -210,6 +216,7 @@ private fun DesktopInfoDetails(tile: DesktopInfoTile): TileDetails {
         DesktopInfoCard.PHONE -> TileDetails()
         DesktopInfoCard.ROUTE -> observeRouteTileDetails(sources, tile.routeContent)
         DesktopInfoCard.POWER_HOLD, DesktopInfoCard.CAR_WASH -> TileDetails()
+        DesktopInfoCard.RADIO -> TileDetails()
     }
 }
 
@@ -438,4 +445,5 @@ internal fun DesktopInfoCard.label(): Int = when (this) {
     DesktopInfoCard.ROUTE -> R.string.desktop_info_route
     DesktopInfoCard.POWER_HOLD -> R.string.comfort_power_hold
     DesktopInfoCard.CAR_WASH -> R.string.comfort_car_wash
+    DesktopInfoCard.RADIO -> R.string.factory_radio_card
 }

@@ -1,0 +1,19 @@
+# Factory radio on the Controls desktop
+
+Open **Settings → Home screen → Information cards** and select a compact or wide **Factory FM/AM** card. The card reads the factory radio's station and exposes the station controls that its media session currently provides. **FM** and **AM** select an eligible station in that band when the session publishes a selectable station queue. **Remember** saves the station on this head unit. **Saved station** requests the saved station when it appears in the current queue. Each band has its own bookmark. Open the factory radio for tuning features that its media session does not expose.
+
+Controls binds while the card is visible on a resumed desktop. It checks that Android exposes the exact factory media-browser component, that the system app is enabled, and that Controls is allowed to bind. It confirms that the connected media-session token belongs to that component's package. A station request requires a user action and a freshly read session capability and queue. It never starts playback from a bookmark at boot or on wake. The station shown comes from the media session. If the session fails to report the expected result within three seconds, the card reports the incomplete confirmation and leaves any retry to the user.
+
+| Environment | Evidence and behavior |
+| --- | --- |
+| Qinggan factory media | The launcher media client identifies `com.qinggan.media/com.qinggan.media.radio.LocalRadioBrowserService` as its radio browser. [The 97C launcher map](HOME_SCREEN_MAP.md#media-card-sources) records no FM antenna on the observed launcher 1.0.6. Binding, queue and tuner availability depend on the installed head unit. |
+| Pateo RDS | The inspected RdsApp 1.0 interface exposes `com.pateo.rdsapp/com.pateo.midrds.media.RdsMediaBrowserService`. The session publishes the band and raw tuning frequency, which together identify a station across queue changes. Its installed firmware and the observed service capabilities need on-device qualification. |
+| Android emulator or missing OEM service | The card shows that a compatible factory radio service is unavailable. The existing Controls music widget stays available independently. |
+
+The widget uses Android's public media-session actions. Default AM/FM labels in a station description can identify the band when an OEM metadata key does not provide it. Opaque media IDs must match exactly and a queue ID is used only from a freshly read queue. A session that exposes tuning through a private vendor protocol can display its current station and offer its published previous/next controls. The factory home and cluster cards keep their existing Voyah Music, Voyah Radio, and media-key behavior.
+
+## Additional audio interfaces
+
+- **Navigation audio by app.** Android allows an app to set audio attributes on its own players and request guidance focus. An OVC adapter requires the supported installed OEM navigation stream/focus contract and permission to attribute third-party playback on the exact build. Android's ordinary music-volume stream affects drivers' music and any prompts using that stream together.
+- **Passenger Bluetooth headphones.** Android's routing API applies to the caller's own track. Isolated routing for another app on the passenger display needs a compatible installed multi-zone OEM service with verified display/session association and restoration across calls, disconnection and display moves.
+- **2GIS maneuvers.** An OVC integration needs a stable and authorized maneuver feed from the installed 2GIS build, a sample confirming end-of-route and stale-state clearing, and a qualified cluster adapter on the exact firmware. The documented SDK delivers maneuvers to the application that starts the SDK navigation session. [2GIS SDK navigation](https://docs.2gis.com/en/android/sdk/examples/navigation)
