@@ -78,7 +78,7 @@ internal object AutomotiveHeadlightReader {
         }
     }
 
-    private fun connections(app: Context): Flow<AutomotiveHeadlightConnection<Car>?> =
+    fun connections(app: Context): Flow<AutomotiveHeadlightConnection<Car>?> =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Android11HeadlightConnection.observe(app)
         else android10Connections(app)
 

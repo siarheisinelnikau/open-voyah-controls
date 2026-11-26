@@ -127,6 +127,7 @@ internal val SETTINGS_INDEX: List<SettingsEntry> = buildList {
         R.string.vehicle_settings_open, R.string.vehicle_infotainment_open, R.string.vehicle_manual))
     // Seat memory keeps its page: the steering wheel keys and the factory Seats app open it with a driver selected.
     addAll(page(SettingsSection.VEHICLE, ControlsRoute.SEAT_MEMORY, R.string.vehicle_seat_memory))
+    addAll(page(SettingsSection.VEHICLE, ControlsRoute.TRIPS, R.string.trips_title))
     addAll(entries(SettingsPartId.VEHICLE_SERVICE, R.string.service_reminder_title))
     addAll(entries(SettingsPartId.VEHICLE_ASSISTANCE, R.string.factory_assistance_title,
         R.string.factory_assistance_feature_tlc, R.string.factory_assistance_feature_traffic_lights,
@@ -179,6 +180,7 @@ internal fun routeTitle(route: ControlsRoute): Int? = when (route) {
     ControlsRoute.ROUTINES -> R.string.routines_title
     ControlsRoute.SEAT_MEMORY -> R.string.vehicle_seat_memory
     ControlsRoute.SERVICE_REMINDER -> R.string.service_reminder_title
+    ControlsRoute.TRIPS -> R.string.trips_title
     ControlsRoute.SEASONAL_CLIMATE -> R.string.seasonal_climate_title
     ControlsRoute.CONDITIONAL_RULES -> R.string.vehicle_automation_rules
     ControlsRoute.DISPLAY -> R.string.virtual_display
@@ -196,7 +198,8 @@ internal fun routeTitle(route: ControlsRoute): Int? = when (route) {
 internal fun sectionOf(route: ControlsRoute): SettingsSection? = SettingsSection.of(route) ?: when (route) {
     ControlsRoute.QUICK_ACTIONS -> SettingsSection.BUTTONS
     ControlsRoute.DISPLAY -> SettingsSection.WINDOWS
-    ControlsRoute.SEAT_MEMORY, ControlsRoute.SERVICE_REMINDER, ControlsRoute.FACTORY_ASSISTANCE -> SettingsSection.VEHICLE
+    ControlsRoute.SEAT_MEMORY, ControlsRoute.SERVICE_REMINDER, ControlsRoute.FACTORY_ASSISTANCE,
+    ControlsRoute.TRIPS -> SettingsSection.VEHICLE
     ControlsRoute.ROUTINES, ControlsRoute.SEASONAL_CLIMATE, ControlsRoute.CONDITIONAL_RULES -> SettingsSection.AUTOMATION
     ControlsRoute.TEXT_OVERLAYS, ControlsRoute.CLUSTER, ControlsRoute.KEYBOARD -> SettingsSection.LANGUAGE
     ControlsRoute.ACTION_PERMISSIONS, ControlsRoute.UPDATES, ControlsRoute.DIAGNOSTICS -> SettingsSection.SYSTEM

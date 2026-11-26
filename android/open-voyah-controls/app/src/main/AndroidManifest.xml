@@ -2,12 +2,22 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Home screen weather: the last known position, rounded to about 1 km, for Open-Meteo. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Optional trip routes use the GPS provider only after consent for the active trip. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.car.permission.CONTROL_CAR_EXTERIOR_LIGHTS" />
     <uses-permission android:name="android.car.permission.CAR_EXTERIOR_LIGHTS" />
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <uses-permission android:name="android.car.permission.CAR_ENERGY" />
+    <uses-permission android:name="android.car.permission.CAR_MILEAGE_3P" />
+    <uses-permission android:name="android.car.permission.CAR_TIRES_3P" />
+    <uses-permission android:name="android.car.permission.CAR_DYNAMICS_STATE" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <queries>
         <provider android:authorities="com.pateo.baiduStateProvider" />
@@ -80,6 +90,8 @@
             android:permission="android.permission.BIND_JOB_SERVICE" />
         <service android:name=".platform.weather.HomeWeatherJobService" android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
+        <service android:name=".platform.trips.TripRouteService" android:exported="false"
+            android:foregroundServiceType="location" />
         <service android:name=".platform.overlays.TextOverlayJobService" android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
         <receiver android:name=".LocalNavigationReceiver" android:exported="true"

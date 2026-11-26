@@ -18,7 +18,7 @@ internal fun VehicleSettingsScreen(
     open: (VehicleSettingsDestination) -> Unit, manual: () -> Unit, seatMemory: () -> Unit,
     serviceReminder: () -> Unit, serviceStatus: String?,
     monitoring: HeadlightMonitoringState, setMonitoring: (Boolean) -> Unit, inspectLightingSources: () -> Unit,
-    assistance: () -> Unit,
+    assistance: () -> Unit, trips: () -> Unit,
 ) {
     CockpitDetail(label(R.string.vehicle_settings_title), label(R.string.vehicle_settings_description), back) {
         CockpitColumns(first = {
@@ -39,6 +39,7 @@ internal fun VehicleSettingsScreen(
                 }
                 status?.let { CockpitFeedback(it, error = true) }
             }
+            CockpitChoice(label(R.string.trips_title), onClick = trips)
             CockpitChoice(label(R.string.service_reminder_title), serviceStatus, onClick = serviceReminder)
             CockpitChoice(label(R.string.vehicle_manual), onClick = manual)
         })

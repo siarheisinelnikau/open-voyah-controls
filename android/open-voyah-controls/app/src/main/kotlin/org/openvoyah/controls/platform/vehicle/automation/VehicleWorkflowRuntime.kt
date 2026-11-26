@@ -52,6 +52,7 @@ import org.openvoyah.controls.domain.vehicle.automation.VehicleForegroundLeases
 import org.openvoyah.controls.domain.vehicle.automation.VehicleTelemetrySession
 import org.openvoyah.controls.domain.vehicle.automation.withVehicleSignalExpiry
 import org.openvoyah.controls.platform.vehicle.factoryHeadlightFeedback
+import org.openvoyah.controls.platform.trips.TripRuntime
 import org.openvoyah.controls.platform.ui.VehicleRoutineLauncher
 import org.openvoyah.controls.platform.vehicle.comfort.observePlaybackComfort
 
@@ -78,6 +79,7 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
     val source = NativeVehicleTelemetryMonitor(app)
     val telemetry = source.observe().withVehicleSignalExpiry(SystemClock::elapsedRealtimeNanos)
         .stateIn(scope, SharingStarted.WhileSubscribed(0, 0), source.unknownTelemetry())
+    val trips = TripRuntime(app, telemetry)
     val headlights = HeadlightMonitor(factoryHeadlightFeedback(app), LocalHeadlightHistory(app), reportFailure = { failure ->
         ControlsLog.warn("headlight_monitor", failure, "outcome", "feedback_failed")
     }).observe().stateIn(scope, SharingStarted.WhileSubscribed(0, 0), HeadlightStatus())
@@ -101,6 +103,10 @@ internal class VehicleWorkflowRuntime private constructor(context: Context) {
                     background.value != null || foreground.value.hasOwners
                 }
             }
+        }
+        scope.launch {
+            combine(background, foreground) { service, screens -> (service != null) to screens.hasOwners }
+                .distinctUntilChanged().collect { (service, screen) -> trips.setLease(service, screen) }
         }
         scope.launch {
             combine(background, foreground, automation.observe(), climates.observe(), rules.observe()) {

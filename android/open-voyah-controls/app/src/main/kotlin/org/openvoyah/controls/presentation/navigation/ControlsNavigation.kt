@@ -21,6 +21,7 @@ internal enum class ControlsRoute {
     DIAGNOSTICS, KEYBOARD, ACTION_PERMISSIONS, TEXT_OVERLAYS,
     // Sections of Settings that have no page of their own elsewhere.
     HOME_SCREEN, WINDOWS, SOUND, APPEARANCE, LANGUAGE, SYSTEM,
+    TRIPS,
 }
 
 internal enum class RouteDirection { FORWARD, BACK, REPLACE }

@@ -45,7 +45,7 @@ internal fun ComponentActivity.vehicleSettingsViewModel(
 
 @Composable
 internal fun VehicleSettingsDestination(back: () -> Unit, seatMemory: () -> Unit, serviceReminder: () -> Unit,
-    assistance: () -> Unit) {
+    assistance: () -> Unit, trips: () -> Unit) {
     val context = LocalContext.current
     val activity = remember(context) { context.vehicleSettingsActivity() }
     val launcher = remember(activity) { VehicleSettingsLauncher(activity.applicationContext) }
@@ -101,6 +101,7 @@ internal fun VehicleSettingsDestination(back: () -> Unit, seatMemory: () -> Unit
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) showLightingSources = true
         },
         assistance = assistance,
+        trips = trips,
     )
     if (showLightingSources) {
         HeadlightSourcesPopup { showLightingSources = false }

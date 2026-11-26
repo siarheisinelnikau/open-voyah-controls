@@ -67,6 +67,7 @@ import org.openvoyah.controls.presentation.seatmemory.SeatMemoryDestination
 import org.openvoyah.controls.presentation.theme.CockpitMotion
 import org.openvoyah.controls.presentation.theme.LocalCockpitEmbedded
 import org.openvoyah.controls.presentation.theme.LocalCockpitEntrance
+import org.openvoyah.controls.presentation.trips.TripsDestination
 import org.openvoyah.controls.presentation.updates.UpdatesDestination
 import org.openvoyah.controls.presentation.vehicle.KeepHeadlightsObserved
 import org.openvoyah.controls.presentation.vehicle.ServiceReminderDestination
@@ -156,6 +157,7 @@ internal fun ControlsHost(
                 // Drawn inside Settings → Vehicle, these rows move the page to the group instead of opening a page.
                 serviceReminder = { navigation.open(ControlsRoute.VEHICLE, SettingsPartId.VEHICLE_SERVICE.name) },
                 assistance = { navigation.open(ControlsRoute.VEHICLE, SettingsPartId.VEHICLE_ASSISTANCE.name) },
+                trips = { navigation.open(ControlsRoute.TRIPS) },
             )
             ControlsRoute.VEHICLE_AUTOMATION -> if (!raw) {
                 ControlsSettingsDestination(route, destination.focus, destination.focusRequest, navigation::back, navigation::open,
@@ -176,6 +178,7 @@ internal fun ControlsHost(
             ControlsRoute.FACTORY_ASSISTANCE -> FactoryAssistanceDestination(navigation::back) { showVehicleDiagnostics = true }
             ControlsRoute.SEAT_MEMORY -> SeatMemoryDestination(destination, navigation, active = destination === state)
             ControlsRoute.SERVICE_REMINDER -> ServiceReminderDestination(navigation::back)
+            ControlsRoute.TRIPS -> TripsDestination(activity, navigation::back)
             ControlsRoute.QUICK_ACTIONS -> QuickActionsDestination(dock, dockState, navigation::back)
             ControlsRoute.ROUTINES -> RoutinesDestination(navigation::back) { routine ->
                 // Inside a section a jump to a group replaces the state of the same page; the page is still current.
