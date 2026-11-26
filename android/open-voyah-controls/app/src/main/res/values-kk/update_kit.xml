@@ -1,0 +1,8 @@
+<resources>
+    <string name="updates_download_kit">%1$s жинағын жүктеп алу және орнату</string>
+    <string name="updates_download_app">%1$s қолданбасын жүктеп алу және орнату</string>
+    <string name="updates_kit_signature">Жаңарту жинағының қолтаңбасын тексеру мүмкін болмады.</string>
+    <string name="updates_kit_compatibility">Бас құрылғыда орнатылған бағдарламалық жасақтама жинақтың үйлесімділік тізімінде жоқ.</string>
+    <string name="updates_kit_format">Жаңарту жинағы толық емес немесе қол қойылған манифестке сәйкес келмейді.</string>
+    <string name="updates_kit_windows">Бұл жинақ жұмыс ортасын жаңартады. Оны Windows жүйесіне арналған Open Voyah Controls орнатқышы арқылы орнатыңыз.</string>
+</resources>

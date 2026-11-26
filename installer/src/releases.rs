@@ -1,4 +1,4 @@
-use crate::{adb::Result, device::message};
+use crate::{adb::Result, device::message, kit};
 use semver::Version;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -34,6 +34,7 @@ struct Release {
 #[derive(Default)]
 pub struct Catalog {
     pub apk: Vec<(Version, Asset)>,
+    pub kits: Vec<(Version, Asset)>,
     /// The YouTube web wrapper's `ovcYouTube-vVERSION.apk` assets, newest first.
     pub youtube: Vec<(Version, Asset)>,
     pub installer: Option<(Version, Asset)>,
@@ -53,13 +54,18 @@ fn stable_asset(name: &str, prefix: &str, extension: &str) -> Option<Version> {
 }
 
 fn valid_asset(asset: &Asset, tag: &str) -> bool {
+    let max_size = if kit::release_version(&asset.name).is_some() {
+        kit::MAX_KIT_BYTES
+    } else {
+        512 * 1024 * 1024
+    };
     !tag.is_empty()
         && tag
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_'))
         && asset.browser_download_url == format!("{DOWNLOAD}{tag}/{}", asset.name)
         && asset.size > 0
-        && asset.size <= 512 * 1024 * 1024
+        && asset.size <= max_size
         && checksum(asset).is_some()
 }
 
@@ -99,6 +105,10 @@ pub fn check() -> Result<Catalog> {
         {
             if let Some(version) = apk_version(&asset) {
                 catalog.apk.push((version, asset));
+            } else if kit::supported()
+                && let Some(version) = kit::release_version(&asset.name)
+            {
+                catalog.kits.push((version, asset));
             } else if let Some(version) = youtube_version(&asset) {
                 catalog.youtube.push((version, asset));
             } else if let Some(version) =
@@ -110,7 +120,7 @@ pub fn check() -> Result<Catalog> {
             }
         }
     }
-    for list in [&mut catalog.apk, &mut catalog.youtube] {
+    for list in [&mut catalog.apk, &mut catalog.kits, &mut catalog.youtube] {
         list.sort_by(|(a, _), (b, _)| b.cmp(a));
         list.dedup_by(|(a, _), (b, _)| a == b);
     }

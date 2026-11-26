@@ -56,6 +56,18 @@ fn main() {
   <application xmlns="urn:schemas-microsoft-com:asm.v3"><windowsSettings><dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true</dpiAware></windowsSettings></application>
 </assembly>"#).unwrap();
     let version = env!("CARGO_PKG_VERSION");
+    const KIT_KEY: &str = "OPEN_VOYAH_KIT_PUBLIC_KEY_HEX";
+    println!("cargo:rerun-if-env-changed={KIT_KEY}");
+    if let Ok(key) = env::var(KIT_KEY) {
+        assert!(
+            key.len() == 130
+                && key.starts_with("04")
+                && key
+                    .bytes()
+                    .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f')),
+            "{KIT_KEY} must be a lower-case hexadecimal uncompressed P-256 public key"
+        );
+    }
     const RELEASE_CERT: &str = "OPEN_VOYAH_RELEASE_CERT_SHA256";
     println!("cargo:rerun-if-env-changed={RELEASE_CERT}");
     let release_pin = match env::var(RELEASE_CERT) {

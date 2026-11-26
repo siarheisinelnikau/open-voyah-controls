@@ -18,6 +18,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
+import org.openvoyah.controls.BuildConfig
+import org.openvoyah.controls.core.updates.KitSignature
 import org.openvoyah.controls.core.updates.ReleasePolicy
 import org.openvoyah.controls.core.updates.ReleaseVersion
 import org.openvoyah.controls.diagnostics.ControlsLog
@@ -33,6 +35,7 @@ internal enum class UpdateProblem {
     NETWORK, RATE_LIMIT, CATALOG, DOWNLOAD, UNTRUSTED_DOWNLOAD, SIZE_OR_DIGEST, STORAGE,
     RELEASE_SIGNER, PACKAGE, DEBUGGABLE, SPLIT, VERSION, VERSION_CODE, MIN_SDK, ABI, RUNTIME,
     DEVICE_PREPARATION, INSTALL_PERMISSION, INSTALLATION, PREFERENCE,
+    KIT_SIGNATURE, KIT_COMPATIBILITY, KIT_FORMAT, KIT_WINDOWS,
 }
 
 internal class UpdateException(val problem: UpdateProblem) : IOException(problem.name)
@@ -44,7 +47,10 @@ internal data class UpdateCheck(
     val candidate: ReleasePolicy.Candidate? = null,
     val problem: UpdateProblem? = null,
     val automatic: Boolean = false,
-)
+    val kit: ReleasePolicy.Candidate? = null,
+) {
+    val latest: ReleasePolicy.Candidate? get() = listOfNotNull(candidate, kit).maxByOrNull { it.version }
+}
 
 internal data class DownloadProgress(val bytes: Long, val total: Long)
 
@@ -53,6 +59,7 @@ internal class OfficialUpdateRepository(
     private val installedVersion: String,
     private val directory: File,
     private val http: ReleaseHttp = GitHubReleaseHttp(installedVersion),
+    private val checkKits: Boolean = KitSignature.hasPin(BuildConfig.KIT_PUBLIC_KEY_HEX),
 ) {
     private val mutable = MutableStateFlow(UpdateCheck())
     val checks = mutable.asStateFlow()
@@ -61,9 +68,7 @@ internal class OfficialUpdateRepository(
     private val startupHandled = AtomicBoolean(false)
     private val startupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    init {
-        startupScope.launch { downloadLock.withLock { runCatching { discardInterruptedDownloads() } } }
-    }
+    private val cleanup = startupScope.launch { runCatching { discardInterruptedDownloads() } }
 
     fun startup(enabled: Boolean) {
         if (!startupHandled.compareAndSet(false, true) || !enabled) return
@@ -72,7 +77,7 @@ internal class OfficialUpdateRepository(
 
     suspend fun check(automatic: Boolean = false): UpdateCheck = checkLock.withLock {
         val before = mutable.value
-        mutable.value = UpdateCheck(UpdateCheckPhase.CHECKING, before.candidate, automatic = automatic)
+        mutable.value = before.copy(phase = UpdateCheckPhase.CHECKING, problem = null, automatic = automatic)
         var httpStatus: Int? = null
         try {
             val selected = withContext(Dispatchers.IO) {
@@ -98,7 +103,8 @@ internal class OfficialUpdateRepository(
                     }
                 }
             }
-            UpdateCheck(UpdateCheckPhase.COMPLETE, selected, automatic = automatic).also { mutable.value = it }
+            UpdateCheck(UpdateCheckPhase.COMPLETE, selected.first, automatic = automatic,
+                kit = selected.second).also { mutable.value = it }
         } catch (cancelled: CancellationException) {
             mutable.value = before
             throw cancelled
@@ -110,12 +116,13 @@ internal class OfficialUpdateRepository(
             }
             // An unsynchronized clock (TLS handshake), DNS and an HTTP refusal all reach the screen as one problem.
             ControlsLog.warn("update_check", error, "problem", problem, "http_status", httpStatus, "automatic", automatic)
-            UpdateCheck(UpdateCheckPhase.FAILED, before.candidate, problem, automatic).also { mutable.value = it }
+            before.copy(phase = UpdateCheckPhase.FAILED, problem = problem, automatic = automatic).also { mutable.value = it }
         }
     }
 
-    suspend fun download(candidate: ReleasePolicy.Candidate, progress: (DownloadProgress) -> Unit): File =
-        downloadLock.withLock {
+    suspend fun download(candidate: ReleasePolicy.Candidate, progress: (DownloadProgress) -> Unit): File {
+        cleanup.join()
+        return downloadLock.withLock {
             var handedOff: File? = null
             try { withContext(Dispatchers.IO) {
                 ensureDirectory()
@@ -165,7 +172,7 @@ internal class OfficialUpdateRepository(
                         }
                     }
                     checkActive(deadline)
-                    val target = File(directory, partial.name.removeSuffix(".part") + ".apk")
+                    val target = File(directory, partial.name.removeSuffix(".part") + if (candidate.kit) ".zip" else ".apk")
                     if (target.exists() || !partial.renameTo(target)) throw UpdateException(UpdateProblem.STORAGE)
                     complete = target
                     handedOff = target
@@ -189,13 +196,14 @@ internal class OfficialUpdateRepository(
                 throw cancelled
             }
         }
+    }
 
-    /** Runs under the same lock as downloads, so it cannot remove a live partial file. */
+    /** Download requests await this cleanup before creating any live partial files. */
     private fun discardInterruptedDownloads() {
         if (!directory.isDirectory) return
         val canonical = directory.canonicalFile
         directory.listFiles()?.forEach { file ->
-            if (file.name.startsWith("release-") && file.name.endsWith(".part") && file.isFile &&
+            if (file.name.startsWith("release-") && (file.name.endsWith(".part") || file.name.endsWith(".zip")) && file.isFile &&
                 file.canonicalFile.parentFile == canonical) file.delete()
         }
     }
@@ -208,9 +216,11 @@ internal class OfficialUpdateRepository(
         }
     }
 
-    private fun select(releases: JSONArray, installed: ReleaseVersion): ReleasePolicy.Candidate? {
+    private fun select(releases: JSONArray, installed: ReleaseVersion):
+        Pair<ReleasePolicy.Candidate?, ReleasePolicy.Candidate?> {
         if (releases.length() > 30) throw UpdateException(UpdateProblem.CATALOG)
         var selected: ReleasePolicy.Candidate? = null
+        var kit: ReleasePolicy.Candidate? = null
         for (r in 0 until releases.length()) {
             val release = releases.getJSONObject(r)
             val tag = release.getString("tag_name")
@@ -225,12 +235,18 @@ internal class OfficialUpdateRepository(
                     is Long -> value
                     else -> throw UpdateException(UpdateProblem.CATALOG)
                 }
-                val candidate = ReleasePolicy.candidate(tag, draft, prerelease, asset.getString("name"),
-                    asset.getString("browser_download_url"), bytes, if (asset.isNull("digest")) null else asset.getString("digest"))
+                val name = asset.getString("name")
+                val url = asset.getString("browser_download_url")
+                val digest = if (asset.isNull("digest")) null else asset.getString("digest")
+                val candidate = ReleasePolicy.candidate(tag, draft, prerelease, name, url, bytes, digest)
                 selected = ReleasePolicy.newer(selected, candidate, installed)
+                if (checkKits) {
+                    val kitCandidate = ReleasePolicy.kitCandidate(tag, draft, prerelease, name, url, bytes, digest)
+                    kit = ReleasePolicy.newer(kit, kitCandidate, installed)
+                }
             }
         }
-        return selected
+        return selected to kit
     }
 
     private fun requireSuccess(response: ReleaseHttp.Response) {

@@ -1,0 +1,8 @@
+<resources>
+    <string name="updates_download_kit">Download and install kit %1$s</string>
+    <string name="updates_download_app">Download and install app %1$s</string>
+    <string name="updates_kit_signature">The update kit signature could not be verified.</string>
+    <string name="updates_kit_compatibility">This kit does not list the installed head unit software.</string>
+    <string name="updates_kit_format">The update kit is incomplete or does not match its signed manifest.</string>
+    <string name="updates_kit_windows">This kit changes the runtime. Install it with the Open Voyah Controls Windows installer.</string>
+</resources>

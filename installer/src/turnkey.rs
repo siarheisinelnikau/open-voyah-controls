@@ -9,8 +9,9 @@
 use crate::{
     adb::{Adb, Device, Result},
     device, init_service,
+    kit::StagedKit,
     production::{self, ApkChoice, Build, Identity, Product, Trust},
-    recovery::{self, BootStatus},
+    recovery::{self, BootStatus, RuntimePin},
     setup,
 };
 use std::{
@@ -144,6 +145,9 @@ pub trait Unit {
     fn backup(&mut self) -> Result<PathBuf>;
     fn remount(&mut self) -> Result<()>;
     fn status(&mut self) -> Result<BootStatus>;
+    fn can_skip_runtime(&mut self, _same_apk: bool) -> Result<bool> {
+        Ok(true)
+    }
     fn rollback(&mut self) -> Result<Rollback>;
     /// Restart, wait until the same unit has booted, and restore ADB root.
     fn restart(&mut self) -> Result<()>;
@@ -260,7 +264,11 @@ pub fn run(unit: &mut impl Unit, report: &Reporter<'_>) -> std::result::Result<S
     );
     unit.root().map_err(|e| fail(current, e))?;
     let status = unit.status().map_err(|e| fail(current, e))?;
-    if plan.same && ready_enough(&status, plan.reviewed) {
+    let already_ready = ready_enough(&status, plan.reviewed)
+        && unit
+            .can_skip_runtime(plan.same)
+            .map_err(|e| fail(current, e))?;
+    if plan.same && already_ready {
         step(ROOT, StepState::Done, &mut current);
         for index in BACKUP..VERIFY {
             step(index, StepState::Skipped, &mut current);
@@ -279,8 +287,7 @@ pub fn run(unit: &mut impl Unit, report: &Reporter<'_>) -> std::result::Result<S
             ),
         ));
     }
-    if plan.update && status.accepts_live_update(plan.code) && ready_enough(&status, plan.reviewed)
-    {
+    if plan.update && status.accepts_live_update(plan.code) && already_ready {
         step(ROOT, StepState::Done, &mut current);
         for index in [BACKUP, REMOUNT, PAUSE] {
             step(index, StepState::Skipped, &mut current);
@@ -538,6 +545,8 @@ pub struct Live<'a> {
     pub device: Device,
     pub apk: ApkChoice<'a>,
     pub runtime: &'a Path,
+    pub kit: Option<&'a StagedKit>,
+    pub runtime_pin: Option<RuntimePin>,
     pub store: &'a Path,
     pub trust: &'a Trust,
     pub stop: &'a AtomicBool,
@@ -561,46 +570,59 @@ impl Live<'_> {
     fn target(&self) -> Result<crate::adb::Target<'_>> {
         self.adb.target(&self.device, self.stop)
     }
+
+    fn runtime_pin(&self) -> Result<&RuntimePin> {
+        self.runtime_pin
+            .as_ref()
+            .ok_or_else(|| "The injector manifest was not verified.".into())
+    }
 }
 
 impl Unit for Live<'_> {
     fn checks(&mut self) -> Result<Plan> {
-        let metadata: serde_json::Value = serde_json::from_str(include_str!(
-            "../../android/open-voyah-controls/dist/FRIDA_RUNTIME.json"
-        ))
-        .map_err(device::message)?;
-        if !self.runtime.is_file()
-            || Some(device::digest(self.runtime, self.stop)?.as_str())
-                != metadata.get("binary_sha256").and_then(|v| v.as_str())
-        {
-            return Err(
-                "The Frida injector next to the installer does not match the pinned digest. Use the complete portable kit."
-                    .into(),
-            );
-        }
         let verification = self.verification();
         let target = self.target()?;
         let identity = Identity::read(&target)?;
+        if let Some(kit) = self.kit {
+            kit.check_compatibility(&identity)?;
+        }
         production::check_setup_device(&target, &identity)?;
-        let candidate = production::check_candidate(
+        let (candidate, runtime) = production::check_candidate(
             &target,
             self.apk.path,
             self.apk.expected,
             &verification,
-            Product::Controls,
+            &identity,
             self.trust,
         )?;
+        if let Some(kit) = self.kit
+            && (runtime.size != kit.runtime_size || runtime.binary_sha256 != kit.runtime_sha256)
+        {
+            return Err(
+                "The signed kit injector differs from the production APK's injector pin.".into(),
+            );
+        }
+        if self.kit.is_some() && runtime != RuntimePin::portable()? {
+            return Err("The injector requires the Windows installer built for this kit. Its recovery tools must recognize the same runtime.".into());
+        }
+        if !self.runtime.is_file()
+            || self.runtime.metadata().map_err(device::message)?.len() != runtime.size
+            || device::digest(self.runtime, self.stop)? != runtime.binary_sha256
+        {
+            return Err("The Frida injector does not match the pinned size and SHA-256.".into());
+        }
         let installed = production::installed_controls(&target, &identity, &verification, self.trust)
             .map_err(|error| format!("The Controls app on the head unit is signed by a certificate this PC does not accept, so Android cannot update it in place. Nothing was changed. Use Remove old app for signer migration under Maintenance. {error}"))?;
-        if let Some(installed) = &installed
-            && !installed.signer.eq_ignore_ascii_case(&candidate.signer)
-        {
-            return Err(format!(
-                "The Controls app on the head unit is signed by certificate {}, the selected APK by {}. Android cannot update an app across certificates; nothing was changed. Use Remove old app for signer migration under Maintenance.",
-                installed.signer, candidate.signer
-            ));
+        if let Some(installed) = &installed {
+            production::check_replacement(
+                &candidate,
+                installed,
+                self.kit.is_some(),
+                Product::Controls,
+            )?;
         }
         self.build = candidate.build;
+        self.runtime_pin = Some(runtime);
         let reviewed = production::has_review(&identity, self.trust);
         let plan = Plan {
             same: installed
@@ -689,6 +711,19 @@ impl Unit for Live<'_> {
         recovery::boot_status(&self.target()?, &identity)
     }
 
+    fn can_skip_runtime(&mut self, same_apk: bool) -> Result<bool> {
+        if self.kit.is_none() {
+            return Ok(true);
+        }
+        // A kit that replaces the APK always takes the full cycle. A previously staged
+        // injector by itself cannot establish which runtime the active deployment uses.
+        if !same_apk {
+            return Ok(false);
+        }
+        self.runtime_pin()?
+            .staged_on(&self.target()?, self.identity()?)
+    }
+
     fn rollback(&mut self) -> Result<Rollback> {
         let identity = self.identity()?.clone();
         match recovery::rollback(&self.target()?, &identity.fingerprint) {
@@ -721,7 +756,14 @@ impl Unit for Live<'_> {
         let verification = self.verification();
         let target = self.target()?;
         production::verify_preparation(&target, &identity, &verification, self.trust)?;
-        recovery::stage_setup_runtime(&target, self.runtime, &verification, self.trust, self.say)?;
+        recovery::stage_setup_runtime(
+            &target,
+            self.runtime,
+            &verification,
+            self.trust,
+            self.runtime_pin()?,
+            self.say,
+        )?;
         // A rollback leaves a block; only a reviewed firmware may clear it after the APK and runtime checks.
         if reviewed {
             recovery::rearm(&target, &identity.fingerprint, &verification, self.trust)?;
@@ -856,6 +898,7 @@ mod tests {
         old_supervisor: bool,
         /// The agents never report ready again after an in-place install.
         silent_after_install: bool,
+        requires_runtime_stage: bool,
     }
 
     impl Fake {
@@ -921,6 +964,9 @@ mod tests {
                 live_update: self.sealed.is_some() && !self.blocked,
                 sealed_version: self.sealed,
             })
+        }
+        fn can_skip_runtime(&mut self, _same_apk: bool) -> Result<bool> {
+            Ok(!self.requires_runtime_stage)
         }
         fn rollback(&mut self) -> Result<Rollback> {
             self.op("rollback")?;
@@ -1109,6 +1155,32 @@ mod tests {
         }
         assert_eq!(states[INSTALL], StepState::Done);
         assert_eq!(states[VERIFY], StepState::Done);
+    }
+
+    #[test]
+    fn a_kit_that_needs_runtime_staging_retries_after_apk_install_without_live_update() {
+        let mut fake = Fake {
+            requires_runtime_stage: true,
+            fail_at: Some("runtime"),
+            ..signed_deployment()
+        };
+        let (result, states) = drive(&mut fake);
+        assert_eq!(result.unwrap_err().step, RUNTIME);
+        assert_eq!(states[BACKUP], StepState::Done);
+        assert_eq!(states[PAUSE], StepState::Done);
+        assert_eq!(states[INSTALL], StepState::Done);
+        assert!(fake.blocked && !fake.active);
+        assert!(!fake.log.contains(&"entry".to_owned()));
+
+        fake.fail_at = None;
+        fake.same = true;
+        fake.log.clear();
+        let (result, states) = drive(&mut fake);
+        result.unwrap();
+        assert_eq!(states[PAUSE], StepState::Skipped);
+        assert_eq!(states[RUNTIME], StepState::Done);
+        assert!(fake.ready && fake.active && !fake.blocked);
+        assert_eq!(fake.log.iter().filter(|op| *op == "restart").count(), 1);
     }
 
     #[test]

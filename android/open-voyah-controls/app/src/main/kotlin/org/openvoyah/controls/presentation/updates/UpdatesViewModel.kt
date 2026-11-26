@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.openvoyah.controls.BuildConfig
+import org.openvoyah.controls.core.updates.ReleasePolicy
 import org.openvoyah.controls.data.updates.DownloadProgress
 import org.openvoyah.controls.data.updates.OfficialUpdateRepository
 import org.openvoyah.controls.data.updates.UpdateCheck
@@ -26,6 +27,7 @@ import org.openvoyah.controls.platform.updates.UpdateInstallApproval
 import org.openvoyah.controls.platform.updates.UpdateInstallPhase
 import org.openvoyah.controls.platform.updates.UpdateInstallPort
 import org.openvoyah.controls.platform.updates.UpdateInstallState
+import org.openvoyah.controls.platform.updates.UpdateKitReader
 import org.openvoyah.controls.platform.updates.UpdatePreparation
 import org.openvoyah.controls.platform.updates.UpdateVerifier
 import java.io.File
@@ -48,8 +50,10 @@ internal data class UpdatesState(
 ) {
     val busy: Boolean get() = work != UpdateWork.IDLE || check.phase == UpdateCheckPhase.CHECKING ||
         installation.phase in ACTIVE_INSTALL_PHASES
-    val canInstall: Boolean get() = !busy && check.candidate != null && installAvailable && localInstallProblem == null &&
+    private val installReady: Boolean get() = !busy && installAvailable && localInstallProblem == null &&
         installation.phase != UpdateInstallPhase.INTERRUPTED
+    val canInstall: Boolean get() = installReady && check.candidate != null
+    val canInstallKit: Boolean get() = installReady && check.kit != null
     val canCancelDownload: Boolean get() = work == UpdateWork.DOWNLOADING || work == UpdateWork.VERIFYING
 
     private companion object {
@@ -64,6 +68,7 @@ internal class UpdatesViewModel(
     private val preferences: UpdatePreferences,
     private val verifier: UpdateVerifier,
     private val installer: UpdateInstallPort? = null,
+    private val kitReader: UpdateKitReader = UpdateKitReader(),
 ) : ViewModel() {
     private val mutable = MutableStateFlow(UpdatesState(checkOnStartup = preferences.checkOnStartup(),
         check = repository.checks.value, installAvailable = installer != null,
@@ -100,25 +105,40 @@ internal class UpdatesViewModel(
         }
     }
 
-    fun downloadAndInstall() {
+    fun downloadAndInstall() = startInstall(mutable.value.check.candidate)
+
+    fun downloadAndInstallKit() = startInstall(mutable.value.check.kit)
+
+    private fun startInstall(candidate: ReleasePolicy.Candidate?) {
+        candidate ?: return
         val before = mutable.value
-        val candidate = before.check.candidate ?: return
         val port = installer
         if (port == null || verifier.installationProblem != null) {
             mutable.update { it.copy(problem = verifier.installationProblem ?: UpdateProblem.DEVICE_PREPARATION) }
             return
         }
-        if (!before.canInstall || !mutable.compareAndSet(before, before.copy(work = UpdateWork.DOWNLOADING,
+        val available = if (candidate.kit) before.canInstallKit && before.check.kit === candidate
+            else before.canInstall && before.check.candidate === candidate
+        if (!available || !mutable.compareAndSet(before, before.copy(work = UpdateWork.DOWNLOADING,
                 problem = null, message = null, cancelled = false, download = DownloadProgress(0, candidate.bytes)))) return
         downloadJob = viewModelScope.launch {
             var file: File? = null
+            var archive: File? = null
             var prepared: PreparedUpdateInstall? = null
             var commitAttempted = false
             try {
                 val downloaded = repository.download(candidate) { progress -> mutable.update { it.copy(download = progress) } }
-                file = downloaded
+                if (candidate.kit) archive = downloaded else file = downloaded
                 mutable.update { it.copy(work = UpdateWork.VERIFYING) }
-                val verified = verifier.verify(candidate, downloaded)
+                val kit = if (candidate.kit) kitReader.extract(candidate, downloaded) else null
+                if (kit != null) file = kit.file
+                val verified = try {
+                    verifier.verify(kit?.release ?: candidate, checkNotNull(file))
+                } catch (failure: UpdateException) {
+                    if (kit != null && failure.problem == UpdateProblem.RUNTIME) throw UpdateException(UpdateProblem.KIT_WINDOWS)
+                    throw failure
+                }
+                if (kit != null && kit.versionCode != verified.identity.versionCode) throw UpdateException(UpdateProblem.VERSION_CODE)
                 mutable.update { it.copy(work = UpdateWork.PREPARING) }
                 when (val preparation = port.prepare(verified)) {
                     is UpdatePreparation.Blocked -> {
@@ -141,6 +161,7 @@ internal class UpdatesViewModel(
                 // can skip the remaining file cleanup and leave a live screen permanently busy.
                 withContext(NonCancellable + Dispatchers.IO) {
                     try {
+                        if (archive?.delete() == false) mutable.update { it.copy(problem = it.problem ?: UpdateProblem.STORAGE) }
                         if (!commitAttempted) {
                             val token = prepared
                             if (token != null) {

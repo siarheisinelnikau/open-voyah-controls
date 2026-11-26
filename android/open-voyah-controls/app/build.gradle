@@ -17,6 +17,10 @@ def releaseSigner = signingVariables.collectEntries { name, variable ->
 def signingReady = releaseSigner.values().every { it != null && !it.isEmpty() }
 def releasePin = releaseSigner.certificate?.toLowerCase(Locale.ROOT)
 def validReleasePin = releasePin != null && (releasePin ==~ /[0-9a-f]{64}/)
+def kitPin = providers.environmentVariable('OPEN_VOYAH_KIT_PUBLIC_KEY_HEX').getOrElse('')
+if (!kitPin.isEmpty() && !(kitPin ==~ /04[0-9a-f]{128}/)) {
+    throw new GradleException('OPEN_VOYAH_KIT_PUBLIC_KEY_HEX must be a lowercase uncompressed P-256 public key.')
+}
 def emulatorFixture = providers.gradleProperty('ovc.emulatorFixture').getOrElse('false') == 'true'
 def runtimeAssets = layout.buildDirectory.dir('generated/runtime-assets')
 def bundledSpeechAssets = layout.buildDirectory.dir('generated/bundled-speech-assets')
@@ -115,6 +119,7 @@ android {
         versionName '0.20.2'
         testInstrumentationRunner 'android.test.InstrumentationTestRunner'
         buildConfigField 'String', 'RELEASE_CERT_SHA256', '"' + (validReleasePin ? releasePin : '') + '"'
+        buildConfigField 'String', 'KIT_PUBLIC_KEY_HEX', '"' + kitPin + '"'
         buildConfigField 'boolean', 'OVC_EMULATOR_FIXTURE', 'false'
         buildConfigField 'boolean', 'LOCAL_VEHICLE', 'false'
         buildConfigField 'String', 'LOCAL_SIGNER_SHA256', '""'

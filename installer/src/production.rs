@@ -223,6 +223,8 @@ pub fn inspect_apk(target: &Target<'_>, source: &Path, storage: &Path) -> Result
 pub struct ReleaseApk {
     pub version: Version,
     pub sha256: String,
+    /// Signed update kits bind the Android version code as well as the label and contents.
+    pub version_code: Option<u64>,
 }
 
 /// A local APK and, when it came from Releases, the official version and digest it must match.
@@ -573,7 +575,11 @@ fn check_staged(
     let (code, version) = release_metadata(&metadata, sdk, product, build)?;
     let sha = digest(&staged.path, target.stop)?;
     if expected.is_some_and(|release| {
-        !release.sha256.eq_ignore_ascii_case(&sha) || release.version != version
+        !release.sha256.eq_ignore_ascii_case(&sha)
+            || release.version != version
+            || release
+                .version_code
+                .is_some_and(|expected_code| code != expected_code || build != Build::Release)
     }) {
         return Err("The selected APK bytes or version differ from the official release.".into());
     }
@@ -592,6 +598,35 @@ fn is_downgrade(candidate: &Checked, installed: &Checked) -> bool {
         || (candidate.build == Build::Release
             && installed.build == Build::Release
             && candidate.version < installed.version)
+}
+
+pub fn check_replacement(
+    candidate: &Checked,
+    installed: &Checked,
+    signed_kit: bool,
+    product: Product,
+) -> Result<()> {
+    if candidate.sha256 == installed.sha256 {
+        return Ok(());
+    }
+    let name = product.name();
+    if !installed.signer.eq_ignore_ascii_case(&candidate.signer) {
+        return Err(format!(
+            "The installed {name} app is signed by certificate {}, the selected APK by {}. Android cannot update an app across certificates; nothing was changed.",
+            installed.signer, candidate.signer
+        ));
+    }
+    if signed_kit && (candidate.code <= installed.code || candidate.version <= installed.version) {
+        return Err(format!(
+            "An equal or newer {name} release is already installed. Its app data was left in place."
+        ));
+    }
+    if is_downgrade(candidate, installed) {
+        return Err(format!(
+            "A newer {name} release is already installed. Its app data was left in place."
+        ));
+    }
+    Ok(())
 }
 
 /// Android reported an installation; the APK it now holds must be the verified input byte for byte.
@@ -692,17 +727,12 @@ fn install_product(
                 "The {label} {name} {version} APK is already installed."
             ));
         }
-        if !installed.signer.eq_ignore_ascii_case(&candidate.signer) {
-            return Err(format!(
-                "The installed {name} app is signed by certificate {}, the selected APK by {}. Android cannot update an app across certificates; nothing was changed.",
-                installed.signer, candidate.signer
-            ));
-        }
-        if is_downgrade(&candidate, &installed) {
-            return Err(format!(
-                "A newer {name} release is already installed. Its app data was left in place."
-            ));
-        }
+        check_replacement(
+            &candidate,
+            &installed,
+            expected.is_some_and(|release| release.version_code.is_some()),
+            product,
+        )?;
     }
     // An active deployment sealed with the signer of Controls keeps running across a same-signer update that is not
     // older (checked above and by the supervisor), and the new app redeploys whatever agents changed. Anything else
@@ -744,18 +774,26 @@ pub fn check_candidate(
     source: &Path,
     expected: Option<&ReleaseApk>,
     storage: &Path,
-    product: Product,
+    identity: &Identity,
     trust: &Trust,
-) -> Result<Checked> {
-    let identity = Identity::read(target)?;
+) -> Result<(Checked, recovery::RuntimePin)> {
+    let product = Product::Controls;
     let staged = ScratchFile::copy_from(storage, source, target)?;
-    let _locked = staged.lock()?;
-    check_staged(target, &staged, expected, identity.sdk, product, trust).map_err(|error| {
-        format!(
-            "The selected {} APK does not match the verified release and certificate. {error}",
-            product.name()
-        )
-    })
+    let locked = staged.lock()?;
+    let checked =
+        check_staged(target, &staged, expected, identity.sdk, product, trust).map_err(|error| {
+            format!(
+                "The selected {} APK does not match the verified release and certificate. {error}",
+                product.name()
+            )
+        })?;
+    let runtime = if expected.is_some_and(|release| release.version_code.is_some()) {
+        recovery::RuntimePin::from_apk(locked)?
+    } else {
+        recovery::RuntimePin::portable()?
+    };
+    identity.recheck(target)?;
+    Ok((checked, runtime))
 }
 
 /// The Controls copy Android holds now, checked against the certificates this PC accepts, or `None` when absent.
@@ -1152,6 +1190,34 @@ mod tests {
             !is_downgrade(&owner(30), &owner(30)),
             "a rebuild with the same code is an update"
         );
+    }
+
+    #[test]
+    fn a_kit_requires_both_versions_to_advance_unless_bytes_already_match() {
+        let build = |code, patch, sha256: &str| Checked {
+            code,
+            version: Version::new(0, 20, patch),
+            sha256: sha256.to_owned(),
+            signer: "1".repeat(64),
+            build: Build::Release,
+        };
+        let installed = build(20, 1, "installed");
+        let equal = build(20, 1, "different");
+        assert!(check_replacement(&equal, &installed, false, Product::Controls).is_ok());
+        assert!(check_replacement(&equal, &installed, true, Product::Controls).is_err());
+        for candidate in [build(21, 1, "different"), build(20, 2, "different")] {
+            assert!(check_replacement(&candidate, &installed, true, Product::Controls).is_err());
+        }
+        assert!(
+            check_replacement(
+                &build(21, 2, "different"),
+                &installed,
+                true,
+                Product::Controls
+            )
+            .is_ok()
+        );
+        assert!(check_replacement(&installed, &installed, true, Product::Controls).is_ok());
     }
 
     #[test]

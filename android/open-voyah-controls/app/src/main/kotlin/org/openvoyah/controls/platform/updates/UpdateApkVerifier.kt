@@ -122,18 +122,23 @@ internal class UpdateApkVerifier(context: Context) : UpdateVerifier {
     private fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it.toInt() and 255) }
 }
 
-internal data class UpdateArchiveContents(val runtime: ApkUpdatePolicy.Runtime, val nativeAbis: Set<String>) {
+internal data class UpdateArchiveContents(
+    val runtime: ApkUpdatePolicy.Runtime,
+    val nativeAbis: Set<String>,
+    val runtimeBytes: Long? = null,
+) {
     companion object {
         private const val RUNTIME_PATH = "assets/production/FRIDA_RUNTIME.json"
         private const val MAX_RUNTIME_BYTES = 65_536
 
         /** Reads only the exact metadata entry. It never extracts untrusted archive paths. */
-        suspend fun read(file: File): UpdateArchiveContents {
+        suspend fun read(file: File, requireRuntimeSize: Boolean = false): UpdateArchiveContents {
             try {
                 ZipFile(file).use { zip ->
                     val entries = zip.entries()
                     val abis = mutableSetOf<String>()
                     var runtime: ApkUpdatePolicy.Runtime? = null
+                    var runtimeBytes: Long? = null
                     var manifests = 0
                     var count = 0
                     while (entries.hasMoreElements()) {
@@ -164,9 +169,14 @@ internal data class UpdateArchiveContents(val runtime: ApkUpdatePolicy.Runtime, 
                         val metadata = JSONObject(output.toString(Charsets.UTF_8.name()))
                         runtime = ApkUpdatePolicy.Runtime(metadata.getString("version"), metadata.getString("file"),
                             metadata.getString("binary_sha256"))
+                        if (requireRuntimeSize) runtimeBytes = when (val size = metadata.get("size")) {
+                            is Int -> size.toLong()
+                            is Long -> size
+                            else -> throw UpdateException(UpdateProblem.RUNTIME)
+                        }
                     }
                     if (manifests != 1) throw UpdateException(UpdateProblem.PACKAGE)
-                    return UpdateArchiveContents(runtime ?: throw UpdateException(UpdateProblem.RUNTIME), abis.toSet())
+                    return UpdateArchiveContents(runtime ?: throw UpdateException(UpdateProblem.RUNTIME), abis.toSet(), runtimeBytes)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error

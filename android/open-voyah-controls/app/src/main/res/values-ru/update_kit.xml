@@ -1,0 +1,8 @@
+<resources>
+    <string name="updates_download_kit">Скачать и установить комплект %1$s</string>
+    <string name="updates_download_app">Скачать и установить приложение %1$s</string>
+    <string name="updates_kit_signature">Не удалось проверить подпись комплекта обновления.</string>
+    <string name="updates_kit_compatibility">Установленная версия ПО головного устройства отсутствует в списке совместимости комплекта.</string>
+    <string name="updates_kit_format">Комплект обновления неполный или не соответствует подписанному манифесту.</string>
+    <string name="updates_kit_windows">Этот комплект обновляет среду выполнения. Установите его через установщик Open Voyah Controls для Windows.</string>
+</resources>

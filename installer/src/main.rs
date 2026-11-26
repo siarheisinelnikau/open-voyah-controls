@@ -9,6 +9,8 @@ mod device;
 #[cfg(any(windows, test))]
 mod init_service;
 #[cfg(any(windows, test))]
+mod kit;
+#[cfg(any(windows, test))]
 mod production;
 #[cfg(any(windows, test))]
 mod recovery;

@@ -23,5 +23,5 @@ object AppUpdates {
     }
 
     @JvmStatic
-    fun availableVersion(context: Context): String? = repository(context).checks.value.candidate?.version?.toString()
+    fun availableVersion(context: Context): String? = repository(context).checks.value.latest?.version?.toString()
 }

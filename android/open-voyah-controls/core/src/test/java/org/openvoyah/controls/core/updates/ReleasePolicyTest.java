@@ -49,4 +49,22 @@ public final class ReleasePolicyTest {
         assertEquals("0.20.0", result.version.toString());
         assertNull(ReleasePolicy.newer(null, candidate("0.18.0"), installed));
     }
+
+    @Test public void selectsSignedKitAssetWithoutChangingLegacyApkDiscovery() {
+        String tag = "android-v0.21.0";
+        String name = "OpenVoyahControlsKit-v0.21.0.zip";
+        String url = ReleasePolicy.DOWNLOAD_PREFIX + tag + "/" + name;
+        assertNull(ReleasePolicy.candidate(tag, false, false, name, url, 600, "sha256:" + SHA));
+        var kit = ReleasePolicy.kitCandidate(tag, false, false, name, url, 600, "sha256:" + SHA);
+        assertNotNull(kit);
+        assertTrue(kit.kit);
+        assertNull(ReleasePolicy.kitCandidate(tag, false, false, name, url, ReleasePolicy.MAX_KIT_BYTES + 1, "sha256:" + SHA));
+        assertNull(ReleasePolicy.kitCandidate(tag, false, false, name, url + "?mirror", 600, "sha256:" + SHA));
+        var apk = ReleasePolicy.embeddedApk(kit, "OpenVoyahControls-v0.21.0.apk", 500, SHA);
+        assertNotNull(apk);
+        assertFalse(apk.kit);
+        assertNull(apk.url);
+        assertNull(ReleasePolicy.embeddedApk(kit, "../OpenVoyahControls-v0.21.0.apk", 500, SHA));
+        assertNull(ReleasePolicy.embeddedApk(kit, "OpenVoyahControls-v0.21.1.apk", 500, SHA));
+    }
 }

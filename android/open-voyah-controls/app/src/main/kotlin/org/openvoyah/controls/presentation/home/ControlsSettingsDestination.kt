@@ -109,7 +109,7 @@ internal fun ControlsSettingsDestination(
     }
     LaunchedEffect(state, lifecycleState, coordinator) { coordinator.render(state) }
     BackHandler(onBack = back)
-    val candidate = update.candidate
+    val candidate = update.latest
     // The row keeps its last version while it collapses, so its text does not empty out on the way.
     var lastCandidate by remember { mutableStateOf(candidate) }
     SideEffect { if (candidate != null) lastCandidate = candidate }

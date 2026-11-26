@@ -6,7 +6,7 @@ Open the executable, choose the Open Voyah Controls APK, connect the head unit a
 
 1. Unpack the portable kit and keep the `android-sdk` and `support` folders beside the executable. The kit contains everything the installer runs: Platform-Tools (`adb`), Build-Tools (`aapt2`, `apksigner`), a compact Java runtime for `apksigner`, and the pinned ARM64 Frida injector. Nothing else needs to be installed. A development executable started from `target\release` finds a local SDK, a JDK through `JAVA_HOME` and the injector that `android/open-voyah-controls/tools/prepare_runtime.py` wrote to `android/open-voyah-controls/dist/runtime`.
 2. Enable USB debugging on the head unit and accept the Android authorization prompt. Connect by USB and select **Refresh**, or enter the head unit's ADB address and select **Connect Wi-Fi**. The default port is 5555. The device must already accept TCP ADB for Wi-Fi connections.
-3. Choose the APK with **Browse APK…** or drop it on the window, or download an official release under **Releases and logs**.
+3. Select the intended head unit. Choose the APK or a signed update kit with **Browse…**, drop it on the window, or download an official artifact under **Releases and logs**.
 
 ## Install Open Voyah Controls
 
@@ -26,6 +26,12 @@ Setup requires Android 9 or 11 on ARM64, owner user 0, ADB root support, SELinux
 Before changing startup, the installer reads a bounded init configuration graph and checks the actual service command and configured user. Comments, non-root services and ambiguous definitions cannot establish this prerequisite. For an owner build on a unit that this PC already set up (a verified boot backup of the exact unit and build exists, or the Controls startup entry is present), a construct the preflight cannot read is reported and setup continues, because that unit has already booted the entry.
 
 The Android first-run check proves app-side root access and loads the selected offline speech model. On a reviewed firmware it also waits for every enabled handler; when it answers before the agents are up, the installer waits up to three minutes for them instead of repeating the check. An unreviewed firmware is reported separately and keeps vehicle operations disabled. The final check after the last restart waits up to five minutes for the startup entry, an active root channel and, on reviewed firmware, a ready launcher agent. It does not certify microphone audio quality, physical actions or sleep/wake behavior.
+
+## Install a signed update kit
+
+Choose the `OpenVoyahControlsKit-vVERSION.zip` file and select **Install**. The installer verifies the kit signature, both payload digests, the Controls APK signing certificate and version, and the exact fingerprint, product, primary ABI and Android SDK of the selected head unit. An official download also has to match the catalog asset's SHA-256. A different APK must have both a newer version name and a higher Android version code. An exact copy is accepted when continuing an interrupted setup.
+
+Use the Windows installer built for the kit. The Frida version, filename, digest and size must match the pins in the APK and the installer's recovery tools. The existing setup backs up the original startup script and updates the APK in place, keeping app data. It pauses a running deployment before a kit changes the APK and confirms the available services after setup. If setup is interrupted, keep the kit and the boot backup. Select the same head unit and the same kit and select **Install** or **Retry**. **Roll back** restores the original startup script and stops the deployment. The current APK and its settings stay installed.
 
 ## How Install works
 
@@ -85,6 +91,8 @@ cargo test --release --locked
 ```
 
 Build production releases with `OPEN_VOYAH_RELEASE_CERT_SHA256` set to the same public certificate fingerprint as the Android release. Sign `OpenVoyahControlsInstaller-v0.7.0.exe` with the release team's Windows code-signing certificate. The **Releases and logs** panel checks the project's stable GitHub releases for versioned `OpenVoyahControlsInstaller-vVERSION.exe` and `OpenVoyahControls-vVERSION.apk` assets. It requires a SHA-256 digest from the release. Startup checks are enabled by default and can be disabled from the same panel.
+
+For signed kits, set `OPEN_VOYAH_KIT_PUBLIC_KEY_HEX` in both consumer builds to the same lower-case hexadecimal 65-byte uncompressed P-256 public point. Use the stable, pinned-certificate APK and the Frida injector named by its embedded manifest. `python tools/prepare-update-kit.py --help` lists the offline build options, including the Android Build-Tools directory, public certificate pin, exact compatibility list and path to the separately stored P-256 signing key. The compatibility input is a JSON array of objects with `fingerprint`, `product`, `abi` and `sdk` fields. Use confirmed firmware identities. The packager verifies the APK with `apksigner` for each listed SDK, signs the exact UTF-8 manifest bytes and creates the ZIP after both payloads pass SHA-256 checks.
 
 Prepare the runtime with `python ../android/open-voyah-controls/tools/prepare_runtime.py`. Run `./tools/prepare-portable.ps1 -SdkRoot C:/Android/Sdk -BuildToolsVersion 35.0.0 -JavaHome <JDK>` after the signed release build. Use a complete JDK with `jlink` and `jmods`; a stripped IDE runtime is insufficient. The packager checks the Authenticode signature, Android certificate pin and runtime digest, builds a compact Java runtime, and verifies that the bundled APK verifier starts. Keep `android-sdk` and `support` beside the executable. Use `-Development` for a separately labeled unsigned bench kit. That switch does not bypass the certificate checks in **Install**: a kit without a release pin installs only owner builds whose certificate the owner trusts.
 

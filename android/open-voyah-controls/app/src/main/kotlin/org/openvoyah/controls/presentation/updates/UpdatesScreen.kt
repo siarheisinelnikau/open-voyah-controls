@@ -27,11 +27,12 @@ import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 
 @Composable
 internal fun UpdatesScreen(state: UpdatesState, back: () -> Unit, check: () -> Unit, startup: (Boolean) -> Unit,
-                           install: () -> Unit, cancel: () -> Unit, discard: () -> Unit, allowInstallation: () -> Unit) {
+                           install: () -> Unit, cancel: () -> Unit, discard: () -> Unit, allowInstallation: () -> Unit,
+                           installKit: () -> Unit = {}) {
     CockpitDetail(text(R.string.updates_title), text(R.string.updates_installed_version).format(state.installedVersion), back) {
         CockpitColumns(first = {
             CockpitSection(text(R.string.updates_release_heading), CockpitIcon.DOWNLOAD) {
-                val candidate = state.check.candidate
+                val candidate = state.check.latest
                 if (candidate != null) {
                     Text(text(R.string.updates_available_version).format(candidate.version), style = MaterialTheme.typography.titleLarge)
                 }
@@ -40,8 +41,17 @@ internal fun UpdatesScreen(state: UpdatesState, back: () -> Unit, check: () -> U
                 if (state.check.phase == UpdateCheckPhase.CHECKING) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 CockpitAction(text(R.string.updates_check), check, Modifier.fillMaxWidth(), !state.busy,
                     primary = candidate == null)
+                val kit = state.check.kit
+                if (kit != null) {
+                    CockpitAction(text(R.string.updates_download_kit).format(kit.version), installKit, Modifier.fillMaxWidth(),
+                        state.canInstallKit, primary = true)
+                }
+                state.check.candidate?.let { apk ->
+                    val label = if (kit == null) text(R.string.updates_download_install)
+                        else text(R.string.updates_download_app).format(apk.version)
+                    CockpitAction(label, install, Modifier.fillMaxWidth(), state.canInstall, primary = kit == null)
+                }
                 if (candidate != null) {
-                    CockpitAction(text(R.string.updates_download_install), install, Modifier.fillMaxWidth(), state.canInstall, primary = true)
                     if (!state.installAvailable) CockpitFeedback(text(R.string.updates_install_unavailable))
                     else state.localInstallProblem?.let { CockpitFeedback(problemText(it), error = true) }
                 }
@@ -86,7 +96,7 @@ private fun UpdateProgress(fraction: Float) {
 private fun checkMessage(state: UpdatesState): String? = when (state.check.phase) {
     UpdateCheckPhase.IDLE -> text(R.string.updates_check_description)
     UpdateCheckPhase.CHECKING -> text(R.string.updates_checking)
-    UpdateCheckPhase.COMPLETE -> text(if (state.check.candidate == null) R.string.updates_no_update else R.string.updates_verify_before_install)
+    UpdateCheckPhase.COMPLETE -> text(if (state.check.latest == null) R.string.updates_no_update else R.string.updates_verify_before_install)
     UpdateCheckPhase.FAILED -> if (state.check.automatic) text(R.string.updates_check_description)
         else problemText(state.check.problem ?: UpdateProblem.NETWORK)
 }
@@ -129,6 +139,10 @@ internal fun problemText(problem: UpdateProblem): String = text(when (problem) {
     UpdateProblem.INSTALL_PERMISSION -> R.string.updates_error_permission
     UpdateProblem.INSTALLATION -> R.string.updates_error_installation
     UpdateProblem.PREFERENCE -> R.string.updates_error_preference
+    UpdateProblem.KIT_SIGNATURE -> R.string.updates_kit_signature
+    UpdateProblem.KIT_COMPATIBILITY -> R.string.updates_kit_compatibility
+    UpdateProblem.KIT_FORMAT -> R.string.updates_kit_format
+    UpdateProblem.KIT_WINDOWS -> R.string.updates_kit_windows
 })
 
 private fun text(id: Int): String = UiText.get(id)

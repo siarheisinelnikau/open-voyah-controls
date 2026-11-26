@@ -75,7 +75,7 @@ internal fun UpdatesDestination(back: () -> Unit) {
                     else activity.startActivity(intent.setClassName(handler.packageName, handler.name))
                 } catch (_: RuntimeException) { model.installationSettingsUnavailable() }
             }
-        })
+        }, installKit = model::downloadAndInstallKit)
 }
 
 private tailrec fun Context.updatesActivity(): ComponentActivity = when (this) {

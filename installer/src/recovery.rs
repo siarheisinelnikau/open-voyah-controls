@@ -548,6 +548,60 @@ export PATH=/system/bin:/system/xbin
 base=/data/adb/open-voyah-controls
 "#;
 
+#[derive(Deserialize, Eq, PartialEq)]
+pub struct RuntimePin {
+    pub version: String,
+    pub file: String,
+    pub binary_sha256: String,
+    pub size: u64,
+}
+
+impl RuntimePin {
+    pub fn portable() -> Result<Self> {
+        Self::parse(RUNTIME.as_bytes())
+    }
+
+    pub fn from_apk(file: std::fs::File) -> Result<Self> {
+        let mut apk = zip::ZipArchive::new(file).map_err(message)?;
+        let entry = apk
+            .by_name("assets/production/FRIDA_RUNTIME.json")
+            .map_err(message)?;
+        if !(1..=8192).contains(&entry.size()) {
+            return Err("The APK injector manifest has an invalid size.".into());
+        }
+        let mut bytes = Vec::new();
+        entry.take(8193).read_to_end(&mut bytes).map_err(message)?;
+        Self::parse(&bytes)
+    }
+
+    fn parse(bytes: &[u8]) -> Result<Self> {
+        let runtime: Self = serde_json::from_slice(bytes).map_err(message)?;
+        if bytes.len() > 8192
+            || runtime.file != format!("open-voyah-controls-frida-{}", runtime.version)
+            || !safe_id(&runtime.version, 20)
+            || runtime.version.contains(['/', ':'])
+            || !is_sha256(&runtime.binary_sha256)
+            || !(1..=crate::kit::MAX_RUNTIME_BYTES).contains(&runtime.size)
+        {
+            return Err("The pinned injector manifest is invalid.".into());
+        }
+        Ok(runtime)
+    }
+
+    pub fn staged_on(&self, target: &Target<'_>, identity: &Identity) -> Result<bool> {
+        let existing = target.script(&format!("{RUNTIME_GUARD}\nif [ -f \"$base/$3\" ] && [ ! -L \"$base/$3\" ] && [ \"$(stat -c %u:%a:%h \"$base/$3\")\" = 0:500:1 ] && [ \"$(sha256sum \"$base/$3\" | awk '{{print $1}}')\" = \"$4\" ]; then echo OVC_RUNTIME_PRESENT; else echo OVC_RUNTIME_MISSING; fi\n"),
+            &[&identity.fingerprint, &identity.serial, &self.file, &self.binary_sha256], 30)?;
+        match existing.as_str() {
+            "OVC_RUNTIME_PRESENT" => {
+                identity.recheck(target)?;
+                Ok(true)
+            }
+            "OVC_RUNTIME_MISSING" => Ok(false),
+            _ => Err("The runtime state could not be verified.".into()),
+        }
+    }
+}
+
 pub fn install_runtime(
     target: &Target<'_>,
     source: &Path,
@@ -555,7 +609,15 @@ pub fn install_runtime(
     trust: &Trust,
     progress: impl Fn(String),
 ) -> Result<String> {
-    stage_runtime(target, source, storage, trust, true, progress)
+    stage_runtime(
+        target,
+        source,
+        storage,
+        trust,
+        &RuntimePin::portable()?,
+        true,
+        progress,
+    )
 }
 
 pub fn stage_setup_runtime(
@@ -563,9 +625,10 @@ pub fn stage_setup_runtime(
     source: &Path,
     storage: &Path,
     trust: &Trust,
+    runtime: &RuntimePin,
     progress: impl Fn(String),
 ) -> Result<String> {
-    stage_runtime(target, source, storage, trust, false, progress)
+    stage_runtime(target, source, storage, trust, runtime, false, progress)
 }
 
 fn stage_runtime(
@@ -573,23 +636,10 @@ fn stage_runtime(
     source: &Path,
     storage: &Path,
     trust: &Trust,
+    runtime: &RuntimePin,
     reviewed: bool,
     progress: impl Fn(String),
 ) -> Result<String> {
-    #[derive(Deserialize)]
-    struct Runtime {
-        version: String,
-        file: String,
-        binary_sha256: String,
-    }
-    let runtime: Runtime = serde_json::from_str(RUNTIME).map_err(message)?;
-    if !safe_id(&runtime.file, 100)
-        || runtime.file.contains('/')
-        || !safe_id(&runtime.version, 20)
-        || !is_sha256(&runtime.binary_sha256)
-    {
-        return Err("The pinned injector manifest is invalid.".into());
-    }
     let staged = ScratchFile::copy_from(storage, source, target)?;
     let _locked = staged.lock()?;
     if digest(&staged.path, target.stop)? != runtime.binary_sha256 {
@@ -602,17 +652,11 @@ fn stage_runtime(
     } else {
         production::verify_preparation(target, &identity, storage, trust)?;
     }
-    let existing = target.script(&format!("{RUNTIME_GUARD}\nif [ -f \"$base/$3\" ] && [ ! -L \"$base/$3\" ] && [ \"$(stat -c %u:%a:%h \"$base/$3\")\" = 0:500:1 ] && [ \"$(sha256sum \"$base/$3\" | awk '{{print $1}}')\" = \"$4\" ]; then echo OVC_RUNTIME_PRESENT; else echo OVC_RUNTIME_MISSING; fi\n"),
-        &[&identity.fingerprint, &identity.serial, &runtime.file, &runtime.binary_sha256], 30)?;
-    if existing == "OVC_RUNTIME_PRESENT" {
-        identity.recheck(target)?;
+    if runtime.staged_on(target, &identity)? {
         return Ok(format!(
             "Verified injector {} is already staged.",
             runtime.version
         ));
-    }
-    if existing != "OVC_RUNTIME_MISSING" {
-        return Err("The runtime state could not be verified.".into());
     }
     require_inactive(target, &identity, false)?;
     let prepare = format!(

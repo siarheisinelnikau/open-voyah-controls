@@ -157,8 +157,8 @@ const PAGE_TITLES: [Text; 5] = [
 ];
 const PAGE_HINTS: [Text; 5] = [
     (
-        "Connect the head unit, choose the APK and select Install. Everything else is automatic.",
-        "Подключите магнитолу, выберите APK и нажмите «Установить». Остальное установщик сделает сам.",
+        "Connect and select the head unit you want to update.",
+        "Подключите и выберите магнитолу для установки.",
     ),
     (
         "Install, update and manage other apps without touching Open Voyah Controls.",
@@ -306,6 +306,11 @@ enum Job {
         runtime: PathBuf,
         lang: Lang,
     },
+    TurnkeyKit {
+        path: PathBuf,
+        release_digest: Option<String>,
+        lang: Lang,
+    },
     RollBack(Lang),
     Apps(AppsJob),
     Launch,
@@ -342,6 +347,7 @@ enum Output {
     Apps(Vec<App>, String),
     Fingerprint(String),
     Apk(PathBuf, ReleaseApk, Product),
+    Kit(PathBuf, String),
     Update(PathBuf, String),
 }
 
@@ -388,6 +394,7 @@ struct State {
     storage: PathBuf,
     catalog: Catalog,
     apk_release: Option<(PathBuf, ReleaseApk)>,
+    kit_release: Option<(PathBuf, String)>,
     events: Events,
     rx: Receiver<Event>,
     cancel: Option<Arc<AtomicBool>>,
@@ -410,6 +417,11 @@ struct WindowSlot {
 
 fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain([0]).collect()
+}
+
+fn is_update_kit(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("zip"))
 }
 
 fn storage() -> PathBuf {
@@ -460,13 +472,13 @@ fn run_job(
 ) -> Result<Output> {
     if let Job::Download(asset, update) = job {
         let path = releases::download(&asset, &store.join("downloads"), stop, progress)?;
+        let sha256 = releases::checksum(&asset)
+            .ok_or("Missing release digest.")?
+            .to_owned();
         return Ok(if update {
-            Output::Update(
-                path,
-                releases::checksum(&asset)
-                    .ok_or("Missing release digest.")?
-                    .into(),
-            )
+            Output::Update(path, sha256)
+        } else if crate::kit::release_version(&asset.name).is_some() {
+            Output::Kit(path, sha256)
         } else {
             let (version, product) = match releases::apk_version(&asset) {
                 Some(version) => (version, Product::Controls),
@@ -480,9 +492,8 @@ fn run_job(
                 path,
                 ReleaseApk {
                     version,
-                    sha256: releases::checksum(&asset)
-                        .ok_or("Missing release digest.")?
-                        .into(),
+                    sha256,
+                    version_code: None,
                 },
                 product,
             )
@@ -492,6 +503,32 @@ fn run_job(
         .ok_or("Install Android SDK Platform-Tools, then select adb.exe under Releases & logs.")?;
     let trust = Trust::load(store);
     let verification = store.join("verification");
+    let mut kit = None;
+    let job = match job {
+        Job::TurnkeyKit {
+            path,
+            release_digest,
+            lang,
+        } => {
+            if device.is_none() {
+                return Err("Select the intended head unit before setup.".into());
+            }
+            let staged = kit.insert(crate::kit::stage(
+                &path,
+                &verification,
+                stop,
+                release_digest.as_deref(),
+                &progress,
+            )?);
+            Job::Turnkey {
+                path: staged.apk.clone(),
+                expected: Some(staged.release.clone()),
+                runtime: staged.runtime.clone(),
+                lang,
+            }
+        }
+        other => other,
+    };
     if let Job::Turnkey {
         path,
         expected,
@@ -500,22 +537,24 @@ fn run_job(
     } = job
     {
         let selected = device.ok_or("Select the intended head unit before setup.")?;
-        // The certificate decision comes first and changes nothing on the head unit.
-        let facts = adb
-            .target(&selected, stop)
-            .and_then(|target| production::inspect_apk(&target, &path, &verification));
-        let facts = match facts {
-            Ok(facts) => facts,
-            Err(error) => return Ok(cycle_completion(&adb, Err(error))),
-        };
-        if facts.package != device::PACKAGE {
-            return Ok(Output::Status(lang.pick(
-                &format!("{} is not Open Voyah Controls. Install other apps on the Other apps page.", facts.package),
-                &format!("{} — не Open Voyah Controls. Другие приложения устанавливаются на странице «Приложения».", facts.package),
-            )));
-        }
-        if expected.is_none() && trust.classify(Product::Controls, &facts.signer).is_err() {
-            return Ok(Output::Trust(facts));
+        if kit.is_none() {
+            // The certificate decision comes first and changes nothing on the head unit.
+            let facts = adb
+                .target(&selected, stop)
+                .and_then(|target| production::inspect_apk(&target, &path, &verification));
+            let facts = match facts {
+                Ok(facts) => facts,
+                Err(error) => return Ok(cycle_completion(&adb, Err(error))),
+            };
+            if facts.package != device::PACKAGE {
+                return Ok(Output::Status(lang.pick(
+                    &format!("{} is not Open Voyah Controls. Install other apps on the Other apps page.", facts.package),
+                    &format!("{} — не Open Voyah Controls. Другие приложения устанавливаются на странице «Приложения».", facts.package),
+                )));
+            }
+            if expected.is_none() && trust.classify(Product::Controls, &facts.signer).is_err() {
+                return Ok(Output::Trust(facts));
+            }
         }
         let say = |text: String| progress(text);
         let mut unit = turnkey::Live {
@@ -526,6 +565,8 @@ fn run_job(
                 expected: expected.as_ref(),
             },
             runtime: &runtime,
+            kit: kit.as_ref(),
+            runtime_pin: None,
             store,
             trust: &trust,
             stop,
@@ -908,8 +949,8 @@ impl State {
             tab,
             PANEL_MUTED,
             (
-                "Choose the APK. Install runs the whole cycle, restarts the head unit by itself and checks the result.",
-                "Выберите APK — установщик сам пройдёт весь цикл с перезагрузками и проверкой.",
+                "Choose a Controls APK or a signed update kit. Install verifies the result on the head unit.",
+                "Выберите APK Controls или комплект. Установщик проверит результат на магнитоле.",
             ),
             [253, 318, 704, 24],
             0,
@@ -919,14 +960,14 @@ impl State {
             APK,
             [252, 347, 551, 31],
             (
-                "Choose or drop an Open Voyah Controls APK",
-                "Выберите или перетащите APK Open Voyah Controls",
+                "Choose or drop a Controls APK or update kit",
+                "Выберите или перетащите APK Controls или комплект",
             ),
         );
         self.button(
             tab,
             BROWSE_APK,
-            ("Browse APK…", "Выбрать APK…"),
+            ("Browse…", "Выбрать…"),
             [816, 345, 141, 34],
         );
         self.button(tab, INSTALL, ("Install", "Установить"), [252, 388, 204, 36]);
@@ -1211,12 +1252,7 @@ impl State {
             [605, 324, 198, 35],
         );
         self.combo(tab, RELEASE, [252, 376, 485, 140]);
-        self.button(
-            tab,
-            DOWNLOAD,
-            ("Download APK", "Скачать APK"),
-            [750, 373, 207, 36],
-        );
+        self.button(tab, DOWNLOAD, ("Download", "Скачать"), [750, 373, 207, 36]);
         self.label(
             tab,
             WORKSPACE_TEXT,
@@ -1293,12 +1329,12 @@ impl State {
                 Some(0),
             );
         }
-        if self.catalog.apk.is_empty() && self.catalog.youtube.is_empty() {
+        if self.release_assets().next().is_none() {
             self.set_items(
                 RELEASE,
                 [self.pick((
-                    "Check for official APK releases",
-                    "Проверьте официальные релизы APK",
+                    "Check for official releases",
+                    "Проверьте официальные релизы",
                 ))],
                 Some(0),
             );
@@ -1547,11 +1583,12 @@ impl State {
         self.index(DEVICE).and_then(|i| self.devices.get(i))
     }
 
-    /// The Releases list: Controls APKs first, then the YouTube app's, each newest first.
-    fn release_apks(&self) -> impl Iterator<Item = &releases::Asset> {
+    /// The Releases list: full Controls kits, Controls APKs, and YouTube APKs, each newest first.
+    fn release_assets(&self) -> impl Iterator<Item = &releases::Asset> {
         self.catalog
-            .apk
+            .kits
             .iter()
+            .chain(&self.catalog.apk)
             .chain(&self.catalog.youtube)
             .map(|(_, asset)| asset)
     }
@@ -1595,10 +1632,7 @@ impl State {
         self.enable(CANCEL, !free);
         self.enable(CHECK, !self.checking);
         self.enable(UPDATE, free && self.catalog.installer.is_some());
-        self.enable(
-            DOWNLOAD,
-            free && !(self.catalog.apk.is_empty() && self.catalog.youtube.is_empty()),
-        );
+        self.enable(DOWNLOAD, free && self.release_assets().next().is_some());
         self.set(
             DEVICE_BADGE,
             if self.selected().is_some_and(Device::ready) {
@@ -1765,6 +1799,15 @@ impl State {
                                 }
                             }
                         },
+                        Ok(Output::Kit(path, sha256)) => {
+                            self.kit_release = Some((path.clone(), sha256));
+                            self.set(APK, &path.to_string_lossy());
+                            self.switch(PAGE_INSTALL);
+                            self.status(self.pick((
+                                "Update kit downloaded. Select Install to verify it and update the selected head unit.",
+                                "Комплект обновления скачан. Нажмите «Установить», чтобы проверить его и обновить выбранную магнитолу.",
+                            )));
+                        }
                         Ok(Output::Update(_, _)) => {
                             unsafe { DestroyWindow(self.hwnd) };
                             return;
@@ -1784,26 +1827,26 @@ impl State {
                     match result {
                         Ok(catalog) => {
                             self.catalog = catalog;
-                            if self.catalog.apk.is_empty() && self.catalog.youtube.is_empty() {
+                            if self.release_assets().next().is_none() {
                                 self.set_items(
                                     RELEASE,
                                     [self.pick((
-                                        "No official APK releases are available",
-                                        "Официальных релизов APK пока нет",
+                                        "No official app releases are available",
+                                        "Официальных релизов приложений пока нет",
                                     ))],
                                     Some(0),
                                 );
                             } else {
                                 let names: Vec<String> =
-                                    self.release_apks().map(|a| a.name.clone()).collect();
+                                    self.release_assets().map(|a| a.name.clone()).collect();
                                 self.set_items(RELEASE, names.iter().map(String::as_str), Some(0));
                             }
                             if self.cancel.is_none() {
                                 if let Some((version, _)) = &self.catalog.installer {
                                     self.status(&format!("Installer {version} is available. Use Download and install under Releases & logs."));
                                 } else if !automatic {
-                                    self.status(&format!("Installer {} is current. Found {} verified Controls and {} YouTube APK release(s).",
-                                        env!("CARGO_PKG_VERSION"), self.catalog.apk.len(), self.catalog.youtube.len()));
+                                    self.status(&format!("Installer {} is current. Found {} Controls kit(s), {} Controls APK(s) and {} YouTube APK(s).",
+                                        env!("CARGO_PKG_VERSION"), self.catalog.kits.len(), self.catalog.apk.len(), self.catalog.youtube.len()));
                                 }
                             }
                         }
@@ -1866,9 +1909,17 @@ impl State {
         });
     }
 
-    /// Files dropped on the window: one APK on the Installation page fills the Controls field; anything else goes to
-    /// Other apps.
+    /// A single Controls input on the Installation page fills the field; bundled updates never enter Other apps.
     fn dropped(&mut self, files: Vec<PathBuf>) -> Result<()> {
+        if files.len() == 1 && files[0].is_file() && is_update_kit(&files[0]) {
+            self.set(APK, &files[0].to_string_lossy());
+            self.switch(PAGE_INSTALL);
+            self.status(self.pick((
+                "Update kit selected. Select Install.",
+                "Комплект обновления выбран. Нажмите «Установить».",
+            )));
+            return Ok(());
+        }
         let files: Vec<_> = files
             .into_iter()
             .filter(|path| {
@@ -2015,7 +2066,15 @@ impl State {
                 });
             }
             BROWSE_APK | BROWSE_KEYBOARD => {
-                if let Some(path) = choose_file(self.hwnd, "Android packages\0*.apk\0\0") {
+                let filter = if id == BROWSE_APK {
+                    self.pick((
+                        "Controls APKs and update kits\0*.apk;*.zip\0\0",
+                        "APK Controls и комплекты обновления\0*.apk;*.zip\0\0",
+                    ))
+                } else {
+                    "Android packages\0*.apk\0\0"
+                };
+                if let Some(path) = choose_file(self.hwnd, filter) {
                     if id == BROWSE_APK
                         && self
                             .apk_release
@@ -2023,6 +2082,14 @@ impl State {
                             .is_some_and(|(downloaded, _)| downloaded != &path)
                     {
                         self.apk_release = None;
+                    }
+                    if id == BROWSE_APK
+                        && self
+                            .kit_release
+                            .as_ref()
+                            .is_some_and(|(downloaded, _)| downloaded != &path)
+                    {
+                        self.kit_release = None;
                     }
                     self.set(
                         if id == BROWSE_APK { APK } else { KEYBOARD },
@@ -2035,10 +2102,42 @@ impl State {
                 if !path.is_file() {
                     return Err(self
                         .pick((
-                            "Choose the Open Voyah Controls APK first.",
-                            "Сначала выберите APK Open Voyah Controls.",
+                            "Choose a Controls APK or signed update kit first.",
+                            "Сначала выберите APK Controls или подписанный комплект.",
                         ))
                         .into());
+                }
+                if is_update_kit(&path) {
+                    if !crate::kit::supported() {
+                        return Err(self.pick((
+                            "This installer has no update-kit signing key. Use the Windows installer built for the kit.",
+                            "В этом установщике нет ключа проверки комплекта. Используйте установщик Windows для этого комплекта.",
+                        )).into());
+                    }
+                    let serial = &self
+                        .selected()
+                        .ok_or("Select the intended head unit.")?
+                        .serial;
+                    let question = self.lang.pick(
+                        &format!("Install the signed update kit on {serial}?\n\nThe installer verifies the kit and the exact head-unit firmware, backs up the startup script, and installs the app and its matching Frida runtime. It may restart the head unit. App settings are kept. Keep the vehicle parked and connected until the installer reports the result."),
+                        &format!("Установить подписанный комплект на {serial}?\n\nУстановщик проверит комплект и точную прошивку, сохранит копию скрипта автозапуска и установит приложение вместе с совместимым Frida. Возможны перезагрузки. Настройки приложения сохранятся. Оставьте автомобиль на стоянке и не отключайте магнитолу до результата."),
+                    );
+                    if confirm(self.hwnd, &question) {
+                        let release_digest = self
+                            .kit_release
+                            .as_ref()
+                            .filter(|(downloaded, _)| downloaded == &path)
+                            .map(|(_, sha256)| sha256.clone());
+                        self.pending = None;
+                        self.steps = [StepState::Pending; 12];
+                        self.render_steps();
+                        self.start(Job::TurnkeyKit {
+                            path,
+                            release_digest,
+                            lang: self.lang,
+                        });
+                    }
+                    return Ok(());
                 }
                 let expected = self
                     .apk_release
@@ -2157,6 +2256,14 @@ impl State {
                             return Err(
                                 "Choose the Controls APK on the Installation page first.".into()
                             );
+                        }
+                        if is_update_kit(&path) {
+                            return Err(self
+                                .pick((
+                                    "Install the complete update kit on the Installation page.",
+                                    "Установите комплект целиком на странице установки.",
+                                ))
+                                .into());
                         }
                         let expected = self
                             .apk_release
@@ -2318,8 +2425,8 @@ impl State {
             DOWNLOAD => {
                 let asset = self
                     .index(RELEASE)
-                    .and_then(|i| self.release_apks().nth(i))
-                    .ok_or("Select an APK release.")?
+                    .and_then(|i| self.release_assets().nth(i))
+                    .ok_or("Select an app release.")?
                     .clone();
                 self.start(Job::Download(asset, false));
             }
@@ -3016,6 +3123,7 @@ pub fn run() {
             storage: store,
             catalog: Catalog::default(),
             apk_release: None,
+            kit_release: None,
             lang: initial_language(&store_for_language, capture_language),
             texts: Vec::new(),
             cues: Vec::new(),
@@ -3773,6 +3881,7 @@ mod tests {
         let official = ReleaseApk {
             version: semver::Version::new(0, 3, 0),
             sha256: "0".repeat(64),
+            version_code: None,
         };
         assert!(matches!(
             status(youtube("youtube-newer", Some(official))),

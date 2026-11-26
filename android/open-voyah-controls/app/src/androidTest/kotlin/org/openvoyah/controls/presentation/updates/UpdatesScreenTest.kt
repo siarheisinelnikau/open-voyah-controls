@@ -20,6 +20,7 @@ import org.openvoyah.controls.data.updates.DownloadProgress
 import org.openvoyah.controls.data.updates.UpdateCheck
 import org.openvoyah.controls.data.updates.UpdateCheckPhase
 import org.openvoyah.controls.data.updates.UpdateProblem
+import org.openvoyah.controls.domain.settings.AppAppearance
 import org.openvoyah.controls.platform.updates.UpdateInstallPhase
 import org.openvoyah.controls.platform.updates.UpdateInstallState
 import org.openvoyah.controls.presentation.navigation.ControlsNavigation
@@ -54,7 +55,7 @@ class UpdatesScreenTest : InstrumentationTestCase() {
             // Replace only this test activity's content. No real repository, installer or settings callback is invoked.
             launched.setContent {
                 key(fixture.language) {
-                    ControlsTheme {
+                    ControlsTheme(appearance = AppAppearance(animateRoutes = false)) {
                         UpdatesScreen(fixture.state,
                             back = { fixture.back.incrementAndGet() },
                             check = { fixture.check.incrementAndGet() },
@@ -75,7 +76,8 @@ class UpdatesScreenTest : InstrumentationTestCase() {
                                 fixture.discard.incrementAndGet()
                                 fixture.state = fixture.state.copy(installation = UpdateInstallState(UpdateInstallPhase.CANCELLED))
                             },
-                            allowInstallation = { fixture.permission.incrementAndGet() })
+                            allowInstallation = { fixture.permission.incrementAndGet() },
+                            installKit = { fixture.installKit.incrementAndGet() })
                     }
                 }
             }
@@ -139,6 +141,23 @@ class UpdatesScreenTest : InstrumentationTestCase() {
         assertEquals(0, fixture.install.get())
         scrollTo(label(R.string.updates_download_install))
         assertEnabled(R.string.updates_download_install, true)
+    }
+
+    fun testSignedKitHasAnExplicitActionAndKeepsApkActionAvailable() {
+        val name = "OpenVoyahControlsKit-v0.20.0.zip"
+        val tag = "fixture-v0.20.0"
+        val kit = checkNotNull(ReleasePolicy.kitCandidate(tag, false, false, name,
+            "${ReleasePolicy.DOWNLOAD_PREFIX}$tag/$name", 200, "sha256:" + "b".repeat(64)))
+        val state = available()
+        show(state.copy(check = state.check.copy(kit = kit)), guidance = R.string.updates_verify_before_install)
+        val kitAction = label(R.string.updates_download_kit).format(kit.version)
+        scrollTo(kitAction)
+        click(kitAction)
+        await("kit chosen") { fixture.installKit.get() == 1 }
+        val appAction = label(R.string.updates_download_app).format(state.check.candidate?.version)
+        scrollTo(appAction)
+        assertTrue(control(appAction)?.isEnabled == true)
+        assertEquals(0, fixture.install.get())
     }
 
     fun testPermissionRecoveryAndLongRussianTextRemainReachable() {
@@ -263,7 +282,14 @@ class UpdatesScreenTest : InstrumentationTestCase() {
             val progressed = acted && after.signature != before.signature && visited.add(direction to after.signature)
             if (!progressed) {
                 edges += direction
-                if (edges.size == 2) break
+                if (edges.size == 2) {
+                    // Compose can expose the previous layout while the next frame publishes semantics.
+                    // Retry the complete viewport under the same deadline even after both edges were visited.
+                    edges.clear()
+                    visited.clear()
+                    showAttempts.clear()
+                    SystemClock.sleep(80)
+                }
                 direction = if (direction == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
                     AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD else AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
             }
@@ -341,6 +367,7 @@ class UpdatesScreenTest : InstrumentationTestCase() {
         val check = AtomicInteger()
         val startup = AtomicInteger()
         val install = AtomicInteger()
+        val installKit = AtomicInteger()
         val cancel = AtomicInteger()
         val discard = AtomicInteger()
         val permission = AtomicInteger()
