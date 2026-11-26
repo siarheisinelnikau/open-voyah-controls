@@ -190,6 +190,8 @@ internal class HomeSettingsCoordinator(
             HomeCommand.IMPORT -> document(launchImport)
             HomeCommand.CONNECT -> model.run(PanelControls.Operation.CONNECT)
             HomeCommand.NAVIGATOR_WIDGET -> model.run(PanelControls.Operation.NAVIGATOR_WIDGET)
+            HomeCommand.OPEN_DRIVER_NAVIGATOR -> model.driverNavigator(open = true)
+            HomeCommand.CLOSE_DRIVER_NAVIGATOR -> model.driverNavigator(open = false)
             HomeCommand.STATUS -> model.run(PanelControls.Operation.STATUS)
             HomeCommand.DISCONNECT -> model.run(PanelControls.Operation.DISCONNECT)
         }

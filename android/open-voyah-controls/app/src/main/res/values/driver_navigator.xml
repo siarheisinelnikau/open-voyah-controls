@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="driver_navigator_open">Show Yandex Navigator on the driver display</string>
+    <string name="driver_navigator_close">Restore media card</string>
+    <string name="driver_navigator_working">Checking the driver display…</string>
+    <string name="driver_navigator_shown">Yandex Navigator is open in the left area.</string>
+    <string name="driver_navigator_restored">The left area is back to its usual view.</string>
+    <string name="driver_navigator_unavailable">The driver display service is unavailable on this head unit.</string>
+    <string name="driver_navigator_no_slot">Open the music card on the driver display, then try again.</string>
+    <string name="driver_navigator_denied">This head unit does not allow the media card to host an app window.</string>
+    <string name="driver_navigator_not_installed">Install Yandex Navigator on the head unit.</string>
+    <string name="driver_navigator_in_use">Close the existing Yandex Navigator window, then try again.</string>
+    <string name="driver_navigator_unconfirmed">The driver display did not confirm the request. Use Restore media card to close the window.</string>
+    <string name="driver_navigator_failed">The driver display could not complete the request.</string>
+</resources>

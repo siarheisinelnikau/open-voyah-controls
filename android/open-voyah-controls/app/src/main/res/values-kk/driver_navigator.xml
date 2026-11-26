@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="driver_navigator_open">Яндекс Навигаторды аспаптар панелінде ашу</string>
+    <string name="driver_navigator_close">Медиакартаны қайтару</string>
+    <string name="driver_navigator_working">Аспаптар панелі тексеріліп жатыр…</string>
+    <string name="driver_navigator_shown">Яндекс Навигатор сол жақ аймақта ашылды.</string>
+    <string name="driver_navigator_restored">Сол жақ аймақ әдеттегі күйіне оралды.</string>
+    <string name="driver_navigator_unavailable">Бұл бас құрылғыда аспаптар панелінің қызметі қолжетімсіз.</string>
+    <string name="driver_navigator_no_slot">Аспаптар панеліндегі музыка картасын ашып, әрекетті қайталаңыз.</string>
+    <string name="driver_navigator_denied">Бас құрылғы медиакартада қолданба терезесін ашуға рұқсат бермейді.</string>
+    <string name="driver_navigator_not_installed">Яндекс Навигаторды бас құрылғыға орнатыңыз.</string>
+    <string name="driver_navigator_in_use">Ашық тұрған Яндекс Навигатор терезесін жауып, әрекетті қайталаңыз.</string>
+    <string name="driver_navigator_unconfirmed">Аспаптар панелі сұрауды растаған жоқ. Терезені жабу үшін «Медиакартаны қайтару» түймесін басыңыз.</string>
+    <string name="driver_navigator_failed">Аспаптар панелі сұрауды орындай алмады.</string>
+</resources>

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -72,7 +73,24 @@ public final class FridaPanelControls implements PanelControls {
                 bridge.openNavigatorWidgetSettings();
                 yield UiText.get(R.string.home_navigator_widget_opened);
             }
+            case OPEN_DRIVER_NAVIGATOR -> driverNavigatorMessage(bridge.driverNavigatorWindow(true));
+            case CLOSE_DRIVER_NAVIGATOR -> driverNavigatorMessage(bridge.driverNavigatorWindow(false));
         };
+    }
+
+    private static String driverNavigatorMessage(String status) throws IOException {
+        if (status.equals("shown")) return UiText.get(R.string.driver_navigator_shown);
+        if (status.equals("restored")) return UiText.get(R.string.driver_navigator_restored);
+        int reason = switch (status) {
+            case "unavailable" -> R.string.driver_navigator_unavailable;
+            case "no_slot" -> R.string.driver_navigator_no_slot;
+            case "denied" -> R.string.driver_navigator_denied;
+            case "not_installed" -> R.string.driver_navigator_not_installed;
+            case "in_use" -> R.string.driver_navigator_in_use;
+            case "unconfirmed", "busy" -> R.string.driver_navigator_unconfirmed;
+            default -> R.string.driver_navigator_failed;
+        };
+        throw new IOException(UiText.get(reason));
     }
 
     /** Android binds the service in this process shortly after the setting changes. */

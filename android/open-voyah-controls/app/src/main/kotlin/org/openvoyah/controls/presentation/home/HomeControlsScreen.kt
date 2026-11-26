@@ -74,8 +74,21 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
             CockpitSwitch(R.string.driver_navigation_card, state.driverNavigationCard, change = actions::driverNavigationCard)
             Text(UiText.get(R.string.driver_navigation_description), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (state.driverNavigatorSupported) DriverNavigatorActions(state, actions)
         }
     }
+}
+
+@Composable
+private fun DriverNavigatorActions(state: HomeControlsState, actions: HomeActions) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        CockpitAction(UiText.get(R.string.driver_navigator_open),
+            { actions.command(HomeCommand.OPEN_DRIVER_NAVIGATOR) }, enabled = !state.driverNavigatorBusy)
+        CockpitAction(UiText.get(R.string.driver_navigator_close),
+            { actions.command(HomeCommand.CLOSE_DRIVER_NAVIGATOR) }, enabled = !state.driverNavigatorBusy)
+    }
+    if (state.driverNavigatorBusy) CockpitFeedback(UiText.get(R.string.driver_navigator_working))
+    state.driverNavigatorFeedback?.let { CockpitFeedback(it.message(), error = !it.successful()) }
 }
 
 /** Settings → Buttons → Factory panel: the app shortcuts of the launcher panel. */

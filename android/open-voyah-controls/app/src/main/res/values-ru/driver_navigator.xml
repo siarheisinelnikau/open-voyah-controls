@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="driver_navigator_open">Открыть Яндекс Навигатор на приборке</string>
+    <string name="driver_navigator_close">Вернуть медиакарточку</string>
+    <string name="driver_navigator_working">Проверяем приборку…</string>
+    <string name="driver_navigator_shown">Яндекс Навигатор открыт в левой зоне.</string>
+    <string name="driver_navigator_restored">Левая зона вернулась в обычный режим.</string>
+    <string name="driver_navigator_unavailable">Сервис дисплея приборки недоступен на этом головном устройстве.</string>
+    <string name="driver_navigator_no_slot">Откройте музыкальную карточку на приборке и повторите попытку.</string>
+    <string name="driver_navigator_denied">Головное устройство не разрешает открыть окно приложения в медиакарточке.</string>
+    <string name="driver_navigator_not_installed">Установите Яндекс Навигатор на головное устройство.</string>
+    <string name="driver_navigator_in_use">Закройте уже открытое окно Яндекс Навигатора и повторите попытку.</string>
+    <string name="driver_navigator_unconfirmed">Приборка не подтвердила запрос. Для закрытия окна нажмите «Вернуть медиакарточку».</string>
+    <string name="driver_navigator_failed">Не удалось выполнить запрос на приборке.</string>
+</resources>

@@ -13,7 +13,10 @@ import org.openvoyah.controls.core.PanelControls
 import org.openvoyah.controls.core.PanelSlots
 import org.openvoyah.controls.data.settings.SettingsStore
 
-enum class HomeCommand { ACCESSIBILITY, CAPTURE, MANUAL, STEERING, TIMINGS, RESET, EXPORT, IMPORT, CONNECT, STATUS, DISCONNECT, NAVIGATOR_WIDGET }
+enum class HomeCommand {
+    ACCESSIBILITY, CAPTURE, MANUAL, STEERING, TIMINGS, RESET, EXPORT, IMPORT, CONNECT, STATUS, DISCONNECT,
+    NAVIGATOR_WIDGET, OPEN_DRIVER_NAVIGATOR, CLOSE_DRIVER_NAVIGATOR,
+}
 
 interface HomeActions {
     fun command(command: HomeCommand)
@@ -45,6 +48,8 @@ internal data class HomeControlsState(
     val weatherCard: Boolean = false, val weatherCity: String = "", val mediaCardApps: Boolean = true,
     val mediaCardHideOnline: Boolean = true, val clusterCardApps: Boolean = true, val driverMediaLayout: Boolean = false,
     val driverNavigationCard: Boolean = false,
+    val driverNavigatorSupported: Boolean = false, val driverNavigatorBusy: Boolean = false,
+    val driverNavigatorFeedback: PanelControls.Result? = null,
     val connected: Boolean = false,
     /** The supervisor paused the activation; it re-arms itself after the next system restart. */
     val activationPaused: Boolean = false,
@@ -82,7 +87,7 @@ internal class HomeControlsViewModel(
     fun detach(owner: Long) {
         if (feedbackOwner != owner) return
         feedbackOwner += 1
-        current.value = current.value.copy(notices = emptyList())
+        current.value = current.value.copy(notices = emptyList(), driverNavigatorFeedback = null)
     }
 
     fun refresh() {
@@ -92,7 +97,7 @@ internal class HomeControlsViewModel(
             settings = null
             current.value = HomeControlsState(error = failure.message, connected = connected(), health = panel.health(),
                 activationPaused = panel.activationPaused(),
-                busy = current.value.busy, notices = current.value.notices)
+                busy = current.value.busy, notices = current.value.notices, driverNavigatorBusy = current.value.driverNavigatorBusy)
         }
     }
 
@@ -151,6 +156,23 @@ internal class HomeControlsViewModel(
     }
     fun timings(hold: Int, debounce: Int): Boolean = change { it.holdMs = hold; it.debounceMs = debounce }
     fun reset() { persist(SettingsStore.State())?.let(::error) }
+
+    fun driverNavigator(open: Boolean) {
+        if (!current.value.driverNavigatorSupported || current.value.driverNavigatorBusy) return
+        val owner = feedbackOwner
+        current.value = current.value.copy(driverNavigatorBusy = true, driverNavigatorFeedback = null)
+        val operation = if (open) PanelControls.Operation.OPEN_DRIVER_NAVIGATOR else PanelControls.Operation.CLOSE_DRIVER_NAVIGATOR
+        try {
+            panel.run(operation) { result ->
+                if (!closed) current.value = current.value.copy(
+                    driverNavigatorBusy = false, driverNavigatorFeedback = result.takeIf { owner == feedbackOwner },
+                )
+            }
+        } catch (failure: RuntimeException) {
+            current.value = current.value.copy(driverNavigatorBusy = false, driverNavigatorFeedback =
+                PanelControls.Result(false, failure.message ?: UiText.get(R.string.driver_navigator_unconfirmed)))
+        }
+    }
 
     fun run(operation: PanelControls.Operation) {
         if (current.value.busy) return
@@ -253,6 +275,7 @@ internal class HomeControlsViewModel(
             mediaCardHideOnline = settings.mediaCardHideOnline, clusterCardApps = settings.clusterCardApps,
             driverMediaLayout = settings.driverMediaLayout,
             driverNavigationCard = settings.driverNavigationCard,
+            driverNavigatorSupported = sdk == 30,
             // The overseas launcher has no Baidu navigation card to replace.
             navigatorHomeCardSupported = product != "f6811", connected = connected(),
             holdMs = settings.holdMs, debounceMs = settings.debounceMs, steeringSupported = sdk in listOf(28, 30),

@@ -2,6 +2,7 @@ import { createReporter } from './report.js';
 import { MEDIA_SLOTS, borrowSlot, focusOwner, mediaSources, returnSlot } from './media-slots.js';
 import { createDriverMediaLayer, driverMediaText } from './driver-media-layout.js';
 import { driverNavigationToken } from './driver-navigation.js';
+import { createDriverNavigatorWindow, driverNavigatorSession } from './driver-navigator-window.js';
 
 // Every tick reads the configuration and moves the progress ring of a playing app.
 const TICK_MS = 1000;
@@ -62,7 +63,8 @@ export function trackProgress({duration, position, updated, speed, playing}, now
  * Off, or the restore token before Controls detaches, puts the factory slots back and returns the card to a factory
  * source; the token is answered with `OVC_CLUSTER_CARD_RESTORED <token>` once that is done.
  */
-export function installClusterMediaCard(Java, {readConfig, readRoute, report = createReporter('OVC_CLUSTER_CARD_ERROR')} = {}) {
+export function installClusterMediaCard(Java, {readConfig, readRoute, readNavigatorRequest,
+    report = createReporter('OVC_CLUSTER_CARD_ERROR')} = {}) {
     const hooks = [];
     // Every control this agent created, so a failed step can never leave one connecting forever.
     const controls = [];
@@ -76,6 +78,7 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, report = c
     let answered = '';
     let driverLayout = false, driverLayer = null, driverLayerChecked = false;
     let navigationFits = false;
+    let navigator = null, navigatorPlatform = null, navigatorInitialized = false;
     const installed = new Map();
     try {
         const MediaEnum = Java.use('com.qinggan.media.helper.MediaEnum');
@@ -219,6 +222,10 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, report = c
             navigationFits = false;
             if (currentLayer === null) return;
             try {
+                if (navigator?.showing) {
+                    currentLayer.clear(view);
+                    return;
+                }
                 // Guidance temporarily takes the visual area. The OEM media source and progress stay live underneath.
                 if (navigation && route !== null &&
                     currentLayer.updateNavigation(view, route, Number(Clock.elapsedRealtime()))) {
@@ -491,13 +498,30 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, report = c
             }
         }
 
-        function apply(configuration, now) {
+        function apply(context, configuration, now) {
+            const token = configuration?.restoreIcons;
+            if (navigator !== null) {
+                try {
+                    const request = readNavigatorRequest(context);
+                    const time = Number(Clock.elapsedRealtime());
+                    const view = ready() ? shown() : null;
+                    if (!navigator.mounted) navigatorPlatform.sweep(view);
+                    if (!navigatorInitialized) {
+                        navigator.reset(request, time);
+                        navigatorInitialized = true;
+                    }
+                    navigator.sync(request, view, configuration?.schema === 1 && token === undefined, time);
+                } catch (error) {
+                    report('navigator_sync', error);
+                    navigator.close();
+                }
+            }
             const setting = clusterCardSetting(configuration);
             driverLayout = setting?.driverLayout === true;
             if (ready()) sync(setting, now);
             // Controls stops this agent right after the launcher confirms the same token, and waits for this answer.
-            const token = configuration?.restoreIcons;
-            if (typeof token === 'string' && RESTORE_TOKEN.test(token) && token !== answered && active.length === 0 && !dirty) {
+            if (typeof token === 'string' && RESTORE_TOKEN.test(token) && token !== answered &&
+                active.length === 0 && !dirty && (navigator?.close() ?? true)) {
                 if (ready()) layer()?.clear(shown());
                 answered = token;
                 console.log('OVC_CLUSTER_CARD_RESTORED ' + token);
@@ -517,7 +541,7 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, report = c
             }
             Java.scheduleOnMainThread(() => {
                 if (disposed) return;
-                try { apply(configuration, Date.now()); } catch (error) { report('refresh', error); }
+                try { apply(context, configuration, Date.now()); } catch (error) { report('refresh', error); }
                 try { refreshShown(token !== null, route); } catch (error) { report('progress', error); }
             });
         }), TICK_MS);
@@ -525,17 +549,27 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, report = c
         Java.scheduleOnMainThread(() => {
             try {
                 if (disposed) return;
+                if (readNavigatorRequest) {
+                    try {
+                        navigatorPlatform = createDriverNavigatorWindow(Java);
+                        if (navigatorPlatform !== null) {
+                            navigator = driverNavigatorSession(navigatorPlatform,
+                                (id, status) => console.log('OVC_DRIVER_NAVIGATOR_RESULT ' + id + ' ' + status), report);
+                        }
+                    } catch (error) { report('navigator_install', error); }
+                }
                 // Slots a vanished predecessor borrowed go back before this agent borrows them again.
                 deactivate();
                 const context = app();
-                if (context !== null) apply(readConfig(context), Date.now());
-                console.log('OVC_CLUSTER_CARD_READY');
+                if (context !== null) apply(context, readConfig(context), Date.now());
+                console.log('OVC_CLUSTER_CARD_READY' + (navigator === null ? '' : ' navigator=1'));
             } catch (error) { report('install', error); }
         });
 
         return {
             /** UI thread only. */
             restoreAll() {
+                if (navigator?.close() === false) return false;
                 if (active.length === 0 && activeKey === '' && !dirty) {
                     if (ready()) layer()?.clear(shown());
                     return true;
@@ -548,6 +582,7 @@ export function installClusterMediaCard(Java, {readConfig, readRoute, report = c
                 // The factory card first, while the hooks still keep a slot's source accepted.
                 Java.scheduleOnMainThread(() => {
                     try {
+                        navigator?.close();
                         if (active.length > 0 || dirty) deactivate();
                         else if (ready()) layer()?.clear(shown());
                     }

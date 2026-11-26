@@ -55,6 +55,7 @@ public final class FridaBridge {
     private static final String NAVIGATOR_WIDGET_SETTINGS =
         "ru.yandex.yandexnavi/ru.yandex.yandexmaps.widget.traffic.internal.configuration.TrafficWidgetConfigurationActivity";
     private static final String WINDOW_REQUEST = "org.openvoyah.controls.windowRequest";
+    private static final String DRIVER_NAVIGATOR_REQUEST = "org.openvoyah.controls.driverNavigatorRequest";
     private static final String WINDOW_STRIP = "windowSystemInsets";
     /** Set while an update pauses a deployment that was running, so finishing the update starts it again. */
     private static final String RESUME_AFTER_UPDATE = "resumeAfterUpdate";
@@ -1154,6 +1155,24 @@ public final class FridaBridge {
             + " && ovc_ready_fresh " + dir;
         String evidence = dir + "/ready" + (production == null ? " " + dir + "/hook.log" : "");
         return "[ -f " + dir + "/enabled ]" + worker + " && grep -Eqs " + quote(marker) + " " + evidence;
+    }
+
+    String driverNavigatorWindow(boolean open) throws IOException {
+        synchronized (IO_LOCK) {
+            requireRoot();
+            if (Build.VERSION.SDK_INT != 30 || !clusterCardReviewed()
+                || !channelReady("/cluster-card", "^OVC_CLUSTER_CARD_READY navigator=1$")) return "unavailable";
+            String token = UUID.randomUUID().toString().replace("-", "");
+            String request = "{\"schema\":1,\"id\":\"" + token + "\",\"operation\":\"" + (open ? "open" : "close")
+                + "\",\"expires\":" + (SystemClock.elapsedRealtime() + 4000) + "}";
+            String prefix = "OVC_DRIVER_NAVIGATOR_RESULT " + token + " ";
+            String reply = command(activationGuard() + "settings put global " + DRIVER_NAVIGATOR_REQUEST + " " + quote(request)
+                + " || exit 1; for i in 0 1 2 3 4 5 6 7 8 9; do "
+                + "r=$(grep -F " + quote(prefix) + " " + base + "/cluster-card/hook.log 2>/dev/null | tail -n 1); "
+                + "if [ -n \"$r\" ]; then printf '%s\\n' \"$r\"; exit 0; fi; "
+                + "[ \"$i\" = 9 ] || sleep 1; done; echo unconfirmed").trim();
+            return reply.startsWith(prefix) ? reply.substring(prefix.length()) : "unconfirmed";
+        }
     }
 
     private String windowRequest(String operation, String component) throws IOException {

@@ -32,3 +32,11 @@ adb -s <emulator-serial> shell am instrument -w -e class "org.openvoyah.controls
 ```
 
 The agent fixture checks the 574 × 464 px host at density 1, including a centered 288 × 112 px card at `(143, 176)`. It checks disabled guidance, stale and simulated routes, clipped and lost hosts, media focus changes, and orderly restore. The settings screenshots are from the real app on an Android 13 x86_64 emulator at 1920 × 720 and 240 dpi. On the exact head unit, confirm the visible music host and composition for each OEM theme and source, actual `GUIDING` callback cadence and route fields, fallback after route loss and both agent stops, and coexistence with gauges, warnings, steering media keys and the navigation-display swipe.
+
+## Yandex Navigator window
+
+On Android 11, open **Settings → Home screen and apps → Factory home screen → Left area of the driver display**. With the stock music card visible on the driver display and Yandex Navigator closed on other screens, select **Show Yandex Navigator on the driver display**. Use **Restore media card** to close it. The window shows the app's own Android Activity and accepts no touch from Controls.
+
+The existing authorized cluster-card worker owns the host view. It uses the visible stock music view's measured rectangle on the active `Cluster-Media-Display` and requires Android to permit the OEM process to create a private trusted display and start Navigator on it. The app keeps the stock card visible while awaiting a Navigator task on that display and a frame from the surface. An existing Navigator task is left in place.
+
+For the first check on the head unit, compare the stock card and Navigator with the same theme. Verify that the entire map stays inside the left area and that **Restore media card** releases the child display. Repeat with Navigator already open on the central display, then test display loss and sleep/wake. The mode closes when it detects a changed or lost media surface, a lost Navigator task, or sleep, and requires a new explicit request after waking. If Android refuses the launch, record the status and inspect the existing cluster worker log.
