@@ -1,3 +1,5 @@
+import { launcherPanelEdge } from './window-panel-frame.js';
+
 export function android11Tasks(Java, framework) {
     const am = Java.cast(Java.use('android.app.ActivityTaskManager').getService(),
         Java.use('com.android.server.wm.ActivityTaskManagerService'));
@@ -227,6 +229,22 @@ export function android11Tasks(Java, framework) {
                 }
             }
             return bottom;
+        },
+        /** Reads the actual launcher window on demand under the global lock. */
+        launcherPanelEdge(frame) {
+            const windows = am.mWindowManager.value.mWindowMap.value.values().toArray();
+            const candidates = [];
+            for (let i = 0; i < windows.length; i++) {
+                const window = Java.cast(windows[i], WindowState);
+                const attrs = window.mAttrs.value;
+                if (attrs.type.value !== 2110 || window.getDisplayId() !== 0 ||
+                    String(window.getOwningPackage()) !== 'com.qinggan.app.launcher') continue;
+                const rect = window.getFrameLw();
+                candidates.push({pkg:'com.qinggan.app.launcher', displayId:0, type:2110,
+                    title:String(attrs.getTitle()), visible:window.isVisibleLw(), alive:!window.mRemoved.value,
+                    frame:[rect.left.value, rect.top.value, rect.right.value, rect.bottom.value]});
+            }
+            return launcherPanelEdge(candidates, frame);
         },
         requestedBounds: task => task.getRequestedOverrideBounds(),
         isLeaf: task => task.isLeafTask(),

@@ -128,7 +128,11 @@ export function systemTasks(Java, sdk, panelWidth) {
         const unused = unusedNavigationBar();
         const [left, top, right, bottom] = rectValues(insets).map((value, side) => Math.max(0, value - unused[side]));
         const stable = [bounds[0] + left, bounds[1] + top, bounds[2] - right, bounds[3] - bottom];
-        return windowBounds({bounds, stable}, profile, panelWidth(bounds, config.densityDpi.value, reportedPanel), minWidth, minHeight);
+        const measured = optional(() => api.launcherPanelEdge?.(bounds));
+        // An invisible or transient frame cannot carry an earlier compact width into a new layout.
+        const width = measured === null && api.launcherPanelEdge && reportedPanel === 0
+            ? panelWidth.declared() : panelWidth(bounds, config.densityDpi.value, measured ?? reportedPanel);
+        return windowBounds({bounds, stable}, profile, width, minWidth, minHeight);
     }
 
     /**

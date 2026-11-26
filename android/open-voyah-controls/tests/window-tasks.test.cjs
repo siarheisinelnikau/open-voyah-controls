@@ -164,6 +164,15 @@ test('a pair shares the window service frame and both tasks are restored on rele
     assert.equal(right.density(), 190);
 });
 
+test('a compact measured panel wins over an older launch hint and uses the inset only once', () => {
+    const h = harness(30, {displayId:0, multiWindow:true, stableInsets:[80,60,0,0]});
+    h.api.launcherPanelEdge = () => 80;
+    const full = {width:100, dpi:0, panelPx:0};
+    assert.deepEqual(Array.from(h.agent.boundsFor(full, 145)), [80,60,1920,720]);
+    h.api.launcherPanelEdge = () => null;
+    assert.deepEqual(Array.from(h.agent.boundsFor(full)), [145,60,1920,720]);
+});
+
 test('failure to place the second task restores the first geometry and both density overrides', () => {
     const {left, right, profiles} = pairHarness(true);
     assert.throws(() => left.agent.applyPair(profiles, [45,46], 50, 0), /Android refused/);
