@@ -1068,6 +1068,41 @@ public final class FridaBridge {
         }
     }
 
+    public String workspaceTasks() throws IOException {
+        synchronized (IO_LOCK) {
+            if (!workspaceTasksReady()) throw new IOException("The workspace task manager is unavailable");
+            try {
+                JSONObject reply = new JSONObject(windowRequest("workspace-tasks", ""));
+                if (!"applied".equals(reply.optString("status"))) throw new IOException("Could not read the current tasks");
+                return reply.getJSONArray("tasks").toString();
+            } catch (JSONException invalid) {
+                throw new IOException("Invalid workspace tasks reply", invalid);
+            }
+        }
+    }
+
+    public String closeWorkspaceTask(int taskId, String component) throws IOException {
+        if (taskId <= 0 || component == null || !component.equals(
+            org.openvoyah.controls.domain.display.AppWindowProfile.Companion.key(component))) {
+            throw new IllegalArgumentException("Invalid workspace task");
+        }
+        synchronized (IO_LOCK) {
+            if (!workspaceTasksReady()) return "unsupported_task";
+            try {
+                return new JSONObject(windowRequest("close-workspace-task", component, taskId)).getString("status");
+            } catch (JSONException invalid) {
+                throw new IOException("Invalid close task reply", invalid);
+            }
+        }
+    }
+
+    private boolean workspaceTasksReady() throws IOException {
+        if (Build.VERSION.SDK_INT != 30 || !runtimeConfigured() || !windowHookEnabled(context) ||
+            !windowHookSupported() || !windowReviewed()) return false;
+        requireRoot();
+        return channelReady("/window", "^OVC_WINDOW_READY protocol=3 .*taskManager=1( |$)");
+    }
+
     /** Asks the window agent to bring every window it moved to another screen back to the central display. */
     public boolean recallMovedWindows() throws IOException {
         synchronized (IO_LOCK) {
@@ -1115,12 +1150,18 @@ public final class FridaBridge {
     }
 
     private String windowRequest(String operation, String component) throws IOException {
+        return windowRequest(operation, component, null);
+    }
+
+    private String windowRequest(String operation, String component, Integer taskId) throws IOException {
         String token = UUID.randomUUID().toString().replace("-", "");
         String json;
         try {
-            json = new JSONObject().put("schema", 1).put("id", token).put("operation", operation)
+            JSONObject request = new JSONObject().put("schema", 1).put("id", token).put("operation", operation)
                 .put("user", new AppWindowPreferences(context).getUserId()).put("component", component)
-                .put("expires", System.currentTimeMillis() + 6000).toString();
+                .put("expires", System.currentTimeMillis() + 6000);
+            if (taskId != null) request.put("taskId", taskId);
+            json = request.toString();
         } catch (JSONException ex) {
             throw new IOException("Could not encode the window request", ex);
         }

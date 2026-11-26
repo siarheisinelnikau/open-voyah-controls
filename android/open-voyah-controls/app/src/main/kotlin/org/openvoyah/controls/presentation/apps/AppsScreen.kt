@@ -128,6 +128,7 @@ internal fun AppsScreen(
     showSettings: (LocalApp) -> Unit,
     open: (LocalApp) -> Unit,
     pairActions: AppPairActions? = null,
+    manageTasks: (() -> Unit)? = null,
     move: AppMoveState? = null,
     endMove: () -> Unit = {},
     moveApp: (LocalApp, LocalApp, List<String>) -> Unit = { _, _, _ -> },
@@ -358,6 +359,12 @@ internal fun AppsScreen(
                         add(GridCell("controls-app-pairs", 1) { context ->
                             Shortcut(R.string.app_pairs_title, CockpitIcon.DISPLAY, fitted(context.rowHeight), gridItemMotion(),
                                 enabled = !moving, open = pairActions.manage)
+                        })
+                    }
+                    if (manageTasks != null && !searching && desktop == AppGridDesktop.MAIN) {
+                        add(GridCell("controls-workspace-tasks", 1) { context ->
+                            Shortcut(R.string.workspace_tasks_title, CockpitIcon.APPS, fitted(context.rowHeight), gridItemMotion(),
+                                enabled = !moving, open = manageTasks)
                         })
                     }
                     if (appsBeforeCards == 0) addAll(cardCells)

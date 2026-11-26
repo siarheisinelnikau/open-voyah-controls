@@ -54,6 +54,8 @@ import org.openvoyah.controls.platform.apps.InstalledAppStopper
 import org.openvoyah.controls.platform.apps.LocalApkInstaller
 import org.openvoyah.controls.platform.apps.LocalApp
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
+import org.openvoyah.controls.presentation.display.WorkspaceTasksDialog
+import org.openvoyah.controls.presentation.display.WorkspaceTasksViewModel
 import org.openvoyah.controls.presentation.theme.CockpitMotion
 import org.openvoyah.controls.presentation.theme.LocalCockpitMotion
 
@@ -162,6 +164,7 @@ internal fun AppsDestination(
     val pairModel = if (AppPairViewModel.supported()) rememberAppPairs(activity) else null
     val pairs = pairModel?.savedPairs?.collectAsStateWithLifecycle()?.value?.getOrNull().orEmpty()
     var managingPairs by remember(entry) { mutableStateOf(false) }
+    var managingTasks by remember(entry) { mutableStateOf(false) }
     val pairActions = if (pairModel != null) AppPairActions(pairs,
         manage = { if (owner.lifecycle.currentState == Lifecycle.State.RESUMED) managingPairs = true },
         open = { pair ->
@@ -209,6 +212,9 @@ internal fun AppsDestination(
                     settings.open(app)
                 }, open = { open(it, null, false) },
                 pairActions = pairActions,
+                manageTasks = if (WorkspaceTasksViewModel.supported()) {
+                    { if (owner.lifecycle.currentState == Lifecycle.State.RESUMED) managingTasks = true }
+                } else null,
                 move = moving,
                 endMove = { moving = null },
                 moveApp = { app, target, visible ->
@@ -273,4 +279,5 @@ internal fun AppsDestination(
         }
     }
     if (managingPairs && pairModel != null) AppPairsDialog(pairModel, state.apps) { managingPairs = false }
+    if (managingTasks) WorkspaceTasksDialog { managingTasks = false }
 }

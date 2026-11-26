@@ -1,0 +1,14 @@
+<resources>
+    <string name="workspace_tasks_title">Тапсырмалар реттеушісі</string>
+    <string name="workspace_tasks_close">Тапсырманы жабу</string>
+    <string name="workspace_tasks_pin">Жұмыс үстеліне бекіту</string>
+    <string name="workspace_tasks_unpin">Жұмыс үстелінен босату</string>
+    <string name="workspace_tasks_refresh">Жаңарту</string>
+    <string name="workspace_tasks_confirm_close">«%1$s» қолданбасының ағымдағы тапсырмасы жабылсын ба? Сақталмаған өзгерістер жоғалуы мүмкін.</string>
+    <string name="workspace_tasks_empty">Орталық экранда басқаруға болатын орындалып жатқан тапсырмалар жоқ.</string>
+    <string name="workspace_tasks_unavailable">Тапсырмалар реттеушісіне қолдау көрсетілетін микробағдарламадағы терезе қызметі қажет.</string>
+    <string name="workspace_tasks_close_unavailable">Бұл тапсырманы енді Controls арқылы жабу мүмкін емес.</string>
+    <string name="workspace_tasks_close_unconfirmed">Android тапсырманың жабылғанын растамады.</string>
+    <string name="workspace_tasks_gone">Тапсырма енді ашық емес.</string>
+    <string name="workspace_tasks_pin_failed">Жұмыс үстеліне бекіту сақталмады.</string>
+</resources>

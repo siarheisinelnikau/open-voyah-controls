@@ -14,6 +14,11 @@ export function android11Tasks(Java, framework) {
     const WindowState = Java.use('com.android.server.wm.WindowState');
     const reparent = Task.reparent.overload('com.android.server.wm.ActivityStack', 'boolean', 'int', 'boolean', 'boolean', 'java.lang.String');
     const resize = Task.resize.overload('android.graphics.Rect', 'int', 'boolean');
+    let removeTask;
+    try {
+        const method = am.removeTask.overload('int');
+        if (method.returnType.className === 'boolean') removeTask = id => method.call(am, id);
+    } catch (_) { }
     const getOverride = task => task.getRequestedOverrideConfiguration();
     const SIZES = ['screenWidthDp', 'screenHeightDp', 'smallestScreenWidthDp', 'screenLayout'];
     // Members used only by the corrections below, looked up once on first use. A firmware without one of them keeps
@@ -62,6 +67,7 @@ export function android11Tasks(Java, framework) {
 
     return {
         am,
+        removeTask,
         lock(fn) {
             let result;
             Java.synchronized(am.mGlobalLock.value, () => { result = fn(); });

@@ -1,0 +1,14 @@
+<resources>
+    <string name="workspace_tasks_title">Task manager</string>
+    <string name="workspace_tasks_close">Close task</string>
+    <string name="workspace_tasks_pin">Pin to desktop</string>
+    <string name="workspace_tasks_unpin">Unpin from desktop</string>
+    <string name="workspace_tasks_refresh">Refresh</string>
+    <string name="workspace_tasks_confirm_close">Close the current task for “%1$s”? Unsaved work in this task may be lost.</string>
+    <string name="workspace_tasks_empty">There are no eligible running tasks on the central display.</string>
+    <string name="workspace_tasks_unavailable">The task manager requires the window service on supported firmware.</string>
+    <string name="workspace_tasks_close_unavailable">This task can no longer be closed from Controls.</string>
+    <string name="workspace_tasks_close_unconfirmed">Android did not confirm that the task closed.</string>
+    <string name="workspace_tasks_gone">The task is no longer open.</string>
+    <string name="workspace_tasks_pin_failed">Could not save the desktop pin.</string>
+</resources>

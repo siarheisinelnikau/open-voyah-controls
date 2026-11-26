@@ -369,6 +369,11 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
                     throw Object.assign(Error('Inactive configuration'), {code:'no_profile'});
                 }
                 result = {top:tasks.passengerDesktopInset(command.user)};
+            } else if (command.operation === 'workspace-tasks' || command.operation === 'close-workspace-task') {
+                if (released || !config?.enabled || config.user !== command.user) {
+                    throw Object.assign(Error('Inactive configuration'), {code:'no_profile'});
+                }
+                result = tasks.workspaceTasks(command.user, command.operation === 'close-workspace-task' ? command : null);
             } else {
                 const profile = profileFor(config, command.component, command.user, true, CENTRAL_DISPLAY,
                     command.operation === 'reset');
@@ -509,5 +514,5 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         try { mover?.sync(moveWanted()); } catch (error) { reportError('display_move', error); }
     }), 400);
     console.log('OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1 systemInsets=1 displayMove=' + (mover ? 1 : 0)
-        + (sdk === 30 ? ' pairs=1 passengerDesk=1' : ''));
+        + (sdk === 30 ? ' pairs=1 passengerDesk=1' : '') + (tasks.canManageTasks() ? ' taskManager=1' : ''));
 }

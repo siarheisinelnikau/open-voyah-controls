@@ -562,10 +562,10 @@ function livePolicy(sdk, h, options = {}) {
             return late.implementation.call({mLastStartActivityRecord:field(record)}, record, from, null, null, null,
                 null, options, null, []);
         },
-        request(operation) {
+        request(operation, fields = {}) {
             const id = (++sequence).toString(16).padStart(32, '0');
             settings.set(prefix + 'windowRequest', JSON.stringify({schema:1, id, user:0,
-                expires:Date.now()+4000, operation, component:profile.component}));
+                expires:Date.now()+4000, operation, component:profile.component, ...fields}));
             tick();
             const marker = 'OVC_WINDOW_RESULT ' + id + ' ';
             return JSON.parse(logs.find(line=>line.startsWith(marker)).slice(marker.length));
@@ -1052,6 +1052,45 @@ test('the passenger workspace only accepts the designated public built-in displa
     }
     assert.equal(service.request('release').status, 'applied');
     assert.deepEqual(service.request('passenger-desktop'), {status:'no_profile'});
+});
+
+test('the task manager lists the running central task and closes only a freshly matched identity', () => {
+    const h = harness(30, {displayId:0, multiWindow:true});
+    const info = {baseActivity:field({flattenToString:()=>profile.component})};
+    let closed = false, attempts = 0;
+    h.api.am.getTasks = count => ({size:()=>closed ? 0 : 1, get:()=>info});
+    const find = h.api.find;
+    h.api.find = id => closed ? null : find(id);
+    h.api.removeTask = id => { attempts++; closed = id === 45; return closed; };
+    const service = livePolicy(30, h);
+    assert.match(service.logs[0], /taskManager=1$/);
+    assert.deepEqual(service.request('workspace-tasks'), {status:'applied', tasks:[{id:45, component:profile.component}]});
+    assert.equal(service.request('close-workspace-task', {taskId:99}).status, 'no_task');
+    assert.equal(service.request('close-workspace-task', {taskId:45, component:profile.component + 'Other'}).status, 'no_task');
+    assert.equal(attempts, 0);
+    assert.equal(service.request('close-workspace-task', {taskId:45}).status, 'applied');
+    assert.equal(attempts, 1);
+    assert.deepEqual(service.request('workspace-tasks'), {status:'applied', tasks:[]});
+    assert.equal(service.request('close-workspace-task', {taskId:45}).status, 'no_task');
+    assert.equal(attempts, 1);
+});
+
+test('the task manager does not expose shared tasks, another display, framework or another user', () => {
+    for (const [options, mutate] of [
+        [{displayId:1}, () => {}],
+        [{displayId:0, shared:true}, () => {}],
+        [{displayId:0}, h => { h.task.getChildAt(0).preinstalled = true; }],
+        [{displayId:0}, h => { h.api.userOf = () => 1; }],
+        [{displayId:0, mode:2}, () => {}],
+    ]) {
+        const h = harness(30, options);
+        h.api.am.getTasks = () => ({size:()=>1, get:()=>({baseActivity:field({flattenToString:()=>profile.component})})});
+        h.api.removeTask = () => assert.fail('protected task reached the native remove call');
+        mutate(h);
+        const service = livePolicy(30, h);
+        assert.deepEqual(service.request('workspace-tasks'), {status:'applied', tasks:[]});
+        assert.equal(service.request('close-workspace-task', {taskId:45}).status, 'no_task');
+    }
 });
 
 test('on the passenger display a moved window goes below the clock bar at its own density', () => {

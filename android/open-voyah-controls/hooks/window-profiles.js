@@ -121,11 +121,15 @@ export function readWindowRequest(raw, now) {
     if (!value || value.schema !== 1 || !/^[a-f0-9]{32}$/.test(value.id ?? '') ||
         !Number.isInteger(value.user) || value.user < 0 || !Number.isInteger(value.expires) ||
         value.expires < now || value.expires > now + 10000) return null;
-    // Releasing the service, asking for the state of the reserved strip and bringing moved windows back name no app.
-    if (['release', 'insets', 'recall', 'passenger-desktop'].includes(value.operation)) {
+    // Service transitions and read-only probes name no app.
+    if (['release', 'insets', 'recall', 'passenger-desktop', 'workspace-tasks'].includes(value.operation)) {
         return {id:value.id, user:value.user, operation:value.operation};
     }
     const component = componentKey(value.component);
+    if (value.operation === 'close-workspace-task') {
+        if (!component || !Number.isInteger(value.taskId) || value.taskId <= 0 || value.taskId > 2147483647) return null;
+        return {id:value.id, user:value.user, operation:value.operation, component, taskId:value.taskId};
+    }
     if (!component || (value.operation !== 'apply' && value.operation !== 'reset')) return null;
     return {id:value.id, user:value.user, operation:value.operation, component};
 }

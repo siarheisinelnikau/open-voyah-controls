@@ -2,7 +2,7 @@ import { android9Tasks } from './window-task-android9.js';
 import { android11Tasks } from './window-task-android11.js';
 import { pairFrames } from './window-pairs.js';
 import {
-    CENTRAL_DISPLAY, SECONDARY_DISPLAY, drawsBesidePanel, fitsReservedStrip, rectValues, sameBounds, windowBounds
+    CENTRAL_DISPLAY, SECONDARY_DISPLAY, componentKey, drawsBesidePanel, fitsReservedStrip, rectValues, sameBounds, windowBounds
 } from './window-profiles.js';
 
 function error(code) {
@@ -487,6 +487,36 @@ export function systemTasks(Java, sdk, panelWidth) {
         });
     }
 
+    function workspaceTasks(user, closing = null) {
+        return api.lock(() => {
+            if (sdk !== 30 || !api.removeTask || api.user() !== user || api.isLocked()) throw error('unsupported_task');
+            const list = api.am.getTasks(64);
+            const visible = [];
+            for (let i = 0, count = list.size(); i < count; i++) {
+                const info = Java.cast(list.get(i), TaskInfo);
+                const id = api.runningId(info);
+                if (closing && id !== closing.taskId) continue;
+                const base = info.baseActivity.value;
+                const component = base && componentKey(String(base.flattenToString()));
+                if (!component || (closing && component !== closing.component)) continue;
+                const pkg = component.split('/')[0];
+                const match = matchingTask(id, pkg, user, 0);
+                if (!match || !knownMode(match.task) || match.records.some(record => drawsBesidePanel(pkg, api.preinstalled(record)))) continue;
+                if (closing) {
+                    if (api.removeTask(id) !== true) throw error('unsupported_task');
+                    if (matchingTask(id, pkg, user, 0)) throw error('placement_changed');
+                    saved.delete(key(match.task));
+                    for (const record of match.records) guests.delete(System.identityHashCode(record));
+                    return {};
+                }
+                visible.push({id, component});
+                if (visible.length === 20) break;
+            }
+            if (closing) throw error('no_task');
+            return {tasks:visible};
+        });
+    }
+
     function release(user) {
         return api.lock(() => {
             if (api.user() !== user || api.isLocked()) throw error('unsupported_task');
@@ -513,7 +543,7 @@ export function systemTasks(Java, sdk, panelWidth) {
 
     return {
         Rect, framework, boundsFor, apply, applyPair, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf, prepareMove, placeBelowBar,
-        passengerDesktopInset,
+        passengerDesktopInset, workspaceTasks, canManageTasks: () => sdk === 30 && typeof api.removeTask === 'function',
         placedMode,
         freeformAvailable: () => api.supportsFreeform() && !api.isLocked(),
         /** After a start of home: hides the tasks that home, now on top of display 0, covers. */

@@ -1,0 +1,14 @@
+<resources>
+    <string name="workspace_tasks_title">Диспетчер задач</string>
+    <string name="workspace_tasks_close">Закрыть задачу</string>
+    <string name="workspace_tasks_pin">Закрепить на рабочем столе</string>
+    <string name="workspace_tasks_unpin">Открепить с рабочего стола</string>
+    <string name="workspace_tasks_refresh">Обновить</string>
+    <string name="workspace_tasks_confirm_close">Закрыть текущую задачу «%1$s»? Несохранённые изменения могут быть потеряны.</string>
+    <string name="workspace_tasks_empty">На центральном экране нет запущенных задач, которыми можно управлять.</string>
+    <string name="workspace_tasks_unavailable">Для диспетчера задач нужен оконный сервис на поддерживаемой прошивке.</string>
+    <string name="workspace_tasks_close_unavailable">Эту задачу больше нельзя закрыть из Controls.</string>
+    <string name="workspace_tasks_close_unconfirmed">Android не подтвердил закрытие задачи.</string>
+    <string name="workspace_tasks_gone">Задача уже закрыта.</string>
+    <string name="workspace_tasks_pin_failed">Не удалось сохранить закрепление на рабочем столе.</string>
+</resources>
