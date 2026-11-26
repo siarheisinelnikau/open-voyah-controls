@@ -11,19 +11,23 @@ public final class NavigationBroadcast {
 
     private NavigationBroadcast() { }
 
-    public static void publish(Intent intent, DisplayEventBus events) {
-        if (!ACTION.equals(intent.getAction())) return;
+    /** Returns the decoded observation for the local driver card, or null for an unrelated intent. */
+    public static Navigation publish(Intent intent, DisplayEventBus events) {
+        if (!ACTION.equals(intent.getAction())) return null;
         String event = intent.getStringExtra("event");
+        Navigation navigation;
         if ("end".equals(event)) {
-            events.publishNavigation(Navigation.EMPTY);
+            navigation = Navigation.EMPTY;
         } else if ("route".equals(event)) {
             int meters = intent.getIntExtra("meters", -1);
-            events.publishNavigation(new Navigation(
+            navigation = new Navigation(
                 DisplayEventText.sanitize(intent.getStringExtra("road")),
                 DisplayEventText.sanitize(intent.getStringExtra("nextRoad")),
-                meters >= 0 && meters <= 1_000_000 ? meters : -1));
+                meters >= 0 && meters <= 1_000_000 ? meters : -1);
         } else if ("open".equals(event)) {
-            events.publishNavigation(Navigation.opened(DisplayEventText.sanitize(intent.getStringExtra("app"))));
-        }
+            navigation = Navigation.opened(DisplayEventText.sanitize(intent.getStringExtra("app")));
+        } else return null;
+        if (intent.getIntExtra("driverOnly", 0) != 1) events.publishNavigation(navigation);
+        return navigation;
     }
 }

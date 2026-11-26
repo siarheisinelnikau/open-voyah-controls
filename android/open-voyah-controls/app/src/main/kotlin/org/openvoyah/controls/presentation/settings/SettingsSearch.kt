@@ -103,7 +103,7 @@ internal val SETTINGS_INDEX: List<SettingsEntry> = buildList {
     addAll(entries(SettingsPartId.HOME_FACTORY, R.string.home_navigator_card, R.string.home_navigator_widget_scale,
         R.string.home_navigator_widget_settings, R.string.home_weather_card, R.string.home_weather_city,
         R.string.home_media_card_apps, R.string.home_media_card_hide_online, R.string.home_cluster_card_apps,
-        R.string.driver_media_heading, R.string.driver_media_layout))
+        R.string.driver_media_heading, R.string.driver_media_layout, R.string.driver_navigation_card))
     addAll(entries(SettingsPartId.WINDOWS_APPS, R.string.window_hook_title, R.string.app_display_defaults_title,
         R.string.window_swipe_title, R.string.window_strip_title, R.string.settings_app_scale_hint_title))
     addAll(entries(SettingsPartId.WINDOWS_DISPLAYS, R.string.virtual_display, R.string.display_density,

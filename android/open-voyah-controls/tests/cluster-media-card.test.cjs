@@ -4,13 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const source = ['report.js', 'media-slots.js', 'driver-media-layout.js', 'cluster-media-card.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+const source = ['report.js', 'media-slots.js', 'driver-navigation.js', 'driver-media-layout.js', 'cluster-media-card.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import .*;$/gm, '').replace(/^export /gm, '')).join('\n');
 
 function load(extra = {}) {
     const logs = [];
     const context = {console: {log: line => logs.push(line)}, setInterval: () => 1, clearInterval() {}, JSON, Date, ...extra};
-    const api = vm.runInNewContext(source + '\n({clusterCardSetting, trackProgress, installClusterMediaCard, MEDIA_SLOTS, driverMediaGeometry, driverMediaText, createDriverMediaLayer})', context);
+    const api = vm.runInNewContext(source + (extra.fakeDriverLayer ? '\ncreateDriverMediaLayer = () => fakeDriverLayer;' : '') +
+        '\n({clusterCardSetting, trackProgress, installClusterMediaCard, MEDIA_SLOTS, driverMediaGeometry, driverMediaText, createDriverMediaLayer, driverNavigationGeometry, driverNavigationToken, driverRouteRemaining})', context);
     return {api, logs};
 }
 
@@ -18,6 +19,22 @@ const MUSIC = {package: 'app.voyahmusic.player', service: 'app.voyahmusic.player
 const RADIO = {package: 'app.voyahradio', service: 'app.voyahradio.playback.RadioBrowserService'};
 const ON = {schema: 1, clusterCard: {sources: [MUSIC, RADIO]}};
 const plain = value => JSON.parse(JSON.stringify(value));
+
+test('the compact navigation frame is centered and fits the minimum admitted media viewport with large text', () => {
+    const {driverNavigationGeometry, driverRouteRemaining, driverNavigationToken} = load().api;
+    assert.deepEqual(plain(driverNavigationGeometry({width: 574, height: 464}, 1, 1)),
+        {width: 288, height: 112, left: 143, top: 176, horizontal: 18, vertical: 10, radius: 16, stroke: 1});
+    assert.equal(driverNavigationGeometry({width: 480, height: 240}, 1.5, 1.5).width, 432);
+    assert.equal(driverNavigationGeometry({width: 480, height: 240}, 1.5, 1.51), null);
+    assert.equal(driverNavigationGeometry({width: 288, height: 160}, 1, 1), null);
+    assert.equal(driverNavigationGeometry({width: 340, height: 120}, 1, 1), null);
+    assert.equal(driverRouteRemaining(1_000, 5_999), 1);
+    assert.equal(driverRouteRemaining(1_000, 6_000), 0);
+    assert.equal(driverRouteRemaining(1_000, 999), 0);
+    assert.equal(driverRouteRemaining('1000', 1_000), 0);
+    assert.equal(driverNavigationToken({schema: 1, driverNavigation: true}), null);
+    assert.equal(driverNavigationToken({schema: 1, driverNavigation: 'a'.repeat(32), restoreIcons: null}), null);
+});
 
 test('the setting lists valid, distinct apps and is off without them or during a restore request', () => {
     const {clusterCardSetting} = load().api;
@@ -69,6 +86,7 @@ test('driver view attaches without taking input, expires and only removes its ow
             setClickable(clickable) { this.clickable = clickable; }, setFocusable(focusable) { this.focusable = focusable; },
             addView(child) { this.children.push(child); }, setText(text) { this.text = text; },
             layout(x, y, width, height) { this.width = width; this.height = height; },
+            setLayoutParams(params) { this.params = params; },
             animate() {
                 const self = this;
                 return {cancel() {}, alpha(value) { this.end = value; return this; },
@@ -85,9 +103,14 @@ test('driver view attaches without taking input, expires and only removes its ow
     const factory = nativeView();
     factory.setTag('stock');
     overlay.add(factory);
+    let visibleWidth = 574;
     const host = {getDisplay: () => ({getName: () => 'Cluster-Media-Display'}), getOverlay: () => overlay,
         getContext: () => ({getPackageName: () => 'com.qinggan.instrumentcard'}),
-        getResources: () => ({getDisplayMetrics: () => ({density: {value: 1}})}),
+        getResources: () => ({getDisplayMetrics: () => ({density: {value: 1}}), getConfiguration: () => ({fontScale: {value: 1}})}),
+        getLocalVisibleRect(rect) {
+            Object.assign(rect, {left: {value: 0}, top: {value: 0}, right: {value: visibleWidth}, bottom: {value: 464}});
+            return true;
+        },
         isAttachedToWindow: () => true, isShown: () => true, getWidth: () => 574, getHeight: () => 464,
         equals(other) { return this === other; }, $dispose() {}};
     const java = {
@@ -96,7 +119,7 @@ test('driver view attaches without taking input, expires and only removes its ow
             if (name === 'android.os.Build$VERSION') return {SDK_INT: {value: 30}};
             if (name === 'android.view.ViewGroup') return {class: {isInstance: () => true}};
             if (name === 'android.view.ViewOverlay') return {getOverlayView: {overload: () => ({call: view => view.getOverlayView()})}};
-            if (name === 'android.widget.FrameLayout$LayoutParams') return {$new: () => ({leftMargin: {}, topMargin: {}})};
+            if (name === 'android.widget.FrameLayout$LayoutParams') return {$new: (width, height) => ({width, height, leftMargin: {}, topMargin: {}})};
             if (name === 'android.widget.ImageView$ScaleType') return {CENTER_CROP: {value: 'center'}};
             if (name === 'android.text.TextUtils$TruncateAt') return {END: {value: 'end'}};
             if (name === 'android.content.res.ColorStateList') return {valueOf: color => color};
@@ -113,6 +136,24 @@ test('driver view attaches without taking input, expires and only removes its ow
     assert.deepEqual(calls.at(-1), [drawn, 0, 3500]);
     layer.update(host, {...model, title: 'Another track'});
     assert.equal(layerGroup.children.length, 2);
+    const route = {at: 1_000, heading: 'Next maneuver', title: 'River Road', detail: '250 m'};
+    assert.equal(layer.updateNavigation(host, route, 2_000), true);
+    const navigation = layerGroup.children[1];
+    assert.notEqual(navigation, drawn);
+    assert.equal(drawn.alpha, 0);
+    const content = navigation.children[0];
+    assert.deepEqual([content.params.width, content.params.height, content.params.leftMargin.value,
+        content.params.topMargin.value], [288, 112, 143, 176]);
+    assert.deepEqual(content.children.map(child => child.text), ['Next maneuver', 'River Road', '250 m']);
+    assert.deepEqual(calls.at(-1), [navigation, 0, 4000]);
+    const renewals = calls.length;
+    layer.updateNavigation(host, route, 3_000);
+    assert.equal(calls.length, renewals, 'an unchanged observation cannot extend the drawing lease');
+    assert.equal(layer.updateNavigation(host, route, 6_000), false);
+    visibleWidth = 573;
+    assert.equal(layer.updateNavigation(host, {...route, at: 6_000}, 6_100), false);
+    assert.equal(layer.update(host, model), true, 'the existing player can return');
+    assert.equal(navigation.alpha, 0);
     layer.clear(host);
     assert.deepEqual(layerGroup.children, [factory]);
     assert.equal(drawn.alpha, 0);
@@ -151,7 +192,8 @@ function javaList(items = []) {
     return {items: [...items], contains(x) { return this.items.includes(x); }};
 }
 function imageView() {
-    return {drawable: null, bitmap: null, setImageDrawable(d) { this.drawable = d; this.bitmap = null; },
+    return {drawable: null, bitmap: null, getDrawable() { return this.drawable; },
+        setImageDrawable(d) { this.drawable = d; this.bitmap = null; },
         setImageBitmap(b) { this.bitmap = b; this.drawable = null; }};
 }
 
@@ -229,6 +271,7 @@ function harness(options = {}) {
     let metadataReads = 0;
     const controller = pkg => ({
         getMetadata: () => (metadataReads++, {getLong: key => (key === 'android.media.metadata.DURATION' ? sessions[pkg].duration : 0),
+            getString: key => (key === 'android.media.metadata.TITLE' ? 'Media title' : null),
             getBitmap: key => (key === 'android.media.metadata.ART' ? sessions[pkg].art : null)}),
         getPlaybackState: () => ({getPosition: () => sessions[pkg].position, getLastPositionUpdateTime: () => sessions[pkg].updated,
             getPlaybackSpeed: () => sessions[pkg].speed, getState: () => sessions[pkg].state})
@@ -242,6 +285,7 @@ function harness(options = {}) {
     const panel = {children: [view], getChildCount() { return this.children.length; }, getChildAt(i) { return this.children[i]; }};
     const screen = {panelMusicView: {value: panel}};
     const classes = {
+        'android.os.Build$VERSION': {SDK_INT: {value: 28}},
         'com.qinggan.media.helper.MediaEnum': media,
         'com.qinggan.media.helper.MediaConfig': {getInstance: () => ({getMediaConfigInter: () => state.settings})},
         'com.qinggan.media.helper.impl.BaseConfigImpl': {},
@@ -315,8 +359,8 @@ function harness(options = {}) {
     }
     let now = 1_700_000_000_000;
     const {api, logs} = load({setInterval: (fn, ms) => { timers.push({fn, ms}); return timers.length; },
-        Date: {now: () => now}});
-    const result = api.installClusterMediaCard(Java, {readConfig: () => state.config});
+        Date: {now: () => now}, fakeDriverLayer: options.fakeDriverLayer});
+    const result = api.installClusterMediaCard(Java, {readConfig: () => state.config, readRoute: options.readRoute});
     const tick = (ms = 1000) => { now += ms; state.clock += ms; timers[0].fn(); };
     const settle = () => tick();
     return {api, result, logs, calls, hooks, state, manager, policy, controls, media: E, view, panel, sessions, tick, settle,
@@ -328,6 +372,65 @@ function show(h, name) {
     h.view.cur = h.media(name);
     h.hooks.update.implementation.call(h.view, h.media(name), {});
 }
+
+test('live navigation temporarily takes the visual slot and returns it to the currently focused source', () => {
+    const token = 'a'.repeat(32);
+    const modes = [];
+    const reads = [];
+    let route = {at: 10_000, heading: 'Next maneuver', title: 'River Road', detail: '250 m'};
+    let h;
+    const hLayer = {
+        navigationFits: view => view !== null,
+        updateNavigation(view, model, now) {
+            if (view === null || now - model.at >= 5000) return false;
+            modes.push('navigation');
+            return true;
+        },
+        update(view, model) { modes.push(model?.source ?? 'stock'); },
+        clear() { modes.push('stock'); }
+    };
+    h = harness({config: {...ON, driverNavigation: token, clusterCard: {...ON.clusterCard, driverLayout: true}},
+        fakeDriverLayer: hLayer, readRoute(context, requested) { reads.push(requested); return route; }});
+    const focus = pkg => ({getStreamType: () => 3, getPackageName: () => pkg, getClientId: () => 'x'});
+    h.policy.latest = focus(MUSIC.package);
+    show(h, 'SYSTEM_BT_MUSIC');
+    h.tick();
+    assert.equal(modes.at(-1), 'Voyah Music ru-RU');
+    assert.deepEqual(reads, []);
+    h.tick();
+    assert.equal(modes.at(-1), 'navigation');
+    const currentSource = h.view.getCurMediaEnum;
+    h.view.getCurMediaEnum = () => { throw new Error('Media unavailable'); };
+    h.tick(100);
+    assert.equal(modes.at(-1), 'navigation');
+    h.view.getCurMediaEnum = currentSource;
+    h.policy.latest = focus(RADIO.package);
+    show(h, 'DAB');
+    h.tick();
+    assert.equal(modes.at(-1), 'navigation');
+    assert.equal(h.hooks.focusLatest.implementation.call({}, h.media('DAB')), true);
+    h.tick(2000);
+    assert.equal(modes.at(-1), 'Voyah Radio ru-RU');
+    route = {...route, at: h.state.clock};
+    h.tick();
+    assert.equal(modes.at(-1), 'navigation');
+    h.state.config = {schema: 1, driverNavigation: token};
+    h.tick();
+    assert.equal(modes.at(-1), 'navigation', 'without companion media slots');
+    h.panel.children = [];
+    h.tick();
+    assert.equal(modes.at(-1), 'stock');
+    h.panel.children = [h.view];
+    h.tick();
+    route = {...route, at: h.state.clock};
+    h.tick();
+    assert.equal(modes.at(-1), 'navigation');
+    h.state.config = {schema: 1, restoreIcons: 'b'.repeat(32)};
+    h.tick();
+    assert.equal(modes.at(-1), 'stock');
+    assert.ok(h.logs.includes('OVC_CLUSTER_CARD_RESTORED ' + 'b'.repeat(32)));
+    assert.ok(reads.every(value => value === token));
+});
 
 test('each app borrows a slot, joins the framework configuration and is connected as a factory source', () => {
     const h = harness();

@@ -1,9 +1,8 @@
 import Java from 'frida-java-bridge';
 import { installClusterMediaCard } from './cluster-media-card.js';
+import { createPanelConfigReader, createDriverRouteReader } from './driver-navigation.js';
 import { createReporter } from './report.js';
 
-// The panel configuration Controls publishes for the launcher agent; its `clusterCard` part is for this one.
-const CONFIG = 'org.openvoyah.controls.panel';
 const report = createReporter('OVC_CLUSTER_CARD_ERROR');
 
 function install() {
@@ -14,13 +13,7 @@ function install() {
                 setTimeout(install, 2000);
                 return;
             }
-            const Global = Java.use('android.provider.Settings$Global');
-            const readConfig = context => {
-                const raw = Global.getString(context.getContentResolver(), CONFIG);
-                try { return raw === null ? null : JSON.parse(raw.toString()); }
-                catch (_) { return null; }
-            };
-            installClusterMediaCard(Java, {readConfig, report});
+            installClusterMediaCard(Java, {readConfig: createPanelConfigReader(Java), readRoute: createDriverRouteReader(Java), report});
         } catch (error) { report('install', error); }
     });
 }

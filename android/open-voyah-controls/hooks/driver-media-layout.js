@@ -1,3 +1,5 @@
+import { driverRouteRemaining } from './driver-navigation.js';
+
 const DISPLAY = 'Cluster-Media-Display';
 const OWNER = 'com.qinggan.instrumentcard';
 const TAG = 'org.openvoyah.controls.driver-media-layout';
@@ -6,6 +8,8 @@ const BACKGROUND = 0xff121821 | 0;
 const TITLE = 0xfff2f5fa | 0;
 const SECONDARY = 0xffb2c0d0 | 0;
 const ACCENT = 0xff86dcd3 | 0;
+const CARD_BACKGROUND = 0xff202b38 | 0;
+const CARD_BORDER = 0xff3c5061 | 0;
 
 export function driverMediaText(value) {
     return String(value ?? '').slice(0, 240).replace(/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/g, ' ')
@@ -22,6 +26,18 @@ export function driverMediaGeometry({display, owner, attached, shown, width, hei
     const art = Math.min(Math.round(width * 0.32), height - inset * 2, px(180));
     const left = inset * 2 + art;
     return {width, height, inset, art, left, textWidth: width - inset - left, progressHeight: px(4)};
+}
+
+/** Center the compact card inside the same viewport as the large player. */
+export function driverNavigationGeometry(viewport, density, fontScale) {
+    if (!Number.isFinite(fontScale) || fontScale <= 0 || fontScale > 1.5) return null;
+    const px = dp => Math.round(dp * density);
+    const width = px(288);
+    const height = px(Math.max(112, 28 + 76 * fontScale));
+    const left = Math.floor((viewport.width - width) / 2);
+    const top = Math.floor((viewport.height - height) / 2);
+    if (left < px(12) || top < px(8)) return null;
+    return {width, height, left, top, horizontal: px(18), vertical: px(10), radius: px(16), stroke: px(1)};
 }
 
 /** An optional read-only view in Android's drawing overlay. Its lease fades even if the agent stops. */
@@ -70,7 +86,7 @@ export function createDriverMediaLayer(Java) {
         if (host !== null) removeOwned(overlayOf(host));
     }
 
-    function create(host, overlay) {
+    function create(host, overlay, mode) {
         removeOwned(overlay);
         const context = host.getContext();
         const root = Frame.$new(context);
@@ -80,8 +96,6 @@ export function createDriverMediaLayer(Java) {
         root.setImportantForAccessibility(4);
         root.setFocusable(false);
         root.setClickable(false);
-        const art = Image.$new(context);
-        art.setScaleType(Scale.CENTER_CROP.value);
         const labels = Linear.$new(context);
         labels.setOrientation(1);
         labels.setGravity(16);
@@ -94,44 +108,77 @@ export function createDriverMediaLayer(Java) {
             labels.addView(view);
             return view;
         }
-        const source = line(14, ACCENT, 1);
-        const title = line(27, TITLE, 2);
-        const artist = line(17, SECONDARY, 1);
-        const progress = Progress.$new(context, null, 16842872); // android.R.attr.progressBarStyleHorizontal
-        progress.setMax(100);
-        progress.setProgressTintList(Tint.valueOf(ACCENT));
-        progress.setVisibility(8);
-        root.addView(art);
-        root.addView(labels);
-        root.addView(progress);
-        current = {host: Java.retain(host), overlay, root, art, source, title, artist, labels, progress,
-            geometry: '', text: '', artworkRevision: -1, percent: -1};
+        const layer = {host: Java.retain(host), mode, overlay, root, labels, geometry: '', text: '', at: -1};
+        current = layer;
+        if (mode === 'navigation') {
+            layer.source = line(15, ACCENT, 1);
+            layer.title = line(25, TITLE, 1);
+            layer.detail = line(18, SECONDARY, 1);
+            layer.title.setTypeface(null, 1);
+            for (const label of [layer.source, layer.title, layer.detail]) label.setIncludeFontPadding(false);
+            root.addView(labels);
+        } else {
+            const art = Image.$new(context);
+            art.setScaleType(Scale.CENTER_CROP.value);
+            const source = line(14, ACCENT, 1);
+            const title = line(27, TITLE, 2);
+            const artist = line(17, SECONDARY, 1);
+            const progress = Progress.$new(context, null, 16842872); // android.R.attr.progressBarStyleHorizontal
+            progress.setMax(100);
+            progress.setProgressTintList(Tint.valueOf(ACCENT));
+            progress.setVisibility(8);
+            root.addView(art);
+            root.addView(labels);
+            root.addView(progress);
+            Object.assign(layer, {art, source, title, artist, progress, artworkRevision: -1, percent: -1});
+        }
         overlay.add(root);
+    }
+
+    function geometryOf(host, overlay) {
+        return overlay === null ? null : driverMediaGeometry({
+            display: DISPLAY, owner: OWNER, attached: host.isAttachedToWindow(), shown: host.isShown(),
+            width: host.getWidth(), height: host.getHeight(), density: host.getResources().getDisplayMetrics().density.value
+        });
+    }
+
+    function select(host, overlay, mode) {
+        if (current === null || !current.host.equals(host) || current.mode !== mode) {
+            clear();
+            create(host, overlay, mode);
+        }
+        return current;
+    }
+
+    function place(view, width, height, x, y) {
+        const params = Layout.$new(width, height);
+        params.leftMargin.value = x;
+        params.topMargin.value = y;
+        view.setLayoutParams(params);
+    }
+
+    function measure(root, {width, height}) {
+        root.measure(EXACTLY | width, EXACTLY | height);
+        root.layout(0, 0, width, height);
+    }
+
+    function renewLease(root, delay, duration) {
+        const animator = root.animate();
+        animator.cancel();
+        if (root.getAlpha() !== 1) root.setAlpha(1);
+        animator.alpha(0).setStartDelay(delay).setDuration(duration).start();
     }
 
     function update(host, model) {
         if (host === null || model === null || !model.title) { clear(host); return false; }
         const overlay = overlayOf(host);
-        const geometry = overlay === null ? null : driverMediaGeometry({
-            display: DISPLAY, owner: OWNER, attached: host.isAttachedToWindow(), shown: host.isShown(),
-            width: host.getWidth(), height: host.getHeight(), density: host.getResources().getDisplayMetrics().density.value
-        });
+        const geometry = geometryOf(host, overlay);
         if (geometry === null) { clear(host); return false; }
-        if (current === null || !current.host.equals(host)) {
-            clear();
-            create(host, overlay);
-        }
-        const layer = current;
+        const layer = select(host, overlay, 'media');
         const frame = JSON.stringify(geometry);
         let layoutChanged = false;
         if (layer.geometry !== frame) {
             const {width, height, inset, art, left, textWidth, progressHeight} = geometry;
-            function place(view, w, h, x, y) {
-                const params = Layout.$new(w, h);
-                params.leftMargin.value = x;
-                params.topMargin.value = y;
-                view.setLayoutParams(params);
-            }
             place(layer.art, art, art, inset, Math.round((height - art) / 2));
             place(layer.labels, textWidth, height - inset * 2, left, inset);
             place(layer.progress, textWidth, progressHeight, left, height - inset - progressHeight);
@@ -160,16 +207,63 @@ export function createDriverMediaLayer(Java) {
             if (percent >= 0) layer.progress.setProgress(percent);
             layer.percent = percent;
         }
-        if (layoutChanged) {
-            layer.root.measure(EXACTLY | geometry.width, EXACTLY | geometry.height);
-            layer.root.layout(0, 0, geometry.width, geometry.height);
-        }
-        const animator = layer.root.animate();
-        animator.cancel();
-        if (layer.root.getAlpha() !== 1) layer.root.setAlpha(1);
-        animator.alpha(0).setStartDelay(3500).setDuration(200).start();
+        if (layoutChanged) measure(layer.root, geometry);
+        renewLease(layer.root, 3500, 200);
         return true;
     }
 
-    return {update, clear};
+    function navigationFrame(host, overlay) {
+        const viewport = geometryOf(host, overlay);
+        if (viewport === null) return null;
+        const visible = Java.use('android.graphics.Rect').$new();
+        if (!host.getLocalVisibleRect(visible) || visible.left.value !== 0 || visible.top.value !== 0 ||
+            visible.right.value !== viewport.width || visible.bottom.value !== viewport.height) return null;
+        const resources = host.getResources();
+        const card = driverNavigationGeometry(viewport, resources.getDisplayMetrics().density.value,
+            resources.getConfiguration().fontScale.value);
+        return card === null ? null : {viewport, card};
+    }
+
+    function updateNavigation(host, model, now) {
+        const remaining = driverRouteRemaining(model.at, now);
+        const heading = driverMediaText(model.heading);
+        const title = driverMediaText(model.title);
+        if (remaining === 0 || !heading || !title) return false;
+        const overlay = overlayOf(host);
+        const frame = navigationFrame(host, overlay);
+        if (frame === null) return false;
+        const layer = select(host, overlay, 'navigation');
+        const geometry = JSON.stringify(frame);
+        const detail = driverMediaText(model.detail);
+        const text = JSON.stringify([heading, title, detail]);
+        let layoutChanged = false;
+        if (layer.geometry !== geometry) {
+            const {width, height, left, top, horizontal, vertical, radius, stroke} = frame.card;
+            const background = Java.use('android.graphics.drawable.GradientDrawable').$new();
+            background.setColor(CARD_BACKGROUND);
+            background.setCornerRadius(radius);
+            background.setStroke(stroke, CARD_BORDER);
+            layer.labels.setBackground(background);
+            layer.labels.setPadding(horizontal, vertical, horizontal, vertical);
+            place(layer.labels, width, height, left, top);
+            layer.geometry = geometry;
+            layoutChanged = true;
+        }
+        if (layer.text !== text) {
+            layer.source.setText(JString.$new(heading));
+            layer.title.setText(JString.$new(title));
+            layer.detail.setText(JString.$new(detail));
+            layer.detail.setVisibility(detail ? 0 : 8);
+            layer.text = text;
+            layoutChanged = true;
+        }
+        if (layoutChanged) measure(layer.root, frame.viewport);
+        if (layer.at !== model.at) {
+            renewLease(layer.root, remaining, 0);
+            layer.at = model.at;
+        }
+        return true;
+    }
+
+    return {update, clear, updateNavigation, navigationFits: host => navigationFrame(host, overlayOf(host)) !== null};
 }

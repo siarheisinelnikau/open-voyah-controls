@@ -2,4 +2,10 @@
     <string name="driver_media_heading">Жүргізуші дисплейінің сол жақ аймағы</string>
     <string name="driver_media_description">Үйлесімді аспаптар тақтасында ағымдағы тректі немесе станцияны жүргізуші алдындағы сол жақ медиа аймақта көрсетеді.</string>
     <string name="driver_media_layout">Ойнатқыштың ірі көрінісі</string>
+    <string name="driver_navigation_card">Ықшам навигация карточкасы</string>
+    <string name="driver_navigation_description">Үйлесімді микробағдарламада маршрут нұсқауларын көрсетеді. «Виртуалды экран және аспап» бөлімінде «Навигация» деректерін қосыңыз.</string>
+    <string name="driver_navigation_next">Келесі маневр</string>
+    <string name="driver_navigation_current">Ағымдағы жол</string>
+    <string name="driver_navigation_meters">%1$s м</string>
+    <string name="driver_navigation_kilometers">%1$s км</string>
 </resources>

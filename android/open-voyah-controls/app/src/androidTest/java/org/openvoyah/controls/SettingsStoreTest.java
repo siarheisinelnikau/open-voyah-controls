@@ -295,6 +295,7 @@ public class SettingsStoreTest extends AndroidTestCase {
         String old = "{\"schema\":1,\"enabled\":true,\"holdMs\":650,\"debounceMs\":100,\"bindings\":[]}";
         assertTrue(SettingsStore.decode(old).clusterCardApps);
         assertFalse(SettingsStore.decode(old).driverMediaLayout);
+        assertFalse(SettingsStore.decode(old).driverNavigationCard);
         JSONObject config = new JSONObject(FridaBridge.config(new SettingsStore.State()));
         assertEquals(config.getJSONObject("mediaCard").getJSONArray("sources").toString(),
             config.getJSONObject("clusterCard").getJSONArray("sources").toString());
@@ -307,6 +308,18 @@ public class SettingsStoreTest extends AndroidTestCase {
         assertFalse(new JSONObject(FridaBridge.config(loaded)).has("clusterCard"));
         // The home screen card keeps its own switch.
         assertTrue(new JSONObject(FridaBridge.config(loaded)).getJSONObject("mediaCard").has("sources"));
+    }
+
+    public void testCompactDriverNavigationIsIndependentAndRequiresDeployment() throws Exception {
+        SettingsStore.State state = sample();
+        assertFalse(state.driverNavigationCard);
+        state.clusterCardApps = false;
+        state.driverNavigationCard = true;
+        store.save(state);
+        SettingsStore.State loaded = store.load();
+        assertTrue(loaded.driverNavigationCard);
+        assertFalse(loaded.clusterCardApps);
+        assertFalse(new JSONObject(FridaBridge.config(loaded)).has("driverNavigation"));
     }
     public void testDisabledConfigAndResetRemoveCustomActions() throws Exception {
         store.save(sample()); store.save(new SettingsStore.State());

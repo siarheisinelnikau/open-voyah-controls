@@ -3,20 +3,23 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const source = ['report.js', 'display-events.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
+const source = ['report.js', 'driver-navigation.js', 'display-events.js'].map(file => fs.readFileSync(path.join(__dirname, '../hooks', file), 'utf8')
     .replace(/^import .*;$/gm, '').replace(/^export /gm, '')).join('\n');
 const SERVICE = 'com.qinggan.cluster.service.InstrumentClusterService$ClusterManagerService';
 
 function harness(options = {}) {
     const broadcasts = [], logs = [];
     let originalCalls = 0;
-    const app = {sendBroadcast(intent) {
+    const app = {getContentResolver: () => ({}), sendBroadcast(intent) {
         if (options.refuse) throw Error('java.lang.SecurityException: Permission Denial: private.receiver');
         broadcasts.push(intent);
     }};
     const update = {call() { originalCalls++; return 'oem result'; }};
     const classes = {
         'android.app.ActivityThread':{currentApplication:() => app},
+        'android.os.Build$VERSION': {SDK_INT: {value: options.sdk ?? 30}},
+        'android.os.SystemClock': {elapsedRealtime: () => options.at ?? 10_000},
+        'android.provider.Settings$Global': {getString: () => JSON.stringify(options.config ?? null)},
         [SERVICE]:{updateNaviInfo:{overload(type) { assert.equal(type, 'com.qinggan.cluster.info.NaviInfo'); return update; }}},
         'android.content.Intent':{$new:action => ({
             action, extras:{}, types:{},
@@ -125,4 +128,35 @@ test('a failing getter or refused broadcast still returns the OEM result and is 
 test('a missing cluster service is reported by class and installs nothing', () => {
     const h = harness({missing:SERVICE});
     assert.deepEqual(h.logs, ['OVC_NAVIGATION_ERROR stage=install kind=ClassNotFoundException']);
+});
+
+test('only callbacks renew real guidance, and simulation, end and restore invalidate it', () => {
+    const config = {schema: 1, driverNavigation: 'a'.repeat(32)};
+    const h = harness({config, at: 10_000});
+    h.update(navigation());
+    assert.equal(h.broadcasts[0].extras.driverGuiding, 1);
+    assert.equal(h.broadcasts[0].extras.driverToken, config.driverNavigation);
+    assert.equal(h.broadcasts[0].types.driverObservedAt, 'long');
+    h.options.at += 999;
+    h.update(navigation());
+    assert.equal(h.broadcasts.length, 1);
+    h.options.at++;
+    h.update(navigation());
+    assert.equal(h.broadcasts[1].extras.driverObservedAt, 11_000);
+    assert.equal(h.broadcasts[1].extras.driverOnly, 1);
+    h.update(navigation({state: 'SIMULATING'}));
+    assert.equal(h.broadcasts[2].extras.driverGuiding, 0);
+    h.update(navigation());
+    h.update(null);
+    assert.equal(h.broadcasts[4].extras.event, 'end');
+    assert.equal(h.broadcasts[4].extras.driverGuiding, 0);
+    h.options.config = {...config, restoreIcons: 'b'.repeat(32)};
+    h.update(navigation());
+    assert.equal('driverToken' in h.broadcasts.at(-1).extras, false);
+    h.options.config = {...config, driverNavigation: 'c'.repeat(32)};
+    h.update(navigation());
+    assert.equal(h.broadcasts.at(-1).extras.driverToken, 'c'.repeat(32));
+    const android9 = harness({config, sdk: 28});
+    android9.update(navigation());
+    assert.equal('driverToken' in android9.broadcasts[0].extras, false);
 });

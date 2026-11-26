@@ -29,6 +29,7 @@
         <package android:name="com.qinggan.bluetoothphone" />
         <package android:name="com.qinggan.app.hiboard" />
         <package android:name="com.qinggan.cluster" />
+        <package android:name="com.qinggan.instrumentcard" />
         <package android:name="com.qinggan.canbus.service" />
         <package android:name="com.qinggan.app.login" />
         <package android:name="android" />
@@ -99,6 +100,8 @@
             android:permission="android.permission.BIND_JOB_SERVICE" />
         <receiver android:name=".LocalNavigationReceiver" android:exported="true"
             android:permission="android.permission.WRITE_SECURE_SETTINGS" />
+        <provider android:name=".platform.navigation.DriverNavigationProvider" android:exported="true"
+            android:authorities="org.openvoyah.controls.driverNavigation" />
         <service android:name=".MediaAccessService" android:exported="true"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:label="@string/ui_180">
             <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>

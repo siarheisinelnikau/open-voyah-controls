@@ -70,6 +70,9 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
             CockpitSwitch(R.string.home_cluster_card_apps, state.clusterCardApps, change = actions::clusterCardApps)
             CockpitSwitch(R.string.driver_media_layout, state.driverMediaLayout, enabled = state.clusterCardApps,
                 change = actions::driverMediaLayout)
+            CockpitSwitch(R.string.driver_navigation_card, state.driverNavigationCard, change = actions::driverNavigationCard)
+            Text(UiText.get(R.string.driver_navigation_description), style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

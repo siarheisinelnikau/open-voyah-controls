@@ -8,4 +8,6 @@ The app-pair, passenger workspace, and task manager paths use the existing windo
 | Live embedded app sessions and transfer | A permitted host for a trusted Android virtual display on the exact firmware, with confirmed task ownership across view and surface changes, reparenting, release and return from either physical display. The current swipe moves eligible ordinary tasks between their supported displays. |
 | An app inside the cluster media card | A permitted launch and return contract for the cluster's private media display, a host that preserves the stock card, and measured card bounds for the active theme. The existing cluster-card agent provides supported media sessions through OEM source slots. The navigation-display swipe targets a separate virtual display. |
 
+The [compact navigation card](DRIVER_DISPLAY.md#compact-navigation-card) draws guidance inside the cluster media view through the existing card agent. Its OEM route source and viewport still need head-unit qualification.
+
 See the [launcher window map](HOME_SCREEN_MAP.md#windows-on-the-central-display) and [instrument cluster documentation](CLUSTER.md#screens-and-the-media-card).

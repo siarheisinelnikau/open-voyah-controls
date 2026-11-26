@@ -61,6 +61,7 @@ import org.openvoyah.controls.data.frida.FridaBridge
 import org.openvoyah.controls.data.settings.AppearancePreferences
 import org.openvoyah.controls.data.settings.LocalSettingsArchive
 import org.openvoyah.controls.data.settings.SeatMemoryPreferences
+import org.openvoyah.controls.data.settings.SettingsStore
 import org.openvoyah.controls.data.settings.VoiceSettings
 import org.openvoyah.controls.data.vehicle.HeadlightMonitoringPreferences
 import org.openvoyah.controls.data.vehicle.LocalHeadlightHistory
@@ -151,6 +152,35 @@ class ComposeScreensTest : InstrumentationTestCase() {
             startupPreference?.let { putBoolean("check_on_startup", it) } ?: remove("check_on_startup")
         }.commit()
         super.tearDown()
+    }
+
+    fun testCompactDriverNavigationSwitchAndCapture() {
+        val settings = SettingsStore(app)
+        val previous = settings.exportJson()
+        val language = UiText.language()
+        try {
+            val choice = settings.load().apply { driverNavigationCard = false }
+            settings.save(choice)
+            for (locale in listOf("en", "ru", "kk")) {
+                UiText.language(locale)
+                val activity = launch(ControlsNavigation.intent(app, ControlsRoute.SETTINGS)) as MainActivity
+                openSettingsPart(activity, SettingsPartId.HOME_FACTORY)
+                val label = UiText.get(R.string.driver_navigation_card)
+                scrollTo(UiText.get(R.string.driver_navigation_description))
+                awaitText(label)
+                if (locale == "en") capture("driver-navigation-setting-off")
+                clickButton(label)
+                assertTrue(settings.load().driverNavigationCard)
+                capture("driver-navigation-setting-on-$locale")
+                clickButton(label)
+                assertFalse(settings.load().driverNavigationCard)
+                instrumentation.runOnMainSync { activity.finish() }
+                instrumentation.waitForIdleSync()
+            }
+        } finally {
+            settings.importJson(previous)
+            UiText.language(language)
+        }
     }
 
     fun testNormalRoutesAndProtectedNativeActivitiesRenderCompose() {

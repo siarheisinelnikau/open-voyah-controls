@@ -76,6 +76,7 @@ public final class SettingsStore {
         /** Offer the same apps in the factory media card on the instrument cluster. On unless turned off. */
         public boolean clusterCardApps = true;
         public boolean driverMediaLayout = false;
+        public boolean driverNavigationCard = false;
         public final java.util.Map<String, Action> panelActions = new java.util.LinkedHashMap<>();
         public final java.util.Map<String, Action> steeringActions = new java.util.LinkedHashMap<>();
         public State() {
@@ -120,6 +121,7 @@ public final class SettingsStore {
         state.mediaCardHideOnline = root.optBoolean("mediaCardHideOnline", true);
         state.clusterCardApps = root.optBoolean("clusterCardApps", true);
         state.driverMediaLayout = Boolean.TRUE.equals(root.opt("driverMediaLayout"));
+        state.driverNavigationCard = Boolean.TRUE.equals(root.opt("driverNavigationCard"));
         JSONObject panel = root.optJSONObject("panelActions");
         if (panel != null) {
             java.util.Iterator<String> slots = panel.keys();
@@ -180,6 +182,7 @@ public final class SettingsStore {
             .put("mediaCardHideOnline", state.mediaCardHideOnline)
             .put("clusterCardApps", state.clusterCardApps)
             .put("driverMediaLayout", state.driverMediaLayout)
+            .put("driverNavigationCard", state.driverNavigationCard)
             .put("panelActions", panel).put("steeringActions", steering).toString(2);
     }
 }

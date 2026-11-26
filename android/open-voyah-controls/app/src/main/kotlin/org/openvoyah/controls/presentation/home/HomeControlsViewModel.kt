@@ -27,6 +27,7 @@ interface HomeActions {
     fun mediaCardHideOnline(enabled: Boolean)
     fun clusterCardApps(enabled: Boolean)
     fun driverMediaLayout(enabled: Boolean)
+    fun driverNavigationCard(enabled: Boolean)
     fun choosePanel(slot: String)
     fun editBinding(id: String)
 }
@@ -43,6 +44,7 @@ internal data class HomeControlsState(
     val navigatorWidgetScale: Int = SettingsStore.NAVIGATOR_WIDGET_SCALE,
     val weatherCard: Boolean = false, val weatherCity: String = "", val mediaCardApps: Boolean = true,
     val mediaCardHideOnline: Boolean = true, val clusterCardApps: Boolean = true, val driverMediaLayout: Boolean = false,
+    val driverNavigationCard: Boolean = false,
     val connected: Boolean = false,
     /** The supervisor paused the activation; it re-arms itself after the next system restart. */
     val activationPaused: Boolean = false,
@@ -109,6 +111,7 @@ internal class HomeControlsViewModel(
     fun mediaCardHideOnline(enabled: Boolean) = change { it.mediaCardHideOnline = enabled }
     fun clusterCardApps(enabled: Boolean) = change { it.clusterCardApps = enabled }
     fun driverMediaLayout(enabled: Boolean) = change { it.driverMediaLayout = enabled }
+    fun driverNavigationCard(enabled: Boolean) = change { it.driverNavigationCard = enabled }
     fun choosePanel(slot: String, action: Action) {
         if (slot !in PanelSlots.forProduct(product)) return
         if (change {
@@ -193,6 +196,7 @@ internal class HomeControlsViewModel(
             it.mediaCardHideOnline = source.mediaCardHideOnline
             it.clusterCardApps = source.clusterCardApps
             it.driverMediaLayout = source.driverMediaLayout
+            it.driverNavigationCard = source.driverNavigationCard
             it.bindings.clear()
             it.bindings.addAll(source.bindings)
             it.panelActions.clear()
@@ -248,6 +252,7 @@ internal class HomeControlsViewModel(
             weatherCard = settings.weatherCard, mediaCardApps = settings.mediaCardApps,
             mediaCardHideOnline = settings.mediaCardHideOnline, clusterCardApps = settings.clusterCardApps,
             driverMediaLayout = settings.driverMediaLayout,
+            driverNavigationCard = settings.driverNavigationCard,
             // The overseas launcher has no Baidu navigation card to replace.
             navigatorHomeCardSupported = product != "f6811", connected = connected(),
             holdMs = settings.holdMs, debounceMs = settings.debounceMs, steeringSupported = sdk in listOf(28, 30),

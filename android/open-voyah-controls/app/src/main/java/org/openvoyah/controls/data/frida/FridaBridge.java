@@ -152,6 +152,10 @@ public final class FridaBridge {
             String steering = canSteering();
             String source = steering == null ? "qg" : steering.equals(ReviewedFirmware.CAN_STEERING_EDGES) ? "can-edges" : "can-terminal";
             JSONObject config = new JSONObject(config(state)).put("steeringSource", source).put("customIcons", icons);
+            if (state.driverNavigationCard && Build.VERSION.SDK_INT == 30 && navigationHookEnabled(context)
+                && clusterCardReviewed() && navigationReviewed()) {
+                config.put("driverNavigation", UUID.randomUUID().toString().replace("-", ""));
+            }
             // The app grid's icon style: the agent draws the panel's icons through the same colour matrix.
             float[] matrix = new AppGridPreferences(context).iconStyle().getColorMatrix();
             if (matrix != null) {
@@ -664,7 +668,10 @@ public final class FridaBridge {
     public static boolean navigationHookEnabled(Context context) {
         return context.getSharedPreferences("bridge", Context.MODE_PRIVATE).getBoolean("navigationHook", false);
     }
-    public void setNavigationHook(boolean enabled) throws IOException { setOptionalHook("navigation", enabled); }
+    public void setNavigationHook(boolean enabled) throws IOException {
+        setOptionalHook("navigation", enabled);
+        publishAsync(message -> ControlsLog.warn("bridge_navigation_config", "outcome", "failed"));
+    }
 
     /**
      * Clears old worker input before waiting for its detach. The historical controller claim stays intact.
