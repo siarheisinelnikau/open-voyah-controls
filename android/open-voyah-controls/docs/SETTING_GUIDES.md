@@ -2,7 +2,7 @@
 
 Each entry below has its own explanation and before-and-after scene in English, Russian and Kazakh. Some entries also show an intermediate event so the trigger and result can be read in sequence.
 
-The catalogue contains **292** guide definitions across these settings surfaces.
+The catalogue contains **294** guide definitions across these settings surfaces.
 
 The inventory counts setting controls and configuration entry points. Repeated rows count by control family. For example, the passenger workspace has six app positions and two dock positions, with a scene that highlights the position being edited. Default voice seat levels use the selected seat and feature. Action permissions name the affected action. A page heading, status, Save, Cancel or a one-time vehicle action is outside the inventory unless it opens or edits a setting.
 
@@ -54,6 +54,8 @@ App grid and its desktop, wallpaper, layout, icon, hide and permission editors. 
 | Voyah Music and Voyah Radio on the instrument cluster | `home_cluster_card_apps` |
 | Large player view | `driver_media_layout` |
 | Compact navigation card | `driver_navigation_card` |
+| Show Yandex Navigator on the driver display | `driver_navigator_open` |
+| Restore media card | `driver_navigator_close` |
 | Hide from the app list | `apps_hide` |
 | Remove the white background (experimental) | `app_icon_plain` |
 | Reorder pinned apps | `apps_grid_reorder_pins` |

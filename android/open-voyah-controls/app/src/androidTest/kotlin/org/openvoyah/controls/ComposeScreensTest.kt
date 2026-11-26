@@ -58,6 +58,7 @@ import org.openvoyah.controls.data.apps.DesktopWallpaperPreferences
 import org.openvoyah.controls.data.display.AppWindowPreferences
 import org.openvoyah.controls.data.display.DisplayPreviewPreferences
 import org.openvoyah.controls.data.frida.FridaBridge
+import org.openvoyah.controls.data.frida.FridaPanelControls
 import org.openvoyah.controls.data.settings.AppearancePreferences
 import org.openvoyah.controls.data.settings.LocalSettingsArchive
 import org.openvoyah.controls.data.settings.SeatMemoryPreferences
@@ -109,6 +110,7 @@ import org.openvoyah.controls.domain.voice.VoiceOutcome
 import org.openvoyah.controls.domain.voice.VoiceResult
 import org.openvoyah.controls.platform.ui.ActionExecutor
 import org.openvoyah.controls.platform.voice.VoiceUiActions
+import org.openvoyah.controls.presentation.home.HomeControlsViewModel
 import org.openvoyah.controls.presentation.navigation.ControlsNavigation
 import org.openvoyah.controls.presentation.navigation.ControlsNavigationViewModel
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
@@ -294,6 +296,54 @@ class ComposeScreensTest : InstrumentationTestCase() {
                 tapCurrentText(UiText.get(R.string.setting_guide_replay))
                 SystemClock.sleep(2_250)
                 capture("driver-media-guide-$name")
+                tapCurrentText(UiText.get(R.string.ui_172))
+                awaitText(title)
+                assertEquals(expected, settings.exportJson())
+            }
+        } finally {
+            UiText.language(language)
+            appearance.setAnimateRoutes(motion)
+            settings.importJson(previous)
+        }
+    }
+
+    fun testNavigatorGuidesShowTheDriverWindowAndHomeWidget() {
+        val settings = SettingsStore(app)
+        val previous = settings.exportJson()
+        val appearance = AppearancePreferences(app)
+        val motion = appearance.load().animateRoutes
+        val language = UiText.language()
+        try {
+            settings.save(settings.load().apply { navigatorHomeCard = true })
+            val expected = settings.exportJson()
+            appearance.setAnimateRoutes(true)
+            UiText.language("ru")
+            val activity = launch(MainActivity.appsIntent(app)) as MainActivity
+            instrumentation.runOnMainSync {
+                // Exercise the production settings rows with Android 11 capability on the test emulator.
+                ViewModelProvider(activity, viewModelFactory { initializer {
+                    HomeControlsViewModel(settings, FridaPanelControls(app, settings), "f6801f", 30) { false }
+                } })["controls.settings.destination", HomeControlsViewModel::class.java]
+            }
+            openSettingsPart(activity, SettingsPartId.HOME_FACTORY)
+            val guides = listOf(
+                Triple(R.string.home_navigator_card, R.array.guide_home_navigator_card, "home-widget"),
+                Triple(R.string.home_navigator_widget_scale, R.array.guide_home_navigator_widget_scale, "widget-scale"),
+                Triple(R.string.driver_navigator_open, R.array.guide_driver_navigator_window, "driver-window"),
+                Triple(R.string.driver_navigator_close, R.array.guide_driver_navigator_restore, "driver-restore"),
+            )
+            for ((label, copy, name) in guides) {
+                val title = UiText.get(label)
+                scrollTo(title)
+                if (label == R.string.driver_navigator_open) capture("navigator-guide-settings")
+                clickText(UiText.get(R.string.setting_guide_open).format(title), contentDescription = true)
+                val (explanation, before, after) = UiText.getArray(copy).toList()
+                awaitText(explanation)
+                awaitText(before)
+                awaitText(after)
+                tapCurrentText(UiText.get(R.string.setting_guide_replay))
+                SystemClock.sleep(800)
+                capture("navigator-guide-$name")
                 tapCurrentText(UiText.get(R.string.ui_172))
                 awaitText(title)
                 assertEquals(expected, settings.exportJson())

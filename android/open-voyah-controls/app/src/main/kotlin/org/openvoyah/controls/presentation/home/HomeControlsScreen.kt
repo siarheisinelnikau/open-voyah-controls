@@ -83,9 +83,11 @@ internal fun HomeFactoryScreen(state: HomeControlsState, actions: HomeActions) {
 private fun DriverNavigatorActions(state: HomeControlsState, actions: HomeActions) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         CockpitAction(UiText.get(R.string.driver_navigator_open),
-            { actions.command(HomeCommand.OPEN_DRIVER_NAVIGATOR) }, enabled = !state.driverNavigatorBusy)
+            { actions.command(HomeCommand.OPEN_DRIVER_NAVIGATOR) },
+            enabled = !state.driverNavigatorBusy, guideId = R.string.driver_navigator_open)
         CockpitAction(UiText.get(R.string.driver_navigator_close),
-            { actions.command(HomeCommand.CLOSE_DRIVER_NAVIGATOR) }, enabled = !state.driverNavigatorBusy)
+            { actions.command(HomeCommand.CLOSE_DRIVER_NAVIGATOR) },
+            enabled = !state.driverNavigatorBusy, guideId = R.string.driver_navigator_close)
     }
     if (state.driverNavigatorBusy) CockpitFeedback(UiText.get(R.string.driver_navigator_working))
     state.driverNavigatorFeedback?.let { CockpitFeedback(it.message(), error = !it.successful()) }

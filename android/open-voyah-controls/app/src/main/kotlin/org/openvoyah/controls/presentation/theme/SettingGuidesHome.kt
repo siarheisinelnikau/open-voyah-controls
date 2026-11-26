@@ -227,6 +227,12 @@ internal val homeGuides = mapOf(
             frame { cluster { route("route", 10, 15, 76, 47, "500 m", next = "Abay") } },
         )
     },
+    R.string.driver_navigator_open to SettingGuide(R.array.guide_driver_navigator_window) {
+        GuideStory(driverMediaExample(), driverNavigatorExample())
+    },
+    R.string.driver_navigator_close to SettingGuide(R.array.guide_driver_navigator_restore) {
+        GuideStory(driverNavigatorExample(), driverMediaExample())
+    },
     R.string.apps_hide to SettingGuide(R.array.guide_apps_hide) {
         story(
             {
@@ -440,6 +446,17 @@ private fun GuideFrameBuilder.cluster(content: GuideFrameBuilder.() -> Unit) {
     word("speed", "42", 104, 34, 24, WHITE)
     word("units", "km/h", 104, 53, 9, WHITE)
     content()
+}
+
+private fun driverMediaExample() = frame {
+    cluster { player("media", 10, 15, 77, 47, art = true, controls = true) }
+}
+
+private fun driverNavigatorExample() = frame {
+    cluster {
+        mapCard("navigator", 10, 13, 77, 52, true, routeInk = TEAL)
+        word("zoom-controls", "＋  −", 70, 56, 10, ACCENT, width = 26)
+    }
 }
 
 private fun GuideFrameBuilder.picker(showFirmware: Boolean) {

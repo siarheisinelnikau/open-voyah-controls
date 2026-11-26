@@ -159,7 +159,7 @@
         <item>Yandex Navigator card</item>
     </string-array>
     <string-array name="guide_home_navigator_widget_scale">
-        <item>Changes the size of the Navigator widget within the factory home screen.</item>
+        <item>Changes the scale of the map and controls. The widget keeps its place on the factory home screen.</item>
         <item>Standard widget</item>
         <item>Larger widget</item>
     </string-array>
@@ -192,6 +192,16 @@
         <item>With Navigation feed enabled, live route guidance appears in the left media area. The media view returns when guidance ends or stops updating.</item>
         <item>Media view</item>
         <item>Live route guidance</item>
+    </string-array>
+    <string-array name="guide_driver_navigator_window">
+        <item>Open the full Yandex Navigator window in the left media area. Restore media card closes the window and brings back the usual view.</item>
+        <item>Media card</item>
+        <item>Full Navigator window</item>
+    </string-array>
+    <string-array name="guide_driver_navigator_restore">
+        <item>Close the full Navigator window and restore the usual media view in the left area.</item>
+        <item>Full Navigator window</item>
+        <item>Media card</item>
     </string-array>
     <string-array name="guide_home_weather_city">
         <item>Sets the city used by the factory home screen’s weather card.</item>
