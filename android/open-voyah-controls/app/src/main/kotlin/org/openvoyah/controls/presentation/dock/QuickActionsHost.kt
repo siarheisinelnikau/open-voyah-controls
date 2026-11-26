@@ -1,6 +1,8 @@
 package org.openvoyah.controls.presentation.dock
 
 import android.view.accessibility.AccessibilityManager
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -90,6 +92,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
@@ -107,6 +110,8 @@ import org.openvoyah.controls.domain.dock.QuickActionRailWidth
 import org.openvoyah.controls.domain.dock.QuickActionSettings
 import org.openvoyah.controls.domain.dock.QuickActionStartState
 import org.openvoyah.controls.domain.routines.NamedRoutine
+import org.openvoyah.controls.presentation.apps.AppPairViewModel
+import org.openvoyah.controls.presentation.apps.rememberAppPairs
 import org.openvoyah.controls.presentation.navigation.ControlsRoute
 import org.openvoyah.controls.presentation.theme.CockpitGlyph
 import org.openvoyah.controls.presentation.theme.CockpitIcon
@@ -320,6 +325,19 @@ private fun DockShortcuts(
     if (settings.appShortcuts.isNotEmpty()) {
         DockAppButtons(model, settings.appShortcuts, route, showLabels, rail, button) {
             if (settings.collapseAfterUse) changeExpanded(false)
+        }
+    }
+    val activity = LocalActivity.current as? ComponentActivity
+    if (AppPairViewModel.supported() && activity != null) {
+        val lifecycle = LocalLifecycleOwner.current.lifecycle
+        val pairs = rememberAppPairs(activity)
+        val saved by pairs.savedPairs.collectAsStateWithLifecycle()
+        for (pair in saved?.getOrNull().orEmpty().filter { it.inDock }) key(pair.id) {
+            DockButton(pair.name, pair.name.takeIf { showLabels }, rail, button.testTag("dockAppPair:${pair.id}"),
+                glyph = { CockpitGlyph(CockpitIcon.DISPLAY) }) {
+                pairs.open(activity, pair, foreground = { lifecycle.currentState == Lifecycle.State.RESUMED },
+                    afterStart = { if (settings.collapseAfterUse) changeExpanded(false) })
+            }
         }
     }
 }

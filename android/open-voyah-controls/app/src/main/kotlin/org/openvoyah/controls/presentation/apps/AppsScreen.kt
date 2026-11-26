@@ -78,6 +78,7 @@ import androidx.compose.ui.unit.isFinite
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.openvoyah.controls.R
+import org.openvoyah.controls.domain.display.AppPair
 import org.openvoyah.controls.UiText
 import org.openvoyah.controls.domain.apps.AppGridConfiguration
 import org.openvoyah.controls.domain.apps.AppGridDesktop
@@ -104,6 +105,8 @@ import java.util.Locale
 import org.openvoyah.controls.platform.display.rememberScreenLowered
 import org.openvoyah.controls.platform.display.visibleWhenLowered
 
+internal data class AppPairActions(val pairs: List<AppPair>, val manage: () -> Unit, val open: (AppPair) -> Unit)
+
 /** The launcher root keeps apps and Controls shortcuts available on every desktop. */
 @Composable
 internal fun AppsScreen(
@@ -124,6 +127,7 @@ internal fun AppsScreen(
     swapDesktopPins: (LocalApp, LocalApp) -> Unit,
     showSettings: (LocalApp) -> Unit,
     open: (LocalApp) -> Unit,
+    pairActions: AppPairActions? = null,
     move: AppMoveState? = null,
     endMove: () -> Unit = {},
     moveApp: (LocalApp, LocalApp, List<String>) -> Unit = { _, _, _ -> },
@@ -343,6 +347,19 @@ internal fun AppsScreen(
                                 colorFilter = if (grid.iconStyle == AppGridIconStyle.MONOCHROME) monochromeIcons else null)
                         }
                     })
+                    if (pairActions != null && !searching && desktop == AppGridDesktop.MAIN) {
+                        for (pair in pairActions.pairs) add(GridCell("app-pair:${pair.id}", 1) { context ->
+                            val metrics = fitted(context.rowHeight)
+                            LauncherTile(pair.name, metrics, open = { pairActions.open(pair) }, settings = pairActions.manage,
+                                modifier = gridItemMotion(), enabled = !moving, showLabel = grid.showAppLabels) {
+                                CockpitGlyph(CockpitIcon.DISPLAY, Modifier.size(metrics.iconSize))
+                            }
+                        })
+                        add(GridCell("controls-app-pairs", 1) { context ->
+                            Shortcut(R.string.app_pairs_title, CockpitIcon.DISPLAY, fitted(context.rowHeight), gridItemMotion(),
+                                enabled = !moving, open = pairActions.manage)
+                        })
+                    }
                     if (appsBeforeCards == 0) addAll(cardCells)
                     if (AppGridShortcut.QUICK_VOICE in grid.visibleShortcuts) {
                         val quickVoice = AppGridShortcut.QUICK_VOICE.details

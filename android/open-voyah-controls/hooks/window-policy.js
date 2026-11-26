@@ -2,6 +2,7 @@ import { android9WindowHook } from './window-android9.js';
 import { android11WindowHook } from './window-android11.js';
 import { createReporter, errorKind } from './report.js';
 import { systemTasks } from './window-tasks.js';
+import { pairStarts, readPairLaunch } from './window-pairs.js';
 import { systemReserve } from './window-reserve.js';
 import { android11DisplayMoves, displayMover } from './window-display-move.js';
 import { RESERVE_GUARD, reserveSwitch } from './window-reserve-switch.js';
@@ -209,6 +210,21 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         return profile && !places(profile, screen) && profile.dpi === 0 ? null : profile;
     };
 
+    const capturePair = pairStarts({
+        schedule: (work, delay) => setTimeout(() => Java.perform(work), delay),
+        apply: ({user, leftPercent, sides}) => {
+            refresh();
+            if (released || !config?.enabled || config.user !== user) return 'unsupported_window';
+            const profiles = sides.map(({component}) => profileFor(config, component, user, true));
+            if (profiles.some(profile => !profile)) return 'unsupported_window';
+            return tasks.applyPair(profiles, sides.map(({taskId}) => taskId), leftPercent, user);
+        },
+        reply: (id, status) => {
+            const outcome = status === 'applied' || status === 'incomplete' || failures.has(status) ? status : 'failed';
+            console.log('OVC_WINDOW_PAIR_RESULT ' + id + ' ' + outcome);
+        },
+    });
+
     const canSetLaunchBounds = (launch, record) => launch.display === 0 && launch.user === tasks.currentUser()
         && tasks.freeformAvailable() && record.isResizeable();
 
@@ -371,7 +387,8 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         try {
             applyWindowRequest(record, options, tasks.framework.freeform);
             const launch = explicitLaunch(record, options, args[5], tasks);
-            const profile = allowed(launch);
+            const pair = starting.some(item => item.pair && record.equals(item.record));
+            const profile = pair ? null : allowed(launch);
             if (launch?.edge) record.intent.value.removeExtra(PANEL_EDGE);
             // Service launches can omit a source display. Wait for their actual task in that case.
             if (profile && launch.display === 0) {
@@ -407,19 +424,38 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
     late.implementation = function (...args) {
         let launch;
         let start;
+        let pair;
         try {
             launch = explicitLaunch(args[0], args[6], args[1], tasks);
-            const profile = allowed(launch);
-            if (profile && places(profile) && canSetLaunchBounds(launch, args[0])) {
-                // Preserve the task before Android consumes the early bounds on a warm start.
-                start = {record:args[0], tasks:tasks.captureLaunch(profile, launch.user), cold:null};
+            const requested = readPairLaunch(args[0], launch);
+            if (requested && sdk === 30 && !released && config?.enabled && config.user === launch.user) {
+                pair = requested;
+                start = {record:args[0], pair};
                 starting.unshift(start);
+            } else {
+                const profile = allowed(launch);
+                if (profile && places(profile) && canSetLaunchBounds(launch, args[0])) {
+                // Preserve the task before Android consumes the early bounds on a warm start.
+                    start = {record:args[0], tasks:tasks.captureLaunch(profile, launch.user), cold:null};
+                    starting.unshift(start);
+                }
             }
         } catch (error) { reportError('capture', error); }
         let result;
         try { result = late.call(this, ...args); }
         finally { if (start) starting.splice(starting.indexOf(start), 1); }
-        if (launch && (!released || start?.cold) && started.has(result)) {
+        if (pair) {
+            let taskId = null;
+            try {
+                if (started.has(result)) {
+                    const completed = this.mLastStartActivityRecord.value;
+                    const record = completed?.getTask() ? completed : args[0];
+                    const task = record.getTask();
+                    if (task && record.getDisplayId() === 0) taskId = tasks.id(task);
+                }
+            } catch (error) { reportError('completion', error); }
+            capturePair(pair, launch.user, launch.key, taskId);
+        } else if (launch && (!released || start?.cold) && started.has(result)) {
             try {
                 // Android reports the reused activity separately when a task is brought to the front.
                 const completed = sdk === 28 ? args[8]?.[0] : this.mLastStartActivityRecord.value;
@@ -446,7 +482,7 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
                 if (shown !== null && shown.isActivityTypeHome() && shown.getDisplayId() === 0) revealHomeLater();
             } catch (error) { reportError('home', error); }
         }
-        if (sdk === 30 && !released && started.has(result)) {
+        if (sdk === 30 && !pair && !released && started.has(result)) {
             try {
                 // Every other start that leaves an activity filling a fullscreen task under the panel: a picker or
                 // chooser inside Controls' task, a gallery or browser in a task of its own. A launch this agent
@@ -467,5 +503,6 @@ function installLiveWindowPolicy(Java, sdk, early, hooks, report) {
         try { reservation.sync(reservationWanted()); } catch (error) { reportError('reserve', error); }
         try { mover?.sync(moveWanted()); } catch (error) { reportError('display_move', error); }
     }), 400);
-    console.log('OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1 systemInsets=1 displayMove=' + (mover ? 1 : 0));
+    console.log('OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1 systemInsets=1 displayMove=' + (mover ? 1 : 0)
+        + (sdk === 30 ? ' pairs=1' : ''));
 }

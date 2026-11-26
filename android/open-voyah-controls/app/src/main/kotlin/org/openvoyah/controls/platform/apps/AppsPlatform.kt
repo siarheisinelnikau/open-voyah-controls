@@ -63,6 +63,21 @@ internal class AppsPlatform(private val activity: Activity) {
         activity.startActivity(intent, options.toBundle())
     }
 
+    fun launchPair(apps: List<InstalledApps.Entry>, token: String, leftPercent: Int): Boolean {
+        if (currentDisplayId() != Display.DEFAULT_DISPLAY) return false
+        val display = displayManager.getDisplay(Display.DEFAULT_DISPLAY) ?: return false
+        val intents = apps.mapIndexed { side, app ->
+            app.intent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                .putExtra(PAIR_PREFIX + "ID", token)
+                .putExtra(PAIR_PREFIX + "SIDE", side)
+                .putExtra(PAIR_PREFIX + "LEFT_PERCENT", leftPercent)
+        }
+        if (!intents.all { canLaunch(display, it) }) return false
+        val options = ActivityOptions.makeBasic().setLaunchDisplayId(Display.DEFAULT_DISPLAY)
+        activity.startActivities(intents.toTypedArray(), options.toBundle())
+        return true
+    }
+
     private fun canLaunch(display: Display, intent: Intent): Boolean {
         if (!display.isValid || display.state == Display.STATE_OFF || display.flags and Display.FLAG_PRIVATE != 0) return false
         if (display.displayId != Display.DEFAULT_DISPLAY &&
@@ -107,5 +122,6 @@ internal class AppsPlatform(private val activity: Activity) {
     private companion object {
         const val APK_TYPE = "application/vnd.android.package-archive"
         const val CAR_SETTINGS_STUBS = "com.android.car.frameworkpackagestubs"
+        const val PAIR_PREFIX = "org.openvoyah.controls.extra.PAIR_"
     }
 }

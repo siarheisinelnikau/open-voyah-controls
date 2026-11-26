@@ -109,12 +109,12 @@ function harness(sdk, options = {}) {
     const Java = {use: name => classes[name], cast: value => value, retain:value=>value};
     const resources = {getIdentifier:()=>1, getDimensionPixelOffset:()=>{ resourceReads++; return resourceWidth; }};
     const context = {getPackageManager:()=>({getResourcesForApplication:()=>resources})};
-    const agent = vm.runInNewContext(source('window-profiles.js','window-tasks.js','window-policy.js') +
+    const agent = vm.runInNewContext(source('window-profiles.js','window-pairs.js','window-tasks.js','window-policy.js') +
         '\nsystemTasks(Java, sdk, launcherPanelWidth(Java, context))', {
         Java, sdk, context, android9Tasks:()=>api, android11Tasks:()=>api,
     });
     return {
-        agent, task, placements:()=>placements, density:()=>override.densityDpi.value,
+        agent, api, task, placements:()=>placements, density:()=>override.densityDpi.value,
         scans:()=>scans, writes:()=>writes, notifications:()=>notifications, resourceReads:()=>resourceReads,
         reveals:()=>reveals, guests, overrides, pinned:()=>override.pinned ?? null,
         configure: (frame, dpi, panel) => { displayBounds = frame; density = dpi; resourceWidth = panel; },
@@ -129,6 +129,53 @@ function harness(sdk, options = {}) {
         },
     };
 }
+
+function pairHarness(rejectRight) {
+    const left = harness(30, {displayId:0, multiWindow:true, dpi:180, stableInsets:[0, 60, 0, 0]});
+    const right = harness(30, {displayId:0, multiWindow:true, dpi:190});
+    const find = left.api.find;
+    left.api.find = id => id === 46 ? right.task : find(id);
+    left.api.id = task => task === right.task ? 46 : 45;
+    right.task.getChildAt(0).packageName.value = 'org.example.radio';
+    for (const method of ['getOverride', 'requestedBounds', 'setOverride', 'place']) {
+        const call = left.api[method];
+        left.api[method] = (task, ...args) => {
+            if (task !== right.task) return call(task, ...args);
+            if (rejectRight && method === 'place' && args[0] !== null) throw Error('Android refused the second window');
+            return right.api[method](task, ...args);
+        };
+    }
+    return {left, right, profiles:[profile, {...profile, component:'org.example.radio/org.example.radio.Main', dpi:0}]};
+}
+
+test('a pair shares the window service frame and both tasks are restored on release', () => {
+    const {left, right, profiles} = pairHarness(false);
+    assert.equal(left.agent.applyPair(profiles, [45,46], 50, 0), 'applied');
+    assert.equal(left.mode(), 6);
+    assert.equal(right.mode(), 6);
+    assert.deepEqual(left.bounds(), [145,60,1033,720]);
+    assert.deepEqual(right.bounds(), [1033,60,1920,720]);
+    assert.equal(left.density(), 200);
+    assert.equal(right.density(), 0);
+    left.agent.release(0);
+    assert.equal(left.mode(), 1);
+    assert.equal(right.mode(), 1);
+    assert.equal(left.density(), 180);
+    assert.equal(right.density(), 190);
+});
+
+test('failure to place the second task restores the first geometry and both density overrides', () => {
+    const {left, right, profiles} = pairHarness(true);
+    assert.throws(() => left.agent.applyPair(profiles, [45,46], 50, 0), /Android refused/);
+    assert.equal(left.placements(), 2);
+    for (const task of [left, right]) {
+        assert.equal(task.mode(), 1);
+        assert.deepEqual(task.bounds(), [0,0,1920,720]);
+        assert.equal(task.pinned(), null);
+    }
+    assert.equal(left.density(), 180);
+    assert.equal(right.density(), 190);
+});
 
 test('secondary app density is opt-in, reversible and never places a task', () => {
     for (const sdk of [28, 30]) {
@@ -421,7 +468,7 @@ function livePolicy(sdk, h, options = {}) {
     const Java = {use:name=>classes[name], retain:value=>value, perform:fn=>fn(),
         scheduleOnMainThread() { throw Error('The window agent must stay off the main-thread scheduler'); }};
     const hooks = [];
-    vm.runInNewContext(source('report.js','window-profiles.js','window-policy.js') +
+    vm.runInNewContext(source('report.js','window-profiles.js','window-pairs.js','window-policy.js') +
         '\ninstallLiveWindowPolicy(Java, sdk, early, hooks, createReporter("OVC_WINDOW_ERROR"))', {
         Java, sdk, early, hooks, systemTasks:()=>h.agent, setInterval:fn=>{ tick = fn; }, setTimeout:fn=>queue.push(fn),
         console:{log:line=>logs.push(line)},
@@ -779,7 +826,7 @@ test('a complete installation announces the request protocol after both hooks ar
         const h = harness(sdk, {displayId:0});
         const service = livePolicy(sdk, h);
         assert.deepEqual(service.logs, ['OVC_WINDOW_READY protocol=3 sdk=' + sdk + ' displayDpi=1 systemInsets=1 displayMove='
-            + (sdk === 30 ? 1 : 0)]);
+            + (sdk === 30 ? '1 pairs=1' : '0')]);
         assert.equal(service.hooks.length, 2);
         assert.ok(service.hooks.every(hook=>typeof hook.implementation === 'function'));
     }
@@ -966,7 +1013,7 @@ test('the app can bring moved windows back, and turning the service off returns 
 test('without the Android 11 members the window service still starts and says the swipe is unavailable', () => {
     const service = livePolicy(30, harness(30, {displayId:0}), {movesMissing:true});
     assert.deepEqual(service.logs, ['OVC_WINDOW_ERROR stage=display_move kind=NoSuchMethodError',
-        'OVC_WINDOW_READY protocol=3 sdk=30 displayDpi=1 systemInsets=1 displayMove=0']);
+        'OVC_WINDOW_READY protocol=3 sdk=30 displayDpi=1 systemInsets=1 displayMove=0 pairs=1']);
     assert.deepEqual(service.request('recall'), {status:'rollback_failed'});
     const android9 = livePolicy(28, harness(28, {displayId:0}));
     assert.equal(android9.moves.dependencies, null);

@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_pairs_title">Пары приложений</string>
+    <string name="app_pair_add">Создать пару</string>
+    <string name="app_pair_edit">Изменить пару</string>
+    <string name="app_pair_name">Название (необязательно)</string>
+    <string name="app_pair_left">Приложение слева</string>
+    <string name="app_pair_right">Приложение справа</string>
+    <string name="app_pair_proportion">Размеры окон</string>
+    <string name="app_pair_ratio">Слева %1$d%% · справа %2$d%%</string>
+    <string name="app_pair_dock">Показывать в доке</string>
+    <string name="app_pair_empty">Сохраните два приложения, чтобы открыть их рядом одной плиткой.</string>
+    <string name="app_pair_summary">%1$s + %2$s · %3$d/%4$d</string>
+    <string name="app_pair_default_name">%1$s + %2$s</string>
+    <string name="app_pair_missing_target">%1$s (приложение недоступно)</string>
+    <string name="app_pair_remove">Удалить пару</string>
+    <string name="app_pair_remove_detail">Удалить «%1$s» с рабочего стола и из дока?</string>
+    <string name="app_pair_read_failed">Не удалось загрузить сохранённые пары.</string>
+    <string name="app_pair_save_failed">Не удалось сохранить пару. Попробуйте ещё раз.</string>
+    <string name="app_pair_service_unavailable">Для пар приложений нужен оконный сервис на поддерживаемой прошивке.</string>
+    <string name="app_pair_missing">Одно или оба приложения удалены или недоступны для запуска.</string>
+    <string name="app_pair_launch_failed">Не удалось открыть пару приложений.</string>
+    <string name="app_pair_no_space">На дисплее недостаточно места для обоих окон.</string>
+    <string name="app_pair_unsupported">Приложения или дисплей не поддерживают парную раскладку.</string>
+    <string name="app_pair_recovery_failed">Не удалось открыть пару и подтвердить восстановление окон.</string>
+    <string name="app_pair_unconfirmed">Оконный сервис не подтвердил открытие обоих окон.</string>
+</resources>

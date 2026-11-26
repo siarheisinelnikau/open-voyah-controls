@@ -159,6 +159,16 @@ internal fun AppsDestination(
     // The move mode belongs to one grid entry and one desktop; a new entry or another desktop ends it.
     var moving by remember(entry, desktop) { mutableStateOf<AppMoveState?>(null) }
     val motion = LocalCockpitMotion.current
+    val pairModel = if (AppPairViewModel.supported()) rememberAppPairs(activity) else null
+    val pairs = pairModel?.savedPairs?.collectAsStateWithLifecycle()?.value?.getOrNull().orEmpty()
+    var managingPairs by remember(entry) { mutableStateOf(false) }
+    val pairActions = if (pairModel != null) AppPairActions(pairs,
+        manage = { if (owner.lifecycle.currentState == Lifecycle.State.RESUMED) managingPairs = true },
+        open = { pair ->
+            pairModel.open(activity, pair, foreground = {
+                owner.lifecycle.currentState == Lifecycle.State.RESUMED && settings.state.value == null && !managingPairs
+            })
+        }) else null
     BackHandler(selected != null, onBack = settings::close)
     AnimatedContent(selected, contentKey = { it?.app?.id },
         transitionSpec = {
@@ -198,6 +208,7 @@ internal fun AppsDestination(
                     model.clearGridFailure()
                     settings.open(app)
                 }, open = { open(it, null, false) },
+                pairActions = pairActions,
                 move = moving,
                 endMove = { moving = null },
                 moveApp = { app, target, visible ->
@@ -261,4 +272,5 @@ internal fun AppsDestination(
                 specialAccess = ::androidPage)
         }
     }
+    if (managingPairs && pairModel != null) AppPairsDialog(pairModel, state.apps) { managingPairs = false }
 }

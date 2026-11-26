@@ -1029,6 +1029,27 @@ public final class FridaBridge {
         }
     }
 
+    /** Checks that this Android 11 firmware and the current window agent can open app pairs. */
+    public boolean windowPairReady() throws IOException {
+        synchronized (IO_LOCK) {
+            if (Build.VERSION.SDK_INT != 30 || !runtimeConfigured() || !windowHookEnabled(context) ||
+                !windowHookSupported() || !windowReviewed()) return false;
+            requireRoot();
+            return channelReady("/window", "^OVC_WINDOW_READY protocol=3 .*pairs=1( |$)");
+        }
+    }
+
+    /** A receipt is scoped to the token this app put on its two normal launcher intents. */
+    public String windowPairResult(String token) throws IOException {
+        if (token == null || !token.matches("[a-f0-9]{32}")) throw new IllegalArgumentException("Invalid app-pair token");
+        String prefix = "OVC_WINDOW_PAIR_RESULT " + token + " ";
+        String reply = command("for i in 0 1 2 3 4 5; do r=$(grep -F " + quote(prefix) + " "
+            + base + "/window/hook.log 2>/dev/null | tail -n 1); if [ -n \"$r\" ]; then printf '%s\\n' \"$r\"; exit 0; fi; "
+            + "[ \"$i\" = 5 ] || sleep 1; done");
+        int start = reply.indexOf(prefix);
+        return start < 0 ? "" : reply.substring(start + prefix.length()).trim();
+    }
+
     /** Asks the window agent to bring every window it moved to another screen back to the central display. */
     public boolean recallMovedWindows() throws IOException {
         synchronized (IO_LOCK) {

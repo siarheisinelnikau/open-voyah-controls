@@ -24,6 +24,7 @@ import org.openvoyah.controls.data.apps.DesktopLayoutStores;
 import org.openvoyah.controls.data.apps.DesktopLayoutsPreferences;
 import org.openvoyah.controls.data.apps.DesktopWallpaperPreferences;
 import org.openvoyah.controls.data.climate.LocalSeasonalClimatePreferences;
+import org.openvoyah.controls.data.display.AppPairPreferences;
 import org.openvoyah.controls.data.display.AppWindowPreferences;
 import org.openvoyah.controls.data.display.DisplayPreferences;
 import org.openvoyah.controls.data.display.DisplayPreviewPreferences;
@@ -55,7 +56,7 @@ public final class LocalSettingsArchive {
         QuickActionPreferences.STORE, RoutinePreferences.STORE, SeatMemoryPreferences.STORE, DesktopLayoutsPreferences.STORE,
         HeadlightMonitoringPreferences.STORE, LocalVehicleAutomationPreferences.STORE,
         LocalSeasonalClimatePreferences.STORE, ConditionalRulesPreferences.STORE, AppIconPreferences.STORE,
-        ActionPermissions.STORE
+        ActionPermissions.STORE, AppPairPreferences.STORE
     };
     private final Context context;
     private final SettingsStore buttons;
@@ -63,6 +64,7 @@ public final class LocalSettingsArchive {
     private final LocalizationSettings localization;
     private final DisplayPreferences display;
     private final AppWindowPreferences windows;
+    private final AppPairPreferences pairs;
     private final UpdatePreferences updates;
     private final AppGridPreferences grid;
     private final DesktopWallpaperPreferences wallpapers;
@@ -89,6 +91,7 @@ public final class LocalSettingsArchive {
         localization = new LocalizationSettings(context);
         display = new DisplayPreferences(context);
         windows = new AppWindowPreferences(context);
+        pairs = new AppPairPreferences(context);
         updates = new UpdatePreferences(context);
         grid = new AppGridPreferences(context);
         wallpapers = new DesktopWallpaperPreferences(context);
@@ -129,6 +132,7 @@ public final class LocalSettingsArchive {
                 // clusterMedia belongs to a retired switch; versions before its removal refuse a display section without it.
                 .put("display", new JSONObject().put("density", display.density()).put("clusterMedia", false))
                 .put("appWindows", windows.exportProfiles())
+                .put("appPairs", pairs.exportSettings())
                 .put("appDisplayDpi", windows.exportDefaults())
                 .put("updates", new JSONObject().put("checkOnStartup", updates.checkOnStartup()))
                 .put("appGrid", desktop.getJSONObject("appGrid"))
@@ -151,7 +155,7 @@ public final class LocalSettingsArchive {
         }
     }
 
-    private record OptionalPreferences(JSONArray windowProfiles, AppDisplayDefaults appDisplayDefaults,
+    private record OptionalPreferences(JSONArray windowProfiles, AppDisplayDefaults appDisplayDefaults, JSONArray appPairs,
             Boolean checkOnStartup, JSONObject appGrid, JSONObject desktopWallpapers, JSONObject desktopInfoCards,
             JSONObject desktopLayouts, JSONObject appearance, JSONObject displayPreview, JSONObject serviceReminder,
             JSONObject quickActions, JSONObject routines, JSONObject seatMemory, JSONObject headlightMonitoring,
@@ -326,7 +330,8 @@ public final class LocalSettingsArchive {
             ? AppIconPreferences.validateSettings(root.getJSONObject("appIcons")) : null;
         JSONObject actionPermissions = root.has("actionPermissions")
             ? ActionPermissions.validateSettings(root.getJSONObject("actionPermissions")) : null;
-        var optional = new OptionalPreferences(windowProfiles, appDisplayDefaults, checkOnStartup,
+        JSONArray appPairs = root.has("appPairs") ? AppPairPreferences.validateSettings(root.getJSONArray("appPairs")) : null;
+        var optional = new OptionalPreferences(windowProfiles, appDisplayDefaults, appPairs, checkOnStartup,
             appGrid, desktopWallpapers, desktopInfoCards, desktopLayouts, appearance, displayPreview, serviceReminder,
             quickActions, routines, seatMemory, headlightMonitoring, vehicleAutomation, seasonalClimate, conditionalRules,
             appIcons, actionPermissions);
@@ -351,6 +356,7 @@ public final class LocalSettingsArchive {
         for (String name : REQUIRED_STORES) snapshot(previous, name);
         if (optional.windowProfiles() != null || optional.appDisplayDefaults() != null)
             snapshot(previous, "app_windows");
+        if (optional.appPairs() != null) snapshot(previous, AppPairPreferences.STORE);
         if (optional.checkOnStartup() != null) snapshot(previous, "updates");
         if (optional.appGrid() != null) snapshot(previous, AppGridPreferences.STORE);
         if (optional.desktopWallpapers() != null) snapshot(previous, DesktopWallpaperPreferences.STORE);
@@ -376,6 +382,7 @@ public final class LocalSettingsArchive {
             display.restore(restore.density);
             if (optional.windowProfiles() != null) windows.restoreProfiles(optional.windowProfiles());
             if (optional.appDisplayDefaults() != null) windows.saveDefaults(optional.appDisplayDefaults());
+            if (optional.appPairs() != null) pairs.restoreSettings(optional.appPairs());
             if (optional.checkOnStartup() != null) updates.checkOnStartup(optional.checkOnStartup());
             if (optional.appGrid() != null) grid.restoreSettings(optional.appGrid());
             if (optional.desktopWallpapers() != null) wallpapers.restoreSettings(optional.desktopWallpapers());

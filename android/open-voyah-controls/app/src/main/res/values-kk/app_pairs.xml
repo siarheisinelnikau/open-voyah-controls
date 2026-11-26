@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_pairs_title">Қолданба жұптары</string>
+    <string name="app_pair_add">Жұп жасау</string>
+    <string name="app_pair_edit">Жұпты өңдеу</string>
+    <string name="app_pair_name">Атауы (міндетті емес)</string>
+    <string name="app_pair_left">Сол жақ қолданба</string>
+    <string name="app_pair_right">Оң жақ қолданба</string>
+    <string name="app_pair_proportion">Терезе өлшемдері</string>
+    <string name="app_pair_ratio">Сол жақ %1$d%% · оң жақ %2$d%%</string>
+    <string name="app_pair_dock">Докта көрсету</string>
+    <string name="app_pair_empty">Бір тақта арқылы қатар ашу үшін екі қолданбаны сақтаңыз.</string>
+    <string name="app_pair_summary">%1$s + %2$s · %3$d/%4$d</string>
+    <string name="app_pair_default_name">%1$s + %2$s</string>
+    <string name="app_pair_missing_target">%1$s (қолданба қолжетімсіз)</string>
+    <string name="app_pair_remove">Жұпты жою</string>
+    <string name="app_pair_remove_detail">«%1$s» жұмыс үстелінен және доктан жойылсын ба?</string>
+    <string name="app_pair_read_failed">Сақталған жұптар жүктелмеді.</string>
+    <string name="app_pair_save_failed">Жұп сақталмады. Қайталап көріңіз.</string>
+    <string name="app_pair_service_unavailable">Қолданба жұптарына қолдау көрсетілетін микробағдарламадағы терезе қызметі қажет.</string>
+    <string name="app_pair_missing">Бір немесе екі қолданба орнатылмаған немесе іске қосылмайды.</string>
+    <string name="app_pair_launch_failed">Қолданба жұбы ашылмады.</string>
+    <string name="app_pair_no_space">Экранда екі терезеге де орын жетпейді.</string>
+    <string name="app_pair_unsupported">Қолданбалар немесе экран жұптық орналастыруды қолдамайды.</string>
+    <string name="app_pair_recovery_failed">Жұп ашылмады және терезелердің қалпына келтірілгені расталмады.</string>
+    <string name="app_pair_unconfirmed">Терезе қызметі екі терезенің де ашылғанын растамады.</string>
+</resources>

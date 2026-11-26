@@ -184,6 +184,26 @@ public final class LocalSettingsArchiveTest extends AndroidTestCase {
         } finally { archive.apply(before); }
     }
 
+    public void testAppPairsRoundTripAndOlderArchivesKeepThem() throws Exception {
+        var archive = new LocalSettingsArchive(getContext());
+        var before = archive.prepare(archive.exportJson());
+        try {
+            var root = new JSONObject(archive.exportJson());
+            var pair = new JSONObject().put("id", "12345678900000000000000000000000")
+                .put("name", "Navigation and music").put("left", "com.example.maps/com.example.maps.MainActivity")
+                .put("right", "com.example.media/com.example.media.MainActivity").put("leftPercent", 67).put("inDock", true);
+            root.put("appPairs", new JSONArray().put(pair));
+            archive.apply(archive.prepare(root.toString()));
+            var exported = new JSONObject(archive.exportJson()).getJSONArray("appPairs");
+            assertEquals(1, exported.length());
+            assertEquals(pair.getString("left"), exported.getJSONObject(0).getString("left"));
+            assertEquals(67, exported.getJSONObject(0).getInt("leftPercent"));
+            root.remove("appPairs");
+            archive.apply(archive.prepare(root.toString()));
+            assertEquals(exported.toString(), new JSONObject(archive.exportJson()).getJSONArray("appPairs").toString());
+        } finally { archive.apply(before); }
+    }
+
     public void testEarlierPreferenceSectionsRestoreSuppliedFieldsOnly() throws Exception {
         Context context = getContext();
         var archive = new LocalSettingsArchive(context);

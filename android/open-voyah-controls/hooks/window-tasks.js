@@ -1,5 +1,6 @@
 import { android9Tasks } from './window-task-android9.js';
 import { android11Tasks } from './window-task-android11.js';
+import { pairFrames } from './window-pairs.js';
 import {
     CENTRAL_DISPLAY, SECONDARY_DISPLAY, drawsBesidePanel, fitsReservedStrip, rectValues, sameBounds, windowBounds
 } from './window-profiles.js';
@@ -195,13 +196,13 @@ export function systemTasks(Java, sdk, panelWidth) {
         return bounds && !bounds.isEmpty() ? rectValues(bounds) : null;
     }
 
-    function snapshot(task, mode) {
+    function snapshot(task, mode, useNativeFallback = true) {
         const override = Configuration.$new(api.getOverride(task));
         const dpi = override.densityDpi.value;
         // Only this agent puts tasks into multi-window. One it does not track was placed by an earlier agent process,
         // whose record of the original is gone: the task came from Android's fullscreen placement and returns there,
         // at the display density (Android never gives a task a density of its own).
-        if (mode === framework.multiWindow && !saved.has(key(task))) {
+        if (useNativeFallback && mode === framework.multiWindow && !saved.has(key(task))) {
             return {mode:framework.fullscreen, bounds:null, override:null, dpi:0};
         }
         return {mode, bounds:geometry(task, mode), override, dpi};
@@ -275,74 +276,116 @@ export function systemTasks(Java, sdk, panelWidth) {
      * fills the usable width then keeps Android's placement and only receives its density.
      */
     function apply(profile, user, taskId, launch = null, displayId = 0, reservedPx = 0) {
+        return api.lock(() => applyLocked(profile, user, taskId, launch, displayId, reservedPx));
+    }
+
+    function applyLocked(profile, user, taskId, launch, displayId, reservedPx, workspaceBounds = null) {
         const pkg = profile.component.split('/')[0];
+        if (api.user() !== user || api.isLocked()) throw error('unsupported_task');
+        const screen = screenOf(displayId);
+        if (!screen || (displayId !== 0 && taskId === undefined)) throw error('no_display');
+        const match = taskId === undefined ? runningTasks(pkg, user).next().value : matchingTask(taskId, pkg, user, displayId);
+        if (!match) throw error('no_task');
+        const {task, records} = match;
+        const mode = task.getWindowingMode();
+        if (!knownMode(task, mode)) throw error('unsupported_task');
+        const before = snapshot(task, mode);
+        const taskKey = key(task);
+        const dpi = profile.dpi;
+        const changeDensity = before.dpi !== dpi;
+        const canPlace = screen === CENTRAL_DISPLAY && api.supportsFreeform() && task.isResizeable() &&
+            (workspaceBounds !== null || !fitsReservedStrip(profile, reservedPx));
+        if (screen === CENTRAL_DISPLAY && !canPlace && dpi === 0 && !changeDensity) throw error('unsupported_window');
+        // Android may already have applied our provisional bounds. A new task keeps its native density.
+        const launchOriginal = canPlace && launch?.id === taskKey ? launch.prior : null;
+        let rollback = launchOriginal;
+        try {
+            const bounds = canPlace ? workspaceBounds ?? boundsFor(profile, 0, ...api.minimum(task)) : null;
+            if (canPlace && bounds === null) throw error('no_space');
+            rollback ??= before;
+            // The mode that keeps the bounds without a caption bar where the release has one. A launch reaches it
+            // from Android's fullscreen placement there, and from its freeform launch bounds elsewhere.
+            const placed = canPlace ? placedMode() : framework.freeform;
+            // Multi-window would size the app's resources like a fullscreen task; they are fixed to the bounds.
+            const pinned = bounds !== null && placed === framework.multiWindow ? bounds
+                : bounds === null && mode === framework.multiWindow ? geometry(task) : null;
+            const resources = () => {
+                const wanted = api.densityConfig(task, dpi, pinned);
+                if (api.resourcesMatch(api.getOverride(task), wanted)) return;
+                api.setOverride(task, wanted);
+                notify(records);
+            };
+            const changeBounds = bounds !== null && (before.mode !== placed || !sameBounds(before.bounds, bounds));
+            // Activities placed one by one while the task was fullscreen now follow the task's bounds.
+            if (changeBounds) for (const r of records) clearGuest(r);
+            // Sizes first: the move to multi-window then changes only the windowing mode the app sees.
+            if (changeBounds && pinned !== null) resources();
+            if (changeBounds) api.place(task, toRect(bounds), placed);
+            if (bounds !== null && (task.getWindowingMode() !== placed || !sameBounds(geometry(task), bounds))) {
+                throw error('placement_changed');
+            }
+            resources();
+            const actualDpi = task.getConfiguration().densityDpi.value;
+            if (dpi !== 0 && actualDpi !== dpi) throw error('density_rejected');
+            const actual = rectValues(task.getBounds());
+            if (bounds !== null && !sameBounds(actual, bounds)) throw error('placement_changed');
+            if (changeBounds || changeDensity) {
+                const entry = tracking(task, taskKey, pkg, user, before.dpi);
+                if (canPlace) entry.central ??= before;
+                entry.appliedDpi = dpi !== entry.dpi ? dpi : null;
+            }
+            return {width:actual[2] - actual[0], dpi:actualDpi, left:actual[0],
+                status:canPlace ? 'applied' : 'density_only'};
+        } catch (failure) {
+            if (rollback) {
+                try { restore(task, records, rollback, displayId === 0); } catch (_) { throw error('rollback_failed'); }
+                const entry = saved.get(taskKey);
+                if (launchOriginal && entry?.central === launchOriginal) {
+                    entry.central = null;
+                    if (entry.appliedDpi === null) saved.delete(taskKey);
+                }
+            }
+            throw failure;
+        }
+    }
+
+    function applyPair(profiles, taskIds, percent, user) {
         return api.lock(() => {
-            if (api.user() !== user || api.isLocked()) throw error('unsupported_task');
-            const screen = screenOf(displayId);
-            if (!screen || (displayId !== 0 && taskId === undefined)) throw error('no_display');
-            const match = taskId === undefined ? runningTasks(pkg, user).next().value : matchingTask(taskId, pkg, user, displayId);
-            if (!match) throw error('no_task');
-            const {task, records} = match;
-            const mode = task.getWindowingMode();
-            if (!knownMode(task, mode)) throw error('unsupported_task');
-            const before = snapshot(task, mode);
-            const taskKey = key(task);
-            const dpi = profile.dpi;
-            const changeDensity = before.dpi !== dpi;
-            const canPlace = screen === CENTRAL_DISPLAY && api.supportsFreeform() && task.isResizeable() &&
-                !fitsReservedStrip(profile, reservedPx);
-            if (screen === CENTRAL_DISPLAY && !canPlace && dpi === 0 && !changeDensity) throw error('unsupported_window');
-            // Android may already have applied our provisional bounds. A new task keeps its native density.
-            const launchOriginal = canPlace && launch?.id === taskKey ? launch.prior : null;
-            let rollback = launchOriginal;
+            if (sdk !== 30 || api.user() !== user || api.isLocked() || !api.supportsFreeform() ||
+                placedMode() !== framework.multiWindow) throw error('unsupported_window');
+            const matches = profiles.map((profile, index) => {
+                const match = matchingTask(taskIds[index], profile.component.split('/')[0], user, 0);
+                if (!match || !knownMode(match.task) || !match.task.isResizeable()) throw error('unsupported_task');
+                const id = key(match.task);
+                const entry = saved.get(id);
+                const guestBounds = match.records.map(record => ({record, bounds:api.activityBounds?.(record) ?? null}));
+                return {...match, id, guestBounds, entry: entry ? {...entry} : null,
+                    before: snapshot(match.task, match.task.getWindowingMode(), false)};
+            });
+            const panelPx = Math.max(...profiles.map(profile => profile.panelPx));
+            const frame = boundsFor({width: 100, panelPx});
+            const bounds = frame && pairFrames(frame, percent, ...matches.map(({task}) => api.minimum(task)));
+            if (!bounds) throw error('no_space');
             try {
-                const bounds = canPlace ? boundsFor(profile, 0, ...api.minimum(task)) : null;
-                if (canPlace && bounds === null) throw error('no_space');
-                rollback ??= before;
-                // The mode that keeps the bounds without a caption bar where the release has one. A launch reaches it
-                // from Android's fullscreen placement there, and from its freeform launch bounds elsewhere.
-                const placed = canPlace ? placedMode() : framework.freeform;
-                // Multi-window would size the app's resources like a fullscreen task; they are fixed to the bounds.
-                const pinned = bounds !== null && placed === framework.multiWindow ? bounds
-                    : bounds === null && mode === framework.multiWindow ? geometry(task) : null;
-                const resources = () => {
-                    const wanted = api.densityConfig(task, dpi, pinned);
-                    if (api.resourcesMatch(api.getOverride(task), wanted)) return;
-                    api.setOverride(task, wanted);
-                    notify(records);
-                };
-                const changeBounds = bounds !== null && (before.mode !== placed || !sameBounds(before.bounds, bounds));
-                // Activities placed one by one while the task was fullscreen now follow the task's bounds.
-                if (changeBounds) for (const r of records) clearGuest(r);
-                // Sizes first: the move to multi-window then changes only the windowing mode the app sees.
-                if (changeBounds && pinned !== null) resources();
-                if (changeBounds) api.place(task, toRect(bounds), placed);
-                if (bounds !== null && (task.getWindowingMode() !== placed || !sameBounds(geometry(task), bounds))) {
-                    throw error('placement_changed');
-                }
-                resources();
-                const actualDpi = task.getConfiguration().densityDpi.value;
-                if (dpi !== 0 && actualDpi !== dpi) throw error('density_rejected');
-                const actual = rectValues(task.getBounds());
-                if (bounds !== null && !sameBounds(actual, bounds)) throw error('placement_changed');
-                if (changeBounds || changeDensity) {
-                    const entry = tracking(task, taskKey, pkg, user, before.dpi);
-                    if (canPlace) entry.central ??= before;
-                    entry.appliedDpi = dpi !== entry.dpi ? dpi : null;
-                }
-                return {width:actual[2] - actual[0], dpi:actualDpi, left:actual[0],
-                    status:canPlace ? 'applied' : 'density_only'};
+                profiles.forEach((profile, index) => applyLocked(profile, user, taskIds[index], null, 0, 0, bounds[index]));
             } catch (failure) {
-                if (rollback) {
-                    try { restore(task, records, rollback, displayId === 0); } catch (_) { throw error('rollback_failed'); }
-                    const entry = saved.get(taskKey);
-                    if (launchOriginal && entry?.central === launchOriginal) {
-                        entry.central = null;
-                        if (entry.appliedDpi === null) saved.delete(taskKey);
-                    }
+                let restored = true;
+                for (const {task, records, before, id, entry, guestBounds} of matches) {
+                    try {
+                        restore(task, records, before);
+                        if (entry) saved.set(id, entry); else saved.delete(id);
+                        for (const guest of guestBounds) {
+                            if (guest.bounds === null || sameBounds(api.activityBounds(guest.record), guest.bounds)) continue;
+                            api.placeActivity(guest.record, guest.bounds);
+                            guest.record.ensureActivityConfiguration(0, false);
+                            rememberGuest(guest.record);
+                        }
+                    } catch (_) { restored = false; }
                 }
+                if (!restored) throw error('rollback_failed');
                 throw failure;
             }
+            return 'applied';
         });
     }
 
@@ -454,7 +497,7 @@ export function systemTasks(Java, sdk, panelWidth) {
     }
 
     return {
-        Rect, framework, boundsFor, apply, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf, prepareMove, placeBelowBar,
+        Rect, framework, boundsFor, apply, applyPair, captureLaunch, rememberLaunch, release, releaseSecondary, screenOf, prepareMove, placeBelowBar,
         placedMode,
         freeformAvailable: () => api.supportsFreeform() && !api.isLocked(),
         /** After a start of home: hides the tasks that home, now on top of display 0, covers. */
